@@ -1,0 +1,489 @@
+---
+title: "Gasless Execution"
+description: "Let TetraFi submit transactions on behalf of your users for a gas-free swap experience."
+---
+
+In gasless mode, the user signs a quote and TetraFi submits the settlement transaction on-chain. The user never pays gas - making it ideal for wallets and super-apps where UX simplicity matters.
+
+The trade-off: market makers retain **last look**, meaning they can reject a quote before settlement. In return, pricing is tighter than self-execution.
+
+<Info>
+  **When to use gasless:** You're building a consumer-facing product where users shouldn't think about gas. For solvers and aggregators executing trades programmatically, see the [self-execution quickstart](/rfq-api/quickstart).
+</Info>
+
+## How It Differs from Self-Execution
+
+|                 | Self-execution                          | Gasless (API default)                      |
+| --------------- | --------------------------------------- | ------------------------------------------ |
+| Quote request   | `gasless=false`                         | `gasless=true` (default) + approval params |
+| Who submits tx  | You broadcast via your RPC              | TetraFi submits on-chain                     |
+| Order endpoint  | Not used - `tx` comes from `/v3/quote`  | POST signature to `/v3/order`              |
+| Last look       | No - quote is firm once signed          | Yes - maker can reject                     |
+| Gas cost        | Paid by taker                           | Paid by TetraFi                              |
+| Token approvals | Standard approve on settlement contract | Standard or Permit2                        |
+
+## 1. Request a Gasless Quote
+
+Add `gasless=true` and the relevant approval parameters to your quote request:
+
+```python theme={null}
+import httpx
+
+NETWORK = "ethereum"
+URL = f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote"
+
+params = {
+    "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  # WETH
+    "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",   # USDC
+    "sell_amounts": "1000000000000000000",  # 1 WETH
+    "taker_address": "0xYourWalletAddress",
+    "gasless": "true",
+}
+
+resp = httpx.get(URL, params=params)
+quote = resp.json()
+```
+
+### Approval Parameters
+
+| Parameter       | Description                                                                  |
+| --------------- | ---------------------------------------------------------------------------- |
+| `gasless`       | Set to `true` to enable gasless mode                                         |
+| `approval_type` | `Standard` (default) or `Permit2` - controls how token approvals are handled |
+
+<Tip>
+  **Which approval type?** `Standard` (the default) requires the user to have already approved the settlement contract. `Permit2` removes the need for a separate approval transaction but adds a second signature step. For bundled approvals without a separate transaction, see [Using Permit2 Approvals](#using-permit2-approvals) below.
+</Tip>
+
+## 2. Sign the Quote
+
+Sign the EIP-712 typed data from the quote response - the same signing flow as self-execution:
+
+```python theme={null}
+from eth_account import Account
+from eth_account.messages import encode_typed_data
+
+PRIVATE_KEY = "0x<your_private_key_hex>"
+
+typed_data = {
+    "types": RFQ_EIP712_TYPES,  # see below
+    "domain": {
+        "name": "TetraFiSettlement",
+        "version": "2",
+        "chainId": quote["chainId"],
+        "verifyingContract": quote["settlementAddress"],
+    },
+    "primaryType": quote["onchainOrderType"],
+    "message": quote["toSign"],
+}
+
+signable = encode_typed_data(full_message=typed_data)
+signed = Account.sign_message(signable, private_key=PRIVATE_KEY)
+signature = signed.signature.hex()
+```
+
+The `RFQ_EIP712_TYPES` dictionary contains the `EIP712Domain` and all three order type definitions. The API selects the order type automatically based on the trade structure - use the `onchainOrderType` from the quote response as your `primaryType`.
+
+<Accordion title="EIP-712 order type schemas">
+  | Type             | When used                     | Key differences                                               |
+  | ---------------- | ----------------------------- | ------------------------------------------------------------- |
+  | `SingleOrder`    | One-to-one trades             | Scalar fields: `maker_address`, `taker_token`, `taker_amount` |
+  | `MultiOrder`     | Single maker, multiple tokens | Array fields: `taker_tokens[]`, `taker_amounts[]`             |
+  | `AggregateOrder` | Multiple makers               | Nested arrays: `taker_tokens[][]`, `maker_addresses[]`        |
+
+  **SingleOrder** - simple one-to-one swaps (e.g. WETH → USDC):
+
+  ```python theme={null}
+  "SingleOrder": [
+      {"name": "partner_id", "type": "uint64"},
+      {"name": "expiry", "type": "uint256"},
+      {"name": "taker_address", "type": "address"},
+      {"name": "maker_address", "type": "address"},
+      {"name": "maker_nonce", "type": "uint256"},
+      {"name": "taker_token", "type": "address"},
+      {"name": "maker_token", "type": "address"},
+      {"name": "taker_amount", "type": "uint256"},
+      {"name": "maker_amount", "type": "uint256"},
+      {"name": "receiver", "type": "address"},
+      {"name": "packed_commands", "type": "uint256"},
+  ]
+  ```
+
+  **MultiOrder** - single maker fills a multi-token trade:
+
+  ```python theme={null}
+  "MultiOrder": [
+      {"name": "partner_id", "type": "uint64"},
+      {"name": "expiry", "type": "uint256"},
+      {"name": "taker_address", "type": "address"},
+      {"name": "maker_address", "type": "address"},
+      {"name": "maker_nonce", "type": "uint256"},
+      {"name": "taker_tokens", "type": "address[]"},
+      {"name": "maker_tokens", "type": "address[]"},
+      {"name": "taker_amounts", "type": "uint256[]"},
+      {"name": "maker_amounts", "type": "uint256[]"},
+      {"name": "receiver", "type": "address"},
+      {"name": "commands", "type": "bytes"},
+  ]
+  ```
+
+  **AggregateOrder** - multiple makers fill a multi-token trade:
+
+  ```python theme={null}
+  "AggregateOrder": [
+      {"name": "partner_id", "type": "uint64"},
+      {"name": "expiry", "type": "uint256"},
+      {"name": "taker_address", "type": "address"},
+      {"name": "maker_addresses", "type": "address[]"},
+      {"name": "maker_nonces", "type": "uint256[]"},
+      {"name": "taker_tokens", "type": "address[][]"},
+      {"name": "maker_tokens", "type": "address[][]"},
+      {"name": "taker_amounts", "type": "uint256[][]"},
+      {"name": "maker_amounts", "type": "uint256[][]"},
+      {"name": "receiver", "type": "address"},
+      {"name": "commands", "type": "bytes"},
+  ]
+  ```
+</Accordion>
+
+## 3. Submit the Order
+
+Unlike self-execution, gasless orders are submitted to TetraFi's `/v3/order` endpoint. TetraFi handles the on-chain settlement:
+
+```python theme={null}
+order_resp = httpx.post(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/order",
+    json={
+        "quote_id": quote["quoteId"],
+        "signature": f"0x{signature}",
+    },
+)
+order = order_resp.json()
+tx_hash = order["txHash"]
+print(f"TetraFi submitted transaction: {tx_hash}")
+```
+
+At this point TetraFi has your signed order and will submit the settlement transaction on-chain.
+
+## 4. Monitor Settlement
+
+Poll the order status endpoint to track progress:
+
+```python theme={null}
+import time
+
+while True:
+    status_resp = httpx.get(
+        f"https://api.tetrafi.io/pmm/{NETWORK}/v3/order-status",
+        params={"quote_id": quote["quoteId"]},
+    )
+    status = status_resp.json()
+    print(f"Status: {status['status']}")
+
+    if status["status"] in ("Settled", "Confirmed", "Failed"):
+        break
+
+    time.sleep(2)
+```
+
+### Order Statuses
+
+| Status      | Meaning                                                                                      |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `Pending`   | TetraFi received the order and is preparing to submit                                          |
+| `Success`   | Maker accepted - transaction is being broadcast                                              |
+| `Settled`   | Transaction confirmed on-chain - tokens have been transferred                                |
+| `Confirmed` | Final success state - settlement fully confirmed                                             |
+| `Failed`    | Order failed. Covers last look rejections, on-chain failures, expiry, and validation errors. |
+
+The `order-status` response also includes `txHash` (when available) and `amounts` (received token amounts after settlement).
+
+<Warning>
+  **Last look rejections** are expected in gasless mode. When a maker rejects, the status will be `Failed`. Your integration should handle this gracefully - request a new quote and retry. The user's tokens are never at risk during a rejection.
+</Warning>
+
+## Full Example
+
+```python theme={null}
+import time
+
+import httpx
+from eth_account import Account
+from eth_account.messages import encode_typed_data
+
+PRIVATE_KEY = "0x<your_private_key_hex>"
+NETWORK = "ethereum"
+
+# --- 1. Request a gasless quote ---
+
+taker_address = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+
+quote_resp = httpx.get(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
+    params={
+        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "sell_amounts": "1000000000000000000",
+        "taker_address": taker_address,
+        "gasless": "true",
+    },
+)
+quote = quote_resp.json()
+buy_token = list(quote["buyTokens"].values())[0]
+print(f'Quote: sell 1 WETH for {buy_token["amount"]} {buy_token["symbol"]}')
+
+# --- 2. Sign the EIP-712 typed data ---
+
+RFQ_ORDER_TYPES = {
+    "SingleOrder": [
+        {"name": "partner_id", "type": "uint64"},
+        {"name": "expiry", "type": "uint256"},
+        {"name": "taker_address", "type": "address"},
+        {"name": "maker_address", "type": "address"},
+        {"name": "maker_nonce", "type": "uint256"},
+        {"name": "taker_token", "type": "address"},
+        {"name": "maker_token", "type": "address"},
+        {"name": "taker_amount", "type": "uint256"},
+        {"name": "maker_amount", "type": "uint256"},
+        {"name": "receiver", "type": "address"},
+        {"name": "packed_commands", "type": "uint256"},
+    ],
+    "MultiOrder": [
+        {"name": "partner_id", "type": "uint64"},
+        {"name": "expiry", "type": "uint256"},
+        {"name": "taker_address", "type": "address"},
+        {"name": "maker_address", "type": "address"},
+        {"name": "maker_nonce", "type": "uint256"},
+        {"name": "taker_tokens", "type": "address[]"},
+        {"name": "maker_tokens", "type": "address[]"},
+        {"name": "taker_amounts", "type": "uint256[]"},
+        {"name": "maker_amounts", "type": "uint256[]"},
+        {"name": "receiver", "type": "address"},
+        {"name": "commands", "type": "bytes"},
+    ],
+    "AggregateOrder": [
+        {"name": "partner_id", "type": "uint64"},
+        {"name": "expiry", "type": "uint256"},
+        {"name": "taker_address", "type": "address"},
+        {"name": "maker_addresses", "type": "address[]"},
+        {"name": "maker_nonces", "type": "uint256[]"},
+        {"name": "taker_tokens", "type": "address[][]"},
+        {"name": "maker_tokens", "type": "address[][]"},
+        {"name": "taker_amounts", "type": "uint256[][]"},
+        {"name": "maker_amounts", "type": "uint256[][]"},
+        {"name": "receiver", "type": "address"},
+        {"name": "commands", "type": "bytes"},
+    ],
+}
+
+order_type = quote["onchainOrderType"]
+
+typed_data = {
+    "types": {
+        "EIP712Domain": [
+            {"name": "name", "type": "string"},
+            {"name": "version", "type": "string"},
+            {"name": "chainId", "type": "uint256"},
+            {"name": "verifyingContract", "type": "address"},
+        ],
+        order_type: RFQ_ORDER_TYPES[order_type],
+    },
+    "domain": {
+        "name": "TetraFiSettlement",
+        "version": "2",
+        "chainId": quote["chainId"],
+        "verifyingContract": quote["settlementAddress"],
+    },
+    "primaryType": order_type,
+    "message": quote["toSign"],
+}
+
+signable = encode_typed_data(full_message=typed_data)
+signed = Account.sign_message(signable, private_key=PRIVATE_KEY)
+signature = signed.signature.hex()
+
+# --- 3. Submit the order to TetraFi ---
+
+order_resp = httpx.post(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/order",
+    json={"quote_id": quote["quoteId"], "signature": f"0x{signature}"},
+)
+order = order_resp.json()
+print(f'Order submitted - tx: {order["txHash"]}')
+
+# --- 4. Poll for settlement ---
+
+while True:
+    status_resp = httpx.get(
+        f"https://api.tetrafi.io/pmm/{NETWORK}/v3/order-status",
+        params={"quote_id": quote["quoteId"]},
+    )
+    status = status_resp.json()
+    print(f'Status: {status["status"]}')
+
+    if status["status"] in ("Settled", "Confirmed"):
+        print(f'Trade settled! tx: {status.get("txHash")}')
+        break
+    elif status["status"] == "Failed":
+        print("Order failed - request a new quote and retry.")
+        break
+
+    time.sleep(2)
+```
+
+<Info>
+  **Dependencies:** `pip install httpx eth_account` (or `uv add httpx eth_account`)
+</Info>
+
+## Using Permit2 Approvals
+
+With `approval_type=Standard`, the user must have approved the settlement contract before trading (a one-time on-chain transaction per token). Permit2 removes this requirement by using an off-chain signature for token approvals instead.
+
+<Note>
+  This differs from the Aggregation API's Permit2 flow. The Aggregation API wraps the order inside `PermitBatchWitnessTransferFrom` - you sign a single combined message. The RFQ API keeps order signing unchanged and adds a **separate** `PermitBatch` signature for token approvals.
+</Note>
+
+### How it works
+
+1. **One-time setup:** Approve the Permit2 contract (`0x000000000022D473030F116dDEE9F6B43aC78BA3`) for your sell tokens. This is a standard ERC-20 `approve()` - the same kind of transaction you'd do for the settlement contract with Standard approvals, but targeting the Permit2 contract instead.
+
+2. **Request a quote** with `approval_type=Permit2`:
+
+```python theme={null}
+params = {
+    "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "sell_amounts": "1000000000000000000",
+    "taker_address": taker_address,
+    "gasless": "true",
+    "approval_type": "Permit2",
+}
+```
+
+3. **Sign the order** the same way as Standard - `TetraFiSettlement` domain, same order types. The `toSign` data is identical.
+
+4. **Check `requiredSignatures`** in the quote response. If it contains token addresses, generate a `PermitBatch` signature:
+
+```python theme={null}
+from web3 import Web3
+
+PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+
+PERMIT2_ABI = [
+    {
+        "inputs": [
+            {"name": "owner", "type": "address"},
+            {"name": "token", "type": "address"},
+            {"name": "spender", "type": "address"},
+        ],
+        "name": "allowance",
+        "outputs": [
+            {"name": "amount", "type": "uint160"},
+            {"name": "expiration", "type": "uint48"},
+            {"name": "nonce", "type": "uint48"},
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    }
+]
+
+w3 = Web3(Web3.HTTPProvider("https://eth.llamarpc.com"))
+permit2 = w3.eth.contract(
+    address=Web3.to_checksum_address(PERMIT2_ADDRESS), abi=PERMIT2_ABI
+)
+
+required_sigs = quote.get("requiredSignatures", [])
+
+if required_sigs:
+    settlement = quote["settlementAddress"]
+    approvals_deadline = quote["expiry"]  # use quote expiry
+    token_nonces = []
+    token_addresses = []
+    details = []
+
+    for token_addr in required_sigs:
+        amount, expiration, nonce = permit2.functions.allowance(
+            Web3.to_checksum_address(taker_address),
+            Web3.to_checksum_address(token_addr),
+            Web3.to_checksum_address(settlement),
+        ).call()
+        token_nonces.append(nonce)
+        token_addresses.append(token_addr)
+        details.append({
+            "token": token_addr,
+            "amount": 2**160 - 1,  # max amount
+            "expiration": approvals_deadline,
+            "nonce": nonce,
+        })
+
+    permit_typed_data = {
+        "types": {
+            "EIP712Domain": [
+                {"name": "name", "type": "string"},
+                {"name": "chainId", "type": "uint256"},
+                {"name": "verifyingContract", "type": "address"},
+            ],
+            "PermitBatch": [
+                {"name": "details", "type": "PermitDetails[]"},
+                {"name": "spender", "type": "address"},
+                {"name": "sigDeadline", "type": "uint256"},
+            ],
+            "PermitDetails": [
+                {"name": "token", "type": "address"},
+                {"name": "amount", "type": "uint160"},
+                {"name": "expiration", "type": "uint48"},
+                {"name": "nonce", "type": "uint48"},
+            ],
+        },
+        "domain": {
+            "name": "Permit2",
+            "chainId": quote["chainId"],
+            "verifyingContract": PERMIT2_ADDRESS,
+        },
+        "primaryType": "PermitBatch",
+        "message": {
+            "details": details,
+            "spender": settlement,
+            "sigDeadline": approvals_deadline,
+        },
+    }
+
+    permit_signable = encode_typed_data(full_message=permit_typed_data)
+    permit_signed = Account.sign_message(permit_signable, private_key=PRIVATE_KEY)
+    permit2_signature = permit_signed.signature.hex()
+```
+
+5. **POST to `/order`** with the additional `permit2` field:
+
+```python theme={null}
+order_body = {
+    "quote_id": quote["quoteId"],
+    "signature": f"0x{signature}",
+}
+
+if required_sigs:
+    order_body["permit2"] = {
+        "signature": f"0x{permit2_signature}",
+        "approvals_deadline": approvals_deadline,
+        "token_addresses": token_addresses,
+        "token_nonces": token_nonces,
+    }
+
+order_resp = httpx.post(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/order",
+    json=order_body,
+)
+```
+
+<Info>
+  On subsequent trades for the same token, `requiredSignatures` will be empty once the Permit2 allowance is active. In that case, no `permit2` field is needed in the POST body - it works the same as Standard.
+</Info>
+
+### `permit2` Field Reference
+
+| Field                | Type       | Description                                                           |
+| -------------------- | ---------- | --------------------------------------------------------------------- |
+| `signature`          | string     | Hex-encoded `PermitBatch` EIP-712 signature                           |
+| `approvals_deadline` | integer    | Unix timestamp - must match `sigDeadline` in the signed `PermitBatch` |
+| `token_addresses`    | string\[]  | Token addresses from `requiredSignatures`                             |
+| `token_nonces`       | integer\[] | Permit2 nonces for each token (from `allowance()` call)               |

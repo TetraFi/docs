@@ -1,0 +1,286 @@
+---
+title: "Pricing Unlisted Pairs"
+description: "Estimate prices for token pairs that aren't directly quoted by constructing synthetic rates through a common quote token."
+---
+
+Not every token pair has a direct price in the stream. If you need a price for WETH/WBTC but only WETH/USDC and WBTC/USDC are available, you can construct a **synthetic pair** by routing through the common quote token.
+
+This is useful for pre-trade estimation - checking whether a trade is worth pursuing before requesting a firm quote from the RFQ API.
+
+<Info>
+  **Use case:** You're a solver or aggregator routing a WETH/WBTC swap. The Price API stream doesn't have a direct WETH/WBTC pair, but it does have WETH/USDC and WBTC/USDC. Instead of requesting a firm quote blind, you estimate the synthetic price from streamed depth to decide if TetraFi is competitive for this route.
+</Info>
+
+## How It Works
+
+Say you want an indicative price for buying WBTC with WETH, but the stream only has WETH/USDC and WBTC/USDC. You construct the synthetic rate in two legs:
+
+1. **Sell WETH for USDC** - use the WETH/USDC bids (you're selling the base)
+2. **Buy WBTC with USDC** - use the WBTC/USDC asks (you're buying the base)
+
+The effective WETH/WBTC price is the ratio of the two VWAP estimates. Using [VWAP on each leg](/price-api/guides/vwap-estimation) rather than top-of-book gives you a size-aware synthetic price, since tier cadence (the size available at each level) often differs between pairs.
+
+### Step-by-Step Breakdown
+
+<Steps>
+  <Step title="Scan the stream for common quote tokens">
+    Build a map of all pairs in the stream. For the two base tokens you care about, find quote tokens they both share using `find_common_quotes`.
+  </Step>
+
+  <Step title="Pick the best routing token">
+    If multiple common quotes exist, prefer the one with the deepest liquidity on both legs. Stablecoins like USDC tend to have the most depth.
+  </Step>
+
+  <Step title="Estimate VWAP on each leg">
+    Use the [VWAP algorithm](/price-api/guides/vwap-estimation) on each leg independently. For a buy, consume bids on leg 1 (selling your input token) and asks on leg 2 (buying your target token).
+  </Step>
+
+  <Step title="Combine into a synthetic price">
+    Divide leg 1 VWAP by leg 2 VWAP. This gives you the effective cross rate at your target trade size.
+  </Step>
+</Steps>
+
+## Finding the Common Quote Token
+
+The Price API streams all available pairs on the network. To find routing opportunities, scan the stream for pairs that share a common quote token.
+
+Common quote tokens vary by chain - look at what's actually in the stream rather than hardcoding assumptions. On most EVM chains, stablecoins like USDC tend to appear frequently as quote tokens, but the stream is the source of truth.
+
+```python theme={null}
+def find_common_quotes(
+    pairs: dict[tuple[str, str], dict],
+    base_a: str,
+    base_b: str,
+) -> list[str]:
+    """
+    Find quote tokens shared between two base tokens.
+
+    Args:
+        pairs: Dict mapping (base_addr, quote_addr) to depth data.
+        base_a: Address of the first token (e.g. WETH).
+        base_b: Address of the second token (e.g. WBTC).
+
+    Returns:
+        List of quote token addresses that both base tokens are paired with.
+    """
+    quotes_a = {q for (b, q) in pairs if b == base_a}
+    quotes_b = {q for (b, q) in pairs if b == base_b}
+    return list(quotes_a & quotes_b)
+```
+
+## Calculating the Synthetic Price
+
+Once you've identified a common quote token, estimate the VWAP on each leg and combine them.
+
+```python theme={null}
+def estimate_synthetic_price(
+    leg1_levels: list[tuple[float, float]],
+    leg2_levels: list[tuple[float, float]],
+    target_notional: float,
+    direction: str,  # "buy" or "sell" (relative to the synthetic pair)
+) -> tuple[float, float, float]:
+    """
+    Estimate a synthetic price through a common quote token using VWAP on each leg.
+
+    For buying base_b with base_a (e.g. buy WBTC with WETH):
+      - Leg 1: sell base_a for quote (use bids)
+      - Leg 2: buy base_b with quote (use asks)
+
+    For selling base_b for base_a (e.g. sell WBTC for WETH):
+      - Leg 1: sell base_b for quote (use bids)
+      - Leg 2: buy base_a with quote (use asks)
+
+    Args:
+        leg1_levels: Depth levels for the first leg.
+        leg2_levels: Depth levels for the second leg.
+        target_notional: Trade size in quote token terms (e.g. USDC).
+        direction: "buy" or "sell" relative to the synthetic pair.
+
+    Returns:
+        (synthetic_price, leg1_vwap, leg2_vwap)
+    """
+    if direction == "buy":
+        # Leg 1: sell base_a -> quote (consume bids)
+        leg1_vwap, leg1_unfilled = estimate_vwap(leg1_levels, target_notional, "sell")
+        # Leg 2: buy base_b <- quote (consume asks)
+        leg2_vwap, leg2_unfilled = estimate_vwap(leg2_levels, target_notional, "buy")
+    else:
+        # Leg 1: sell base_b -> quote (consume bids)
+        leg1_vwap, leg1_unfilled = estimate_vwap(leg1_levels, target_notional, "sell")
+        # Leg 2: buy base_a <- quote (consume asks)
+        leg2_vwap, leg2_unfilled = estimate_vwap(leg2_levels, target_notional, "buy")
+
+    if leg1_vwap == 0 or leg2_vwap == 0:
+        return 0.0, 0.0, 0.0
+
+    synthetic_price = leg1_vwap / leg2_vwap
+    return synthetic_price, leg1_vwap, leg2_vwap
+```
+
+## Full Example
+
+Combining synthetic pair estimation with the Price API stream from the [Quickstart](/price-api/quickstart):
+
+```python theme={null}
+import asyncio
+
+import httpx
+import websockets
+
+from tetrafi_pb2 import TetraFiPricingUpdate  # # type: ignore
+
+BASE_A = "WETH"  # token you're selling
+BASE_B = "WBTC"  # token you're buying
+TARGET_NOTIONAL = 100_000  # estimate price for $100k trade
+
+NETWORK = "ethereum"
+API_KEY = "<your_api_key>"
+
+WSS_URL = (
+    f"wss://api.tetrafi.io/pmm/{NETWORK}/v3/pricing"
+    f"?format=protobuf"
+    f"&gasless=false"
+    f"&expiry_type=standard"
+)
+
+def address_to_hex(b: bytes) -> str:
+    return "0x" + b.hex()
+
+def to_levels(flat: list[float]) -> list[tuple[float, float]]:
+    it = iter(flat)
+    return list(zip(it, it, strict=True))
+
+def estimate_vwap(
+    levels: list[tuple[float, float]], target_notional: float, intent: str
+) -> tuple[float, float]:
+    sorted_levels = sorted(levels, key=lambda lv: lv[0], reverse=(intent == "sell"))
+
+    remaining = target_notional
+    total_base = 0.0
+    total_quote = 0.0
+
+    for price, size in sorted_levels:
+        if remaining <= 0:
+            break
+
+        level_notional = price * size
+        fill_notional = min(level_notional, remaining)
+        fill_base = fill_notional / price
+
+        total_quote += fill_notional
+        total_base += fill_base
+        remaining -= fill_notional
+
+    if total_base == 0:
+        return 0.0, target_notional
+
+    return total_quote / total_base, remaining
+
+def find_common_quotes(
+    pairs: dict[tuple[str, str], dict], base_a: str, base_b: str
+) -> list[str]:
+    quotes_a = {q for (b, q) in pairs if b == base_a}
+    quotes_b = {q for (b, q) in pairs if b == base_b}
+    return list(quotes_a & quotes_b)
+
+def estimate_synthetic_price(
+    leg1_levels: list[tuple[float, float]],
+    leg2_levels: list[tuple[float, float]],
+    target_notional: float,
+    direction: str,
+) -> tuple[float, float, float]:
+    if direction == "buy":
+        leg1_vwap, _ = estimate_vwap(leg1_levels, target_notional, "sell")
+        leg2_vwap, _ = estimate_vwap(leg2_levels, target_notional, "buy")
+    else:
+        leg1_vwap, _ = estimate_vwap(leg1_levels, target_notional, "sell")
+        leg2_vwap, _ = estimate_vwap(leg2_levels, target_notional, "buy")
+
+    if leg1_vwap == 0 or leg2_vwap == 0:
+        return 0.0, 0.0, 0.0
+
+    return leg1_vwap / leg2_vwap, leg1_vwap, leg2_vwap
+
+# Resolve token addresses
+resp = httpx.get(f"https://api.tetrafi.io/pmm/{NETWORK}/v3/tokenlist", timeout=10.0)
+tokens = {t["symbol"]: t for t in resp.json().get("tokens", {})}
+addr_a = tokens[BASE_A]["address"].lower()
+addr_b = tokens[BASE_B]["address"].lower()
+
+async def main():
+    async with websockets.connect(
+        WSS_URL,
+        additional_headers={"Authorization": f"Bearer {API_KEY}"},
+        ping_interval=20,
+        ping_timeout=10,
+        max_size=2**21,
+    ) as ws:
+        print(f"Connected - looking for synthetic {BASE_A}/{BASE_B} via common quote\n")
+
+        async for blob in ws:
+            update = TetraFiPricingUpdate()
+            update.ParseFromString(blob)
+
+            # Build pair map from this snapshot
+            pair_map: dict[tuple[str, str], dict] = {}
+            for pair in update.pairs:
+                base_hex = address_to_hex(pair.base).lower()
+                quote_hex = address_to_hex(pair.quote).lower()
+                pair_map[(base_hex, quote_hex)] = {
+                    "bids": to_levels(list(pair.bids)),
+                    "asks": to_levels(list(pair.asks)),
+                }
+
+            # Find common quote tokens
+            common = find_common_quotes(pair_map, addr_a, addr_b)
+            if not common:
+                continue
+
+            quote_addr = common[0]  # use first common quote
+            leg1 = pair_map.get((addr_a, quote_addr))
+            leg2 = pair_map.get((addr_b, quote_addr))
+
+            if not leg1 or not leg2:
+                continue
+
+            synthetic, vwap_a, vwap_b = estimate_synthetic_price(
+                leg1["bids"], leg2["asks"], TARGET_NOTIONAL, "buy"
+            )
+
+            if synthetic > 0:
+                print(
+                    f"  {BASE_A}/{BASE_B} synthetic (via common quote):  {synthetic:.6f}\n"
+                    f"    Leg 1 ({BASE_A}/quote) VWAP:  {vwap_a:.2f}\n"
+                    f"    Leg 2 ({BASE_B}/quote) VWAP:  {vwap_b:.2f}\n"
+                )
+asyncio.run(main())
+```
+
+Example output for a \$100,000 WETH/WBTC synthetic estimate:
+
+```json theme={null}
+{
+  "pair": "WETH/WBTC",
+  "target_notional": 100000,
+  "synthetic_price": 0.031427,
+  "leg1": {
+    "pair": "WETH/quote",
+    "vwap": 2327.58
+  },
+  "leg2": {
+    "pair": "WBTC/quote",
+    "vwap": 74062.19
+  }
+}
+```
+
+<Warning>
+  Synthetic prices are **indicative estimates** based on streamed depth. The actual execution price from a firm quote may differ.
+</Warning>
+
+## Key Considerations
+
+* **Use VWAP on each leg.** Top-of-book prices can be misleading because tier cadence (the size available at each level) often differs between pairs. VWAP gives you a size-aware estimate.
+* **Check for sufficient depth on both legs.** If either leg returns unfilled notional, the synthetic estimate is unreliable at that size.
+* **Pick the deepest routing token.** When multiple common quotes exist, prefer the one with the most liquidity on both sides.
+* **The stream is the source of truth for available pairs.** Common quote tokens vary by chain - discover them from the data rather than hardcoding.

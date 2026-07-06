@@ -1,0 +1,253 @@
+---
+title: "Pricing"
+description: ""
+mode: "wide"
+---
+
+## AsyncAPI
+
+````yaml specs/pricing-api-async.json pricing
+id: pricing
+title: Pricing
+description: ''
+servers:
+  - id: production
+    protocol: wss
+    host: api.tetrafi.io
+    bindings: []
+    variables:
+      - id: chain
+        description: Blockchain network
+        defaultValue: ethereum
+        allowedValues:
+          - ethereum
+          - polygon
+          - arbitrum
+          - optimism
+          - base
+          - bsc
+          - blast
+          - zksync
+          - mode
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        examples: []
+address: /
+parameters: []
+bindings:
+  - protocol: ws
+    version: latest
+    value:
+      query:
+        type: object
+        properties:
+          format:
+            type: string
+            enum:
+              - protobuf
+            default: protobuf
+            description: Message encoding format.
+          gasless:
+            type: boolean
+            default: false
+            description: >-
+              Set to true to receive gasless pricing (longer expiry, TetraFi
+              submits tx).
+          expiry_type:
+            type: string
+            enum:
+              - standard
+              - short
+            default: standard
+            description: >-
+              Quote expiry window. Short expiry gives tighter prices on some
+              chains.
+      headers:
+        type: object
+        required:
+          - Authorization
+        properties:
+          Authorization:
+            type: string
+            description: 'Your API key as a Bearer token: `Bearer <API_KEY>`.'
+    schemaProperties:
+      - name: query
+        type: object
+        required: false
+        properties:
+          - name: format
+            type: string
+            description: Message encoding format.
+            enumValues:
+              - protobuf
+            required: false
+          - name: gasless
+            type: boolean
+            description: >-
+              Set to true to receive gasless pricing (longer expiry, TetraFi
+              submits tx).
+            required: false
+          - name: expiry_type
+            type: string
+            description: >-
+              Quote expiry window. Short expiry gives tighter prices on some
+              chains.
+            enumValues:
+              - standard
+              - short
+            required: false
+      - name: headers
+        type: object
+        required: false
+        properties:
+          - name: Authorization
+            type: string
+            description: 'Your API key as a Bearer token: `Bearer <API_KEY>`.'
+            required: true
+operations:
+  - &ref_0
+    id: receivePriceUpdates
+    title: Receive price updates
+    description: Receive price updates
+    type: receive
+    messages:
+      - &ref_1
+        id: protobufPriceUpdate
+        contentType: application/x-protobuf
+        payload:
+          - name: Price Update (Protobuf)
+            description: Order book snapshot for all pairs in Protocol Buffers format
+            type: object
+            properties:
+              - name: type
+                type: string
+                description: object
+                required: false
+              - name: description
+                type: string
+                description: >
+                  Protocol Buffers encoded message containing order book levels
+                  for all available pairs.
+
+                  Keys are trading pair identifiers in the format
+                  `"0x<base_address>/0x<quote_address>"`.
+
+                  Values contain the current order book levels.
+                required: false
+              - name: additionalProperties
+                type: object
+                description: Order book levels for a single trading pair.
+                required: false
+                properties:
+                  - name: last_update_ts
+                    type: integer
+                    description: Timestamp of last price update (milliseconds since epoch).
+                    required: true
+                  - name: bids
+                    type: array
+                    description: >-
+                      Bid levels ordered by price descending (best bid first).
+                      Each level is `[price, size]`.
+                    required: true
+                    properties:
+                      - name: item
+                        type: array
+                        required: false
+                        properties:
+                          - name: item
+                            type: number
+                            required: false
+                  - name: asks
+                    type: array
+                    description: >-
+                      Ask levels ordered by price ascending (best ask first).
+                      Each level is `[price, size]`.
+                    required: true
+                    properties:
+                      - name: item
+                        type: array
+                        required: false
+                        properties:
+                          - name: item
+                            type: number
+                            required: false
+        headers: []
+        jsonPayloadSchema:
+          type: object
+          description: >
+            Protocol Buffers encoded message containing order book levels for
+            all available pairs.
+
+            Keys are trading pair identifiers in the format
+            `"0x<base_address>/0x<quote_address>"`.
+
+            Values contain the current order book levels.
+          additionalProperties:
+            type: object
+            description: Order book levels for a single trading pair.
+            properties:
+              last_update_ts:
+                type: integer
+                description: Timestamp of last price update (milliseconds since epoch).
+                x-parser-schema-id: <anonymous-schema-2>
+              bids:
+                type: array
+                description: >-
+                  Bid levels ordered by price descending (best bid first). Each
+                  level is `[price, size]`.
+                items:
+                  type: array
+                  items:
+                    type: number
+                    x-parser-schema-id: <anonymous-schema-5>
+                  minItems: 2
+                  maxItems: 2
+                  x-parser-schema-id: <anonymous-schema-4>
+                x-parser-schema-id: <anonymous-schema-3>
+              asks:
+                type: array
+                description: >-
+                  Ask levels ordered by price ascending (best ask first). Each
+                  level is `[price, size]`.
+                items:
+                  type: array
+                  items:
+                    type: number
+                    x-parser-schema-id: <anonymous-schema-8>
+                  minItems: 2
+                  maxItems: 2
+                  x-parser-schema-id: <anonymous-schema-7>
+                x-parser-schema-id: <anonymous-schema-6>
+            required:
+              - last_update_ts
+              - bids
+              - asks
+            x-parser-schema-id: PairLevels
+          x-parser-schema-id: <anonymous-schema-1>
+        title: Price Update (Protobuf)
+        description: Order book snapshot for all pairs in Protocol Buffers format
+        example: No examples found
+        bindings: []
+        extensions:
+          - id: x-parser-unique-object-id
+            value: protobufPriceUpdate
+    bindings: []
+    extensions:
+      - id: x-parser-unique-object-id
+        value: pricing
+sendOperations:
+  - *ref_0
+receiveOperations: []
+sendMessages:
+  - *ref_1
+receiveMessages: []
+extensions:
+  - id: x-parser-unique-object-id
+    value: pricing
+securitySchemes: []
+
+````

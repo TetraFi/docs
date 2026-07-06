@@ -1,0 +1,1541 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TetraFi Maker API",
+    "version": "3",
+    "description": "Maker-facing API endpoints for trade history and transaction lookup."
+  },
+  "servers": [
+    {
+      "url": "https://api.tetrafi.io/pmm/{chain}",
+      "variables": {
+        "chain": {
+          "default": "ethereum",
+          "enum": [
+            "ethereum",
+            "polygon",
+            "arbitrum",
+            "optimism",
+            "base",
+            "bsc",
+            "blast",
+            "zksync",
+            "mode",
+            "scroll",
+            "taiko",
+            "superseed",
+            "berachain",
+            "hyperevm",
+            "avalanche"
+          ],
+          "description": "Blockchain network"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/v3/maker-history": {
+      "get": {
+        "tags": [
+          "Maker"
+        ],
+        "summary": "Maker Trades",
+        "description": "This endpoint will return the trade history for a given maker.",
+        "operationId": "getMakerHistory",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "End"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1000,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MakerTradesResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorApiResponse"
+                    }
+                  ],
+                  "title": "Response Get Maker Trades V3 Maker History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v3/maker/tx/{tx_hash}": {
+      "get": {
+        "tags": [
+          "Maker"
+        ],
+        "summary": "Maker Trades by Tx Hash",
+        "description": "This endpoint will return the maker trades for a given tx hash.",
+        "operationId": "getMakerTradesByTxHash",
+        "parameters": [
+          {
+            "name": "tx_hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Transaction Hash",
+              "description": "Tx Hash of the trade"
+            },
+            "description": "Tx Hash of the trade"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MakerTrade"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorApiResponse"
+                    }
+                  ],
+                  "title": "Response Get Maker Trades By Tx Hash V3 Maker Tx  Tx Hash  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AggregateOrderToSign": {
+        "properties": {
+          "partner_id": {
+            "type": "integer",
+            "title": "Partner Id"
+          },
+          "expiry": {
+            "type": "integer",
+            "title": "Expiry"
+          },
+          "taker_address": {
+            "type": "string",
+            "title": "Taker Address"
+          },
+          "maker_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Addresses"
+          },
+          "maker_nonces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Nonces"
+          },
+          "taker_tokens": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Taker Tokens"
+          },
+          "maker_tokens": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Maker Tokens"
+          },
+          "taker_amounts": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Taker Amounts"
+          },
+          "maker_amounts": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Maker Amounts"
+          },
+          "receiver": {
+            "type": "string",
+            "title": "Receiver"
+          },
+          "commands": {
+            "type": "string",
+            "title": "Commands"
+          }
+        },
+        "type": "object",
+        "required": [
+          "partner_id",
+          "expiry",
+          "taker_address",
+          "maker_addresses",
+          "maker_nonces",
+          "taker_tokens",
+          "maker_tokens",
+          "taker_amounts",
+          "maker_amounts",
+          "receiver",
+          "commands"
+        ],
+        "title": "AggregateOrderToSign"
+      },
+      "AggregateOrderWithHooks": {
+        "properties": {
+          "partner_id": {
+            "type": "integer",
+            "title": "Partner Id"
+          },
+          "expiry": {
+            "type": "integer",
+            "title": "Expiry"
+          },
+          "taker_address": {
+            "type": "string",
+            "title": "Taker Address"
+          },
+          "maker_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Addresses"
+          },
+          "maker_nonces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Nonces"
+          },
+          "taker_tokens": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Taker Tokens"
+          },
+          "maker_tokens": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Maker Tokens"
+          },
+          "taker_amounts": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Taker Amounts"
+          },
+          "maker_amounts": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Maker Amounts"
+          },
+          "receiver": {
+            "type": "string",
+            "title": "Receiver"
+          },
+          "commands": {
+            "type": "string",
+            "title": "Commands"
+          },
+          "hooksHash": {
+            "type": "string",
+            "title": "Hookshash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "partner_id",
+          "expiry",
+          "taker_address",
+          "maker_addresses",
+          "maker_nonces",
+          "taker_tokens",
+          "maker_tokens",
+          "taker_amounts",
+          "maker_amounts",
+          "receiver",
+          "commands",
+          "hooksHash"
+        ],
+        "title": "AggregateOrderWithHooks"
+      },
+      "ApiError": {
+        "properties": {
+          "errorCode": {
+            "type": "integer",
+            "title": "Errorcode"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "fee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MinSizeFee"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "errorCode"
+        ],
+        "title": "ApiError"
+      },
+      "ApprovalType": {
+        "type": "string",
+        "enum": [
+          "Standard",
+          "Permit",
+          "Permit2"
+        ],
+        "title": "ApprovalType"
+      },
+      "AvailabilityResponse": {
+        "properties": {
+          "isAvailable": {
+            "type": "boolean",
+            "title": "Isavailable"
+          },
+          "canBuy": {
+            "type": "boolean",
+            "title": "Canbuy"
+          },
+          "canSell": {
+            "type": "boolean",
+            "title": "Cansell"
+          }
+        },
+        "type": "object",
+        "required": [
+          "isAvailable",
+          "canBuy",
+          "canSell"
+        ],
+        "title": "AvailabilityResponse"
+      },
+      "ErrorApiResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorApiResponse"
+      },
+      "GasFeeResponse": {
+        "properties": {
+          "native": {
+            "type": "string",
+            "title": "Native"
+          },
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "native"
+        ],
+        "title": "GasFeeResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MakerSummaryResponse": {
+        "properties": {
+          "num_trades": {
+            "type": "integer",
+            "title": "Num Trades"
+          },
+          "fee_currency": {
+            "type": "string",
+            "title": "Fee Currency"
+          },
+          "total_fees_native": {
+            "type": "string",
+            "title": "Total Fees Native"
+          },
+          "total_surplus_tetrafi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0
+                ],
+                "const": 0
+              }
+            ],
+            "title": "Total Surplus TetraFi"
+          },
+          "total_surplus_user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer",
+                "enum": [
+                  0
+                ],
+                "const": 0
+              }
+            ],
+            "title": "Total Surplus User"
+          },
+          "first_trade_ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Trade Ts"
+          },
+          "last_trade_ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Trade Ts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "num_trades",
+          "fee_currency",
+          "total_fees_native",
+          "total_surplus_tetrafi",
+          "total_surplus_user",
+          "first_trade_ts",
+          "last_trade_ts"
+        ],
+        "title": "MakerSummaryResponse"
+      },
+      "MakerTrade": {
+        "type": "object",
+        "title": "MakerTrade"
+      },
+      "MakerTradesResponse": {
+        "properties": {
+          "trades": {
+            "items": {
+              "$ref": "#/components/schemas/MakerTrade"
+            },
+            "type": "array",
+            "title": "Trades"
+          },
+          "next_ts": {
+            "type": "integer",
+            "title": "Next Ts"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MakerSummaryResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trades",
+          "next_ts",
+          "summary"
+        ],
+        "title": "MakerTradesResponse"
+      },
+      "MinSizeFee": {
+        "properties": {
+          "ether": {
+            "type": "number",
+            "title": "Ether"
+          },
+          "usd": {
+            "type": "number",
+            "title": "Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ether",
+          "usd"
+        ],
+        "title": "MinSizeFee"
+      },
+      "MultiOrderToSign": {
+        "properties": {
+          "partner_id": {
+            "type": "integer",
+            "title": "Partner Id"
+          },
+          "expiry": {
+            "type": "integer",
+            "title": "Expiry"
+          },
+          "taker_address": {
+            "type": "string",
+            "title": "Taker Address"
+          },
+          "maker_address": {
+            "type": "string",
+            "title": "Maker Address"
+          },
+          "maker_nonce": {
+            "type": "string",
+            "title": "Maker Nonce"
+          },
+          "taker_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Taker Tokens"
+          },
+          "maker_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Tokens"
+          },
+          "taker_amounts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Taker Amounts"
+          },
+          "maker_amounts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Amounts"
+          },
+          "receiver": {
+            "type": "string",
+            "title": "Receiver"
+          },
+          "commands": {
+            "type": "string",
+            "title": "Commands"
+          }
+        },
+        "type": "object",
+        "required": [
+          "partner_id",
+          "expiry",
+          "taker_address",
+          "maker_address",
+          "maker_nonce",
+          "taker_tokens",
+          "maker_tokens",
+          "taker_amounts",
+          "maker_amounts",
+          "receiver",
+          "commands"
+        ],
+        "title": "MultiOrderToSign"
+      },
+      "MultiOrderWithHooks": {
+        "properties": {
+          "partner_id": {
+            "type": "integer",
+            "title": "Partner Id"
+          },
+          "expiry": {
+            "type": "integer",
+            "title": "Expiry"
+          },
+          "taker_address": {
+            "type": "string",
+            "title": "Taker Address"
+          },
+          "maker_address": {
+            "type": "string",
+            "title": "Maker Address"
+          },
+          "maker_nonce": {
+            "type": "string",
+            "title": "Maker Nonce"
+          },
+          "taker_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Taker Tokens"
+          },
+          "maker_tokens": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Tokens"
+          },
+          "taker_amounts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Taker Amounts"
+          },
+          "maker_amounts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Maker Amounts"
+          },
+          "receiver": {
+            "type": "string",
+            "title": "Receiver"
+          },
+          "commands": {
+            "type": "string",
+            "title": "Commands"
+          },
+          "hooksHash": {
+            "type": "string",
+            "title": "Hookshash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "partner_id",
+          "expiry",
+          "taker_address",
+          "maker_address",
+          "maker_nonce",
+          "taker_tokens",
+          "maker_tokens",
+          "taker_amounts",
+          "maker_amounts",
+          "receiver",
+          "commands",
+          "hooksHash"
+        ],
+        "title": "MultiOrderWithHooks"
+      },
+      "OrderApiStatus": {
+        "type": "string",
+        "enum": [
+          "Pending",
+          "Success",
+          "Settled",
+          "Confirmed",
+          "Failed"
+        ],
+        "title": "OrderApiStatus"
+      },
+      "OrderWithBatchPermit2ToSign": {
+        "properties": {
+          "permitted": {
+            "items": {
+              "$ref": "#/components/schemas/TokenPermissions"
+            },
+            "type": "array",
+            "title": "Permitted"
+          },
+          "spender": {
+            "type": "string",
+            "title": "Spender"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "deadline": {
+            "type": "integer",
+            "title": "Deadline"
+          },
+          "witness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MultiOrderWithHooks"
+              },
+              {
+                "$ref": "#/components/schemas/AggregateOrderWithHooks"
+              }
+            ],
+            "title": "Witness"
+          }
+        },
+        "type": "object",
+        "required": [
+          "permitted",
+          "spender",
+          "nonce",
+          "deadline",
+          "witness"
+        ],
+        "title": "OrderWithBatchPermit2ToSign"
+      },
+      "OrderWithPermit2ToSign": {
+        "properties": {
+          "permitted": {
+            "$ref": "#/components/schemas/TokenPermissions"
+          },
+          "spender": {
+            "type": "string",
+            "title": "Spender"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "deadline": {
+            "type": "integer",
+            "title": "Deadline"
+          },
+          "witness": {
+            "$ref": "#/components/schemas/SingleOrderWithHooks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "permitted",
+          "spender",
+          "nonce",
+          "deadline",
+          "witness"
+        ],
+        "title": "OrderWithPermit2ToSign"
+      },
+      "PMMExtensions": {
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "color_light": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Light"
+          },
+          "displayDecimals": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displaydecimals"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview"
+          },
+          "added": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added"
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AvailabilityResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "PMMExtensions"
+      },
+      "PMMTokenListToken": {
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "title": "Chainid"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "decimals": {
+            "type": "integer",
+            "title": "Decimals"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "logoURI": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logouri"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "extensions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PMMExtensions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "chainId",
+          "address",
+          "decimals",
+          "name",
+          "symbol"
+        ],
+        "title": "PMMTokenListToken"
+      },
+      "Permit": {
+        "properties": {
+          "signature": {
+            "type": "string",
+            "title": "Signature"
+          },
+          "approvals_deadline": {
+            "type": "integer",
+            "title": "Approvals Deadline"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signature",
+          "approvals_deadline"
+        ],
+        "title": "Permit"
+      },
+      "Permit2": {
+        "properties": {
+          "signature": {
+            "type": "string",
+            "title": "Signature"
+          },
+          "approvals_deadline": {
+            "type": "integer",
+            "title": "Approvals Deadline"
+          },
+          "token_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Token Addresses"
+          },
+          "token_nonces": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Token Nonces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signature",
+          "approvals_deadline",
+          "token_addresses",
+          "token_nonces"
+        ],
+        "title": "Permit2"
+      },
+      "PriceWarning": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "PriceWarning"
+      },
+      "ResponseBuyToken": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "decimals": {
+            "type": "integer",
+            "title": "Decimals"
+          },
+          "priceUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priceusd"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "minimumAmount": {
+            "type": "string",
+            "title": "Minimumamount"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "priceBeforeFee": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricebeforefee"
+          },
+          "amountBeforeFee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amountbeforefee"
+          },
+          "deltaFromExpected": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deltafromexpected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "decimals",
+          "symbol",
+          "minimumAmount"
+        ],
+        "title": "ResponseBuyToken"
+      },
+      "ResponseSellToken": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "decimals": {
+            "type": "integer",
+            "title": "Decimals"
+          },
+          "priceUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priceusd"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "priceBeforeFee": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricebeforefee"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "decimals",
+          "symbol"
+        ],
+        "title": "ResponseSellToken"
+      },
+      "SingleOrderToSign": {
+        "properties": {
+          "partner_id": {
+            "type": "integer",
+            "title": "Partner Id"
+          },
+          "expiry": {
+            "type": "integer",
+            "title": "Expiry"
+          },
+          "taker_address": {
+            "type": "string",
+            "title": "Taker Address"
+          },
+          "maker_address": {
+            "type": "string",
+            "title": "Maker Address"
+          },
+          "maker_nonce": {
+            "type": "string",
+            "title": "Maker Nonce"
+          },
+          "taker_token": {
+            "type": "string",
+            "title": "Taker Token"
+          },
+          "maker_token": {
+            "type": "string",
+            "title": "Maker Token"
+          },
+          "taker_amount": {
+            "type": "string",
+            "title": "Taker Amount"
+          },
+          "maker_amount": {
+            "type": "string",
+            "title": "Maker Amount"
+          },
+          "receiver": {
+            "type": "string",
+            "title": "Receiver"
+          },
+          "packed_commands": {
+            "type": "string",
+            "title": "Packed Commands"
+          }
+        },
+        "type": "object",
+        "required": [
+          "partner_id",
+          "expiry",
+          "taker_address",
+          "maker_address",
+          "maker_nonce",
+          "taker_token",
+          "maker_token",
+          "taker_amount",
+          "maker_amount",
+          "receiver",
+          "packed_commands"
+        ],
+        "title": "SingleOrderToSign"
+      },
+      "SingleOrderWithHooks": {
+        "properties": {
+          "partner_id": {
+            "type": "integer",
+            "title": "Partner Id"
+          },
+          "expiry": {
+            "type": "integer",
+            "title": "Expiry"
+          },
+          "taker_address": {
+            "type": "string",
+            "title": "Taker Address"
+          },
+          "maker_address": {
+            "type": "string",
+            "title": "Maker Address"
+          },
+          "maker_nonce": {
+            "type": "string",
+            "title": "Maker Nonce"
+          },
+          "taker_token": {
+            "type": "string",
+            "title": "Taker Token"
+          },
+          "maker_token": {
+            "type": "string",
+            "title": "Maker Token"
+          },
+          "taker_amount": {
+            "type": "string",
+            "title": "Taker Amount"
+          },
+          "maker_amount": {
+            "type": "string",
+            "title": "Maker Amount"
+          },
+          "receiver": {
+            "type": "string",
+            "title": "Receiver"
+          },
+          "packed_commands": {
+            "type": "string",
+            "title": "Packed Commands"
+          },
+          "hooksHash": {
+            "type": "string",
+            "title": "Hookshash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "partner_id",
+          "expiry",
+          "taker_address",
+          "maker_address",
+          "maker_nonce",
+          "taker_token",
+          "maker_token",
+          "taker_amount",
+          "maker_amount",
+          "receiver",
+          "packed_commands",
+          "hooksHash"
+        ],
+        "title": "SingleOrderWithHooks"
+      },
+      "Tag": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "Tag"
+      },
+      "TokenApiResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/AvailabilityResponse"
+          },
+          "priceUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priceusd"
+          },
+          "chainId": {
+            "type": "integer",
+            "title": "Chainid"
+          },
+          "contractAddress": {
+            "type": "string",
+            "title": "Contractaddress"
+          },
+          "decimals": {
+            "type": "integer",
+            "title": "Decimals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "ticker",
+          "availability",
+          "chainId",
+          "contractAddress",
+          "decimals"
+        ],
+        "title": "TokenApiResponse"
+      },
+      "TokenPermissions": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "amount"
+        ],
+        "title": "TokenPermissions"
+      },
+      "TxData": {
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "title": "Chainid"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "data": {
+            "type": "string",
+            "title": "Data"
+          },
+          "gas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas"
+          },
+          "gasPrice": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gasprice"
+          }
+        },
+        "type": "object",
+        "title": "TxData"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Version": {
+        "properties": {
+          "major": {
+            "type": "integer",
+            "title": "Major"
+          },
+          "minor": {
+            "type": "integer",
+            "title": "Minor"
+          },
+          "patch": {
+            "type": "integer",
+            "title": "Patch"
+          }
+        },
+        "type": "object",
+        "required": [
+          "major",
+          "minor",
+          "patch"
+        ],
+        "title": "Version"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key passed as a Bearer token."
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

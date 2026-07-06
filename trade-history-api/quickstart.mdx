@@ -1,0 +1,283 @@
+---
+title: "Quickstart"
+description: "Fetch trade history from TetraFi - from wallet lookups to individual transaction details."
+---
+
+This guide walks you through the two Trade History API endpoints. You'll query trades for a wallet address and look up a specific transaction by hash.
+
+<Info>
+  **What you'll build:** Scripts that fetch and display trade history from TetraFi.
+
+  **Time required:** 5 minutes
+
+  **Prerequisites:** None for public wallet lookups. To fetch trades attributed to your own integration, [authenticate with your API key](/core-concepts/authentication).
+</Info>
+
+## 1. Look up trades for a wallet
+
+Retrieve all trades for a given wallet address. The API returns trades across all TetraFi-supported chains in a single response.
+
+```
+GET /history/v2/trades
+```
+
+| Parameter        | Required | Type    | Description                                         |
+| ---------------- | -------- | ------- | --------------------------------------------------- |
+| `wallet_address` | Yes      | string  | Wallet address to look up                           |
+| `start`          | No       | integer | Start of time range (UNIX timestamp in nanoseconds) |
+| `end`            | No       | integer | End of time range (UNIX timestamp in nanoseconds)   |
+| `size`           | No       | integer | Maximum number of trade objects to return           |
+
+<CodeGroup>
+  ```bash bash theme={null}
+  NOW_NS=$(date +%s)000000000
+  THIRTY_DAYS_NS=$((30 * 24 * 60 * 60))000000000
+  START_NS=$((NOW_NS - THIRTY_DAYS_NS))
+
+  curl --get "https://api.tetrafi.io/history/v2/trades" \
+    --data-urlencode "wallet_address=0xcaBD7845e4E51069E87a62d0A29064782134124C" \
+    --data-urlencode "start=$START_NS" \
+    --data-urlencode "end=$NOW_NS" \
+    --data-urlencode "size=5"
+  ```
+
+  ```python python theme={null}
+  import time
+
+  import httpx
+
+  now_ns = int(time.time() * 1_000_000_000)
+  thirty_days_ns = 30 * 24 * 60 * 60 * 1_000_000_000
+
+  resp = httpx.get(
+      "https://api.tetrafi.io/history/v2/trades",
+      params={
+          "wallet_address": "0xcaBD7845e4E51069E87a62d0A29064782134124C",
+          "start": now_ns - thirty_days_ns,
+          "end": now_ns,
+          "size": 5,
+      },
+  )
+  data = resp.json()
+
+  for trade in data.get("results", []):
+      sell = (
+          list(trade.get("sellTokens", {}).values())[0]
+          if trade.get("sellTokens")
+          else {}
+      )
+      buy = (
+          list(trade.get("buyTokens", {}).values())[0]
+          if trade.get("buyTokens")
+          else {}
+      )
+      print(
+          f'{sell.get("symbol", "?")} -> {buy.get("symbol", "?")}  '
+          f'${trade.get("volumeUsd", 0):.2f}  ({trade.get("timestamp", "")})'
+      )
+  ```
+</CodeGroup>
+
+### Understanding the response
+
+```json theme={null}
+{
+  "results": [
+    {
+      "chain_id": 42161,
+      "txHash": "0x56927ccf...9c05",
+      "status": "Success",
+      "type": "121",
+      "taker": "0xcaBD78...124C",
+      "receiver": "0xcaBD78...124C",
+      "sellTokens": {
+        "0xEeeeeE...EEeE": {
+          "amount": "9706350785296284",
+          "amountUsd": 20.03361683032797
+        }
+      },
+      "buyTokens": {
+        "0xaf88d0...5831": {
+          "amount": "20057981",
+          "amountUsd": 20.056035375843003
+        }
+      },
+      "volumeUsd": 20.056035375843003,
+      "gasFeeUsd": 0.01292311262430648,
+      "timestamp": "2026-02-25 19:44:34Z",
+      "route": "JAM",
+      "gasless": false
+    }
+  ],
+  "metadata": {
+    "timestamp": "2026-03-18 09:49:08",
+    "results": 1,
+    "tokens": {
+      "42161": {
+        "0xEeeeeE...EEeE": {
+          "name": "Ethereum",
+          "symbol": "ETH",
+          "decimals": 18,
+          "displayDecimals": 5,
+          "icon": "https://tetrafi-public-images.s3.eu-west-2..."
+        },
+        "0xaf88d0...5831": {
+          "name": "USDC",
+          "symbol": "USDC",
+          "decimals": 6,
+          "displayDecimals": 2,
+          "icon": "https://tetrafi-public-images.s3.eu-west-2..."
+        }
+      }
+    }
+  }
+}
+```
+
+| Field                    | Type            | Description                                                                     |
+| ------------------------ | --------------- | ------------------------------------------------------------------------------- |
+| `results`                | array           | Array of trade objects, newest first                                            |
+| `results[].chain_id`     | integer         | Chain ID where the trade settled                                                |
+| `results[].txHash`       | string          | Transaction hash                                                                |
+| `results[].status`       | string          | `Success`, etc.                                                                 |
+| `results[].type`         | string          | Trade type (see [trade types](#trade-types) below)                              |
+| `results[].taker`        | string          | Address that sent the sell tokens                                               |
+| `results[].receiver`     | string          | Address that received the buy tokens                                            |
+| `results[].sellTokens`   | object          | Map of contract address to token info (`amount`, `amountUsd`, `symbol`)         |
+| `results[].buyTokens`    | object          | Map of contract address to token info (`amount`, `amountUsd`, `symbol`)         |
+| `results[].volumeUsd`    | number          | Trade volume in USD (excluding gas)                                             |
+| `results[].gasFeeUsd`    | number          | Gas fee in USD at the time of the trade                                         |
+| `results[].timestamp`    | string          | When the trade occurred                                                         |
+| `results[].route`        | string          | Which TetraFi API executed the trade (`JAM` or `PMM`)                             |
+| `results[].gasless`      | boolean         | Whether the trade was executed gaslessly                                        |
+| `nextAvailableTimestamp` | integer or null | Nanosecond timestamp for pagination. `null` when all trades have been returned. |
+| `metadata.timestamp`     | string          | Current server timestamp                                                        |
+| `metadata.results`       | integer         | Number of trade objects in this response                                        |
+
+### Trade types
+
+| Type             | Description                                                                |
+| ---------------- | -------------------------------------------------------------------------- |
+| `121`            | Single swap - one token in, one token out                                  |
+| `12M`            | One token in, multiple tokens out (exact amounts per token)                |
+| `M21`            | Multiple tokens in, one token out (exact amounts per token)                |
+| `12MPercentages` | One token in, multiple tokens out (percentage ratios across output tokens) |
+| `M21Percentages` | Multiple tokens in, one token out (percentage ratios across input tokens)  |
+
+### Filtering by time range
+
+Narrow results to a specific window using `start` and `end` parameters.
+
+<Warning>
+  Timestamps are in **nanoseconds**, not seconds or milliseconds. For example, `1680303600000000000` corresponds to `2023-03-31T21:00:00Z`. Passing a millisecond timestamp will return no results.
+</Warning>
+
+```python theme={null}
+import time
+
+import httpx
+
+# Last 30 days
+now_ns = int(time.time() * 1_000_000_000)
+thirty_days_ns = 30 * 24 * 60 * 60 * 1_000_000_000
+
+resp = httpx.get(
+    "https://api.tetrafi.io/history/v2/trades",
+    params={
+        "wallet_address": "0xcaBD7845e4E51069E87a62d0A29064782134124C",
+        "start": now_ns - thirty_days_ns,
+        "end": now_ns,
+        "size": 100,
+    },
+)
+
+data = resp.json()
+print(f'Fetched {len(data.get("results", []))} trades in last 30 days')
+```
+
+### Pagination
+
+If `nextAvailableTimestamp` is not `null`, repeat the request using that value as your new `end` parameter:
+
+```python theme={null}
+import time
+
+import httpx
+
+now_ns = int(time.time() * 1_000_000_000)
+thirty_days_ns = 30 * 24 * 60 * 60 * 1_000_000_000
+
+all_trades = []
+end = now_ns
+
+while True:
+    resp = httpx.get(
+        "https://api.tetrafi.io/history/v2/trades",
+        params={
+            "wallet_address": "0xcaBD7845e4E51069E87a62d0A29064782134124C",
+            "start": now_ns - thirty_days_ns,
+            "end": end,
+            "size": 100,
+        },
+    )
+    data = resp.json()
+    all_trades.extend(data.get("results", []))
+
+    next_ts = data.get("nextAvailableTimestamp")
+    if next_ts is None:
+        break
+    end = next_ts
+
+print(f"Fetched {len(all_trades)} trades")
+```
+
+## 2. Look up a specific transaction
+
+Retrieve details for a single transaction hash. The API searches across all chains automatically.
+
+```
+GET /history/v2/tx/{tx_hash}
+```
+
+| Parameter | Required | Type   | Description                                                   |
+| --------- | -------- | ------ | ------------------------------------------------------------- |
+| `tx_hash` | Yes      | string | Transaction hash (66-character hex string starting with `0x`) |
+
+<CodeGroup>
+  ```bash bash theme={null}
+  curl "https://api.tetrafi.io/history/v2/tx/0x8f4adfc8aa60711c464194a2d297f823e7f54fadc3995ea1844d6731fdaf38ee"
+  ```
+
+  ```python python theme={null}
+  import httpx
+
+  tx_hash = "0x8f4adfc8aa60711c464194a2d297f823e7f54fadc3995ea1844d6731fdaf38ee"
+  resp = httpx.get(f"https://api.tetrafi.io/history/v2/tx/{tx_hash}")
+  data = resp.json()
+
+  # The response wraps results in a list
+  results = data.get("results", [data])
+  trade = results[0] if results else data
+
+  sell = (
+      list(trade.get("sellTokens", {}).values())[0] if trade.get("sellTokens") else {}
+  )
+  buy = list(trade.get("buyTokens", {}).values())[0] if trade.get("buyTokens") else {}
+  print(
+      f'Chain {trade.get("chain_id", "?")}: {sell.get("symbol", "?")} -> {buy.get("symbol", "?")}'
+  )
+  print(
+      f'Volume: ${trade.get("volumeUsd", 0):.2f}  Gas: ${trade.get("gasFeeUsd", 0):.4f}'
+  )
+  ```
+</CodeGroup>
+
+The response is a single trade object with the same schema as the items in the `/trades` array.
+
+### Errors
+
+| Code | Detail                                   | Reason                                     |
+| ---- | ---------------------------------------- | ------------------------------------------ |
+| 400  | `Invalid tx hash: {tx_hash}.`            | Not a valid 66-character hex string        |
+| 404  | `Tx hash not found: {tx_hash}.`          | Transaction was not executed through TetraFi |
+| 500  | `Something went wrong, try again later.` | Server error                               |

@@ -1,0 +1,684 @@
+---
+title: "Quote"
+description: "Get a quote for a token swap via solver competition. Solvers compete to offer the best price. By default returns a gasless quote that must be signed and submitted to /order. Set gasless=false to get a self-execution transaction."
+openapi: "GET /v2/quote"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/aggregation-api.json get /v2/quote
+openapi: 3.1.0
+info:
+  title: TetraFi Aggregation API
+  version: '2'
+  description: >-
+    Aggregation API powered by solver competition. Get the best swap prices from
+    multiple solvers.
+servers:
+  - url: https://api.tetrafi.io/jam/{chain}
+    variables:
+      chain:
+        default: ethereum
+        enum:
+          - ethereum
+          - polygon
+          - arbitrum
+          - bsc
+          - zksync
+          - optimism
+          - blast
+          - mode
+          - base
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        description: Blockchain network
+security:
+  - bearerAuth: []
+paths:
+  /v2/quote:
+    get:
+      summary: Quote
+      description: >-
+        Get a quote for a token swap via solver competition. Solvers compete to
+        offer the best price. By default returns a gasless quote that must be
+        signed and submitted to /order. Set gasless=false to get a
+        self-execution transaction.
+      operationId: getQuote
+      parameters:
+        - name: sell_tokens
+          in: query
+          required: true
+          schema:
+            type: string
+            x-default: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+            example: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+          description: The tokens that will be supplied by the taker
+        - name: buy_tokens
+          in: query
+          required: true
+          schema:
+            type: string
+            x-default: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+            example: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+          description: The tokens that will be supplied by the maker
+        - name: sell_amounts
+          in: query
+          required: false
+          schema:
+            type: string
+            x-default: '1000000000'
+            example: '1000000000'
+          description: The amount of each taker token, order respective to taker_tokens
+        - name: buy_amounts
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Buy Token Amounts
+            description: The amount of each maker token, order respective to maker_tokens
+          description: The amount of each maker token, order respective to maker_tokens
+          examples:
+            None:
+              description: Use when specifying 'sell_amounts'
+            One:
+              summary: One To One / Many To One
+              description: Use for 'One To One' or 'One To Many' quotes
+              value: '100000000'
+            Many:
+              summary: One To Many
+              description: Use for 'One To Many' quotes
+              value: 100000000,100000000
+        - name: taker_address
+          in: query
+          required: true
+          schema:
+            type: string
+            x-default: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+            example: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+          description: Address which will sign the order
+        - name: receiver_address
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Receiver Address
+            description: >-
+              Address which will receive the taker tokens. (Defaults to
+              taker_address if not specified)
+          description: >-
+            Address which will receive the taker tokens. (Defaults to
+            taker_address if not specified)
+        - name: approval_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ApprovalType'
+            title: Type of approval
+            description: 'Type of Approval for EVM: Standard/Permit/Permit2'
+            default: Standard
+          description: 'Type of Approval for EVM: Standard/Permit/Permit2'
+        - name: buy_tokens_ratios
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Buy Tokens Ratios
+            description: Ratios of maker tokens to receive for each taker token
+          description: Ratios of maker tokens to receive for each taker token
+          examples:
+            Default: {}
+            One To Many:
+              summary: One To Many
+              description: Use ONLY with 'One To Many' quotes and specified 'sell_amounts'
+              value: 0.5,0.5
+        - name: sell_tokens_ratios
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Sell Tokens Ratios
+            description: Ratios of taker tokens to receive for each maker token
+          description: Ratios of taker tokens to receive for each maker token
+          examples:
+            Default: {}
+            Many To One:
+              summary: Many To One
+              description: Use ONLY with 'Many To One' quotes and specified 'buy_amounts'
+              value: 0.5,0.5
+        - name: gasless
+          in: query
+          required: false
+          schema:
+            type: boolean
+            title: Gasless
+            description: Set to false to receive call data and self execute.
+            x-default: false
+          description: Set to false to receive call data and self execute.
+        - name: slippage
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: number
+              - type: string
+              - type: 'null'
+            title: Slippage
+            description: The slippage to use
+          description: The slippage to use
+        - name: origin_address
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Origin Address
+            description: Original user of the quote if different than taker.
+          description: Original user of the quote if different than taker.
+        - name: include_solvers
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Include Solvers
+            description: The list of solvers to include
+          description: The list of solvers to include
+          examples:
+            Default: {}
+            Solvers:
+              summary: Solvers
+              description: Solvers
+              value: solver1,solver2
+        - name: fee_recipient
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Fee Recipient
+            description: The recipient of the fee
+          description: The recipient of the fee
+        - name: fee
+          in: query
+          required: false
+          schema:
+            type: integer
+            title: Partner Fee
+            description: Fee (bps) to be charged for this quote
+            default: 0
+          description: Fee (bps) to be charged for this quote
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+              examples:
+                Default:
+                  summary: Sell 1000 USDC for WETH
+                  value:
+                    requestId: 971da938-4c62-420b-b6d6-4f234abb25f5
+                    type: '121'
+                    status: Success
+                    quoteId: 12321539-2a28-42cb-9328-b0159f5b15b6
+                    chainId: 1
+                    approvalType: Standard
+                    nativeToken: ETH
+                    taker: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+                    receiver: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+                    expiry: 1772813548
+                    slippage: 0.1
+                    gasFee:
+                      native: '0'
+                      usd: 0
+                    buyTokens:
+                      '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2':
+                        amount: '507481070765462272'
+                        decimals: 18
+                        priceUsd: 1980.81
+                        symbol: WETH
+                        minimumAmount: '506973589694696809'
+                        price: 1970.5168480306936
+                        priceBeforeFee: 1970.5168480306936
+                        amountBeforeFee: '507481070765462272'
+                        deltaFromExpected: 0.005272838152004709
+                    sellTokens:
+                      '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48':
+                        amount: '1000000000'
+                        decimals: 6
+                        priceUsd: 0.999951
+                        symbol: USDC
+                        price: 0.0005074810707654622
+                        priceBeforeFee: 0.0005074810707654622
+                    settlementAddress: '0xbeb0b0623f66bE8cE162EbDfA2ec543A522F4ea6'
+                    approvalTarget: '0xC5a350853E4e36b73EB0C24aaA4b8816C9A3579a'
+                    requiredSignatures: []
+                    priceImpact: 0.005272838152004709
+                    warnings: []
+                    tx:
+                      chainId: 1
+                      from: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+                      to: '0xbeb0b0623f66bE8cE162EbDfA2ec543A522F4ea6'
+                      value: '0x0'
+                      data: 0x2143d82c00...
+                      gas: 593494
+                    hooksHash: >-
+                      0x0000000000000000000000000000000000000000000000000000000000000000
+                    toSign:
+                      taker: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+                      receiver: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+                      expiry: 1772813548
+                      exclusivityDeadline: 1772813548
+                      nonce: '24186149226709209968603110968399697334'
+                      executor: '0x0000000000000000000000000000000000000000'
+                      partnerInfo: '0'
+                      sellTokens:
+                        - '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+                      buyTokens:
+                        - '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+                      sellAmounts:
+                        - '1000000000'
+                      buyAmounts:
+                        - '506973589694696809'
+                      hooksHash: >-
+                        0x0000000000000000000000000000000000000000000000000000000000000000
+                    solver: 🍆
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    ApprovalType:
+      type: string
+      enum:
+        - Standard
+        - Permit
+        - Permit2
+      title: ApprovalType
+    QuoteResponse:
+      properties:
+        requestId:
+          type: string
+          title: Requestid
+        type:
+          type: string
+          title: Type
+        status:
+          type: string
+          title: Status
+        quoteId:
+          type: string
+          title: Quoteid
+        chainId:
+          type: integer
+          title: Chainid
+        approvalType:
+          $ref: '#/components/schemas/ApprovalType'
+        nativeToken:
+          type: string
+          title: Nativetoken
+        taker:
+          type: string
+          title: Taker
+        receiver:
+          type: string
+          title: Receiver
+        expiry:
+          type: integer
+          title: Expiry
+        slippage:
+          type: number
+          title: Slippage
+        gasFee:
+          $ref: '#/components/schemas/GasFeeResponse'
+        buyTokens:
+          additionalProperties:
+            $ref: '#/components/schemas/ResponseBuyToken'
+          type: object
+          title: Buytokens
+        sellTokens:
+          additionalProperties:
+            $ref: '#/components/schemas/ResponseSellToken'
+          type: object
+          title: Selltokens
+        settlementAddress:
+          type: string
+          title: Settlementaddress
+        approvalTarget:
+          type: string
+          title: Approvaltarget
+        requiredSignatures:
+          items:
+            type: string
+          type: array
+          title: Requiredsignatures
+        priceImpact:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceimpact
+        partnerFee:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Partnerfee
+        protocolFee:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Protocolfee
+        warnings:
+          items:
+            $ref: '#/components/schemas/PriceWarning'
+          type: array
+          title: Warnings
+          default: []
+        info:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Info
+        tx:
+          anyOf:
+            - $ref: '#/components/schemas/TxData'
+            - type: 'null'
+        solana_tx:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Solana Tx
+        blockhash:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Blockhash
+        hooksHash:
+          type: string
+          title: Hookshash
+        toSign:
+          $ref: '#/components/schemas/OrderToSign'
+          title: Tosign
+        solver:
+          type: string
+          title: Solver
+      type: object
+      required:
+        - requestId
+        - type
+        - status
+        - quoteId
+        - chainId
+        - approvalType
+        - nativeToken
+        - taker
+        - receiver
+        - expiry
+        - slippage
+        - gasFee
+        - buyTokens
+        - sellTokens
+        - settlementAddress
+        - approvalTarget
+        - requiredSignatures
+        - hooksHash
+        - toSign
+        - solver
+      title: QuoteResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    GasFeeResponse:
+      properties:
+        native:
+          type: string
+          title: Native
+        usd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Usd
+      type: object
+      required:
+        - native
+      title: GasFeeResponse
+    ResponseBuyToken:
+      properties:
+        amount:
+          type: string
+          title: Amount
+        decimals:
+          type: integer
+          title: Decimals
+        priceUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceusd
+        symbol:
+          type: string
+          title: Symbol
+        minimumAmount:
+          type: string
+          title: Minimumamount
+        price:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Price
+        priceBeforeFee:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Pricebeforefee
+        amountBeforeFee:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Amountbeforefee
+        deltaFromExpected:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Deltafromexpected
+      type: object
+      required:
+        - amount
+        - decimals
+        - symbol
+        - minimumAmount
+      title: ResponseBuyToken
+    ResponseSellToken:
+      properties:
+        amount:
+          type: string
+          title: Amount
+        decimals:
+          type: integer
+          title: Decimals
+        priceUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceusd
+        symbol:
+          type: string
+          title: Symbol
+        price:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Price
+        priceBeforeFee:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Pricebeforefee
+      type: object
+      required:
+        - amount
+        - decimals
+        - symbol
+      title: ResponseSellToken
+    PriceWarning:
+      properties:
+        code:
+          type: integer
+          title: Code
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+        - code
+        - message
+      title: PriceWarning
+    TxData:
+      properties:
+        chainId:
+          type: integer
+          title: Chainid
+        from:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: From
+        to:
+          type: string
+          title: To
+        value:
+          type: string
+          title: Value
+        data:
+          type: string
+          title: Data
+        gas:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Gas
+        gasPrice:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Gasprice
+      type: object
+      title: TxData
+    OrderToSign:
+      properties:
+        taker:
+          type: string
+          title: Taker
+        receiver:
+          type: string
+          title: Receiver
+        expiry:
+          type: integer
+          title: Expiry
+        exclusivityDeadline:
+          type: integer
+          title: Exclusivitydeadline
+        nonce:
+          type: string
+          title: Nonce
+        executor:
+          type: string
+          title: Executor
+        partnerInfo:
+          type: string
+          title: Partnerinfo
+        sellTokens:
+          items:
+            type: string
+          type: array
+          title: Selltokens
+        buyTokens:
+          items:
+            type: string
+          type: array
+          title: Buytokens
+        sellAmounts:
+          items:
+            type: string
+          type: array
+          title: Sellamounts
+        buyAmounts:
+          items:
+            type: string
+          type: array
+          title: Buyamounts
+        hooksHash:
+          type: string
+          title: Hookshash
+      type: object
+      required:
+        - taker
+        - receiver
+        - expiry
+        - exclusivityDeadline
+        - nonce
+        - executor
+        - partnerInfo
+        - sellTokens
+        - buyTokens
+        - sellAmounts
+        - buyAmounts
+        - hooksHash
+      title: OrderToSign
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````

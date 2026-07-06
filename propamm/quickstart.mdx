@@ -1,0 +1,432 @@
+---
+title: "Quickstart"
+description: "Fetch the live propAMM state, quote and simulate a swap mid-block, and submit it through a block builder."
+---
+
+<Danger>
+  propAMM is currently undergoing contract audits. Before audits are complete, integrators are advised to implement their own safety checks on top of swaps against propAMM.
+</Danger>
+
+This guide walks you through a complete propAMM swap on Ethereum: approving the contract, fetching the current state, quoting against the live on-chain book, simulating the swap to catch reverts, and submitting it through a block builder. You'll sell 1 USDC for WETH.
+
+<Info>
+  **What you'll build:** A USDC to WETH swap against propAMM, quoted and simulated mid-block, then submitted through a block builder.
+
+  **Time required:** 15-20 minutes
+
+  **Prerequisites:** Basic EVM knowledge and web3.py, an API key for the propAMM operator, a funded signing key, and the ability to submit transactions through a builder RPC (Flashbots Protect or equivalent).
+</Info>
+
+## Setup
+
+Install `web3`, `eth-account`, and `httpx`, then define the constants and contract handle used throughout. propAMM needs only two contract functions: `quote()` to price a swap and `swap()` to execute it.
+
+```python theme={null}
+import httpx
+from eth_account import Account
+from web3 import Web3
+from web3.exceptions import ContractLogicError
+
+API_KEY = "<your-api-key>"
+PRIVATE_KEY = "0x<your-private-key>"
+
+API_BASE = "https://api.tetrafi.io/propamm/ethereum/v1"
+RPC_URL = "https://ethereum-rpc.publicnode.com"
+
+# Block builder that includes your swap behind the operator's registry update.
+BUILDER_RPC_URL = "https://rpc.flashbots.net/?hint=default_logs&originId=protect-website"
+
+# EIP-1559 fee estimates.
+BLOCKNATIVE_GAS_URL = "https://api.blocknative.com/gasprices/blockprices"
+BLOCKNATIVE_CONFIDENCE = 75
+
+# PropAmmV2: the taker entrypoint and the approval target.
+CONTRACT_ADDRESS = Web3.to_checksum_address("0xdB13ad0fcD134E9c48f2fDaEa8f6751a0F5349ca")
+
+WETH = Web3.to_checksum_address("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
+USDC = Web3.to_checksum_address("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+WETH_DECIMALS = 18
+USDC_DECIMALS = 6
+
+SLIPPAGE_BPS = 50  # 0.5% slippage tolerance
+
+CONTRACT_ABI = [
+    {
+        "name": "quote",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [
+            {"name": "tokenIn", "type": "address"},
+            {"name": "tokenOut", "type": "address"},
+            {"name": "amountIn", "type": "uint256"},
+        ],
+        "outputs": [{"name": "amountOut", "type": "uint256"}],
+    },
+    {
+        "name": "swap",
+        "type": "function",
+        "stateMutability": "payable",
+        "inputs": [
+            {"name": "tokenIn", "type": "address"},
+            {"name": "tokenOut", "type": "address"},
+            {"name": "amountIn", "type": "uint256"},
+            {"name": "minAmountOut", "type": "uint256"},
+            {"name": "expiry", "type": "uint256"},
+            {"name": "recipient", "type": "address"},
+        ],
+        "outputs": [{"name": "amountOut", "type": "uint256"}],
+    },
+]
+
+web3 = Web3(Web3.HTTPProvider(RPC_URL))
+account = Account.from_key(PRIVATE_KEY)
+contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
+
+amount_in = 1 * 10**USDC_DECIMALS  # sell 1 USDC
+```
+
+<Note>
+  Keep `API_KEY` and `PRIVATE_KEY` out of source. Load them from environment variables (for example with `os.environ` and `python-dotenv`) rather than hardcoding them.
+</Note>
+
+## 1. Approve the propAMM contract
+
+Before swapping, the contract needs permission to pull your USDC. Approve the PropAmmV2 contract for the scope of this demo (10 USDC). This is the standard check-and-approve pattern. See [Token Approvals](/core-concepts/token-approvals) for the canonical helper and the max-vs-exact tradeoffs.
+
+```python theme={null}
+ERC20_ABI = [
+    {
+        "constant": True,
+        "inputs": [
+            {"name": "_owner", "type": "address"},
+            {"name": "_spender", "type": "address"},
+        ],
+        "name": "allowance",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "type": "function",
+    },
+    {
+        "constant": False,
+        "inputs": [
+            {"name": "_spender", "type": "address"},
+            {"name": "_value", "type": "uint256"},
+        ],
+        "name": "approve",
+        "outputs": [{"name": "", "type": "bool"}],
+        "type": "function",
+    },
+]
+
+DEMO_SCOPE = 10 * 10**USDC_DECIMALS  # approve up to 10 USDC for this demo
+
+usdc = web3.eth.contract(address=USDC, abi=ERC20_ABI)
+current = usdc.functions.allowance(account.address, CONTRACT_ADDRESS).call()
+
+if current < DEMO_SCOPE:
+    approve_tx = usdc.functions.approve(CONTRACT_ADDRESS, DEMO_SCOPE).build_transaction({
+        "from": account.address,
+        "nonce": web3.eth.get_transaction_count(account.address),
+        "gasPrice": web3.eth.gas_price,
+    })
+    signed = web3.eth.account.sign_transaction(approve_tx, private_key=PRIVATE_KEY)
+    tx_hash = web3.eth.send_raw_transaction(signed.raw_transaction)
+    web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+    print(f"Approved 10 USDC for {CONTRACT_ADDRESS}")
+```
+
+A few propAMM-specific notes:
+
+* The approval target is the **PropAmmV2 contract itself** (`CONTRACT_ADDRESS`). There's no separate balance manager.
+* **Native ETH in** needs no approval. Send `msg.value == amountIn` and pass the sentinel address `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE` as `tokenIn`.
+* **Cross-pair swaps** (for example WETH to WBTC) don't require a USDC approval. Intermediate USDC stays inside the contract.
+
+<Tip>
+  This demo approves a fixed 10 USDC to keep the allowance scoped. Programmatic integrators usually approve the maximum amount once per token to avoid re-approving on every trade. See [Token Approvals](/core-concepts/token-approvals#approval-strategies).
+</Tip>
+
+## 2. Fetch the live state
+
+You can get the current snapshot two ways: a call to `GET /state`, or the streaming WebSocket, which pushes a fresh snapshot whenever a new aggregated book is available. Both carry the same data: the snapshot block, the aggregated `books`, and the `state_overrides` you need to quote against the live book before the on-chain registry update lands. Use REST for a single swap and the stream for continuous pricing.
+
+<Tabs>
+  <Tab title="Polling over REST">
+    The operator exposes the current aggregated book at `GET /state`.
+
+    ```text theme={null}
+    GET https://api.tetrafi.io/propamm/ethereum/v1/state
+    Authorization: Bearer <your-api-key>
+    ```
+
+    ```python theme={null}
+    response = httpx.get(f"{API_BASE}/state", headers={"Authorization": f"Bearer {API_KEY}"})
+    state = response.json()
+
+    state_contract = Web3.to_checksum_address(state["contract"])
+    print(f"state_block={state['stateBlock']} overrides={len(state['state_overrides'])}")
+    ```
+
+    Example response (abridged):
+
+    ```json theme={null}
+    {
+      "stateBlock": 25203086,
+      "targetBlock": 25203087,
+      "contract": "0xDa7AfeeD01fe625CF15d187a19f94B45f00b8C5F",
+      "state_overrides": {
+        "0x99131f24ab938b63c7f74c5439520f0db9ce5184595a612398a2fe92fa728537": "0x01d02000000000000000000000000001dfff027fff0000000000000000000000",
+        "0x99131f24ab938b63c7f74c5439520f0db9ce5184595a612398a2fe92fa728536": "0x6a19e77b02008187ff8000000000000000000000000000000000000000000000"
+      },
+      "books": {
+        "0": {
+          "bids": [["2006.7400000000", "0.0320000000"]],
+          "asks": [["2007.3200000000", "4.0950000000"], ["2007.4200000000", "4.0950000000"]]
+        }
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Streaming over WebSocket">
+    The operator streams `StateSnapshot` protobuf messages over a binary WebSocket. On connect, the server sends the current cached snapshot immediately, so you don't wait for the next tick.
+
+    ```text theme={null}
+    wss://api.tetrafi.io/propamm/ethereum/v1/state
+    Authorization: Bearer <your-api-key>
+    ```
+
+    The wire format is protobuf. Save the schema as `state_ws.proto` and generate a Python stub:
+
+    ```protobuf state_ws.proto theme={null}
+    syntax = "proto3";
+    package propamm;
+
+    message Level {
+      string price = 1;  // decimal string, USDC per base unit
+      string size = 2;   // decimal string, base-token units
+    }
+
+    message AggregatedBook {
+      repeated Level bids = 1;  // sorted descending by price
+      repeated Level asks = 2;  // sorted ascending by price
+    }
+
+    message StateSnapshot {
+      uint64 state_block = 1;      // latest confirmed block
+      uint64 target_block = 2;     // next block the signed books target
+      map<string, AggregatedBook> books = 6;     // assetId -> aggregated book
+      map<string, string> state_overrides = 7;   // slot hex -> value hex
+      uint64 state_block_ts = 8;   // unix seconds for state_block
+      uint64 target_block_ts = 9;  // unix seconds for target_block
+    }
+    ```
+
+    ```bash theme={null}
+    protoc --python_out=. state_ws.proto
+    ```
+
+    This produces `state_ws_pb2.py` next to the proto file. Subscribe, skip the metadata-only frames, and take the first snapshot with populated levels:
+
+    ```python theme={null}
+    import asyncio
+    import websockets
+    import state_ws_pb2 as state_pb
+
+    WS_URL = "wss://api.tetrafi.io/propamm/ethereum/v1/state"
+
+    async def get_latest_snapshot():
+        async with websockets.connect(
+            WS_URL, additional_headers={"Authorization": f"Bearer {API_KEY}"}
+        ) as ws:
+            while True:
+                snap = state_pb.StateSnapshot()
+                snap.ParseFromString(await ws.recv())
+                if any(b.bids or b.asks for b in snap.books.values()):
+                    return snap
+
+    snap = asyncio.run(get_latest_snapshot())
+
+    # The stream carries the per-block book and overrides but not the registry
+    # contract address, which doesn't change block to block. Read it once from
+    # GET /state and reuse it for every frame.
+    state_contract = Web3.to_checksum_address(
+        httpx.get(f"{API_BASE}/state", headers={"Authorization": f"Bearer {API_KEY}"}).json()["contract"]
+    )
+
+    # Normalize into the same shape the REST path produces, so the quote,
+    # simulate, and submit steps below are identical.
+    state = {
+        "stateBlock": snap.state_block,
+        "state_overrides": dict(snap.state_overrides),
+    }
+    print(f"state_block={state['stateBlock']} overrides={len(state['state_overrides'])}")
+    ```
+
+    <Note>
+      The first cached frame the server sends on connect is sometimes metadata-only: the `books` map has entries but the `bids` and `asks` arrays are empty until the next live tick. Iterate until you see populated levels (or apply a short timeout) before quoting.
+    </Note>
+
+    On the stream the fields arrive as `state_block`, `target_block`, `books`, and `state_overrides`, plus `state_block_ts` and `target_block_ts` (unix seconds). The registry `contract` address is not in the stream, so it's read once from `GET /state` above and reused for every frame.
+  </Tab>
+</Tabs>
+
+Key fields:
+
+| Field             | Description                                                                                                                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stateBlock`      | The block the snapshot is valid for. Use it as `block_identifier` when you quote and simulate.                                                                                                                            |
+| `targetBlock`     | The next block the signed books target.                                                                                                                                                                                   |
+| `contract`        | The registry contract the overrides apply to. The REST response includes it (read it from there, don't hardcode); the stream omits it, so source it once as shown in the WebSocket tab.                                   |
+| `state_overrides` | Slot-to-value pairs you pass as `stateDiff` to `eth_call` to evaluate against the live book.                                                                                                                              |
+| `books`           | The aggregated book per asset id, with `bids` and `asks` as `[price, size]` pairs (price in USDC per base unit, size in base-token units). This quickstart prices through `quote()` rather than reading `books` directly. |
+
+## 3. Get a quote
+
+`quote()` is a view function that walks the book and returns the expected output for a given input. A plain `eth_call` to `quote()` only succeeds in a block where the registry update has already landed. To quote against the latest book at any point in the block, apply the `state_overrides` as a `stateDiff` against the `contract` from the snapshot.
+
+```python theme={null}
+amount_out = contract.functions.quote(USDC, WETH, amount_in).call(
+    block_identifier=state["stateBlock"],
+    state_override={state_contract: {"stateDiff": state["state_overrides"]}},
+)
+
+amount_after_slippage = amount_out * (10_000 - SLIPPAGE_BPS) // 10_000
+
+print(f"Quoted amount: {amount_out / 10**WETH_DECIMALS} WETH")
+# Quoted amount: 0.000498176673375445 WETH
+```
+
+<Note>
+  The book lives in the registry contract's storage. Each block, the operator submits a transaction that writes fresh signed prices to it. The `state_overrides` are exactly those writes, pre-stamped for `stateBlock`, so passing them as `stateDiff` lets `quote()` read the latest book at any point in the block. Without them, `quote()` only reflects the book once the operator's update transaction has landed.
+</Note>
+
+## 4. Simulate and size gas
+
+Before broadcasting, run the swap as an `eth_call` against the same override to catch reverts (like `Expired` or `InsufficientLiquidity`) without spending gas, then estimate gas with the override to set a real gas limit.
+
+```python theme={null}
+expiry = web3.eth.get_block("latest")["timestamp"] + 120
+
+swap = contract.functions.swap(
+    USDC, WETH, amount_in, amount_after_slippage, expiry, account.address
+)
+
+sim_kwargs = dict(
+    transaction={"from": account.address, "value": 0},
+    block_identifier=state["stateBlock"],
+    state_override={state_contract: {"stateDiff": state["state_overrides"]}},
+)
+
+try:
+    simulated_out = swap.call(**sim_kwargs)
+except ContractLogicError as exc:
+    raise SystemExit(f"Swap simulation reverted: {exc}")
+
+estimated_gas = swap.estimate_gas(**sim_kwargs)
+
+print(f"Simulated amount out: {simulated_out / 10**WETH_DECIMALS} WETH")
+print(f"Estimated gas: {estimated_gas}")
+# Simulated amount out: 0.000498176673375445 WETH
+# Estimated gas: 166077
+```
+
+<Note>
+  Pass the same `state_override` to `estimate_gas`. A plain `estimate_gas` at the chain head reverts with `StaleUpdate`, because the on-chain book isn't current until the registry update lands.
+</Note>
+
+## 5. Submit through a block builder
+
+This is the step that differs from RFQ and Aggregation. A propAMM `swap()` settles only when a **builder that supports propAMM includes it** in the same block as the operator's registry update for the assets involved. That happens two ways: submit the transaction directly to a supported builder, or send it to any node and have a supported builder win the block.
+
+<Warning>
+  For a plain `swap()`, submit directly to a supported builder RPC. A public-mempool submission only goes through when a supporting builder happens to win the block; when a non-supporting builder wins, it reverts with `StaleBook`. To drop this constraint, use [`swapWithFallback`](/propamm/guides/falling-back-to-rfq), which settles via RFQ in the same transaction when the propAMM leg can't land.
+</Warning>
+
+Fetch EIP-1559 fees from Blocknative:
+
+```python theme={null}
+gas_resp = httpx.get(BLOCKNATIVE_GAS_URL)
+estimates = gas_resp.json()["blockPrices"][0]["estimatedPrices"]
+```
+
+Each estimate pairs a `confidence` (the chance of inclusion in the next block) with the fees that buy it. Higher confidence costs more:
+
+```json theme={null}
+{
+  "unit": "gwei",
+  "blockPrices": [
+    {
+      "blockNumber": 25203087,
+      "baseFeePerGas": 1.021795326,
+      "estimatedPrices": [
+        { "confidence": 99, "maxPriorityFeePerGas": 0.098, "maxFeePerGas": 2.1 },
+        { "confidence": 95, "maxPriorityFeePerGas": 0.094, "maxFeePerGas": 2.1 },
+        { "confidence": 90, "maxPriorityFeePerGas": 0.089, "maxFeePerGas": 2.1 },
+        { "confidence": 80, "maxPriorityFeePerGas": 0.079, "maxFeePerGas": 2.1 },
+        { "confidence": 70, "maxPriorityFeePerGas": 0.069, "maxFeePerGas": 2.1 }
+      ]
+    }
+  ]
+}
+```
+
+Pick the cheapest estimate that still clears your confidence threshold, then build and sign the transaction. Pad the estimated gas (here by 50%) to absorb book changes between simulation and inclusion:
+
+```python theme={null}
+# Lowest estimate that still meets the confidence threshold.
+estimate = min(
+    [e for e in estimates if int(e["confidence"]) >= BLOCKNATIVE_CONFIDENCE],
+    key=lambda e: int(e["confidence"]),
+    default=estimates[0],
+)
+max_fee = int(float(estimate["maxFeePerGas"]) * 1e9)
+max_priority_fee = int(float(estimate["maxPriorityFeePerGas"]) * 1e9)
+# With a 75% threshold, the 80% estimate wins: max_fee=2.1 gwei, priority=0.079 gwei.
+
+tx = swap.build_transaction({
+    "from": account.address,
+    "nonce": web3.eth.get_transaction_count(account.address),
+    "gas": int(estimated_gas * 1.5),
+    "maxFeePerGas": max_fee,
+    "maxPriorityFeePerGas": max_priority_fee,
+    "chainId": web3.eth.chain_id,
+})
+
+signed_tx = web3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
+```
+
+Then send the raw transaction to the builder RPC:
+
+```python theme={null}
+response = httpx.post(
+    BUILDER_RPC_URL,
+    json={
+        "jsonrpc": "2.0",
+        "method": "eth_sendRawTransaction",
+        "params": [f"0x{signed_tx.raw_transaction.hex()}"],
+        "id": 1,
+    },
+)
+print(response.json())
+```
+
+The builder returns a JSON-RPC result with the transaction hash:
+
+```json theme={null}
+{
+  "jsonrpc": "2.0",
+  "result": "0xa1a46dff1438f59eb332adb778c6b67fd9b8d3ad39968047bc8ad72fe25677ec",
+  "id": 1
+}
+```
+
+The `result` is your transaction hash. Track it on a block explorer to confirm it landed in the target block.
+
+<Tip>
+  Can't tolerate a same-block miss? The `/quote` endpoint returns ready `swapWithFallback` calldata that tries propAMM first and settles via RFQ if the on-chain book can't fill. See [Falling back to RFQ](/propamm/guides/falling-back-to-rfq).
+</Tip>
+
+## Next steps
+
+<Note>
+  **Coming soon.** Guides on simulating swaps, same-block execution, and cross-pair routing, plus the full state schema and contract reference, will publish here as the closed beta opens to API access.
+</Note>

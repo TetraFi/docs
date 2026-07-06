@@ -1,0 +1,199 @@
+---
+title: "Falling back to RFQ"
+description: "Use the /quote endpoint to get swapWithFallback calldata that tries propAMM first and settles via RFQ if the on-chain book can't fill."
+---
+
+<Danger>
+  propAMM is currently undergoing contract audits. Before audits are complete, integrators are advised to implement their own safety checks on top of swaps against propAMM.
+</Danger>
+
+`swapWithFallback()` is propAMM's safety net for high-value flow that can't tolerate a same-block-execution failure (`StaleBook`, `StaleUpdate`) or insufficient on-chain liquidity. The function tries the propAMM leg in a try/catch and falls through on **any** revert to a whitelisted fallback target with pre-encoded calldata. The standard fallback target is the TetraFi RFQ settlement contract.
+
+You don't compose this calldata yourself. The propAMM `/quote` endpoint builds the whole thing: it prices the propAMM leg, fetches a matching RFQ quote, and returns a ready `swapWithFallback(...)` call in the response `tx`. You sign and submit it like any other transaction. There's no separate RFQ request, no EIP-712 signature, and no calldata splicing on your side.
+
+You burn more gas than a plain `swap()`, but you trade reliably even when the registry is behind or the on-chain book is too thin.
+
+<Warning>
+  propAMM's contracts are unaudited at this time. If you route user funds through them - especially as an aggregator - enforce your own value checks (for example, validate the amount received against an independent price source) rather than relying on the contract's `minAmountOut` alone.
+</Warning>
+
+## When to use it
+
+* **High-value flow** where a single revert is more expensive than the gas overhead of carrying a fallback.
+* **Long-tail assets** with sparse maker coverage on propAMM where the on-chain book may not always reach `minAmountOut`.
+* **Bursty traffic** where you want to avoid coordinating around builder windows for every swap.
+
+If you're routing small, frequent flow on majors, plain `swap()` is cheaper. Use `swapWithFallback` selectively rather than as the default.
+
+## Get the fallback calldata
+
+Request a quote from the propAMM `/quote` endpoint. When your partner key has the RFQ fallback feature, the response's `tx.data` is a complete `swapWithFallback(...)` call.
+
+```text theme={null}
+GET https://api.tetrafi.io/propamm/ethereum/v1/quote
+Authorization: Bearer <your-api-key>
+```
+
+| Parameter                   | Notes                                                                                                       |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `sell_tokens`, `buy_tokens` | Token addresses.                                                                                            |
+| `sell_amounts`              | Integer base units (`buy_amounts` is not supported).                                                        |
+| `taker_address`             | The EOA that will send the transaction.                                                                     |
+| `receiver_address`          | Optional. Defaults to `taker_address`. Applies to both legs (see caveats).                                  |
+| `slippage`                  | Optional decimal fraction (for example `0.005`). Sets the propAMM leg's `minAmountOut`. Defaults to `0.003`. |
+| `gasless`                   | Must be `false`. propAMM quotes are self-executed; `gasless=true` is rejected.                               |
+
+```python theme={null}
+amount_in = 1 * 10**USDC_DECIMALS  # sell 1 USDC
+
+quote = httpx.get(
+    f"{API_BASE}/quote",
+    params={
+        "sell_tokens": USDC,
+        "buy_tokens": WETH,
+        "sell_amounts": str(amount_in),
+        "taker_address": account.address,
+        "slippage": "0.005",   # 0.5% on the propAMM leg's minAmountOut
+        "gasless": "false",    # required: propAMM quotes are self-executed
+    },
+    headers={"Authorization": f"Bearer {API_KEY}"},
+).json()
+```
+
+The response is a standard TetraFi quote. The fields that matter for the fallback path:
+
+```json theme={null}
+{
+  "status": "Success",
+  "chainId": 1,
+  "expiry": 1780382915,
+  "slippage": 0.5,
+  "approvalType": "Standard",
+  "taker": "0xC205Eb18a2B0E05cdCC11961d853F36da232da9f",
+  "receiver": "0xC205Eb18a2B0E05cdCC11961d853F36da232da9f",
+  "settlementAddress": "0xdB13ad0fcD134E9c48f2fDaEa8f6751a0F5349ca",
+  "approvalTarget": "0xdB13ad0fcD134E9c48f2fDaEa8f6751a0F5349ca",
+  "requiredSignatures": [],
+  "sellTokens": {
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
+      "amount": "1000000", "decimals": 6, "symbol": "USDC"
+    }
+  },
+  "buyTokens": {
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
+      "amount": "504024636724243", "minimumAmount": "501504513540621",
+      "decimals": 18, "symbol": "WETH"
+    }
+  },
+  "tx": {
+    "to": "0xdB13ad0fcD134E9c48f2fDaEa8f6751a0F5349ca",
+    "value": "0x0",
+    "data": "0x...calldata..."
+  }
+}
+```
+
+| Field                       | Description                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| `tx.to`                     | The PropAmmV2 contract. Same as `settlementAddress` and `approvalTarget`.                    |
+| `tx.data`                   | The calldata for the swap, with the RFQ settlement embedded as the fallback. Send it as-is. |
+| `tx.value`                  | `0x0`, or `amountIn` in hex when selling native ETH.                                        |
+| `requiredSignatures`        | Empty. Nothing to sign off-chain - the transaction is the order.                            |
+| `buyTokens[].minimumAmount` | The propAMM leg's `minAmountOut`, derived from your `slippage`.                              |
+| `expiry`                    | The shared deadline for both legs (see caveats).                                            |
+
+<Note>
+  Behind the endpoint, the RFQ leg is quoted with the **PropAmmV2 contract** as the `taker_address`, because that contract is the on-chain taker that pulls `tokenIn` and delivers `tokenOut` on the fallback path. In self-execution mode the maker's signature in the RFQ calldata is sufficient and no taker signature is required, which is why `requiredSignatures` is empty.
+</Note>
+
+## Submit it
+
+Approve the PropAmmV2 contract for `tokenIn` if you haven't already (see [Approve the propAMM contract](/propamm/quickstart#1-approve-the-propamm-contract)), then build, sign, and submit `tx`. Unlike a plain `swap()`, you don't have to route this through a builder: the fallback is caught inside the same transaction, so a public-mempool submission still settles, via RFQ, when a supporting builder doesn't win the block. The propAMM leg settles only when a supporting builder includes the transaction and the on-chain book can fill. The simulation and gas-estimation are identical to a plain swap; the example below submits through a builder RPC.
+
+```python theme={null}
+to = Web3.to_checksum_address(quote["tx"]["to"])
+data = quote["tx"]["data"]
+value = int(quote["tx"]["value"], 16)
+
+estimated_gas = web3.eth.estimate_gas(
+    {"from": account.address, "to": to, "data": data, "value": value}
+)
+
+tx_req = {
+    "from": account.address,
+    "to": to,
+    "data": data,
+    "value": value,
+    "nonce": web3.eth.get_transaction_count(account.address),
+    "gas": int(estimated_gas * 1.5),
+    "maxFeePerGas": max_fee,             # from Blocknative; see quickstart
+    "maxPriorityFeePerGas": max_priority_fee,
+    "chainId": web3.eth.chain_id,
+}
+
+signed_tx = web3.eth.account.sign_transaction(tx_req, private_key=PRIVATE_KEY)
+
+response = httpx.post(
+    BUILDER_RPC_URL,
+    json={
+        "jsonrpc": "2.0",
+        "method": "eth_sendRawTransaction",
+        "params": [f"0x{signed_tx.raw_transaction.hex()}"],
+        "id": 1,
+    },
+)
+print(response.json())
+```
+
+## What the calldata encodes
+
+You don't assemble this yourself, but it helps to know what `tx.data` decodes to. The on-chain function is:
+
+```solidity theme={null}
+function swapWithFallback(
+    address tokenIn,
+    address tokenOut,
+    uint256 amountIn,
+    uint256 minAmountOut,
+    uint256 expiry,
+    address recipient,
+    address fallbackTarget,
+    bytes calldata fallbackCallData
+) external payable;
+```
+
+The first six parameters match plain `swap()` and apply **to the propAMM leg**. The last two carry the fallback the endpoint composed for you.
+
+| Parameter                         | Applies to      | Set by the endpoint to                                                   |
+| --------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `tokenIn`, `tokenOut`, `amountIn` | propAMM leg      | Your requested pair and sell amount.                                     |
+| `minAmountOut`                    | propAMM leg only | `buyTokens[].minimumAmount`, derived from your `slippage`.               |
+| `expiry`                          | Both legs       | The RFQ quote's expiry, so the on-chain deadline matches the fallback's. |
+| `recipient`                       | propAMM leg only | Your `receiver_address`.                                                 |
+| `fallbackTarget`                  | Fallback leg    | The TetraFi RFQ settlement contract (`tx.to` of the RFQ quote).            |
+| `fallbackCallData`                | Fallback leg    | The signed RFQ settlement calldata.                                      |
+
+## Caveats
+
+A few propAMM-specific behaviors to be aware of:
+
+* **`recipient` is propAMM-only.** The fallback leg delivers to the receiver baked into `fallbackCallData`. The endpoint quotes the RFQ leg with your `receiver_address` and rejects any mismatch, so both legs deliver to the same destination - but it's your `receiver_address` that drives it.
+* **`minAmountOut` is propAMM-only.** It does not protect the fallback leg; the fallback's slippage is whatever the RFQ quote committed to.
+* **One shared `expiry`.** The endpoint sets the propAMM leg's `expiry` to the RFQ quote's expiry (typically \~60-75s) and reports it as the response `expiry`. Your whole transaction must land before then, including any builder delay.
+* **No native ETH out on the fallback path.** `swapWithFallback` reverts with `EthOutNotSupportedInFallback` if `tokenOut` is the native ETH sentinel. ETH out works on plain `swap()` and on the propAMM leg, just not as the fallback target's output.
+* **Residual sweep.** If the fallback leg consumes less than `amountIn`, any residual `tokenIn` or ETH is swept back to `msg.sender` automatically.
+
+## Events
+
+The events emitted depend on which leg actually settled:
+
+| Leg taken        | Event                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| propAMM succeeded | `Swap(user, tokenIn, tokenOut, amountIn, amountOut)` + one `MakerFill` per filling maker |
+| Fallback taken   | `SwapFallback(user, tokenIn, tokenOut, amountIn)`                                        |
+
+Off-chain, watch for `SwapFallback` to detect when your fallback paths are firing. A spike in fallback usage on a specific asset usually means the propAMM book is too thin for your typical size on that pair - either size down, route elsewhere, or contact the team to broaden maker coverage.
+
+## Whitelisting
+
+The endpoint composes the fallback against the TetraFi RFQ settlement contract, which is whitelisted by default. The contract owner controls the whitelist via `setFallback()`. If you need a different fallback target (for example an internal router of your own), reach out via [support](/support) - this isn't a self-serve operation.

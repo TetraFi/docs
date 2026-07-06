@@ -1,0 +1,61 @@
+---
+title: "Execution Modes"
+description: "Choose between self-execution and gasless trading across TetraFi's APIs."
+---
+
+Both the RFQ API and Aggregation API support two execution modes, controlled by the `gasless` query parameter on the quote request.
+
+## Self-Execution (`gasless=false`)
+
+You broadcast the settlement transaction yourself. The quote response includes a `tx` object with the complete calldata.
+
+**Flow:** Quote → Approve → Sign & Broadcast `tx`
+
+**Best for:** Solvers, aggregators, liquidators, and any integration that already manages its own transaction submission pipeline.
+
+**Key properties:**
+
+* You pay gas
+* No last look - once the solver/maker has provided the quote, the `tx` is ready to execute
+* Implies `Standard` approvals
+* No `/order` POST needed
+
+## Gasless (`gasless=true`, default)
+
+TetraFi submits the settlement transaction on your behalf. You sign an EIP-712 message and POST it to the `/order` endpoint. The user never pays gas.
+
+**Flow:** Quote → Approve → Sign EIP-712 → POST `/order` → Poll `/order-status`
+
+**Best for:** Wallets, super-apps, and consumer-facing products where users shouldn't think about gas.
+
+**Key properties:**
+
+* TetraFi pays gas
+* Supports both `Standard` and `Permit2` approval types
+* Requires EIP-712 signature and `/order` submission
+
+## Comparison
+
+|                 | Self-execution               | Gasless (default)          |
+| --------------- | ---------------------------- | -------------------------- |
+| `gasless` param | `false`                      | `true` (default)           |
+| Who submits tx  | You broadcast via your RPC   | TetraFi submits on-chain     |
+| Gas cost        | Paid by taker                | Paid by TetraFi              |
+| Token approvals | Standard only                | Standard or Permit2        |
+| Signing         | Standard transaction signing | EIP-712 signature required |
+
+## API-Specific Behavior
+
+While both APIs share the same execution modes, there are differences in how the modes work:
+
+### RFQ API
+
+In gasless mode, market makers retain **last look** - they can reject a quote before settlement. This allows tighter pricing but means your integration should handle `Failed` statuses gracefully. In self-execution mode, quotes are firm once the `tx` object is returned.
+
+See the [RFQ Gasless Execution guide](/rfq-api/guides/gasless-execution) for the full RFQ-specific gasless flow including last look handling.
+
+### Aggregation API
+
+The solver auction determines pricing in both modes. In self-execution, the `tx` object contains the winning solver's settlement calldata. In gasless mode, you sign a `JamOrder` EIP-712 message.
+
+See the [Aggregation API Quickstart](/aggregation-api/quickstart) for both flows with complete code examples.

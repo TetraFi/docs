@@ -486,3 +486,24 @@ hands-off terminal deliverer (`deliver_cctp_arrival` → `executeLeg OP_DESTINAT
 mint+forward) and has a consumed-nonce branch that idempotently settles the terminal leg — which
 is why the first order reported `settled` even though the module never forwarded (settled should
 arguably require the forward, i.e. `RouteLegCompleted`, when the mint recipient is the module).
+
+### §13 result — corridor-2 GREEN hands-off (2026-07-06 19:18Z)
+
+Second run, ZERO manual intervention: order `composite-dc014a30…` (2 EURC → Base USDC) —
+create 19:13:58 → `registerArrivalPlan` `0x5e44d574…` (19:14:06, pre-accept) → ONE funder
+signature (19:14:30) → Circle settled `0x027ad570…` (~19:16) → `processFxArrival` + junction
+burn `0xfd271312…` (19:16:06) → attested → **backend `deliver_cctp_arrival` delivered cleanly**
+`0x0054a631…` (19:18:15) → `settled|settled`. **~4m20s end-to-end, one signature.** Base USDC
+4.036741 → 8.486341.
+
+Post-mortem on run 1: the delivery submitter had been working all along — its attempt logged
+"Nonce already used" at 19:09 (my manual raw-receive raced it) and idempotently settled. The
++4.4496 delta also shows the first order's STRANDED 2.2284 was swept out by run 2's delivery:
+`CctpModule._executeArrival` forwards the module's FULL own-balance to the CURRENT plan's
+receiver (no per-plan `maxConsume` cap like Relay/Fx modules) — same receiver here so it healed,
+but cross-user it would MISROUTE commingled arrivals. Fold a consume cap into the
+`task_d96f62c2` contract fix alongside `destinationCaller` pinning.
+
+E2E driver hardening landed in `_corridor2_fx_first_e2e.mjs`: re-quote-at-create retry on
+QUOTE_EXPIRED (Circle ~5s FX TTL vs quote-fanout+preflight latency), `signature:""` at create,
+continuation `typedData` field fallback.

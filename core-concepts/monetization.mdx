@@ -1,0 +1,83 @@
+---
+title: "Monetization"
+description: "Add a partner fee to quote requests and collect revenue on every trade."
+---
+
+This guide covers how to include a partner fee in your quote requests. Fee collection works differently depending on which API you use. For business context - fee models, payment terms, and practical considerations - see [Monetize](/monetize).
+
+<Note>
+  If you've agreed on a **flat fee** with TetraFi, fees are applied automatically. You do not need to pass the `fee` parameter.
+</Note>
+
+## How fees work
+
+Pass `fee` (in basis points) on any quote request. One basis point is 0.01%, so `fee=25` means 0.25%. The fee is deducted from the buy side of the trade - the taker receives slightly less of the buy token. The taker's sell amount stays the same.
+
+| Parameter       | Type    | Range         | Description                                                                                       |
+| --------------- | ------- | ------------- | ------------------------------------------------------------------------------------------------- |
+| `fee`           | integer | 0-500 (0%-5%) | Partner fee in basis points. Deducted from the buy side of the trade.                             |
+| `fee_recipient` | string  | -             | Wallet address that receives the fee on-chain. Required when `fee` is set (Aggregation API only). |
+
+The two APIs differ in how fees are collected:
+
+|                | Aggregation API         | RFQ API                                              |
+| -------------- | ----------------------- | ---------------------------------------------------- |
+| **Collection** | On-chain, atomic        | Off-chain, monthly                                   |
+| **Parameters** | `fee` + `fee_recipient` | `fee`                                                |
+| **Payout**     | Instant to your wallet  | Monthly invoice via TetraFi                            |
+| **Tracking**   | On-chain transfers      | [Trade History API](/trade-history-api/introduction) |
+
+## RFQ API
+
+The RFQ API tracks fees off-chain. Pass `fee` (bps) on the quote request. Fees are converted to the chain's native token and attributed to your integration via your API key.
+
+```python theme={null}
+import httpx
+
+resp = httpx.get(
+    "https://api.tetrafi.io/pmm/ethereum/v3/quote",
+    params={
+        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "sell_amounts": "1000000000000000000",
+        "taker_address": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+        "fee": 25,  # 0.25%
+    },
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+)
+quote = resp.json()
+
+# The buyTokens amount already reflects the 25 bps deduction.
+print(quote)
+```
+
+### Fee reconciliation
+
+Use the [Trade History API](/trade-history-api/quickstart) to monitor trades attributed to your integration at any time. Authenticate with your API key and the results are scoped to your integration. See [Authentication](/core-concepts/authentication) for details.
+
+For a complete walkthrough including pagination, see the [Trade History quickstart](/trade-history-api/quickstart).
+
+## Aggregation API
+
+The Aggregation API collects fees atomically as part of the trade transaction. Pass `fee` (bps) and `fee_recipient` (your wallet address) on the quote request. The settlement contract transfers the fee directly to the recipient on-chain when the trade settles. There is no reconciliation step - you receive the fee in your wallet with every trade.
+
+```python theme={null}
+import httpx
+
+resp = httpx.get(
+    "https://api.tetrafi.io/jam/ethereum/v2/quote",
+    params={
+        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "sell_amounts": "1000000000000000000",
+        "taker_address": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+        "fee": 25,  # 0.25%
+        "fee_recipient": "0xYourWalletAddress",
+    },
+)
+quote = resp.json()
+
+# The buyAmounts already reflects the 25 bps deduction.
+# The fee will be transferred to fee_recipient on settlement.
+print(quote)
+```

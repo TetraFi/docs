@@ -1,0 +1,94 @@
+asyncapi: "3.0.0"
+info:
+  title: TetraFi Price API
+  version: "3"
+
+servers:
+  production:
+    host: api.tetrafi.io
+    protocol: wss
+
+channels:
+  pricing:
+    address: /pmm/{chain}/v3/pricing?gasless={gasless}&expiry_type={expiry_type}&format={format}
+    parameters:
+      chain:
+        description: "Blockchain network (example: ethereum, arbitrum, base, etc.)"
+        default: ethereum
+      format:
+        description: "Message encoding format. Options: protobuf, json. Default: json."
+      gasless:
+        description: "Set to true for pricing for the gasless mode. Default: false."
+      expiry_type:
+        description: "Quote expiry window. Options: standard, short. Default: standard."
+    bindings:
+      ws:
+        headers:
+          type: object
+          required: [Authorization]
+          properties:
+            Authorization:
+              type: string
+              description: "Your API key as a Bearer token: `Bearer <API_KEY>`."
+    servers:
+      - $ref: "#/servers/production"
+    messages:
+      priceUpdate:
+        $ref: "#/components/messages/PriceUpdate"
+
+operations:
+  sendPriceUpdates:
+    action: send
+    channel:
+      $ref: "#/channels/pricing"
+    summary: Price updates streamed to client
+    messages:
+      - $ref: "#/channels/pricing/messages/priceUpdate"
+
+components:
+  messages:
+    PriceUpdate:
+      name: PriceUpdate
+      title: Price Update
+      summary: "Order book snapshot for all pairs (format=json). Protobuf also available (format=protobuf, default) - see Build > Price API for the proto schema."
+      contentType: application/json
+      payload:
+        type: object
+        description: "Each key is a trading pair: `0x<base_address>/0x<quote_address>`."
+        properties:
+          pair:
+            type: object
+            description: "Order book for a trading pair. Key example: `0xC02...Cc2/0xA0b...B48`."
+            properties:
+              last_update_ts:
+                type: number
+                description: Timestamp of last price update (seconds since epoch).
+              bids:
+                type: array
+                description: "Bid levels descending by price. Each entry: [price, volume]."
+                items:
+                  type: array
+                  items:
+                    type: number
+              asks:
+                type: array
+                description: "Ask levels ascending by price. Each entry: [price, volume]."
+                items:
+                  type: array
+                  items:
+                    type: number
+            required: [last_update_ts, bids, asks]
+      examples:
+        - name: jsonResponse
+          summary: WETH/USDC order book
+          payload:
+            "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48":
+              last_update_ts: 1710249600.123
+              bids:
+                - [2498.75, 30.0]
+                - [2498.20, 80.0]
+                - [2497.50, 200.0]
+              asks:
+                - [2499.40, 25.0]
+                - [2500.10, 75.0]
+                - [2500.85, 180.0]

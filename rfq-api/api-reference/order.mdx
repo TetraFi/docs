@@ -1,0 +1,207 @@
+---
+title: "Order"
+description: "This endpoint provides a simple order placement mechanism for quotes retrieved from [/quote](#/v3/v3_quote_v3_quote_post) endpoint. You will be required to sign the quote object using an EOA private key and POST this signature along with the quote ID to place an order."
+openapi: "POST /v3/order"
+mode: "wide"
+---
+
+TetraFi submits order on chain having received maker and taker signatures. This means that TetraFi pays the network (gas) fees as they are already included in the price.
+
+
+
+## OpenAPI
+
+````yaml /specs/rfq-api.json post /v3/order
+openapi: 3.1.0
+info:
+  title: TetraFi RFQ API
+  version: '3'
+  description: >-
+    Request-for-quote trading API. Get quotes and execute token swaps directly
+    with market makers.
+servers:
+  - url: https://api.tetrafi.io/pmm/{chain}
+    variables:
+      chain:
+        default: ethereum
+        enum:
+          - ethereum
+          - polygon
+          - arbitrum
+          - optimism
+          - base
+          - bsc
+          - blast
+          - zksync
+          - mode
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        description: Blockchain network
+security:
+  - bearerAuth: []
+paths:
+  /v3/order:
+    post:
+      summary: Order
+      description: >-
+        This endpoint provides a simple order placement mechanism for quotes
+        retrieved from [/quote](#/v3/v3_quote_v3_quote_post) endpoint. You will
+        be required to sign the quote object using an EOA private key and POST
+        this signature along with the quote ID to place an order.
+
+                    TetraFi submits order on chain having received maker and taker signatures. This means that TetraFi pays the network (gas) fees as they are already included in the price.
+      operationId: submitOrder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Body_post_order_v3_order_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderApiResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Body_post_order_v3_order_post:
+      properties:
+        quote_id:
+          type: string
+          title: Quote ID
+          description: Id of the quote to use for the order
+        signature:
+          type: string
+          title: Signature
+          description: Taker's signature produced from the toSign field in the quote
+        sign_scheme:
+          type: string
+          title: Sign Scheme
+          description: Sign scheme used to produce the signature
+          default: EIP712
+        permit2:
+          anyOf:
+            - $ref: '#/components/schemas/Permit2'
+            - type: 'null'
+          title: Permit2 info
+          description: Permit2 info for taker
+        permit:
+          anyOf:
+            - $ref: '#/components/schemas/Permit'
+            - type: 'null'
+          title: Permit info
+          description: Permit info for taker
+      type: object
+      required:
+        - quote_id
+        - signature
+      title: Body_post_order_v3_order_post
+    OrderApiResponse:
+      properties:
+        txHash:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Txhash
+        status:
+          type: string
+          title: Status
+        expiry:
+          type: integer
+          title: Expiry
+      type: object
+      required:
+        - status
+        - expiry
+      title: OrderApiResponse
+      examples:
+        - expiry: 1692811212
+          status: Success
+          txHash: '0x41d4d98fca62eeb0a86da4765bae213fe74203c33612e59a48c69555d66abeca'
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Permit2:
+      properties:
+        signature:
+          type: string
+          title: Signature
+        approvals_deadline:
+          type: integer
+          title: Approvals Deadline
+        token_addresses:
+          items:
+            type: string
+          type: array
+          title: Token Addresses
+        token_nonces:
+          items:
+            type: integer
+          type: array
+          title: Token Nonces
+      type: object
+      required:
+        - signature
+        - approvals_deadline
+        - token_addresses
+        - token_nonces
+      title: Permit2
+    Permit:
+      properties:
+        signature:
+          type: string
+          title: Signature
+        approvals_deadline:
+          type: integer
+          title: Approvals Deadline
+      type: object
+      required:
+        - signature
+        - approvals_deadline
+      title: Permit
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````

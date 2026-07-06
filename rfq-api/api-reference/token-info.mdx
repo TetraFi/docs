@@ -1,0 +1,234 @@
+---
+title: "Token Info"
+description: "Returns detailed metadata for all tokens available for trading on TetraFi, including price, decimals, and display information. Use /tokenlist for the standard token list format."
+openapi: "GET /v3/token-info"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/rfq-api.json get /v3/token-info
+openapi: 3.1.0
+info:
+  title: TetraFi RFQ API
+  version: '3'
+  description: >-
+    Request-for-quote trading API. Get quotes and execute token swaps directly
+    with market makers.
+servers:
+  - url: https://api.tetrafi.io/pmm/{chain}
+    variables:
+      chain:
+        default: ethereum
+        enum:
+          - ethereum
+          - polygon
+          - arbitrum
+          - optimism
+          - base
+          - bsc
+          - blast
+          - zksync
+          - mode
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        description: Blockchain network
+security:
+  - bearerAuth: []
+paths:
+  /v3/token-info:
+    get:
+      summary: Token Info
+      description: >-
+        Returns detailed metadata for all tokens available for trading on TetraFi,
+        including price, decimals, and display information. Use /tokenlist for
+        the standard token list format.
+      operationId: getTokenInfo
+      parameters:
+        - name: gasless
+          in: query
+          required: false
+          schema:
+            type: boolean
+            title: Gasless
+            description: Return gasless tokens
+            default: false
+          description: Return gasless tokens
+        - name: expiry_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ExpiryType'
+            title: Expiry Type
+            description: Return standard or short expiry tokens
+            default: standard
+          description: Return standard or short expiry tokens
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenInfoApiResponse'
+              example:
+                tokens:
+                  CBETH:
+                    availability:
+                      canBuy: false
+                      canSell: false
+                      isAvailable: false
+                    chainId: 137
+                    contractAddress: '0x4b4327dB1600B8B1440163F667e199CEf35385f5'
+                    decimals: 18
+                    name: Coinbase Wrapped Staked ETH
+                    ticker: CBETH
+                  SAND:
+                    availability:
+                      canBuy: true
+                      canSell: true
+                      isAvailable: true
+                    chainId: 137
+                    contractAddress: '0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683'
+                    decimals: 18
+                    name: The Sandbox
+                    priceUsd: 0.33122916548934794
+                    ticker: SAND
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    ExpiryType:
+      type: string
+      enum:
+        - standard
+        - short
+      title: ExpiryType
+    TokenInfoApiResponse:
+      properties:
+        tokens:
+          additionalProperties:
+            $ref: '#/components/schemas/TokenApiResponse'
+          type: object
+          title: Tokens
+      type: object
+      required:
+        - tokens
+      title: TokenInfoApiResponse
+      examples:
+        - tokens:
+            CBETH:
+              availability:
+                canBuy: false
+                canSell: false
+                isAvailable: false
+              chainId: 137
+              contractAddress: '0x4b4327dB1600B8B1440163F667e199CEf35385f5'
+              decimals: 18
+              name: Coinbase Wrapped Staked ETH
+              ticker: CBETH
+            SAND:
+              availability:
+                canBuy: true
+                canSell: true
+                isAvailable: true
+              chainId: 137
+              contractAddress: '0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683'
+              decimals: 18
+              name: The Sandbox
+              priceUsd: 0.33122916548934794
+              ticker: SAND
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    TokenApiResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        ticker:
+          type: string
+          title: Ticker
+        availability:
+          $ref: '#/components/schemas/AvailabilityResponse'
+        priceUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceusd
+        chainId:
+          type: integer
+          title: Chainid
+        contractAddress:
+          type: string
+          title: Contractaddress
+        decimals:
+          type: integer
+          title: Decimals
+      type: object
+      required:
+        - name
+        - ticker
+        - availability
+        - chainId
+        - contractAddress
+        - decimals
+      title: TokenApiResponse
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+    AvailabilityResponse:
+      properties:
+        isAvailable:
+          type: boolean
+          title: Isavailable
+        canBuy:
+          type: boolean
+          title: Canbuy
+        canSell:
+          type: boolean
+          title: Cansell
+      type: object
+      required:
+        - isAvailable
+        - canBuy
+        - canSell
+      title: AvailabilityResponse
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````

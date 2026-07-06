@@ -1,0 +1,46 @@
+---
+title: "Monetize"
+description: "Earn revenue on every trade your users make through TetraFi."
+---
+
+Every trade that flows through TetraFi can generate revenue for your product. There are two ways to collect fees  - choose whichever fits your workflow.
+
+## Two approaches
+
+<Tabs>
+  <Tab title="Flat fee">
+    Tell TetraFi your desired fee rate and we apply it automatically to every quote under your API key. No code changes required  - just agree on a rate and it takes effect immediately.
+  </Tab>
+
+  <Tab title="Per-quote fee">
+    Pass a `fee` parameter (in basis points) on each quote request. This gives you full control  - vary the fee by token pair, chain, trade size, or user tier. See the [implementation guide](/core-concepts/monetization) for details.
+  </Tab>
+</Tabs>
+
+## How it works
+
+<Steps>
+  <Step title="Choose your fee model">
+    Either agree on a flat fee with TetraFi, or add the `fee` parameter to your quote requests for per-trade control.
+  </Step>
+
+  <Step title="Trades settle with your fee included">
+    The fee is deducted from the buy side of the trade  - the taker receives slightly less of the buy token. The taker's sell amount stays the same. For convenience, fees are converted to the chain's native token.
+  </Step>
+
+  <Step title="Get paid">
+    How you receive fees depends on the API. With the **Aggregation API**, fees are transferred directly to your wallet on-chain as part of each trade - no invoicing required. With the **RFQ API**, monitor your fee data via the [Trade History API](/trade-history-api/introduction), reconcile monthly, and invoice TetraFi.
+  </Step>
+</Steps>
+
+## Works across all trading APIs
+
+The fee parameter is available on both the [RFQ API](/rfq-api/introduction) and the [Aggregation API](/aggregation-api/introduction), so you can monetize from day one. The fee collection mechanism differs between APIs - see the [implementation guide](/core-concepts/monetization) for details.
+
+## Practical considerations
+
+Most integrators charge between 5 and 50 bps depending on their product and audience. Higher fees widen the quoted spread, which can make your pricing less competitive if your users compare across venues. Starting lower and adjusting based on volume data is a common approach.
+
+<Card icon="wrench" href="/core-concepts/monetization" title="Implementation guide">
+  Ready to add fees? The technical guide covers the API parameter and code examples.
+</Card>

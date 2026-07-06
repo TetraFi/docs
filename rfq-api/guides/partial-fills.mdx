@@ -1,0 +1,189 @@
+---
+title: "Partial Fills"
+description: "Execute only a portion of a quoted order - useful when combining RFQ liquidity with other sources."
+---
+
+Partial fills let you execute only a portion of a quoted order size. This is useful when combining RFQ liquidity with other sources (e.g. AMM fallback), or when market conditions change and you only need part of the originally requested size.
+
+<Note>
+  Partial fills are only supported for self-execution (`gasless=false`). Gasless quotes cannot be partially filled.
+</Note>
+
+## How It Works
+
+The quote response includes a `partialFillOffset` field that tells you where in the transaction calldata to modify the fill amount. By default, quotes are filled fully - to partially fill, you replace the taker amount at that offset with your desired amount.
+
+Partial fill amounts must be less than the original `taker_amount` in the quote, specified in base units (same as the original quote), and encoded as a 64-character hex string (32 bytes, zero-padded).
+
+## Understanding the Calldata Structure
+
+The `partialFillOffset` is a word index (0-indexed) counting 32-byte segments in the encoded calldata. Each word is 32 bytes = 64 hex characters.
+
+```
+0x           // Hex prefix (2 characters)
+4dcebcba     // Function selector (8 characters)
+[word 0]     // First 32-byte word (64 characters)
+[word 1]     // Second 32-byte word (64 characters)
+...
+[word N]     // filledTakerAmount (64 characters) ← partialFillOffset = N
+```
+
+The position in the hex string is:
+
+```
+position = 10 + (offset × 64)
+```
+
+where `10` accounts for the `0x` prefix (2 chars) and the 4-byte function selector (8 chars).
+
+## Step by Step
+
+### 1. Request a Quote
+
+```python theme={null}
+import httpx
+
+NETWORK = "ethereum"
+
+resp = httpx.get(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
+    params={
+        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "sell_amounts": "1000000000000000000",  # 1 WETH
+        "taker_address": "0xYourWalletAddress",
+        "gasless": "false",
+    },
+)
+quote = resp.json()
+```
+
+Key fields in the response:
+
+| Field                       | Description                                                |
+| --------------------------- | ---------------------------------------------------------- |
+| `sellTokens.<token>.amount` | Originally requested amount                                |
+| `tx.data`                   | Original calldata                                          |
+| `partialFillOffset`         | Word index where `filledTakerAmount` lives in the calldata |
+
+### 2. Calculate Your Partial Fill Amount
+
+Decide how much of the original order you want to fill. The amount must be in base units and less than the original `taker_amount`:
+
+```python theme={null}
+sell_token = list(quote["sellTokens"].keys())[0]
+original_amount = int(quote["sellTokens"][sell_token]["amount"])
+
+# Fill 50% of the original order
+fill_amount = original_amount // 2
+```
+
+### 3. Modify the Calldata
+
+Replace the fill amount in the transaction calldata at the position indicated by `partialFillOffset`:
+
+```python theme={null}
+def apply_partial_fill(tx_data: str, offset: int, fill_amount: int) -> str:
+    pos = 10 + offset * 64
+    return (
+        tx_data[:pos]
+        + f"{fill_amount:064x}"
+        + tx_data[pos + 64:]
+    )
+
+modified_data = apply_partial_fill(
+    quote["tx"]["data"],
+    quote["partialFillOffset"],
+    fill_amount,
+)
+```
+
+### 4. Sign and Broadcast
+
+From here, the flow is the same as the standard [self-execution quickstart](/rfq-api/quickstart) - use the **modified** calldata in the transaction, sign, and submit:
+
+```python theme={null}
+from eth_account import Account
+from web3 import Web3
+
+PRIVATE_KEY = "0x<your_private_key>"
+RPC_URL = "https://eth.llamarpc.com"
+
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
+account = Account.from_key(PRIVATE_KEY)
+
+# Submit with the modified calldata
+tx = quote["tx"]
+tx["data"] = modified_data
+tx["nonce"] = w3.eth.get_transaction_count(account.address)
+tx["chainId"] = quote["chainId"]
+
+signed_tx = w3.eth.account.sign_transaction(tx, account.key)
+tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+print(f"Partial fill transaction: {tx_hash.hex()}")
+```
+
+## Full Example
+
+```python theme={null}
+import httpx
+from eth_account import Account
+from web3 import Web3
+
+PRIVATE_KEY = "0x<your_private_key_hex>"
+NETWORK = "ethereum"
+RPC_URL = "https://eth.llamarpc.com"
+FILL_PERCENT = 50  # Fill 50% of the quoted amount
+
+# --- 1. Request a self-execution quote ---
+
+taker_address = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+
+quote_resp = httpx.get(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
+    params={
+        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "sell_amounts": "1000000000000000000",  # 1 WETH
+        "taker_address": taker_address,
+        "gasless": "false",
+    },
+)
+quote = quote_resp.json()
+
+sell_token = list(quote["sellTokens"].keys())[0]
+original_amount = int(quote["sellTokens"][sell_token]["amount"])
+buy_token = list(quote["buyTokens"].values())[0]
+print(
+    f'Quote: sell 1 WETH -> buy ~{int(buy_token["amount"]) / 10 ** buy_token["decimals"]:.2f} USDC'
+)
+
+# --- 2. Calculate partial fill amount ---
+
+fill_amount = original_amount * FILL_PERCENT // 100
+print(f"Partial fill: {FILL_PERCENT}% -> {fill_amount} base units")
+
+# --- 3. Splice the calldata ---
+
+def apply_partial_fill(tx_data: str, offset: int, amount: int) -> str:
+    pos = 10 + offset * 64
+    return tx_data[:pos] + f"{amount:064x}" + tx_data[pos + 64 :]
+
+modified_data = apply_partial_fill(
+    quote["tx"]["data"], quote["partialFillOffset"], fill_amount
+)
+
+# --- 4. Sign and submit with modified calldata ---
+
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
+account = Account.from_key(PRIVATE_KEY)
+
+tx = quote["tx"]
+tx["data"] = modified_data
+tx["nonce"] = w3.eth.get_transaction_count(account.address)
+tx["chainId"] = quote["chainId"]
+
+signed_tx = w3.eth.account.sign_transaction(tx, account.key)
+tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+print(f"Partial fill submitted: {tx_hash.hex()}")
+```

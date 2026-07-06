@@ -1,0 +1,136 @@
+---
+title: "Token Approvals"
+description: "Set up ERC-20 token approvals so TetraFi's router and settlement contracts can execute your trades."
+---
+
+Before TetraFi can settle a trade, the contract handling it needs permission to move your sell tokens. This is standard ERC-20 behavior - you call `approve()` on the token contract, authorizing the settlement contract to transfer up to a specified amount.
+
+This applies to both the RFQ API (router and settlement contracts) and Aggregation API (balance manager).
+
+## Which Contract to Approve
+
+Every quote response includes an `approvalTarget` field - this is the address you approve. Always use this value rather than hardcoding.
+
+<Warning>
+  **Never hardcode the approval address.** Always read `approvalTarget` from the quote response.
+
+  RFQ API quotes may return either the router contract or the settlement contract, depending on how the trade is handled.
+
+  The Aggregation API uses a separate balance manager contract for approvals - it is not the same as the settlement contract.
+
+  For Aggregation API, approving the settlement contract will lead to loss of funds.
+</Warning>
+
+## Check Existing Allowance
+
+Before approving, check whether the token already has sufficient allowance. This avoids unnecessary gas spend on redundant approval transactions.
+
+```python theme={null}
+from web3 import Web3
+
+ERC20_ABI = [
+    {
+        "constant": True,
+        "inputs": [
+            {"name": "_owner", "type": "address"},
+            {"name": "_spender", "type": "address"},
+        ],
+        "name": "allowance",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "type": "function",
+    },
+    {
+        "constant": False,
+        "inputs": [
+            {"name": "_spender", "type": "address"},
+            {"name": "_value", "type": "uint256"},
+        ],
+        "name": "approve",
+        "outputs": [{"name": "", "type": "bool"}],
+        "type": "function",
+    },
+]
+
+w3 = Web3(Web3.HTTPProvider("https://eth.llamarpc.com"))
+
+def check_allowance(owner: str, token_address: str, spender: str) -> int:
+    token = w3.eth.contract(
+        address=Web3.to_checksum_address(token_address),
+        abi=ERC20_ABI,
+    )
+    return token.functions.allowance(
+        Web3.to_checksum_address(owner),
+        Web3.to_checksum_address(spender),
+    ).call()
+```
+
+## Approve if Needed
+
+If the current allowance is less than the trade amount, submit an approval transaction. Most integrators approve the maximum amount (`2^256 - 1`) so they only need to do this once per token.
+
+```python theme={null}
+from eth_account import Account
+
+PRIVATE_KEY = "0x<your_private_key>"
+
+def ensure_allowance(account, token_address: str, spender: str, required: int):
+    current = check_allowance(account.address, token_address, spender)
+    if current >= required:
+        return  # already approved
+
+    token = w3.eth.contract(
+        address=Web3.to_checksum_address(token_address),
+        abi=ERC20_ABI,
+    )
+
+    tx = token.functions.approve(
+        Web3.to_checksum_address(spender),
+        2**256 - 1,  # max approval
+    ).build_transaction({
+        "from": account.address,
+        "nonce": w3.eth.get_transaction_count(account.address),
+        "gasPrice": w3.eth.gas_price,
+    })
+
+    signed = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
+    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+```
+
+## Using It with Quotes
+
+After receiving a quote from either API, check and approve before signing and broadcasting:
+
+```python theme={null}
+quote = response.json()
+
+sell_token = list(quote["sellTokens"].keys())[0]
+sell_amount = int(quote["sellTokens"][sell_token]["amount"])
+approval_target = quote["approvalTarget"]
+
+account = Account.from_key(PRIVATE_KEY)
+ensure_allowance(account, sell_token, approval_target, sell_amount)
+
+# Now proceed to sign and broadcast...
+```
+
+## Approval Strategies
+
+**Max approval (recommended for programmatic integrators):** Approve `2^256 - 1` once per token. Saves gas on subsequent trades since you never need to re-approve. This is the standard approach for solvers and aggregators.
+
+**Exact approval:** Approve only the exact trade amount each time. More conservative, but costs gas on every trade. Some compliance-sensitive integrations prefer this.
+
+## Permit2
+
+In gasless mode (`gasless=true`), you can use `approval_type=Permit2` to replace the per-contract on-chain approval with a one-time approval of the [Permit2 contract](https://github.com/Uniswap/permit2). Token spending is then authorized via off-chain EIP-712 signatures rather than separate `approve()` transactions for each settlement contract.
+
+With `approval_type=Standard` (the default for gasless), the user must have approved the settlement contract beforehand - the same as self-execution.
+
+The Permit2 signing flow differs between APIs:
+
+* **Aggregation API:** The order is wrapped inside a `PermitBatchWitnessTransferFrom` message - you sign one combined message with the Permit2 domain. See the [Aggregation API quickstart](/aggregation-api/quickstart#permit2-signing-variant).
+* **RFQ API:** Order signing is unchanged (`TetraFiSettlement` domain, same types). You generate a **separate** `PermitBatch` signature and include it in the `/order` POST body. See the [RFQ gasless guide](/rfq-api/guides/gasless-execution#using-permit2-approvals).
+
+<Note>
+  Permit2 is supported in gasless mode on both the RFQ API and Aggregation API. It is not compatible with self-execution on either API.
+</Note>

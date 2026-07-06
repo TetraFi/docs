@@ -1,0 +1,72 @@
+---
+title: "Introduction"
+description: "Access institutional market maker liquidity with guaranteed execution and guaranteed fill."
+---
+
+The RFQ API connects you to TetraFi's network of private market makers who quote directly from their own on-chain inventory. Every quote is firm - guaranteed execution and guaranteed fill.
+
+## When to Use
+
+* You need **firm pricing** with guaranteed execution and guaranteed fill - no slippage, no solver auction, no price uncertainty
+* You are trading **major token pairs** where private market maker liquidity offers tighter spreads than on-chain routing
+* You want **atomic multi-token swaps** (e.g., sell 3 tokens for 1 or buy 1 token with 3 tokens) settled in a single transaction
+
+## At a Glance
+
+|                    |                                                           |
+| ------------------ | --------------------------------------------------------- |
+| **Transport**      | REST                                                      |
+| **Authentication** | API key                                                   |
+| **Signing**        | EIP-712                                                   |
+| **On-chain tx**    | TetraFi submits (gasless) or you broadcast (self-execution) |
+| **Gasless**        | Yes (default)                                             |
+| **Complexity**     | Medium - EIP-712 signing + token approvals                |
+
+## How It Works
+
+The RFQ API supports two execution modes. Gasless is the default and recommended for most integrations.
+
+<Tabs>
+  <Tab title="Gasless (default)">
+    TetraFi handles on-chain submission. Your users sign a message but never pay gas.
+
+    | Step | Action              | You send                          | You get back                   |
+    | ---- | ------------------- | --------------------------------- | ------------------------------ |
+    | 1    | Request a quote     | Token pair, amount                | Firm price, EIP-712 typed data |
+    | 2    | Sign the order      | EIP-712 typed data → taker wallet | Signature                      |
+    | 3    | Submit to TetraFi     | Signature → `POST /v3/order`      | Quote ID                       |
+    | 4    | Poll for settlement | Quote ID → `GET /v3/order-status` | Status: `Settled`              |
+  </Tab>
+
+  <Tab title="Self-execution">
+    You broadcast the transaction yourself for direct on-chain settlement.
+
+    | Step | Action             | You send                                      | You get back                                |
+    | ---- | ------------------ | --------------------------------------------- | ------------------------------------------- |
+    | 1    | Request a quote    | Token pair, amount, `gasless=false`           | Firm price, EIP-712 typed data, `tx` object |
+    | 2    | Sign the order     | EIP-712 typed data → taker wallet             | Signature                                   |
+    | 3    | Broadcast on-chain | Append signature to `tx` calldata → broadcast | On-chain settlement                         |
+  </Tab>
+</Tabs>
+
+See [Execution Modes](/core-concepts/execution-modes) for a detailed comparison.
+
+## Key Endpoints
+
+| Endpoint                             | Purpose                                         |
+| ------------------------------------ | ----------------------------------------------- |
+| `GET /pmm/{network}/v3/quote`        | Request a firm quote for a token swap           |
+| `POST /pmm/{network}/v3/order`       | Submit a signed order for gasless settlement    |
+| `GET /pmm/{network}/v3/order-status` | Poll settlement status by quote ID (both modes) |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/rfq-api/quickstart">
+    Make your first trade in 10-15 minutes.
+  </Card>
+
+  <Card title="Guides" icon="book-open" href="/rfq-api/guides/gasless-execution">
+    Gasless execution, partial fills, multi-token trades, and more.
+  </Card>
+</CardGroup>

@@ -1,0 +1,297 @@
+---
+title: "Token List"
+description: "This endpoint will return all tokens available for trading on TetraFi PMM, in tokenlist format, with extra info."
+openapi: "GET /v3/tokenlist"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/rfq-api.json get /v3/tokenlist
+openapi: 3.1.0
+info:
+  title: TetraFi RFQ API
+  version: '3'
+  description: >-
+    Request-for-quote trading API. Get quotes and execute token swaps directly
+    with market makers.
+servers:
+  - url: https://api.tetrafi.io/pmm/{chain}
+    variables:
+      chain:
+        default: ethereum
+        enum:
+          - ethereum
+          - polygon
+          - arbitrum
+          - optimism
+          - base
+          - bsc
+          - blast
+          - zksync
+          - mode
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        description: Blockchain network
+security:
+  - bearerAuth: []
+paths:
+  /v3/tokenlist:
+    get:
+      summary: Token List
+      description: >-
+        This endpoint will return all tokens available for trading on TetraFi PMM,
+        in tokenlist format, with extra info.
+      operationId: getTokenList
+      parameters:
+        - name: active_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            title: Active Only
+            description: Return only active tokens
+            default: true
+          description: Return only active tokens
+        - name: gasless
+          in: query
+          required: false
+          schema:
+            type: boolean
+            title: Gasless
+            description: Return gasless tokens
+            default: false
+          description: Return gasless tokens
+        - name: expiry_type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ExpiryType'
+            title: Expiry Type
+            description: Return standard or short expiry tokens
+            default: standard
+          description: Return standard or short expiry tokens
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PMMTokenList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    ExpiryType:
+      type: string
+      enum:
+        - standard
+        - short
+      title: ExpiryType
+    PMMTokenList:
+      properties:
+        keywords:
+          items:
+            type: string
+          type: array
+          title: Keywords
+        logoURI:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Logouri
+        name:
+          type: string
+          title: Name
+        tags:
+          anyOf:
+            - additionalProperties:
+                $ref: '#/components/schemas/Tag'
+              type: object
+            - type: 'null'
+          title: Tags
+        timestamp:
+          type: string
+          title: Timestamp
+        tokens:
+          items:
+            $ref: '#/components/schemas/PMMTokenListToken'
+          type: array
+          title: Tokens
+        version:
+          anyOf:
+            - $ref: '#/components/schemas/Version'
+            - type: 'null'
+      type: object
+      required:
+        - keywords
+        - name
+        - timestamp
+        - tokens
+      title: PMMTokenList
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Tag:
+      properties:
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+      type: object
+      required:
+        - name
+        - description
+      title: Tag
+    PMMTokenListToken:
+      properties:
+        chainId:
+          type: integer
+          title: Chainid
+        address:
+          type: string
+          title: Address
+        decimals:
+          type: integer
+          title: Decimals
+        name:
+          type: string
+          title: Name
+        symbol:
+          type: string
+          title: Symbol
+        logoURI:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Logouri
+        tags:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: 'null'
+          title: Tags
+        extensions:
+          anyOf:
+            - $ref: '#/components/schemas/PMMExtensions'
+            - type: 'null'
+      type: object
+      required:
+        - chainId
+        - address
+        - decimals
+        - name
+        - symbol
+      title: PMMTokenListToken
+    Version:
+      properties:
+        major:
+          type: integer
+          title: Major
+        minor:
+          type: integer
+          title: Minor
+        patch:
+          type: integer
+          title: Patch
+      type: object
+      required:
+        - major
+        - minor
+        - patch
+      title: Version
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+    PMMExtensions:
+      properties:
+        color:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Color
+        color_light:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Color Light
+        displayDecimals:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Displaydecimals
+        preview:
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Preview
+        added:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Added
+        availability:
+          anyOf:
+            - $ref: '#/components/schemas/AvailabilityResponse'
+            - type: 'null'
+      type: object
+      title: PMMExtensions
+    AvailabilityResponse:
+      properties:
+        isAvailable:
+          type: boolean
+          title: Isavailable
+        canBuy:
+          type: boolean
+          title: Canbuy
+        canSell:
+          type: boolean
+          title: Cansell
+      type: object
+      required:
+        - isAvailable
+        - canBuy
+        - canSell
+      title: AvailabilityResponse
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````

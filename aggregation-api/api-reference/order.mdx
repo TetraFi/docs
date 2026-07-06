@@ -1,0 +1,196 @@
+---
+title: "Order"
+description: "Submit a signed order for gasless execution. Requires a valid quote ID and an EIP-712 signature from the taker. TetraFi submits the transaction on-chain and covers gas fees."
+openapi: "POST /v2/order"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/aggregation-api.json post /v2/order
+openapi: 3.1.0
+info:
+  title: TetraFi Aggregation API
+  version: '2'
+  description: >-
+    Aggregation API powered by solver competition. Get the best swap prices from
+    multiple solvers.
+servers:
+  - url: https://api.tetrafi.io/jam/{chain}
+    variables:
+      chain:
+        default: ethereum
+        enum:
+          - ethereum
+          - polygon
+          - arbitrum
+          - bsc
+          - zksync
+          - optimism
+          - blast
+          - mode
+          - base
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        description: Blockchain network
+security:
+  - bearerAuth: []
+paths:
+  /v2/order:
+    post:
+      summary: Order
+      description: >-
+        Submit a signed order for gasless execution. Requires a valid quote ID
+        and an EIP-712 signature from the taker. TetraFi submits the transaction
+        on-chain and covers gas fees.
+      operationId: submitOrder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Body_execute_order_v2_order_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Body_execute_order_v2_order_post:
+      properties:
+        quote_id:
+          type: string
+          title: Quote ID
+          description: Id of the quote to use for the order
+        signature:
+          type: string
+          title: Signature
+          description: Taker's signature produced from the toSign field in the quote
+        sign_scheme:
+          type: string
+          title: Sign Scheme
+          description: Sign scheme used to produce the signature
+          default: EIP712
+        permit2:
+          anyOf:
+            - $ref: '#/components/schemas/Permit2'
+            - type: 'null'
+          title: Permit2 info
+          description: Permit2 info for taker
+        permit:
+          anyOf:
+            - $ref: '#/components/schemas/Permit'
+            - type: 'null'
+          title: Permit info
+          description: Permit info for taker
+      type: object
+      required:
+        - quote_id
+        - signature
+      title: Body_execute_order_v2_order_post
+    OrderResponse:
+      properties:
+        txHash:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Txhash
+        status:
+          type: string
+          title: Status
+        expiry:
+          type: integer
+          title: Expiry
+      type: object
+      required:
+        - status
+        - expiry
+      title: OrderResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Permit2:
+      properties:
+        signature:
+          type: string
+          title: Signature
+        approvals_deadline:
+          type: integer
+          title: Approvals Deadline
+        token_addresses:
+          items:
+            type: string
+          type: array
+          title: Token Addresses
+        token_nonces:
+          items:
+            type: integer
+          type: array
+          title: Token Nonces
+      type: object
+      required:
+        - signature
+        - approvals_deadline
+        - token_addresses
+        - token_nonces
+      title: Permit2
+    Permit:
+      properties:
+        signature:
+          type: string
+          title: Signature
+        approvals_deadline:
+          type: integer
+          title: Approvals Deadline
+      type: object
+      required:
+        - signature
+        - approvals_deadline
+      title: Permit
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````

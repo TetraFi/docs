@@ -1,0 +1,67 @@
+---
+title: "Authentication"
+description: "How to obtain and use an API key for TetraFi's trading and data APIs."
+---
+
+All production usage of TetraFi's APIs requires an API key. Without one, trading endpoints return widened demo-mode quotes and some endpoints are inaccessible entirely.
+
+## Obtaining an API Key
+
+Request an API key through the [TetraFi support page](/support). The team will provision a key and send it to you directly.
+
+## Passing Your API Key
+
+<Tabs>
+  <Tab title="REST APIs">
+    For HTTP requests (RFQ, Aggregation, Trade History), authenticate with the `Authorization` header using your API key as a Bearer token:
+
+    ```python theme={null}
+    YOUR_API_KEY = "YOUR_API_KEY"
+
+    headers = {"Authorization": f"Bearer {YOUR_API_KEY}"}
+    ```
+
+    With curl:
+
+    ```bash theme={null}
+    curl -H "Authorization: Bearer YOUR_API_KEY" ...
+    ```
+  </Tab>
+
+  <Tab title="WebSocket">
+    For WebSocket connections (Price API), send the `Authorization` header with your API key as a Bearer token on the connection handshake:
+
+    ```python theme={null}
+    import websockets
+
+    ws_url = "wss://api.tetrafi.io/pmm/ethereum/v3/pricing"
+
+    async with websockets.connect(
+        ws_url,
+        additional_headers={"Authorization": f"Bearer {YOUR_API_KEY}"},
+    ) as ws:
+        ...
+    ```
+  </Tab>
+</Tabs>
+
+## What Requires Authentication
+
+| API                   | Without key                                                                           | With key                                                     |
+| --------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Price API**         | Cannot connect                                                                        | Full access to real-time price streams                       |
+| **RFQ API**           | Demo mode  - quotes are widened, heavily rate limited and not suitable for production | Firm, tight quotes ready for execution                       |
+| **Aggregation API**   | Demo mode  - quotes are widened, heavily rate limited and not suitable for production | Firm, tight quotes ready for execution                       |
+| **Trade History API** | Public lookups by wallet address only                                                 | Full access  - see all trades attributed to your integration |
+
+Demo mode is useful for testing your integration flow end-to-end before going live, but the prices returned are not competitive.
+
+## Rate Limits
+
+Rate limits apply per API key. If you have concerns about throughput for your use case, reach out via the [support page](/support).
+
+## Best Practices
+
+Keep your API key secret. Do not expose it in client-side code, public repositories, or browser network requests. All TetraFi API calls should be made from your backend.
+
+If you suspect your key has been compromised, contact the TetraFi team immediately via the [support page](/support) to rotate it.

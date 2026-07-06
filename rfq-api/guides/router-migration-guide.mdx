@@ -1,0 +1,39 @@
+---
+title: "Migrating to the new router contract"
+description: "Learn how to migrate your integration to the new router contract."
+---
+
+TetraFi has introduced the **TetraFiRouter** `0xBeb0009ACa35087ce7cCF11637E24dd1Aad3bf2A` contract, which now wraps TetraFiSettlement extending its functionality.
+
+## Do you need to migrate?
+
+If your integration already reads these fields from the quote response, no changes are required. Confirm both:
+
+* **Approvals.** You approve the `approvalTarget` from the quote response, not a hardcoded address. See [Token approvals](/core-concepts/token-approvals).
+* **Broadcast.** You send the returned `tx` object as-is; `tx.to` already targets the correct contract.
+
+If you hardcoded the TetraFiSettlement address anywhere (for approvals or as the transaction target), switch to reading `approvalTarget` and `tx` from the quote response.
+
+## Reading the calldata
+
+You don't build the router calldata yourself. TetraFi returns it ready to broadcast in `tx.data`. If you want to decode it (for verification or logging), it's a call to the router's `swap` function:
+
+```solidity theme={null}
+function swap(
+    int256 exactAmount,
+    TetraFiRouterOrder calldata order,
+    bytes calldata extraInfo,
+    bytes calldata routerSignature,
+    bytes calldata tetrafiPmmCalldata,
+    Hook[] calldata hooks
+)
+```
+
+| Parameter          | Description                                                                                                                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exactAmount`      | Fill mode. `> 0`: exactIn, you send exactly this amount of `fromToken`. `< 0`: exactOut, you want exactly `\|exactAmount\|` of `toToken` after fees. `== 0`: use whatever `fromToken` balance the router holds. |
+| `order`            | The signed order struct. `fromAmount` / `toAmount` define the quote ratio used for scaling.                                                                                                                     |
+| `routerSignature`  | The router signer's EIP-712 signature over the order.                                                                                                                                                           |
+| `tetrafiPmmCalldata` | The raw `TetraFiSettlement.swapSingle` / `swapAggregate` calldata the router wraps.                                                                                                                               |
+
+For a concrete reference, see this [example transaction](https://etherscan.io/tx/0x071db51c478baf95d51fb69c4c80e1e8fcc90f68fcce94b0b6ce8e51321dd810).

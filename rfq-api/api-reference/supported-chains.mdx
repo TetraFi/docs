@@ -1,0 +1,72 @@
+---
+title: "Supported Chains"
+description: "Returns a mapping of chain names to chain IDs supported by the RFQ API."
+openapi: "GET /chains"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/rfq-api.json get /chains
+openapi: 3.1.0
+info:
+  title: TetraFi RFQ API
+  version: '3'
+  description: >-
+    Request-for-quote trading API. Get quotes and execute token swaps directly
+    with market makers.
+servers:
+  - url: https://api.tetrafi.io/pmm/{chain}
+    variables:
+      chain:
+        default: ethereum
+        enum:
+          - ethereum
+          - polygon
+          - arbitrum
+          - optimism
+          - base
+          - bsc
+          - blast
+          - zksync
+          - mode
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        description: Blockchain network
+security:
+  - bearerAuth: []
+paths:
+  /chains:
+    get:
+      summary: Supported Chains
+      description: Returns a mapping of chain names to chain IDs supported by the RFQ API.
+      operationId: getChains
+      responses:
+        '200':
+          description: Mapping of chain names to chain IDs
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+              example:
+                ethereum: 1
+                polygon: 137
+                arbitrum: 42161
+                base: 8453
+                bsc: 56
+      servers:
+        - url: https://api.tetrafi.io/pmm
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````

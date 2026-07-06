@@ -1,0 +1,58 @@
+---
+title: "Short Expiry"
+description: "Request quotes with shorter expiry windows for latency-sensitive integrations."
+---
+
+Short expiry quotes have a narrower validity window than standard quotes. Because the market maker's risk window is smaller, short expiry quotes offer tighter pricing. The trade-off is that the transaction must be **included in a block** before the quote expires, not just signed and broadcast.
+
+<Note>
+  Short expiry is only available for **self-execution** (`gasless=false`).
+</Note>
+
+## Expiry Windows by Chain
+
+| Chain     | Short expiry | Standard expiry |
+| --------- | ------------ | --------------- |
+| Ethereum  | 5s           | 75s             |
+| Arbitrum  | 3s           | 60s             |
+| Base      | 3s           | 60s             |
+| BSC       | 3s           | 60s             |
+| Polygon   | N/A          | 60s             |
+| Optimism  | N/A          | 60s             |
+| Hyperevm  | N/A          | 60s             |
+| Avalanche | N/A          | 60s             |
+| Solana    | N/A          | 90s             |
+
+## Requesting Short Expiry Quotes
+
+Pass `expiry_type=short` when calling `/v3/quote`:
+
+```bash theme={null}
+curl "https://api.tetrafi.io/pmm/ethereum/v3/quote?\
+  buy_tokens=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&\
+  sell_tokens=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2&\
+  sell_amounts=1000000000000000000&\
+  taker_address=0xYOUR_ADDRESS&\
+  gasless=false&\
+  expiry_type=short" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+The returned quote will have a shorter validity window matching the chain-specific durations above. Your transaction must be included in a block within that window. Signing and broadcasting alone is not enough. If your transaction doesn't land in the target block, you may need to increase your gas price. Note that even a higher fee may not guarantee inclusion if the block is full (e.g. due to MEV bundles).
+
+## Using with the Price API
+
+If you use the [Price API](/price-api/introduction) for indicative pricing before requesting firm quotes, make sure the expiry types match. Subscribe to the `short` expiry stream by including `expiry_type=short` in the WebSocket URL, so the indicative prices you receive reflect the same pricing that `/v3/quote` will return.
+
+<Warning>
+  Mixing expiry types between the Price API stream and firm RFQ quotes will give you inaccurate pre-trade estimates. See [Quote Expiry](/price-api/reference#quote-expiry) for details.
+</Warning>
+
+## Trade-offs
+
+|                      | Short expiry                                                                              | Standard expiry                            |
+| -------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Pricing**          | Tighter spreads                                                                           | Slightly wider spreads                     |
+| **Execution window** | Transaction must be included in a block before expiry; may require aggressive gas pricing | More time to manage signing and submission |
+| **Availability**     | Self-execution only                                                                       | Self-execution and gasless                 |
+| **Best for**         | Latency-sensitive integrations                                                            | Most integrators                           |

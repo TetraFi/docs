@@ -1,0 +1,413 @@
+---
+title: "Trades"
+description: "Retrieve trade history for a wallet address or partner source within a given time range. Returns trade details with token metadata and pricing."
+openapi: "GET /v2/trades"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/trade-history-api.json get /v2/trades
+openapi: 3.1.0
+info:
+  title: TetraFi Trade History API
+  version: '2'
+  description: >-
+    Retrieve trade history by wallet address or transaction hash across all
+    supported chains.
+servers:
+  - url: https://api.tetrafi.io/history
+security:
+  - bearerAuth: []
+paths:
+  /v2/trades:
+    get:
+      summary: Trades
+      description: >-
+        Retrieve trade history for a wallet address or partner source within a
+        given time range. Returns trade details with token metadata and pricing.
+      operationId: getTrades
+      parameters:
+        - name: wallet_address
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Wallet Address
+            description: Wallet address for which to fetch trade history
+            required: false
+          description: Wallet address for which to fetch trade history
+          example: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: integer
+            title: Start Timestamp
+            description: Start date for trades (UNIX timestamp in nanoseconds)
+          description: Start date for trades (UNIX timestamp in nanoseconds)
+          example: 1680303600000000000
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: integer
+            title: End Timestamp
+            description: End date for trades (UNIX timestamp in nanoseconds)
+          description: End date for trades (UNIX timestamp in nanoseconds)
+          example: 1704067200000000000
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            title: Size
+            description: Number of entries returned per chain
+            default: 500
+          description: Number of entries returned per chain
+          example: 100
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeHistoryResponse-Input'
+        '400':
+          description: 'Error Response: Invalid Request'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrApiResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '500':
+          description: 'Error Response: Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrApiResponse'
+components:
+  schemas:
+    TradeHistoryResponse-Input:
+      properties:
+        results:
+          items:
+            $ref: '#/components/schemas/TradeDetailsResponse'
+          type: array
+          title: Results
+        nextAvailableTimestamp:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Nextavailabletimestamp
+        metadata:
+          $ref: '#/components/schemas/HistoryMetadata'
+      type: object
+      required:
+        - results
+        - metadata
+      title: TradeHistoryResponse
+    ErrApiResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/SimpleApiError'
+      type: object
+      required:
+        - error
+      title: ErrApiResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    TradeDetailsResponse:
+      properties:
+        chain_id:
+          type: integer
+          title: Chain Id
+        txHash:
+          type: string
+          title: Txhash
+        status:
+          type: string
+          title: Status
+        type:
+          type: string
+          title: Type
+        taker:
+          type: string
+          title: Taker
+        receiver:
+          type: string
+          title: Receiver
+        sellTokens:
+          additionalProperties:
+            $ref: '#/components/schemas/TokenHistoryApiResponse'
+          type: object
+          title: Selltokens
+        buyTokens:
+          additionalProperties:
+            $ref: '#/components/schemas/TokenHistoryApiResponse'
+          type: object
+          title: Buytokens
+        volumeUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Volumeusd
+        gasFeeUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Gasfeeusd
+        timestamp:
+          type: string
+          title: Timestamp
+        route:
+          $ref: '#/components/schemas/Route'
+        gasless:
+          type: boolean
+          title: Gasless
+        partnerFeeNative:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Partnerfeenative
+        partnerFeeBps:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Partnerfeebps
+      type: object
+      required:
+        - chain_id
+        - txHash
+        - status
+        - type
+        - taker
+        - receiver
+        - sellTokens
+        - buyTokens
+        - timestamp
+        - route
+        - gasless
+      title: TradeDetailsResponse
+      metadata:
+        results: 4
+        timestamp: '2024-01-24 10:51:08'
+        tokens:
+          '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270':
+            decimals: 18
+            icon: >-
+              https://bebop-public-images.s3.eu-west-2.amazonaws.com/wmatic_token_icon.svg
+            name: Wrapped Matic
+            symbol: WMATIC
+          '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
+            decimals: 6
+            icon: https://bebop-public-images.s3.eu-west-2.amazonaws.com/usdc.svg
+            name: USD Coin (PoS)
+            symbol: USDC
+          '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063':
+            decimals: 18
+            icon: https://bebop-public-images.s3.eu-west-2.amazonaws.com/dai.svg
+            name: (PoS) Dai Stablecoin
+            symbol: DAI
+          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE':
+            decimals: 18
+            icon: https://bebop-public-images.s3.eu-west-2.amazonaws.com/matic.svg
+            name: Matic
+            symbol: MATIC
+      results:
+        - buyTokens:
+            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
+              amount: '2969969'
+              amountUsd: 2.9697647979999995
+          chain_id: 137
+          gasFeeUsd: 0.02548362251502344
+          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          sellTokens:
+            '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063':
+              amount: '3000000000000000000'
+              amountUsd: 2.9995950000000002
+          status: Success
+          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          timestamp: '2024-01-24 10:50:36Z'
+          txHash: '0x50d72e9e73e6871057930df352c87587e7dd041e75680821449cbf1970d2870d'
+          type: '121'
+          volumeUsd: 2.9697647979999995
+        - buyTokens:
+            '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE':
+              amount: '1324757967403350565'
+              amountUsd: 0.9707238483714452
+          chain_id: 137
+          gasFeeUsd: 0.022206536455804983
+          gasless: false
+          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          sellTokens:
+            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
+              amount: '1000000'
+              amountUsd: 1.001
+          status: Success
+          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          timestamp: '2024-01-24 10:50:25Z'
+          txHash: '0xb7b8fddfcc7cd7275f2fe82f44bf1e9c618c538e76f0dd39e5fd67e17fe15572'
+          type: '121'
+          volumeUsd: 0.9707238483714452
+        - buyTokens:
+            '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE':
+              amount: '1321707791213987268'
+              amountUsd: 0.9690523312530294
+          chain_id: 137
+          gasFeeUsd: 0.02387818130317773
+          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          sellTokens:
+            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
+              amount: '1000000'
+              amountUsd: 1.001
+          status: Success
+          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          timestamp: '2024-01-24 10:50:18Z'
+          txHash: '0x91c8a994b33ae8d17eeaa9a757fa3338561402f204d05a5f59a70dc3389aa390'
+          type: '121'
+          volumeUsd: 0.9690523312530294
+        - buyTokens:
+            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
+              amount: '2200006'
+              amountUsd: 2.197060866
+          chain_id: 137
+          gasFeeUsd: 0.017446675003110115
+          gasless: false
+          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          sellTokens:
+            '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270':
+              amount: '3000000000000000000'
+              amountUsd: 2.20989
+          status: Success
+          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
+          timestamp: '2024-01-24 10:49:50Z'
+          txHash: '0x22dd9e22528e904be9ba100828339f5a7699d2ea3cbf0dc678b90418d38b9d10'
+          type: '121'
+          volumeUsd: 2.197060866
+    HistoryMetadata:
+      properties:
+        timestamp:
+          type: string
+          title: Timestamp
+        results:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Results
+        tokens:
+          additionalProperties:
+            additionalProperties:
+              $ref: '#/components/schemas/HistoryToken'
+            type: object
+          type: object
+          title: Tokens
+      type: object
+      required:
+        - timestamp
+        - tokens
+      title: HistoryMetadata
+    SimpleApiError:
+      properties:
+        errorCode:
+          type: integer
+          title: Errorcode
+        message:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Message
+      type: object
+      required:
+        - errorCode
+      title: SimpleApiError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+    TokenHistoryApiResponse:
+      properties:
+        amount:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Amount
+        amountUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Amountusd
+      type: object
+      title: TokenHistoryApiResponse
+    Route:
+      type: string
+      enum:
+        - JAM
+        - PMM
+        - PREDICTION
+      title: Route
+    HistoryToken:
+      properties:
+        name:
+          type: string
+          title: Name
+        symbol:
+          type: string
+          title: Symbol
+        decimals:
+          type: integer
+          title: Decimals
+        displayDecimals:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Displaydecimals
+        icon:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Icon
+      type: object
+      required:
+        - name
+        - symbol
+        - decimals
+      title: HistoryToken
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````

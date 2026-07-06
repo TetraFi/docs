@@ -1,0 +1,223 @@
+---
+title: "Estimating VWAP"
+description: "Estimate the indicative execution price for a given trade size using the Price API stream - without requesting a firm quote."
+---
+
+Solvers and aggregators often need to estimate what price they'd get for a specific trade size before committing to a firm RFQ quote. The Price API stream provides enough depth data to calculate a **Volume-Weighted Average Price (VWAP)** locally, giving you a reliable indicative price at any size.
+
+<Info>
+  **Use case:** You're a solver or aggregator evaluating whether to bid on an intent. Instead of requesting a firm quote (which has rate limits and expiry), you estimate the execution price from the live stream to decide if the trade is worth pursuing.
+</Info>
+
+## How It Works
+
+The Price API streams order book levels as `(price, size)` pairs, sorted best-first. To estimate the execution price for a target trade size, you walk through these levels from best to worst, accumulating volume until you've filled the target amount.
+
+The VWAP is the notional-weighted average price across all levels you'd consume.
+
+## The Algorithm
+
+### Step-by-Step Breakdown
+
+<Steps>
+  <Step title="Sort levels by best price">
+    For a **buy**, sort asks lowest-first (cheapest prices first).
+    For a **sell**, sort bids highest-first (best bid prices first).
+  </Step>
+
+  <Step title="Walk through levels">
+    For each level, calculate the notional value (`price × size`). Take the lesser of the level's notional and your remaining target - this handles partial fills on the last level.
+  </Step>
+
+  <Step title="Accumulate">
+    Track total base tokens filled and total quote spent. The ratio gives you the VWAP.
+  </Step>
+
+  <Step title="Check for sufficient liquidity">
+    If `remaining > 0` after exhausting all levels, the stream doesn't have enough depth for your size. You may want to fall back to a firm quote or split across sources.
+  </Step>
+</Steps>
+
+```python theme={null}
+def estimate_vwap(
+    levels: list[tuple[float, float]],
+    target_notional: float,
+    intent: str,  # "buy" or "sell"
+) -> tuple[float, float, float]:
+    """
+    Estimate the VWAP for a target notional trade size.
+
+    Args:
+        levels: Price levels as (price, size) tuples from the stream.
+                Bids are highest-first, asks are lowest-first.
+        target_notional: The total notional (in quote terms) you want to trade.
+        intent: "buy" (you're buying base, consuming asks)
+                or "sell" (you're selling base, consuming bids).
+
+    Returns:
+        (vwap, unfilled)
+        - vwap: the effective execution price
+        - unfilled: remaining notional that couldn't be filled (0 if fully filled)
+    """
+    # Sort: cheapest first for buys, most expensive first for sells
+    sorted_levels = sorted(levels, key=lambda l: l[0], reverse=(intent == "sell"))
+
+    remaining = target_notional
+    total_base = 0.0
+    total_quote = 0.0
+
+    for price, size in sorted_levels:
+        if remaining <= 0:
+            break
+
+        level_notional = price * size
+        fill_notional = min(level_notional, remaining)
+        fill_base = fill_notional / price
+
+        total_quote += fill_notional
+        total_base += fill_base
+        remaining -= fill_notional
+
+    if total_base == 0:
+        return 0.0, target_notional
+
+    vwap = total_quote / total_base
+    return vwap, remaining
+```
+
+## Full Example
+
+Combining the VWAP estimation with the Price API stream from the [Quickstart](/price-api/quickstart):
+
+```python theme={null}
+import asyncio
+
+import httpx
+import websockets
+
+from tetrafi_pb2 import TetraFiPricingUpdate  # type: ignore
+
+NETWORK = "ethereum"
+API_KEY = "<your_api_key>"
+
+WSS_URL = (
+    f"wss://api.tetrafi.io/pmm/{NETWORK}/v3/pricing"
+    f"?format=protobuf"
+    f"&gasless=false"
+    f"&expiry_type=standard"
+)
+
+PAIR = "WETH/USDC"
+TARGET_NOTIONAL = 100_000  # estimate price for $100k trade
+
+def address_to_hex(b: bytes) -> str:
+    return "0x" + b.hex()
+
+def to_levels(flat: list[float]) -> list[tuple[float, float]]:
+    it = iter(flat)
+    return list(zip(it, it, strict=True))
+
+def estimate_vwap(
+    levels: list[tuple[float, float]], target_notional: float, intent: str
+) -> tuple[float, float]:
+    sorted_levels = sorted(levels, key=lambda lv: lv[0], reverse=(intent == "sell"))
+
+    remaining = target_notional
+    total_base = 0.0
+    total_quote = 0.0
+
+    for price, size in sorted_levels:
+        if remaining <= 0:
+            break
+
+        level_notional = price * size
+        fill_notional = min(level_notional, remaining)
+        fill_base = fill_notional / price
+
+        total_quote += fill_notional
+        total_base += fill_base
+        remaining -= fill_notional
+
+    if total_base == 0:
+        return 0.0, target_notional
+
+    return total_quote / total_base, remaining
+
+# Resolve token addresses
+resp = httpx.get(f"https://api.tetrafi.io/pmm/{NETWORK}/v3/tokenlist", timeout=10.0)
+tokens = {t["symbol"]: t for t in resp.json().get("tokens", {})}
+base_symbol, quote_symbol = PAIR.split("/")
+base_addr = tokens[base_symbol]["address"].lower()
+quote_addr = tokens[quote_symbol]["address"].lower()
+
+async def main():
+    async with websockets.connect(
+        WSS_URL,
+        additional_headers={"Authorization": f"Bearer {API_KEY}"},
+        ping_interval=20,
+        ping_timeout=10,
+        max_size=2**21,
+    ) as ws:
+        print(f"Connected - estimating VWAP for {PAIR} at ${TARGET_NOTIONAL:,}\n")
+
+        async for blob in ws:
+            update = TetraFiPricingUpdate()
+            update.ParseFromString(blob)
+
+            for pair in update.pairs:
+                if (
+                    address_to_hex(pair.base).lower() != base_addr
+                    or address_to_hex(pair.quote).lower() != quote_addr
+                ):
+                    continue
+
+                bids = to_levels(list(pair.bids))
+                asks = to_levels(list(pair.asks))
+
+                if not bids or not asks:
+                    continue
+
+                # Estimate VWAP for buying $100k of WETH
+                buy_vwap, buy_unfilled = estimate_vwap(asks, TARGET_NOTIONAL, "buy")
+
+                # Estimate VWAP for selling $100k of WETH
+                sell_vwap, sell_unfilled = estimate_vwap(bids, TARGET_NOTIONAL, "sell")
+
+                print(
+                    f"  BUY  ${TARGET_NOTIONAL:>8,}  "
+                    f"vwap: {buy_vwap:.2f}"
+                    f'{"  ⚠ unfilled: " + f"${buy_unfilled:,.0f}" if buy_unfilled > 0 else ""}\n'
+                    f"  SELL ${TARGET_NOTIONAL:>8,}  "
+                    f"vwap: {sell_vwap:.2f}"
+                    f'{"  ⚠ unfilled: " + f"${sell_unfilled:,.0f}" if sell_unfilled > 0 else ""}\n'
+                )
+asyncio.run(main())
+```
+
+Example output for a \$100,000 WETH/USDC estimate:
+
+```json theme={null}
+{
+  "pair": "WETH/USDC",
+  "target_notional": 100000,
+  "buy": {
+    "vwap": 2330.0,
+    "unfilled": 0.0
+  },
+  "sell": {
+    "vwap": 2328.39,
+    "unfilled": 0.0
+  }
+}
+```
+
+<Warning>
+  These are **indicative** estimates based on streamed depth. The actual execution price from a firm quote may differ due to market maker inventory changes, timing, and quote-specific parameters.
+</Warning>
+
+## Key Considerations
+
+* **Check for sufficient depth.** If `unfilled > 0` after exhausting all levels, the stream doesn't have enough liquidity for your trade size. Fall back to a firm quote or split across sources.
+* **VWAP diverges from top-of-book at size.** For small trades the top level is a reasonable proxy. For larger sizes, the VWAP will be meaningfully worse - that's the whole point of estimating it.
+* **Tier cadence varies between pairs.** Two pairs with the same top-of-book price can have very different depth profiles. Always estimate at your actual trade size rather than assuming uniform depth.
+* **Stream prices update frequently.** Re-estimate on each new message rather than caching stale VWAP values.

@@ -1,0 +1,196 @@
+---
+title: "Multi-Token Trades"
+description: "Swap multiple tokens in a single atomic transaction."
+---
+
+TetraFi supports three trading modes, all settled atomically in a single transaction:
+
+| Mode        | Example                      | `type` in response |
+| ----------- | ---------------------------- | ------------------ |
+| One-to-one  | WETH → USDC                  | `121`              |
+| Many-to-one | (WETH + WBTC) → USDC         | `M21`              |
+| One-to-many | WETH → (USDT + USDC + PYUSD) | `12M`              |
+
+Multi-token trades (many-to-one and one-to-many) are useful when rebalancing portfolios, consolidating stablecoin positions, or distributing a single asset into multiple tokens - all without paying gas for separate swaps.
+
+## How It Differs from Single-Token Trades
+
+The API interface is nearly identical. The differences are:
+
+**Request:** Pass comma-separated token addresses and amounts instead of single values.
+
+**Response:** The `onchainOrderType` is `MultiOrder` or `AggregateOrder` instead of `SingleOrder`. The API returns `MultiOrder` when a single maker fills the trade, or `AggregateOrder` when multiple makers are involved.
+
+**EIP-712 signing:** `MultiOrder` uses flat array types (`address[]`, `uint256[]`), while `AggregateOrder` uses nested arrays (`address[][]`, `uint256[][]`) with one entry per maker.
+
+## 1. Request a Multi-Token Quote
+
+Separate multiple token addresses and amounts with commas. The order of amounts must match the order of token addresses.
+
+### Many-to-one: sell USDC + DAI → buy USDT
+
+```python theme={null}
+import httpx
+
+NETWORK = "ethereum"
+
+# Many-to-one: sell USDC + DAI -> buy USDT
+resp = httpx.get(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
+    params={
+        "sell_tokens": ",".join(
+            [
+                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # USDC
+                "0x6B175474E89094C44Da98b954EedeAC495271d0F",  # DAI
+            ]
+        ),
+        "buy_tokens": "0xdAC17F958D2ee523a2206206994597C13D831ec7",  # USDT
+        "sell_amounts": ",".join(
+            [
+                "100000000",  # 100 USDC (6 decimals)
+                "100000000000000000000",  # 100 DAI (18 decimals)
+            ]
+        ),
+        "taker_address": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+        "gasless": "false",
+    },
+)
+quote = resp.json()
+print(
+    f'Quote type: {quote.get("type")}, order type: {quote.get("onchainOrderType")}'
+)
+print(quote)
+```
+
+### One-to-many: sell WETH → buy USDT + USDC + PYUSD
+
+For one-to-many, specify a single `sell_tokens` / `sell_amounts` and comma-separated `buy_tokens`. Use `buy_amounts` instead of `sell_amounts` to control how much of each output token you want:
+
+```python theme={null}
+resp = httpx.get(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
+    params={
+        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  # WETH
+        "buy_tokens": ",".join([
+            "0xdAC17F958D2ee523a2206206994597C13D831ec7",  # USDT
+            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # USDC
+            "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",  # PYUSD
+        ]),
+        "buy_amounts": ",".join([
+            "500000000",  # 500 USDT
+            "500000000",  # 500 USDC
+            "500000000",  # 500 PYUSD
+        ]),
+        "taker_address": "0xYourWalletAddress",
+        "gasless": "false",
+    },
+)
+quote = resp.json()
+```
+
+## 2. Understand the Response
+
+The response structure is the same as single-token quotes, but with multiple entries in `sellTokens` or `buyTokens`:
+
+When a single maker fills the trade, the API returns `MultiOrder` with flat arrays:
+
+```json theme={null}
+{
+  "type": "M21",
+  "onchainOrderType": "MultiOrder",
+  "toSign": {
+    "partner_id": 0,
+    "expiry": 1772453661,
+    "taker_address": "0x5Bad...bBcB6",
+    "maker_address": "0xE873...",
+    "maker_nonce": "297211...",
+    "taker_tokens": ["0xA0b8...", "0x6B17..."],
+    "maker_tokens": ["0xdAC1..."],
+    "taker_amounts": ["100000000", "100000000000000000000"],
+    "maker_amounts": ["198898842"],
+    "receiver": "0x5Bad...bBcB6",
+    "commands": "0x00000000"
+  }
+}
+```
+
+When multiple makers are involved, the API returns `AggregateOrder` with nested arrays - one entry per maker:
+
+```json theme={null}
+{
+  "type": "M21",
+  "onchainOrderType": "AggregateOrder",
+  "toSign": {
+    "partner_id": 0,
+    "expiry": 1772453661,
+    "taker_address": "0x5Bad...bBcB6",
+    "maker_addresses": ["0xE873...", "0x51C7..."],
+    "maker_nonces": ["297211...", "297211..."],
+    "taker_tokens": [["0xA0b8..."], ["0x6B17..."]],
+    "maker_tokens": [["0xdAC1..."], ["0xdAC1..."]],
+    "taker_amounts": [["100000000"], ["100000000000000000000"]],
+    "maker_amounts": [["99453999"], ["99444843"]],
+    "receiver": "0x5Bad...bBcB6",
+    "commands": "0x00000000"
+  }
+}
+```
+
+Note the key structural differences: `MultiOrder` uses singular `maker_address` / `maker_nonce` and flat token/amount arrays, while `AggregateOrder` uses plural `maker_addresses` / `maker_nonces` and nested arrays where each outer index corresponds to a maker.
+
+## 3. Sign and Broadcast
+
+The API returns `MultiOrder` or `AggregateOrder` depending on whether one or multiple makers fill the trade. For self-execution, this distinction doesn't matter - you broadcast the `tx` object directly. For gasless (EIP-712 signing), use the `onchainOrderType` from the response as your `primaryType`.
+
+```python theme={null}
+import httpx
+from eth_account import Account
+from web3 import Web3
+
+PRIVATE_KEY = "0x<your_private_key_hex>"
+RPC_URL = "https://eth.llamarpc.com"
+NETWORK = "ethereum"
+
+# --- 1. Request a multi-token quote ---
+
+taker_address = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+
+resp = httpx.get(
+    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
+    params={
+        "sell_tokens": ",".join(
+            [
+                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # USDC
+                "0x6B175474E89094C44Da98b954EedeAC495271d0F",  # DAI
+            ]
+        ),
+        "buy_tokens": "0xdAC17F958D2ee523a2206206994597C13D831ec7",  # USDT
+        "sell_amounts": ",".join(
+            [
+                "100000000",  # 100 USDC
+                "100000000000000000000",  # 100 DAI
+            ]
+        ),
+        "taker_address": taker_address,
+        "gasless": "false",
+    },
+)
+quote = resp.json()
+
+# --- 2. Sign and submit ---
+
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
+account = Account.from_key(PRIVATE_KEY)
+
+tx = quote["tx"]
+tx["nonce"] = w3.eth.get_transaction_count(account.address)
+tx["chainId"] = quote["chainId"]
+
+signed_tx = w3.eth.account.sign_transaction(tx, account.key)
+tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+print(f"Multi-token trade submitted: {tx_hash.hex()}")
+```
+
+<Info>
+  The API selects the order type automatically - `SingleOrder`, `MultiOrder`, or `AggregateOrder` - based on the trade structure. Use the `onchainOrderType` from the quote response as your `primaryType`. See the [EIP-712 order type schemas](/rfq-api/guides/gasless-execution#eip-712-order-type-schemas) for the full type definitions.
+</Info>

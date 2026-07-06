@@ -1,0 +1,74 @@
+---
+title: "Supported Chains"
+description: "Returns a mapping of chain names to chain IDs supported by the Aggregation API."
+openapi: "GET /chains"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/aggregation-api.json get /chains
+openapi: 3.1.0
+info:
+  title: TetraFi Aggregation API
+  version: '2'
+  description: >-
+    Aggregation API powered by solver competition. Get the best swap prices from
+    multiple solvers.
+servers:
+  - url: https://api.tetrafi.io/jam/{chain}
+    variables:
+      chain:
+        default: ethereum
+        enum:
+          - ethereum
+          - polygon
+          - arbitrum
+          - bsc
+          - zksync
+          - optimism
+          - blast
+          - mode
+          - base
+          - scroll
+          - taiko
+          - superseed
+          - berachain
+          - hyperevm
+          - avalanche
+        description: Blockchain network
+security:
+  - bearerAuth: []
+paths:
+  /chains:
+    get:
+      summary: Supported Chains
+      description: >-
+        Returns a mapping of chain names to chain IDs supported by the
+        Aggregation API.
+      operationId: getChains
+      responses:
+        '200':
+          description: Mapping of chain names to chain IDs
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+              example:
+                ethereum: 1
+                polygon: 137
+                arbitrum: 42161
+                base: 8453
+                bsc: 56
+      servers:
+        - url: https://api.tetrafi.io/jam
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key passed as a Bearer token.
+
+````
