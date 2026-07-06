@@ -386,3 +386,84 @@ Fix (`tetrafi-ui` commit `2419a9bd`):
 - Top-line copy speaks the FX step (accept/fund/settle); activity log emits **Circle StableFX Accepted / Funded / Settled** rows, the settled row carrying the FX settlement tx hash + chain (surfacing the StableFX tx on the status page — was Overview-only). `lifecycle.ts` `EVENT_TO_STAGE` maps the new events. 11 new/updated tests; 46 order-status model tests green; `tsc` clean.
 
 Remaining backend gap (tracked, NOT the corridor-2 agent's file to avoid a collision): the CCTP **destination-mint** tx on Arc is never captured by the observer (only the source burn + FX settlement are), so the Overview still can't show a mint hash. Fix = capture the `receiveMessage`/mint tx (scan the destination MessageTransmitter on `HopAttested`, or record TetraFi's own arrival-delivery tx) into `settlement.data.route.bridgeLegs[n].mintTxHash` + expose as an `OrderTransactionInfo{stage:'arrived',chainRole:DESTINATION}` so the existing `RouteTransactionsCard` renders it. The status-page pipeline already shows the "CCTP mint on Arc" *stage* — it just lacks the hash.
+
+## 12. StableFX token expansion — MXNB/AUDF/QCAD/ZARU live on dev (2026-07-06)
+
+**Discovery (probed live against the sandbox API with our credentials, not docs):** Circle's
+StableFX OpenAPI still declares `Currency: [USDC, EURC]`, but `POST /quotes` accepts FOUR of the
+eight announced Circle Partner Stablecoins today. Definitive matrix (tradable-quote probe, all
+pair-directions):
+
+| currency | issuer | Arc testnet address | decimals | status |
+|---|---|---|---|---|
+| MXNB (MXN) | Juno | `0x836F73Fbc370A9329Ba4957E47912DfDBA6BA461` | 6 | ✅ quotes |
+| AUDF (AUD) | Forte | `0xd2a530170D71a9Cfe1651Fb468E2B98F7Ed7456b` | 6 | ✅ quotes |
+| QCAD (CAD) | Stablecorp | `0x23d7CFFd0876f3ABb6B074287ba2aeefBc83825d` | 6 | ✅ quotes |
+| ZARU (ZAR) | ZAR Universal | `0x47b025D6002234a5038bCD94767bd82b27C2b96F` | **18** | ✅ quotes |
+| JPYC, BRLA, PHPC, KRW1, USYC, XSGD, AUDD, IDRX, TRYB, CADC | — | — | — | ❌ code 3008 "invalid currency" |
+
+Pairs are **USDC-anchored only** (both directions; crosses like EURC→MXNB rejected 3008), with a
+~$10-equivalent minimum ("The quote amount is invalid" below it). Token addresses were extracted
+from the quote typedData witness (`witness.consideration.base`) and verified on-chain
+(symbol/decimals/name). **ZARU is 18-decimals** — the venue `circle_tokens` decimals field is
+load-bearing (adapter scales by per-token decimals; a 6-dec assumption mis-prices by 10^12).
+
+**Wiring (all registry-driven, ZERO Rust changes):**
+- `tetrafi-contracts@98a92e4` — dev.json + beta.json: 4 chain-token entries (no eip3009 metadata
+  — unverified for partner issuers) + 4 `USDC-*` venue markets + 4 `circle_tokens` entries.
+  `validate-contract-registry.sh` passes both envs.
+- Registry snapshot v50 published to the running dev aggregator via
+  `POST /api/v1/internal/contract-registry/dev/snapshots` (same path CI uses). `canonical_pairs()`
+  derived the four new onChain-5042002 pairs backed by `circle-stablefx`.
+- **Sync gotcha (operational):** snapshot publish hot-swaps pairs + seed config, but the
+  venue→solver COMPATIBILITY records rebuild only at bootstrap — new pairs quote only after an
+  aggregator restart. In k8s the publish workflow is followed by a rollout so this is invisible;
+  locally: `docker compose restart aggregator`.
+- `tetrafi-ui@2f1be261` — `known-decimals.ts` (+MXNB/AUDF/QCAD 6, ZARU 18), entity-profile pair
+  list, refreshed `public/deployment.json`. Token icons fall back to initials (no CDN mapping for
+  partner coins yet — cosmetic follow-up).
+
+**Live verification through OUR stack (dev):**
+- 16/16 pair-direction quote probes return `arcStableFx` + `circle-stablefx` quotes; composite
+  `Base USDC → Arc MXNB` assembles `cctpBridge+arcStableFx` out of the box (corridor-1 machinery
+  is pair-agnostic). Output scaling exact: 10 USDC → `183.821e6` MXNB / `174.216027e18` ZARU.
+- **SETTLED live trade** `composite-e273becb…`: 5 USDC → **93.092442 MXNB**, settlement tx
+  `0xec8fb38fb8a92e1007d3aee45573452a426895ce84b63a5502f3c7d726653814`, `circleStatus=complete`,
+  recipient delta verified on-chain.
+
+**Single-leg FX order flow (documented while driving):** the composite single-leg `[ArcStableFx]`
+path relays the TAKER's acceptance at create — `POST /orders` requires `signature` = the taker's
+EIP-712 signature over the quote's `order.payload.typedData` (Circle quotes expire in ~5s, so
+sign+create must ride immediately after quoting); funding is the second signature via
+`nextActions`-prefetched typedData → `POST /orders/{id}/fund` (fallback `GET /orders/{id}/funding`).
+Preflight still reports `ROUTE_EXECUTABLE` blocked for this shape (only `[stablefx, cctp]` is in
+the advertised fx-first slice) even though creation works — UX follow-up: extend
+`append_fx_first_route_actions` to the 1-leg shape.
+
+**Beta/mainnet notes:** beta.json carries the same tokens/markets (beta's venue `circle_base_url`
+is `api.circle.com` — pre-existing setting, untouched). mainnet.json deliberately NOT extended:
+Arc-mainnet StableFX is dormant; re-probe `api.circle.com` for the production currency set at
+rollout (checklist §9) — do not assume sandbox parity.
+
+## 13. Corridor-2 one-signature composite — LIVE SETTLED (2026-07-06)
+
+The FX-FIRST corridor (`[ArcStableFx, CctpBridge]`) executed end-to-end on dev with ONE user
+signature, on the rebuilt aggregator carrying the corridor-2 batch (`31bc297a…89395691` +
+`b19f6568`):
+
+- Order `composite-8e99e3a0-7466-4aa4-9c8e-b419a9923621`: 2 EURC (Arc) → Base Sepolia USDC
+  (quoted 2.0284; Circle trade `84361e81…` ctid=1500, 2.020492 EURC → 2.2384 USDC).
+- `GET /continuation` triggered `prepare_fx_continuation` → **`registerArrivalPlan` committed
+  on-chain BEFORE the trader accept** (fail-safe ordering), tx
+  `0x90f1c2dd16ffa0f7a878076d6379f7ca5337a5350708878b18564907dd45bf4b` on Arc.
+- THE one signature (funder permit) → `POST /continue` 200 → Circle `taker_funded` → FxEscrow
+  settlement `0xd5d2bee09e06be12108509065c27edd435bd8b2aaf063e7360fa03c38ba3d83c` paid the
+  FxContinuationModule (`0x03DDD368891619298C9D7B63377343165240CeBf`) → observer saw `complete`
+  → permissionless `processFxArrival` trigger → junction router CCTP burn (route `bridging`)
+  → attested → `arrived` → Base mint.
+- Driver detail: `POST /orders` for fx-first sends `signature: ""` (nothing is signed at create;
+  the DTO field is required) — the corridor-2 e2e script originally omitted the field (422).
+- Also proven: order-create ACCEPTS deeper fx-first shapes (a 3-leg
+  `[stablefx, cctp→sepolia, solver→base]` quote created fine and parked) that preflight does NOT
+  advertise (only `[stablefx, cctp]` is executable in this slice) — the parked order is inert by
+  design (no funding requested ⇒ nothing moves; funder window lapses harmlessly).
