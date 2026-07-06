@@ -517,3 +517,24 @@ registrar input — must equal the env's relayer EOA). Artifacts regenerated. **
 remaining: add the 1Password fields per vault** (`rfq.ACE_KYB_CREDENTIAL_TYPE_ID`,
 `rfq.STABLEFX_TRADER_PRIVATE_KEY`, `contract-deployments.fx_plan_registrar` in tetrafi-dev /
 tetrafi-beta / tetrafi-main) BEFORE the next infra apply — ESO fails loudly on missing fields.
+
+## 14. Corridor-1 on a NEW token — MXNB settled E2E (2026-07-06 19:34Z)
+
+Full user journey on the rebuilt stack, brand-new currency: order
+`composite-0x8b8af450…` — 4 Base USDC → workspace-router burn `0x8b8af450…` (witness sig 1) →
+CCTP Fast mint on Arc → parked `arrived` → FX delegate continuation (funder permit sig 2, trade
+`f8be023d…` ctid=1517, 3.8718 USDC → 71.11 MXNB) → Circle maker settled (~8 min this time;
+sandbox variance) → FxEscrow settlement `0x8698ca1f…` → `settled` at t+465s. On-chain MXNB:
+93.092442 → **164.063308**. Corridor-1 is pair-agnostic in practice, quotes composed
+`cctp+stablefx:USDC->MXNB` out of the box.
+
+Transactions-array audit on this order: origin burn row present; the ARC MINT row is absent
+because Circle's forwarder (not our relayer) landed the junction mint — the observer advances on
+Iris attestation and never learns the mint tx. Corridor-2's relayer-delivered mints DO carry the
+destination row (`0x0054a631…` verified on `composite-dc014a30…`). Follow-up chip filed
+(`task_…` mint-tx-for-forwarded-arrivals): resolve the mint tx from destination logs at the
+AlreadyConsumed/attested boundary. The FX settlement tx meanwhile shows on the status page via
+the §11 UI activity work (`settlement.data.settlementTransactionHash`).
+
+Corridor-2-shape UI status pinned by unit test (ui `route-status.test.ts`, 9/9 green): FX
+sub-stages lead, terminal CCTP legs follow, `circleStatus` drives the fine-grain.
