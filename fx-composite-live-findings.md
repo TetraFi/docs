@@ -467,3 +467,22 @@ signature, on the rebuilt aggregator carrying the corridor-2 batch (`31bc297a…
   `[stablefx, cctp→sepolia, solver→base]` quote created fine and parked) that preflight does NOT
   advertise (only `[stablefx, cctp]` is executable in this slice) — the parked order is inert by
   design (no funding requested ⇒ nothing moves; funder window lapses harmlessly).
+
+### §13 amendment — terminal-delivery + the raw-receive griefing discovery
+
+The FIRST corridor-2 order's terminal mint was delivered MANUALLY (raw
+`MessageTransmitterV2.receiveMessage`) while diagnosing a slow Circle-standard attestation —
+**do not ever do that for module-recipient mints**. It exposed a real vector: the source burn
+sets `destinationCaller = 0x0`, so ANYONE can raw-receive; the mint lands in the CctpModule with
+the nonce consumed, the module's atomic `executeLeg(OP_DESTINATION)` (receive+forward) can never
+run, and the module has NO own-balance fallback/sweep → arrival stranded permanently (2.2284
+testnet USDC now parked in Base CctpModule `0x838AC035…`, accepted loss). Mainnet-blocking
+contracts follow-up filed (chip `task_d96f62c2`): set `destinationCaller = module` on
+`depositForBurnWithHook` + add a permissionless own-balance fallback mirroring
+RelayModule/FxContinuationModule; requires a module-family redeploy.
+
+Two backend observations from the same incident: `route_continuation.rs` IS the intended
+hands-off terminal deliverer (`deliver_cctp_arrival` → `executeLeg OP_DESTINATION`, atomic
+mint+forward) and has a consumed-nonce branch that idempotently settles the terminal leg — which
+is why the first order reported `settled` even though the module never forwarded (settled should
+arguably require the forward, i.e. `RouteLegCompleted`, when the mint recipient is the module).
