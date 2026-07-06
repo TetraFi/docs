@@ -507,3 +507,13 @@ but cross-user it would MISROUTE commingled arrivals. Fold a consume cap into th
 E2E driver hardening landed in `_corridor2_fx_first_e2e.mjs`: re-quote-at-create retry on
 QUOTE_EXPIRED (Circle ~5s FX TTL vs quote-fanout+preflight latency), `signature:""` at create,
 continuation `typedData` field fallback.
+
+### §9 update — secrets rail closed (2026-07-06, infra `a33ea77`)
+
+The two local-docker-only secrets are now DECLARED on the infra rail for all three envs
+(`envs/rfq/{dev,beta,main}.env`: `ACE_KYB_CREDENTIAL_TYPE_ID`, `STABLEFX_TRADER_PRIVATE_KEY`)
+plus `envs/contract-deployments/{dev,beta,main}.env`: `fx_plan_registrar` (the Deploy.s.sol
+registrar input — must equal the env's relayer EOA). Artifacts regenerated. **Human step
+remaining: add the 1Password fields per vault** (`rfq.ACE_KYB_CREDENTIAL_TYPE_ID`,
+`rfq.STABLEFX_TRADER_PRIVATE_KEY`, `contract-deployments.fx_plan_registrar` in tetrafi-dev /
+tetrafi-beta / tetrafi-main) BEFORE the next infra apply — ESO fails loudly on missing fields.
