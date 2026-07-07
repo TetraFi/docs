@@ -538,3 +538,66 @@ the §11 UI activity work (`settlement.data.settlementTransactionHash`).
 
 Corridor-2-shape UI status pinned by unit test (ui `route-status.test.ts`, 9/9 green): FX
 sub-stages lead, terminal CCTP legs follow, `circleStatus` drives the fine-grain.
+
+## 15. StableFX pair matrix (definitive) + UI production-readiness (2026-07-07)
+
+### 15.1 Pair support — USDC is the sole hub (probed live, all 30 ordered pairs)
+
+Ran the full ordered-pair matrix of {USDC, EURC, MXNB, AUDF, QCAD, ZARU} against
+`api-sandbox.circle.com` StableFX `/quotes` with our key, above the ~$10 min:
+
+- **10/30 supported — EVERY supported pair involves USDC.** Both directions of
+  USDC↔{EURC, MXNB, AUDF, QCAD, ZARU} quote (201).
+- **0 non-USDC pairs.** Every cross (EURC→MXNB, AUDF→QCAD, ZARU→EURC, …) is rejected
+  `3008 "At least one of the quote currencies is invalid"`. **Even EURC pairs only with
+  USDC** — EURC is a spoke, not a second hub.
+
+So our registry (5 USDC-anchored markets, each yielding both directions) already covers
+**all 10 supported ordered pairs** — nothing to add. This matches Circle's documented
+model (USDC = reserve hub; regional stablecoins are local-currency spokes). Constraint
+documented; the venue markets stay USDC-anchored. Probe: `_stablefx_full_matrix_probe.mjs`.
+
+### 15.2 Circle's real acceptance window is ~9s, not the ~3s it advertises
+
+Measured (`_circle_accept_window_probe.mjs` / `_circle_accept_boundary.mjs`): the quote's
+`expiresAt` says ~3.4s, but Circle ACCEPTS a signed quote at **+8s** and only rejects
+(`3004`) from **+10s**. Our aggregator was passing that ~3.4s `expiresAt` straight through
+as the quote `valid_until`, which (a) after ~1.6s fetch latency left the client only ~2s,
+and (b) made the single-leg FX quote **unselectable** in the results list (its expiry gate
+blocks selecting an expired quote) and the FX panel sit on a disabled "Quote expired"
+button. THIS is the "impossible to sign in time" the user hit.
+
+### 15.3 The three StableFX UI fixes (committed)
+
+- **Wrong-tx status page** (`ui 1dbfc12f`): the FX accept/fund flow navigated to the
+  context-driven status page but never PUBLISHED its order, so the page fell back to
+  `localStorageService.getOrders()[0]` — the newest UNRELATED order (the reported
+  "Base→OP 1 USDC" was a prior router trade). `useStableFxExecution` now calls
+  `updateOrder()` after accept AND fund (context + localStorage), like RouterOrderPanel.
+- **Quote-expiry UX** (`ui 1dbfc12f` + `rfq 1d7351e5`): the panel re-quotes Circle
+  SYNCHRONOUSLY at click and signs that fresh quote (max window for the wallet approval),
+  auto-retries once on `3004`, drops the expiry gate on the button, and shows a "Live
+  rate" indicator. Backend: single-leg FX `valid_until` now = now + 90s (matching the
+  composite fx-leg window) instead of Circle's ~3s `expiresAt` — **verified live: quote
+  validUntil is now 89s (was 2s)**, so the quote stays selectable and the countdown is
+  honest.
+- **Settlement tx on Overview** (`ui 1dbfc12f`): the FxEscrow settlement tx lives only in
+  `settlement.data.settlementTransactionHash` (never `order.fillTransaction`/
+  `order.transactions`, both empty for FX — confirmed across 2480 DB orders, 0 with a
+  `venue:circle-stablefx` marker → the tx-less `buildStableFxLifecycleView` is dead code;
+  every FX order uses the tx-aware route view). OrderStatus now surfaces that hash as the
+  fill tx on the FX leg's chain, relabeled "Circle StableFX Settlement".
+
+Coverage: `useStableFxExecution.test.ts` (repaired a pre-existing-red harness that never
+mocked useContext/useEffect/getQuotes; +2 tests for the updateOrder publish and the 3004
+re-quote retry), `tests/e2e/stablefx-status.spec.ts` (real-browser: status page shows THIS
+order + the settlement card, not an unrelated tx). tsc clean; 152 trade-flow unit tests +
+3 FX E2E specs green.
+
+### 15.4 Live re-verification post-rebuild (francesco workspace)
+
+Rebuilt aggregator + restart. **QCAD single-leg FX settled live** (`composite-978a391f…`):
+5 USDC → **6.979019 QCAD**, settlement tx `0xfbd8f64d…`, `circle=complete`, USDC debited
+exactly 5.0 and QCAD credited on-chain. Third partner token settled live (after MXNB, ZARU);
+AUDF remains quote-verified. Confirms the backend `valid_until` change did not disturb the
+quote→accept→fund→settle path.
