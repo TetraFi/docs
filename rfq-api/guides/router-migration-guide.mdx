@@ -1,39 +1,32 @@
 ---
-title: "Migrating to the new router contract"
-description: "Learn how to migrate your integration to the new router contract."
+title: "Migrating to the Router namespace"
+description: "Move your integration from the legacy /api/v1 endpoints to /api/v1/router - at your own pace."
 ---
 
-TetraFi has introduced the **TetraFiRouter** `0xBeb0009ACa35087ce7cCF11637E24dd1Aad3bf2A` contract, which now wraps TetraFiSettlement extending its functionality.
+TetraFi's trading endpoints now live under the **Router namespace** - `/api/v1/router/quotes` and `/api/v1/router/orders/*`. The original paths (`/api/v1/quotes`, `/api/v1/orders/*`) remain in service as documented aliases: they invoke the same implementation with the same schemas, and every alias response carries deprecation metadata so you can plan the move.
 
-## Do you need to migrate?
+## Do you need to change anything today?
 
-If your integration already reads these fields from the quote response, no changes are required. Confirm both:
+No - aliases are byte-and-semantics equivalent to the Router namespace during the migration window. You're already future-proof if both of these hold:
 
-* **Approvals.** You approve the `approvalTarget` from the quote response, not a hardcoded address. See [Token approvals](/core-concepts/token-approvals).
-* **Broadcast.** You send the returned `tx` object as-is; `tx.to` already targets the correct contract.
+* **Paths are configuration, not string literals.** Your base path lives in one config value, so switching `/api/v1` → `/api/v1/router` is a one-line change. 
+* **You follow `nextActions`.** Preflight's `submitTo` field always names the current correct submission endpoint - integrations that follow the plan never hardcode an order URL.
 
-If you hardcoded the TetraFiSettlement address anywhere (for approvals or as the transaction target), switch to reading `approvalTarget` and `tx` from the quote response.
+If endpoint paths are scattered through your codebase, consolidate them behind one constant first - that refactor is the whole migration.
 
-## Reading the calldata
+## How the aliases behave
 
-You don't build the router calldata yourself. TetraFi returns it ready to broadcast in `tx.data`. If you want to decode it (for verification or logging), it's a call to the router's `swap` function:
+Calls to the legacy paths are served by the Router product - same handler, same trusted product context, no compatibility fork:
 
-```solidity theme={null}
-function swap(
-    int256 exactAmount,
-    TetraFiRouterOrder calldata order,
-    bytes calldata extraInfo,
-    bytes calldata routerSignature,
-    bytes calldata tetrafiPmmCalldata,
-    Hook[] calldata hooks
-)
-```
+| Aspect            | Legacy `/api/v1/quotes\|orders/*`                | `/api/v1/router/*`               |
+| ----------------- | ------------------------------------------------ | -------------------------------- |
+| Implementation    | Identical - one handler, one schema              | Identical                        |
+| Product semantics | Router (multi-source candidates)                 | Router                           |
+| Deprecation       | Signalled via response metadata                  | None - target namespace          |
+| Removal           | Gated on announced usage thresholds - no surprise cut-off | -                       |
 
-| Parameter          | Description                                                                                                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `exactAmount`      | Fill mode. `> 0`: exactIn, you send exactly this amount of `fromToken`. `< 0`: exactOut, you want exactly `\|exactAmount\|` of `toToken` after fees. `== 0`: use whatever `fromToken` balance the router holds. |
-| `order`            | The signed order struct. `fromAmount` / `toAmount` define the quote ratio used for scaling.                                                                                                                     |
-| `routerSignature`  | The router signer's EIP-712 signature over the order.                                                                                                                                                           |
-| `tetrafiPmmCalldata` | The raw `TetraFiSettlement.swapSingle` / `swapAggregate` calldata the router wraps.                                                                                                                               |
+Watch the deprecation metadata on alias responses (and your workspace's deprecation notices) for the removal timeline; the alias will not disappear before a documented gate is reached.
 
-For a concrete reference, see this [example transaction](https://etherscan.io/tx/0x071db51c478baf95d51fb69c4c80e1e8fcc90f68fcce94b0b6ce8e51321dd810).
+<Note>
+  Looking for firm-only quotes instead? The RFQ product has its own namespace - `/api/v1/rfq/*` - and is not an alias of Router. See the [RFQ introduction](/rfq-api/introduction) for when each product fits.
+</Note>
