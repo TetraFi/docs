@@ -1,54 +1,56 @@
 ---
 title: "How TetraFi Works"
-description: "Two liquidity models, one platform - understand how TetraFi works and choose the right integration."
+description: "Two products, one platform - understand how TetraFi works and choose the right integration."
 ---
 
-## Two Liquidity Models, One Platform
+## Two Products, One Platform
 
-TetraFi operates two distinct liquidity networks, each optimized for different execution requirements:
+TetraFi exposes two distinct trading products over one shared routing, settlement, and compliance engine, each optimized for different execution requirements:
 
 <AccordionGroup>
-  <Accordion title="Private Market Makers">
-    Professional trading firms that quote directly from their own on-chain inventory. They provide guaranteed execution and guaranteed fill - what you see is what you get. Orders are automatically split across multiple market makers for optimal pricing on large trades.
+  <Accordion title="RFQ - firm liquidity">
+    Every eligible solver and LP in your workspace competes to fill your request with a cryptographically firm, executable quote. Settlement runs through an escrow with a delivery-or-refund guarantee - what you see is what you get, and a quote that can't deliver refunds instead of failing you.
   </Accordion>
 
-  <Accordion title="Solvers">
-    Algorithmic agents that compete to find the best execution path across all available decentralized liquidity sources. They optimize routing in real-time to deliver the best possible price for any token pair, including long-tail assets.
+  <Accordion title="Router - aggregated execution">
+    The router fans your request across every eligible execution source - direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails - and returns ranked executable candidates with an explicit recommendation. Each candidate states its own firmness, atomicity, settlement guarantee, and fees.
   </Accordion>
 </AccordionGroup>
 
-Both models use requests-for-quote architecture: you specify what you want to trade, market makers compete to fulfill it, you sign the quote, submit the order, and settlement happens on-chain without TetraFi taking custody.
+Both products share one platform and one flow: you request quotes, competing sources answer, you sign the winning quote, submit the order, and settlement happens on-chain without TetraFi taking custody.
 
-The key difference is **who provides liquidity and how**:
+The key difference is **the contract you buy**:
 
-* **Market Makers:** Professional firms quote from their own on-chain inventory with firm prices
-* **Solvers:** Algorithms route through decentralized liquidity sources
+* **RFQ:** Only firm solver/LP escrow quotes - a closed source set with a delivery-or-refund guarantee
+* **Router:** Best execution across heterogeneous sources - guarantees stated per candidate, never assumed
 
-## Choose Your Integration
+A Router trade may well be *filled* by RFQ liquidity - but the product you called is still Router. Product and execution source are independent: the product defines your guarantees, the source records how it executed.
 
-|                     | **RFQ API - Market Maker Liquidity**                                 | **Aggregation API - Solver Liquidity**                                                     |
+## Picking Your Product
+
+|                     | **RFQ API - Firm Escrow Liquidity**                                  | **Router API - Aggregated Multi-Source**                                                   |
 | ------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **Execution model** | Firm, guaranteed pricing                                             | Best-effort pricing; solvers optimize routing across all available liquidity               |
-| **Settlement**      | On-chain via audited smart contracts; TetraFi never holds custody      | On-chain via audited smart contracts; TetraFi never holds custody                            |
-| **Optimal for**     | Supported token pairs where guaranteed pricing and fills matter most | Long-tail tokens, unusual pairs, or when maximizing token coverage is priority             |
-| **Trade-off**       | Limited to tokens where market makers actively provide liquidity     | Pricing subject to on-chain slippage based on solver's execution path and your preferences |
+| **Execution model** | Firm quotes only; escrow delivery-or-refund guarantee                | Ranked executable candidates; firmness and guarantees stated per candidate                 |
+| **Settlement**      | On-chain DvP via audited escrow contracts; TetraFi never holds custody | On-chain via audited smart contracts; TetraFi never holds custody                            |
+| **Optimal for**     | Corridors where firm pricing and delivery guarantees matter most     | Broad coverage, cross-chain routes, or when maximizing source diversity is priority        |
+| **Trade-off**       | Limited to assets where solvers/LPs actively quote                   | Guarantee strength varies by candidate; read each candidate's stated terms                 |
 
 **Use RFQ API when:**
 
-* You need guaranteed fills at guaranteed prices
-* You are trading supported pairs at size
-* Speed and reliability are critical
+* You need firm quotes backed by a delivery-or-refund escrow
+* You are trading supported corridors at size
+* Predictable settlement guarantees are critical
 
-**Use Aggregation API when:**
+**Use Router API when:**
 
-* You need broad token coverage including long-tail assets
-* You want to tap into all available on-chain liquidity sources
-* You prefer configuring slippage limits to access wider liquidity
+* You need broad coverage across DEX, bridge, issuer, and fiat sources
+* You want ranked candidates with an explicit recommendation
+* You prefer choosing per trade between speed, price, and trust profile
 
 **Use both when:**
 
-* You want to automatically route each trade to its optimal liquidity source
-* You need both guaranteed execution and fill for core pairs and broad coverage for everything else
+* You want firm escrow execution for core corridors and routed coverage for everything else
+* One source being down should never keep a valid trade from executing
 
 <Note>
   Still unsure? [Get in touch with our team](https://survey.typeform.com/to/tmPax8Fu?utm_source=docs_how_tetrafi_works).
