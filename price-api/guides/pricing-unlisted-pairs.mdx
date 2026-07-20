@@ -134,13 +134,14 @@ BASE_B = "WBTC"  # token you're buying
 TARGET_NOTIONAL = 100_000  # estimate price for $100k trade
 
 NETWORK = "ethereum"
-API_KEY = "<your_api_key>"
+CHAIN_ID = 1
+API_KEY = "tfk_live_..."
 
 WSS_URL = (
-    f"wss://api.tetrafi.io/pmm/{NETWORK}/v3/pricing"
-    f"?format=protobuf"
-    f"&gasless=false"
-    f"&expiry_type=standard"
+    f"wss://api.tetrafi.io/api/v1/ws"
+    f"?token={API_KEY}"
+    f"&format=protobuf"
+    f"&network={NETWORK}"
 )
 
 def address_to_hex(b: bytes) -> str:
@@ -201,16 +202,20 @@ def estimate_synthetic_price(
 
     return leg1_vwap / leg2_vwap, leg1_vwap, leg2_vwap
 
-# Resolve token addresses
-resp = httpx.get(f"https://api.tetrafi.io/pmm/{NETWORK}/v3/tokenlist", timeout=10.0)
-tokens = {t["symbol"]: t for t in resp.json().get("tokens", {})}
+# Resolve token addresses from the pair list
+resp = httpx.get("https://api.tetrafi.io/api/v1/pairs",
+                 headers={"X-API-Key": API_KEY}, timeout=10.0)
+tokens = {}
+for p in resp.json()["pairs"]:
+    for side in (p["input"], p["output"]):
+        if side["chainId"] == CHAIN_ID:
+            tokens[side["symbol"]] = side
 addr_a = tokens[BASE_A]["address"].lower()
 addr_b = tokens[BASE_B]["address"].lower()
 
 async def main():
     async with websockets.connect(
         WSS_URL,
-        additional_headers={"Authorization": f"Bearer {API_KEY}"},
         ping_interval=20,
         ping_timeout=10,
         max_size=2**21,

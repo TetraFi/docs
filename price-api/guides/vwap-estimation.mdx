@@ -98,13 +98,14 @@ import websockets
 from tetrafi_pb2 import TetraFiPricingUpdate  # type: ignore
 
 NETWORK = "ethereum"
-API_KEY = "<your_api_key>"
+CHAIN_ID = 1
+API_KEY = "tfk_live_..."
 
 WSS_URL = (
-    f"wss://api.tetrafi.io/pmm/{NETWORK}/v3/pricing"
-    f"?format=protobuf"
-    f"&gasless=false"
-    f"&expiry_type=standard"
+    f"wss://api.tetrafi.io/api/v1/ws"
+    f"?token={API_KEY}"
+    f"&format=protobuf"
+    f"&network={NETWORK}"
 )
 
 PAIR = "WETH/USDC"
@@ -143,9 +144,14 @@ def estimate_vwap(
 
     return total_quote / total_base, remaining
 
-# Resolve token addresses
-resp = httpx.get(f"https://api.tetrafi.io/pmm/{NETWORK}/v3/tokenlist", timeout=10.0)
-tokens = {t["symbol"]: t for t in resp.json().get("tokens", {})}
+# Resolve token addresses from the pair list
+resp = httpx.get("https://api.tetrafi.io/api/v1/pairs",
+                 headers={"X-API-Key": API_KEY}, timeout=10.0)
+tokens = {}
+for p in resp.json()["pairs"]:
+    for side in (p["input"], p["output"]):
+        if side["chainId"] == CHAIN_ID:
+            tokens[side["symbol"]] = side
 base_symbol, quote_symbol = PAIR.split("/")
 base_addr = tokens[base_symbol]["address"].lower()
 quote_addr = tokens[quote_symbol]["address"].lower()
@@ -153,7 +159,6 @@ quote_addr = tokens[quote_symbol]["address"].lower()
 async def main():
     async with websockets.connect(
         WSS_URL,
-        additional_headers={"Authorization": f"Bearer {API_KEY}"},
         ping_interval=20,
         ping_timeout=10,
         max_size=2**21,

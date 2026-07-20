@@ -1,9 +1,9 @@
 ---
 title: "Quickstart"
-description: "Connect to the Price API and start receiving real-time market maker quotes via WebSocket."
+description: "Connect to the price feed and start consuming live liquidity-network pricing over WebSocket."
 ---
 
-The Price API streams real-time indicative prices from TetraFi's market makers over WebSocket using protobuf-encoded messages. This guide walks you through connecting, decoding, and processing the stream.
+TetraFi's price feed delivers live indicative pricing from the liquidity network over WebSocket, with depth snapshots encoded as protobuf for compact, low-latency delivery. This guide gets you connected, decoding, and consuming the stream.
 
 <Info>
   **What you'll build:** A WebSocket client that receives and decodes real-time pricing data.
@@ -13,11 +13,11 @@ The Price API streams real-time indicative prices from TetraFi's market makers o
   **Prerequisites:** Python 3.10+, [uv](https://docs.astral.sh/uv/) (or pip), and an API key from TetraFi.
 </Info>
 
-## 1. Set Up Protobuf
+## 1. Generate the Schema Bindings
 
 The Price API encodes messages using Protocol Buffers for compact, low-latency delivery. You'll need to generate Python bindings from the schema.
 
-### Define the Schema
+### The Wire Schema
 
 Create `tetrafi.proto`:
 
@@ -74,23 +74,25 @@ Install the protobuf compiler tools and generate the Python module:
 
 This produces `tetrafi_pb2.py` - the module you'll import to decode messages.
 
-## 2. Connect to the WebSocket
+## 2. Open the Stream
 
-The pricing stream is available at:
+All streaming runs over TetraFi's WebSocket endpoint:
 
 ```
-wss://api.tetrafi.io/pmm/{network}/v3/pricing
+wss://api.tetrafi.io/api/v1/ws
 ```
 
 ### Connection Parameters
 
-| Parameter     | Required | Description                                                            |
-| ------------- | -------- | ---------------------------------------------------------------------- |
-| `format`      | Yes      | Set to `protobuf`                                                      |
-| `gasless`     | No       | `false` for self-execution quotes (default), `true` for gasless quotes |
-| `expiry_type` | No       | `short` or `standard` (default) - controls quote expiry window         |
+| Parameter | Required | Description                                                              |
+| --------- | -------- | ------------------------------------------------------------------------ |
+| `token`   | Yes      | Your API key (or JWT) - passed as a query parameter, since browsers cannot set custom WebSocket headers |
+| `format`  | For depth mode | Set to `protobuf` to receive full depth snapshots                  |
+| `network` | For depth mode | The network whose aggregated book you want to snapshot             |
 
-Authenticate by sending your API key as a Bearer token in the `Authorization` header on the connection handshake.
+<Note>
+  Topic-based JSON subscriptions (`prices:{srcChain}:{input}:{dstChain}:{output}:{tier}` - see the [Reference](/price-api/reference)) are available on this endpoint today. The protobuf full-depth snapshot mode documented below is the target surface for depth consumers and may evolve before general availability.
+</Note>
 
 ### Open the Connection
 
@@ -101,20 +103,19 @@ import websockets
 
 from tetrafi_pb2 import TetraFiPricingUpdate  # type: ignore
 
-NETWORK = "ethereum"
-API_KEY = "<your_api_key>"
+NETWORK = "optimism"
+API_KEY = "tfk_live_..."
 
 WSS_URL = (
-    f"wss://api.tetrafi.io/pmm/{NETWORK}/v3/pricing"
-    f"?format=protobuf"
-    f"&gasless=false"
-    f"&expiry_type=standard"
+    f"wss://api.tetrafi.io/api/v1/ws"
+    f"?token={API_KEY}"
+    f"&format=protobuf"
+    f"&network={NETWORK}"
 )
 
 async def main():
     async with websockets.connect(
         WSS_URL,
-        additional_headers={"Authorization": f"Bearer {API_KEY}"},
         ping_interval=20,
         ping_timeout=10,
         max_size=2**21,
@@ -128,29 +129,36 @@ async def main():
 asyncio.run(main())
 ```
 
-## 3. Decode the Price Data
+## 3. Turn Bytes into Prices
 
 Each message contains updates for multiple trading pairs. To extract pricing for a specific pair, match on the `base` and `quote` addresses.
 
-### Resolve Token Addresses
+### Look Up Asset Addresses
 
 (optional)
 
 First, look up the contract addresses for the tokens you want:
 
 ```python theme={null}
-async def fetch_token_list(network: str) -> dict:
-    url = f"https://api.tetrafi.io/pmm/{network}/v3/tokenlist"
-    resp = httpx.get(url, timeout=10.0)
+def fetch_pair_assets(chain_id: int) -> dict:
+    resp = httpx.get(
+        "https://api.tetrafi.io/api/v1/pairs",
+        headers={"X-API-Key": API_KEY},
+        timeout=10.0,
+    )
     resp.raise_for_status()
-    return resp.json().get("tokens", {})
+    assets = {}
+    for p in resp.json()["pairs"]:
+        for side in (p["input"], p["output"]):
+            if side["chainId"] == chain_id:
+                assets[side["symbol"]] = side
+    return assets
 
-tokens_raw = asyncio.run(fetch_token_list(NETWORK))
-tokens = {t["symbol"]: t for t in tokens_raw}
+assets = fetch_pair_assets(10)  # Optimism
 
 # Example: WETH/USDC
-base_addr = tokens["WETH"]["address"].lower()
-quote_addr = tokens["USDC"]["address"].lower()
+base_addr = assets["WETH"]["address"].lower()
+quote_addr = assets["USDC"]["address"].lower()
 ```
 
 ### Parse Bids and Asks
@@ -170,7 +178,6 @@ def to_levels(flat: list[float]) -> list[tuple[float, float]]:
 async def stream_prices(pair_base: str, pair_quote: str):
     async with websockets.connect(
         WSS_URL,
-        additional_headers={"Authorization": f"Bearer {API_KEY}"},
         ping_interval=20,
         ping_timeout=10,
         max_size=2**21,
@@ -207,7 +214,7 @@ async def stream_prices(pair_base: str, pair_quote: str):
 asyncio.run(stream_prices(base_addr, quote_addr))
 ```
 
-### Understanding the Levels
+### Reading the Depth Levels
 
 Bids are ordered best (highest) first, asks are ordered best (lowest) first. Each level represents a price point with available size in base token units.
 
@@ -218,7 +225,7 @@ For example, if `bids = [2450.50, 1.5, 2449.80, 3.0]`, that means:
 | 1     | 2450.50 | 1.5 WETH |
 | 2     | 2449.80 | 3.0 WETH |
 
-## 4. Full Example
+## 4. End to End
 
 Putting it all together - a complete script that connects, resolves a trading pair, and prints live pricing:
 
@@ -230,14 +237,15 @@ import websockets
 
 from tetrafi_pb2 import TetraFiPricingUpdate  # type: ignore
 
-NETWORK = "ethereum"
-API_KEY = "<your_api_key>"
+NETWORK = "optimism"
+CHAIN_ID = 10
+API_KEY = "tfk_live_..."
 
 WSS_URL = (
-    f"wss://api.tetrafi.io/pmm/{NETWORK}/v3/pricing"
-    f"?format=protobuf"
-    f"&gasless=false"
-    f"&expiry_type=standard"
+    f"wss://api.tetrafi.io/api/v1/ws"
+    f"?token={API_KEY}"
+    f"&format=protobuf"
+    f"&network={NETWORK}"
 )
 
 PAIR = "WETH/USDC"
@@ -249,19 +257,23 @@ def to_levels(flat: list[float]) -> list[tuple[float, float]]:
     it = iter(flat)
     return list(zip(it, it, strict=True))
 
-# 1. Resolve token addresses
-resp = httpx.get(f"https://api.tetrafi.io/pmm/{NETWORK}/v3/tokenlist", timeout=10.0)
-tokens = {t["symbol"]: t for t in resp.json().get("tokens", {})}
+# 1. Resolve token addresses from the pair list
+resp = httpx.get("https://api.tetrafi.io/api/v1/pairs",
+                 headers={"X-API-Key": API_KEY}, timeout=10.0)
+assets = {}
+for p in resp.json()["pairs"]:
+    for side in (p["input"], p["output"]):
+        if side["chainId"] == CHAIN_ID:
+            assets[side["symbol"]] = side
 base_symbol, quote_symbol = PAIR.split("/")
-base_addr = tokens[base_symbol]["address"].lower()
-quote_addr = tokens[quote_symbol]["address"].lower()
+base_addr = assets[base_symbol]["address"].lower()
+quote_addr = assets[quote_symbol]["address"].lower()
 
 # 2. Connect to the pricing stream
 
 async def main():
     async with websockets.connect(
         WSS_URL,
-        additional_headers={"Authorization": f"Bearer {API_KEY}"},
         ping_interval=20,
         ping_timeout=10,
         max_size=2**21,
@@ -304,7 +316,7 @@ asyncio.run(main())
   **Prices are indicative.** The Price API streams real-time market data for monitoring and pre-trade analysis. To get firm, executable quotes, use the [RFQ API](/rfq-api/introduction).
 </Note>
 
-## Next Steps
+## Keep Going
 
 <CardGroup cols={2}>
   <Card title="RFQ API Quickstart" icon="bolt" href="/rfq-api/quickstart">
