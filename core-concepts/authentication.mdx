@@ -3,65 +3,74 @@ title: "Authentication"
 description: "How to obtain and use an API key for TetraFi's trading and data APIs."
 ---
 
-All production usage of TetraFi's APIs requires an API key. Without one, trading endpoints return widened demo-mode quotes and some endpoints are inaccessible entirely.
+All production usage of TetraFi's APIs requires an API key. Without one, trading endpoints return `401 AUTH_REQUIRED` and streaming endpoints refuse the connection.
 
-## Obtaining an API Key
+TetraFi uses three credential types, each with a distinct job:
 
-Request an API key through the [TetraFi support page](/support). The team will provision a key and send it to you directly.
+| Credential | Header / transport | Used for |
+| --- | --- | --- |
+| **API key** (`tfk_test_...` / `tfk_live_...`) | `X-API-Key` header | The programmatic trading path: quotes, order preflight, order submission, order status |
+| **JWT Bearer** | `Authorization: Bearer <jwt>` | Workspace administration: service accounts, key management, dashboards |
+| **SIWE signature** | `POST /api/v1/auth/challenge` → `/verify` | Linking and authenticating wallets |
 
-## Passing Your API Key
+Compliance-sensitive operations (such as order submission) may additionally require the `X-TetraFi-Attestation` header.
+
+## Getting a Key
+
+Create a service account in your workspace and issue a key for it from the dashboard (**Workspace → Service Accounts → API Keys**). Keys are scoped — **Read**, **Trade**, or **Admin** — so a quoting integration only needs `Trade`. Use `tfk_test_` keys against the sandbox and `tfk_live_` keys in production.
+
+No workspace yet? Request access through the [TetraFi support page](/support) and the team will provision one for you.
+
+## Sending Credentials
 
 <Tabs>
   <Tab title="REST APIs">
-    For HTTP requests (RFQ, Aggregation, Trade History), authenticate with the `Authorization` header using your API key as a Bearer token:
+    For HTTP requests (RFQ, Router, Trade History), authenticate with the `X-API-Key` header:
 
     ```python theme={null}
-    YOUR_API_KEY = "YOUR_API_KEY"
+    YOUR_API_KEY = "tfk_live_..."
 
-    headers = {"Authorization": f"Bearer {YOUR_API_KEY}"}
+    headers = {"X-API-Key": YOUR_API_KEY}
     ```
 
     With curl:
 
     ```bash theme={null}
-    curl -H "Authorization: Bearer YOUR_API_KEY" ...
+    curl -H "X-API-Key: tfk_live_..." ...
     ```
   </Tab>
 
   <Tab title="WebSocket">
-    For WebSocket connections (Price API), send the `Authorization` header with your API key as a Bearer token on the connection handshake:
+    For WebSocket connections (price feed and order events), pass your credential as a `token` query parameter on the connection URL — browsers cannot set custom headers on a WebSocket handshake:
 
     ```python theme={null}
     import websockets
 
-    ws_url = "wss://api.tetrafi.io/pmm/ethereum/v3/pricing"
+    ws_url = "wss://api.tetrafi.io/api/v1/ws?token=tfk_live_..."
 
-    async with websockets.connect(
-        ws_url,
-        additional_headers={"Authorization": f"Bearer {YOUR_API_KEY}"},
-    ) as ws:
+    async with websockets.connect(ws_url) as ws:
         ...
     ```
   </Tab>
 </Tabs>
 
-## What Requires Authentication
+## Access With and Without a Key
 
-| API                   | Without key                                                                           | With key                                                     |
-| --------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| **Price API**         | Cannot connect                                                                        | Full access to real-time price streams                       |
-| **RFQ API**           | Demo mode  - quotes are widened, heavily rate limited and not suitable for production | Firm, tight quotes ready for execution                       |
-| **Aggregation API**   | Demo mode  - quotes are widened, heavily rate limited and not suitable for production | Firm, tight quotes ready for execution                       |
-| **Trade History API** | Public lookups by wallet address only                                                 | Full access  - see all trades attributed to your integration |
+| API                   | Without key                                            | With key                                                     |
+| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
+| **Price feed (WS)**   | Cannot connect                                         | Full access to real-time price streams                       |
+| **RFQ API**           | `401 AUTH_REQUIRED` - no quotes are returned           | Firm, executable quotes ready for signing                    |
+| **Router API**        | `401 AUTH_REQUIRED` - no quotes are returned           | Ranked executable candidates across all eligible sources     |
+| **Trade History**     | Not accessible                                         | Full access - all trades attributed to your workspace        |
 
-Demo mode is useful for testing your integration flow end-to-end before going live, but the prices returned are not competitive.
+Use `tfk_test_` sandbox keys to exercise your integration flow end-to-end before going live.
 
 ## Rate Limits
 
-Rate limits apply per API key. If you have concerns about throughput for your use case, reach out via the [support page](/support).
+Rate limits apply per API key and per workspace. If you have concerns about throughput for your use case, reach out via the [support page](/support).
 
-## Best Practices
+## Handling Keys Safely
 
 Keep your API key secret. Do not expose it in client-side code, public repositories, or browser network requests. All TetraFi API calls should be made from your backend.
 
-If you suspect your key has been compromised, contact the TetraFi team immediately via the [support page](/support) to rotate it.
+If you suspect your key has been compromised, revoke it from the dashboard (or contact the TetraFi team via the [support page](/support)) and issue a replacement.

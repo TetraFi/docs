@@ -1,27 +1,23 @@
 ---
 title: "Token Approvals"
-description: "Set up ERC-20 token approvals so TetraFi's router and settlement contracts can execute your trades."
+description: "Set up ERC-20 token approvals so TetraFi's escrow settlers can execute your trades."
 ---
 
-Before TetraFi can settle a trade, the contract handling it needs permission to move your sell tokens. This is standard ERC-20 behavior - you call `approve()` on the token contract, authorizing the settlement contract to transfer up to a specified amount.
+Before TetraFi can settle a trade, the escrow needs permission to pull your input tokens. This is standard ERC-20 behavior - you call `approve()` on the token contract, authorizing the spender to transfer up to a specified amount.
 
-This applies to both the RFQ API (router and settlement contracts) and Aggregation API (balance manager).
+The same escrow settlement system serves both the RFQ API and the Router API, so the approval flow is identical across products.
 
-## Which Contract to Approve
+## Finding the Right Spender
 
-Every quote response includes an `approvalTarget` field - this is the address you approve. Always use this value rather than hardcoding.
+Run preflight on your selected quote - the returned `nextActions` include any approval step, with the exact spender address and amount. Always use those values rather than hardcoding.
 
 <Warning>
-  **Never hardcode the approval address.** Always read `approvalTarget` from the quote response.
+  **Never hardcode the approval address.** Settler and Permit2 addresses vary by chain and lock type - the preflight `nextActions` for your selected candidate are authoritative.
 
-  RFQ API quotes may return either the router contract or the settlement contract, depending on how the trade is handled.
-
-  The Aggregation API uses a separate balance manager contract for approvals - it is not the same as the settlement contract.
-
-  For Aggregation API, approving the settlement contract will lead to loss of funds.
+  Some tokens need no approval at all: USDC-style tokens settle via EIP-3009 `transferWithAuthorization`, authorized entirely inside your signature.
 </Warning>
 
-## Check Existing Allowance
+## Reading Current Allowance
 
 Before approving, check whether the token already has sufficient allowance. This avoids unnecessary gas spend on redundant approval transactions.
 
@@ -51,7 +47,7 @@ ERC20_ABI = [
     },
 ]
 
-w3 = Web3(Web3.HTTPProvider("https://eth.llamarpc.com"))
+w3 = Web3(Web3.HTTPProvider("https://mainnet.optimism.io"))
 
 def check_allowance(owner: str, token_address: str, spender: str) -> int:
     token = w3.eth.contract(
@@ -64,7 +60,7 @@ def check_allowance(owner: str, token_address: str, spender: str) -> int:
     ).call()
 ```
 
-## Approve if Needed
+## Granting Allowance
 
 If the current allowance is less than the trade amount, submit an approval transaction. Most integrators approve the maximum amount (`2^256 - 1`) so they only need to do this once per token.
 
@@ -97,21 +93,35 @@ def ensure_allowance(account, token_address: str, spender: str, required: int):
     w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 ```
 
-## Using It with Quotes
+## Wiring It into the Trade Flow
 
-After receiving a quote from either API, check and approve before signing and broadcasting:
+After selecting a quote, run preflight and execute any approval action it returns before signing. Approval actions arrive as ready-to-broadcast transactions - `type: "evmTransaction"` with `purpose: "tokenApproval"` and the prepared calldata in `tx`:
 
 ```python theme={null}
-quote = response.json()
+import httpx
 
-sell_token = list(quote["sellTokens"].keys())[0]
-sell_amount = int(quote["sellTokens"][sell_token]["amount"])
-approval_target = quote["approvalTarget"]
+preflight = httpx.post(
+    "https://api.tetrafi.io/api/v1/router/orders/preflight",
+    json={"quoteResponse": selected_quote},
+    headers={"X-API-Key": YOUR_API_KEY},
+).json()
 
-account = Account.from_key(PRIVATE_KEY)
-ensure_allowance(account, sell_token, approval_target, sell_amount)
+for action in preflight["nextActions"]:
+    if action["purpose"] == "tokenApproval" and action["actor"] == "userWallet":
+        tx = action["tx"]  # {to, data, value} - broadcast as returned
+        signed = w3.eth.account.sign_transaction(
+            {**tx, "from": account.address,
+             "nonce": w3.eth.get_transaction_count(account.address),
+             "gasPrice": w3.eth.gas_price},
+            private_key=PRIVATE_KEY,
+        )
+        w3.eth.wait_for_transaction_receipt(
+            w3.eth.send_raw_transaction(signed.raw_transaction), timeout=120
+        )
 
-# Now proceed to sign and broadcast...
+# Actions with frequency "reusableSetup" (e.g. a bounded Permit2 approval)
+# persist across trades - you won't see them again until they're spent.
+# Now proceed to sign and submit...
 ```
 
 ## Approval Strategies
@@ -120,17 +130,14 @@ ensure_allowance(account, sell_token, approval_target, sell_amount)
 
 **Exact approval:** Approve only the exact trade amount each time. More conservative, but costs gas on every trade. Some compliance-sensitive integrations prefer this.
 
-## Permit2
+## Funding Locks Beyond `approve()`
 
-In gasless mode (`gasless=true`), you can use `approval_type=Permit2` to replace the per-contract on-chain approval with a one-time approval of the [Permit2 contract](https://github.com/Uniswap/permit2). Token spending is then authorized via off-chain EIP-712 signatures rather than separate `approve()` transactions for each settlement contract.
+The escrow supports three ways of funding an order; preflight selects the one available for your corridor and token:
 
-With `approval_type=Standard` (the default for gasless), the user must have approved the settlement contract beforehand - the same as self-execution.
-
-The Permit2 signing flow differs between APIs:
-
-* **Aggregation API:** The order is wrapped inside a `PermitBatchWitnessTransferFrom` message - you sign one combined message with the Permit2 domain. See the [Aggregation API quickstart](/aggregation-api/quickstart#permit2-signing-variant).
-* **RFQ API:** Order signing is unchanged (`TetraFiSettlement` domain, same types). You generate a **separate** `PermitBatch` signature and include it in the `/order` POST body. See the [RFQ gasless guide](/rfq-api/guides/gasless-execution#using-permit2-approvals).
+* **Permit2:** Approve the [Permit2 contract](https://github.com/Uniswap/permit2) once per token; each order's escrow pull is then authorized by an off-chain EIP-712 signature - no per-settler approvals. See the [Router API quickstart](/router-api/quickstart).
+* **EIP-3009:** Tokens like USDC support `transferWithAuthorization` - the escrow pull is authorized entirely inside your signed message, with no prior approval transaction. See the [RFQ Order Submission guide](/rfq-api/guides/gasless-execution).
+* **Resource lock:** Pre-deposit into the compact settler and trade against that balance - suited to high-frequency integrators.
 
 <Note>
-  Permit2 is supported in gasless mode on both the RFQ API and Aggregation API. It is not compatible with self-execution on either API.
+  The lock type is a property of the corridor and token, not something you choose per request - read it from the preflight `nextActions` for your selected candidate.
 </Note>

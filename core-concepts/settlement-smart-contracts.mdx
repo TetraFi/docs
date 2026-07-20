@@ -1,71 +1,65 @@
 ---
 title: "Settlement & Smart Contracts"
-description: "TetraFi's on-chain settlement architecture - contracts, approvals, and how trades are executed."
+description: "TetraFi's on-chain settlement architecture - escrow contracts, locks, and how trades are executed."
 ---
 
-All TetraFi trades settle on-chain through audited smart contracts. TetraFi never takes custody of user funds - the settlement contracts verify signatures, enforce price minimums, and atomically transfer tokens between parties.
+All TetraFi trades settle on-chain through the escrow settlement contracts. TetraFi never takes custody of user funds - the settlers verify signatures, enforce the signed order's terms, and move tokens delivery-versus-payment: the counterparty delivers, or your escrowed funds are refunded.
 
-## Settlement Architecture
+## The Contract Stack
 
-TetraFi uses separate contract systems for each API:
+TetraFi uses one escrow settlement system across both APIs, with an input side (where your funds lock) and an output side (where you receive):
 
-### RFQ API
-
-The RFQ API uses either the router or the settlement contract depending on the type of the trade:
-
-| Contract        | Address                                      | Purpose                                    |
-| --------------- | -------------------------------------------- | ------------------------------------------ |
-| TetraFiRouter     | `0xBeb0009ACa35087ce7cCF11637E24dd1Aad3bf2A` | Used for one-to-one token swaps            |
-| TetraFiSettlement | `0xbbbbbBB520d69a9775E85b458C58c648259FAD5F` | Used for many-to-one and one-to-many swaps |
-
-The `approvalTarget` and `settlementAddress` in quote responses would point to either of those.
-
-### Aggregation API
-
-The Aggregation API uses a two-contract architecture:
-
-| Contract                            | Address                                      | Purpose                                                                      |
-| ----------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------- |
-| Balance Manager (`approvalTarget`)  | `0xC5a350853E4e36b73EB0C24aaA4b8816C9A3579a` | Holds token approvals and manages taker balances during settlement           |
-| JamSettlement (`settlementAddress`) | `0xbeb0b0623f66bE8cE162EbDfA2ec543A522F4ea6` | Executes the swap - verifies signatures, enforces minimums, transfers tokens |
+| Contract              | Role                                                                          |
+| --------------------- | ----------------------------------------------------------------------------- |
+| `InputSettlerEscrow`  | Locks the taker's input funds under the signed order; releases on proof of delivery or refunds on expiry |
+| `InputSettlerCompact` | Resource-lock variant of the input settler for pre-positioned balances        |
+| `OutputSettlerSimple` | Pays out the order's output side on the destination chain                     |
+| `HyperlaneOracle`     | Attests cross-chain delivery so the input settler can release escrowed funds  |
 
 <Danger>
-  These are two distinct contracts. Takers must approve the **balance manager**, not the settlement contract. The quote response handles this for you via the `approvalTarget` field - see [Token Approvals](/core-concepts/token-approvals) for the full flow.
+  Never send funds directly to a settler address. Funds move only through a signed order's lock - the quote response and preflight `nextActions` tell you exactly what to sign and where value flows.
 </Danger>
 
-### Chain-Specific Addresses
+### Per-Chain Deployments
 
-The addresses above apply to all supported EVM chains except zkSync Era (chain ID 324), which uses different contract addresses. Always use the values from the quote response rather than hardcoding.
+Settler addresses differ per chain and are published in the deployment registry. For example, on Optimism (chain ID 10):
 
-See [Supported Chains](/supported-chains) for the full list of networks.
+| Contract              | Address (Optimism)                           |
+| --------------------- | -------------------------------------------- |
+| `InputSettlerEscrow`  | `0x2778258002a69a0cB1DfD29b360a0bB1654C8652` |
+| `InputSettlerCompact` | `0x7dfFC9e7db5a96887666c1a6D215E5d3Fb306d69` |
+| `OutputSettlerSimple` | `0x2404F8e3c37c002c89bA78086a119e68E3fF8824` |
 
-## How Settlement Works
+Always use the values carried in the quote response and preflight plan rather than hardcoding - the deployment registry is the source of truth. See [Supported Chains](/supported-chains) for the full list of networks.
 
-When you request a quote, TetraFi returns an [EIP-712](/core-concepts/execution-modes#eip-712-signing) typed message representing the exact trade terms - tokens, amounts, and price minimums.
+## Settlement Lifecycle
 
-You sign this message to authorize the trade. The settlement contract then verifies your signature on-chain, checks that the execution price meets the agreed minimums, and atomically transfers tokens between you and the maker(s) in a single transaction.
+When you request a quote, TetraFi returns an [EIP-712](/core-concepts/execution-modes) typed order payload (`escrow-v0`) representing the exact trade terms - assets, amounts, receiver, and expiry.
 
-If any condition fails, the entire transaction reverts - no partial state changes, no stuck funds, the contracts enforce the same guarantees and TetraFi never takes custody of your tokens.
+You sign this payload to authorize the trade. Your input funds lock in the escrow under those signed terms; the settler verifies the signature on-chain, and funds release to the counterparty only against proof that your output was delivered. On a cross-chain corridor, the oracle attests delivery on the destination chain before the source-side escrow releases.
 
-## Approvals
+If delivery cannot be proven before the order expires, the escrow refunds you - no partial state, no stuck funds, and TetraFi never takes custody of your tokens.
 
-Token approvals target the `approvalTarget` address from the quote response. The general pattern is the same across both APIs - see [Token Approvals](/core-concepts/token-approvals) for the full check-and-approve flow.
+## Funding Locks
 
-| Approval Type | Description                                               | Compatible With            |
-| ------------- | --------------------------------------------------------- | -------------------------- |
-| Standard      | ERC-20 `approve()` on the token contract                  | Self-execution and gasless |
-| Permit2       | Approval bundled into the signed message (no on-chain tx) | Gasless only               |
+How your input funds enter escrow depends on the lock type available for the corridor and token:
 
-## EIP-712 Domains
+| Lock type     | Description                                                          | Requires            |
+| ------------- | -------------------------------------------------------------------- | ------------------- |
+| Permit2       | Escrow pull authorized inside the signed message (no separate tx)    | One-time Permit2 approval |
+| EIP-3009      | `transferWithAuthorization` for tokens that support it (e.g. USDC)   | No prior approval   |
+| Resource lock | Pre-positioned balance in the compact settler                        | Prior deposit       |
 
-Each API uses its own EIP-712 domain for signature verification:
+The preflight `nextActions` select the lock for you - see [Token Approvals](/core-concepts/token-approvals) for the check-and-approve flow.
 
-| API             | Domain Name       | Version |
-| --------------- | ----------------- | ------- |
-| RFQ API         | `TetraFiRouter`     | `1`     |
-| RFQ API         | `TetraFiSettlement` | `2`     |
-| Aggregation API | `JamSettlement`   | `2`     |
+## Signed Payloads
 
-The `verifyingContract` is always the `settlementAddress` from the quote response. The `chainId` is the chain the trade executes on.
+Each quote carries its complete typed payload - domain, types, and message - in the `order` field:
 
-See the [RFQ gasless execution guide](/rfq-api/guides/gasless-execution#eip-712-order-type-schemas) and the [Aggregation API quickstart](/aggregation-api/quickstart#sign-the-eip-712-order) for the full EIP-712 type schemas.
+| Order type  | What you sign                                                        |
+| ----------- | -------------------------------------------------------------------- |
+| `escrow-v0` | The `StandardOrder` typed data returned verbatim in `quote.order`    |
+
+Sign exactly what the quote returns. The `integrityChecksum` binds your submission to the quote you were shown, so any mutation of the payload is rejected at submission.
+
+See the [RFQ Order Submission guide](/rfq-api/guides/gasless-execution) and the [Router API quickstart](/router-api/quickstart) for the full signing flows.
