@@ -1,44 +1,48 @@
 ---
 title: "Settlement & Smart Contracts"
-description: "TetraFi's on-chain settlement architecture - escrow contracts, locks, and how trades are executed."
+description: "TetraFi's on-chain architecture - your own immutable router, shared venue modules, and escrow settlement."
 ---
 
-All TetraFi trades settle on-chain through the escrow settlement contracts. TetraFi never takes custody of user funds - the settlers verify signatures, enforce the signed order's terms, and move tokens delivery-versus-payment: the counterparty delivers, or your escrowed funds are refunded.
+Every workspace on TetraFi gets its **own on-chain router** - an immutable contract deployed for you, owned by you. Trades enter through your router, flow through shared immutable venue modules, and settle delivery-versus-payment through a compliance-gated escrow: the counterparty delivers, or your funds are refunded. TetraFi holds no custody key and no upgrade key - anywhere in the stack.
 
 ## The Contract Stack
 
-TetraFi uses one escrow settlement system across both APIs, with an input side (where your funds lock) and an output side (where you receive):
-
-| Contract              | Role                                                                          |
-| --------------------- | ----------------------------------------------------------------------------- |
-| `InputSettlerEscrow`  | Locks the taker's input funds under the signed order; releases on proof of delivery or refunds on expiry |
-| `InputSettlerCompact` | Resource-lock variant of the input settler for pre-positioned balances        |
-| `OutputSettlerSimple` | Pays out the order's output side on the destination chain                     |
-| `HyperlaneOracle`     | Attests cross-chain delivery so the input settler can release escrowed funds  |
+|                        | Role                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| **Workspace router**   | Your institution's entry point - one immutable contract per workspace, deployed automatically at provisioning. Pulls trade inputs transiently, meters them into modules, and forwards fills to the end recipient. |
+| **Venue modules**      | Shared immutable modules the router dispatches to - escrow opening, swaps, bridge legs, FX continuations. New capabilities are *added* to the allowlist; existing modules can never be swapped out from under you. |
+| **Compliance escrow**  | The settlement entry (`ComplianceSettlerEscrow`). Locks inputs under the signed order, enforces the compliance policy at deposit time, releases on proof of delivery, refunds on expiry. Its output-side twin gates fills on the destination chain. |
+| **Settlement oracle**  | Attests destination-chain delivery back to the origin escrow so funds release only against proof. |
 
 <Danger>
-  Never send funds directly to a settler address. Funds move only through a signed order's lock - the quote response and preflight `nextActions` tell you exactly what to sign and where value flows.
+  Never send funds directly to a settlement address. Value moves only through a signed order's flow - the quote response and preflight `nextActions` tell you exactly what to sign and where funds travel.
 </Danger>
 
-### Per-Chain Deployments
+### Your Deployment, Your Addresses
 
-Settler addresses differ per chain and are published in the deployment registry. For example, on Optimism (chain ID 10):
-
-| Contract              | Address (Optimism)                           |
-| --------------------- | -------------------------------------------- |
-| `InputSettlerEscrow`  | `0x2778258002a69a0cB1DfD29b360a0bB1654C8652` |
-| `InputSettlerCompact` | `0x7dfFC9e7db5a96887666c1a6D215E5d3Fb306d69` |
-| `OutputSettlerSimple` | `0x2404F8e3c37c002c89bA78086a119e68E3fF8824` |
-
-Always use the values carried in the quote response and preflight plan rather than hardcoding - the deployment registry is the source of truth. See [Supported Chains](/supported-chains) for the full list of networks.
+Your workspace router's address is deterministic and predicted before deployment - it is provisioned automatically when your workspace is created, and it belongs to your workspace permanently. Module and escrow addresses vary by chain and version. Never hardcode any of them: the addresses carried in quote responses and preflight plans are authoritative for every trade. See [Supported Chains](/supported-chains) for network coverage.
 
 ## Settlement Lifecycle
 
-When you request a quote, TetraFi returns an [EIP-712](/core-concepts/execution-modes) typed order payload (`escrow-v0`) representing the exact trade terms - assets, amounts, receiver, and expiry.
+When you request a quote, TetraFi returns an [EIP-712](/core-concepts/execution-modes) typed order payload (`escrow-v0`) representing the exact trade terms - assets, amounts, receiver, and expiry. You sign it; your router meters the input into escrow under those signed terms; and funds release to the counterparty only against proof that your output was delivered.
 
-You sign this payload to authorize the trade. Your input funds lock in the escrow under those signed terms; the settler verifies the signature on-chain, and funds release to the counterparty only against proof that your output was delivered. On a cross-chain corridor, the oracle attests delivery on the destination chain before the source-side escrow releases.
+```mermaid
+sequenceDiagram
+    participant U as You (signer)
+    participant R as Your workspace router
+    participant E as Compliance escrow (origin)
+    participant S as Solver / LP
+    participant O as Oracle
+    U->>R: signed escrow-v0 order
+    R->>E: meter input via opener module (policy check)
+    S->>S: deliver output on destination chain
+    S-->>O: fill attested
+    O->>E: proof of delivery
+    E->>S: release escrowed input
+    Note over E,U: no proof before expiry → refund to you
+```
 
-If delivery cannot be proven before the order expires, the escrow refunds you - no partial state, no stuck funds, and TetraFi never takes custody of your tokens.
+If delivery cannot be proven before the order expires, the escrow refunds you - and the refund path is **permissionless and cannot be paused**, by anyone. No partial state, no stuck funds, no custody.
 
 ## Funding Locks
 
@@ -48,7 +52,7 @@ How your input funds enter escrow depends on the lock type available for the cor
 | ------------- | -------------------------------------------------------------------- | ------------------- |
 | Permit2       | Escrow pull authorized inside the signed message (no separate tx)    | One-time Permit2 approval |
 | EIP-3009      | `transferWithAuthorization` for tokens that support it (e.g. USDC)   | No prior approval   |
-| Resource lock | Pre-positioned balance in the compact settler                        | Prior deposit       |
+| Resource lock | Pre-positioned balance drawn per order                               | Prior deposit       |
 
 The preflight `nextActions` select the lock for you - see [Token Approvals](/core-concepts/token-approvals) for the check-and-approve flow.
 
