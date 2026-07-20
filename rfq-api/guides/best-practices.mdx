@@ -1,115 +1,119 @@
 ---
 title: "Best Practices"
-description: "Recommended patterns for RFQ API integrators."
+description: "The operating rules that keep your RFQ integration on the full liquidity surface."
 ---
 
-This page is the operational manual for integrating the RFQ API. Every rule here exists because a real maker has either de-prioritised, denylisted, or widened quotes for an integrator that violated it.
+Treat this page as the operational manual for the RFQ API. Each rule earned its place: real LPs have widened, de-prioritised, or denylisted integrators who broke it.
 
-TetraFi's liquidity providers are professional desks with their own risk systems. They observe per-source flow and reject patterns that look adversarial. If your integration follows these six rules, you'll have stable access to the full liquidity surface. If it doesn't, you'll see degrading fill rates, sporadic `InsufficientLiquidity` errors, and eventually maker-level bans.
+The desks quoting on TetraFi run their own risk systems. They watch flow per source and push back on patterns that look adversarial. Follow these six rules and your access to the liquidity surface stays stable; ignore them and you'll see fill rates sag, sporadic no-liquidity answers, and eventually LP-level bans.
 
-## 1. Don't spam
+## 1. Filter before you quote
 
-Use the [Price API stream](/price-api/quickstart) for route estimation and sizing. Only call `/quote` once the stream tells you the trade is worth pursuing.
+Use the [price feed](/price-api/quickstart) for sizing and route estimation, and only call `/rfq/quotes` when the stream says the trade is worth pursuing.
 
-The stream gives you the full depth in real time, while the `/quote` endpoint is rate-limited per chain and per key precisely *because* it costs makers something to produce a firm quote.
+Streamed prices give you continuous depth at no cost to LPs, while firm quotes are rate-limited per key precisely *because* each one is a priced commitment someone has to stand behind.
 
 ```python theme={null}
-# Anti-pattern: blind RFQ for every intent
-quote = httpx.get(QUOTE_URL, params=...)  # consumes RFQ rate limit even when no liquidity exists
+# Anti-pattern: firm-quote every candidate intent
+quotes = httpx.post(QUOTES_URL, json=...)  # burns rate limit even when there's no liquidity
 
-# Recommended: pre-filter via the stream
-if stream_depth_for(pair) >= intent.size:
-    quote = httpx.get(QUOTE_URL, params=...)
+# Recommended: pre-filter on the stream
+if stream_depth_for(corridor) >= intent_size:
+    quotes = httpx.post(QUOTES_URL, json=...)
 ```
 
 See [Estimating VWAP](/price-api/guides/vwap-estimation) for the canonical pattern.
 
-## 2. Don't cherry-pick quotes
+## 2. Execute what you quote
 
-A quote is valid for a specific moment in time. Caching a quote and re-evaluating it later, then executing only when the cached quote becomes more profitable than the live market, is **toxic flow**.
+A firm quote prices one moment in time. Holding a quote, watching the market, and submitting only when the stale price beats the live one is **toxic flow** - and it's visible.
 
-**Recommended pattern**: request a quote at the moment you intend to execute. Use the live Price API stream for everything earlier in your decision pipeline.
+**The clean pattern:** request quotes at the moment you intend to execute, and drive everything earlier in your pipeline off the streamed prices.
 
-## 3. Don't slice, use partial fills
+## 3. One intent, one quote
 
-Slicing means breaking a single fill intent into multiple smaller RFQ requests. There are two flavours of this, both of which makers detect and react to:
+Slicing - splitting a single fill intent into several smaller quote requests - comes in two flavours, and LPs detect both:
 
-* **Multiple quotes for the same fill**: requesting 5 × `1M USDC → WETH` quotes when you intend to fill `5M USDC → WETH` once.
-* **Multiple quotes for the same execution**: requesting two independent `10M USDC → WETH` quotes at the same time and executing both - whether bundled into one transaction or split across consecutive blocks. Each quote was priced against the maker's full inventory. The first fills; the second reverts on-chain once that inventory is drawn down. Blocks land seconds apart and the maker's liquidity does not replenish in that window, so submitting across separate blocks doesn't help. Requesting both quotes at once is slicing regardless of how you submit them.
+* **Several quotes for one fill:** five `1M USDC → WETH` requests when you mean to fill `5M` once.
+* **Several quotes for one execution:** two simultaneous `10M USDC → WETH` quotes, both executed - bundled or across consecutive blocks. Each was priced against the LP's full inventory; the first draws it down and the second fails. Blocks arrive seconds apart, inventory doesn't refill in that window - simultaneous requests are slicing however you submit them.
 
-If you need flexibility on the fill amount, use [Partial Fills](/rfq-api/guides/partial-fills) instead. A 5M quote can be filled at 4.5M against the same firm price - that's not slicing, that's the supported partial-fill mechanic.
+Need size flexibility? That's what [partial fills](/rfq-api/guides/partial-fills) are for: a 5M quote with `partialFill: true` can settle at 4.5M on the same firm terms - supported, not adversarial.
 
-Another common case for partial fills is topping up an AMM leg. If you route part of a trade through an AMM and add maker liquidity on top, the AMM's real `amountOut` isn't known until the swap executes - slippage, MEV and pool state move it. Request a quote for the maximum you may need, then partial-fill down to what the AMM actually returned. You get the same firm price regardless of the fill amount, avoiding a second round trip on the critical path.
+Partial fills also solve the AMM top-up case: when part of a trade routes through an AMM, its true output isn't known until execution. Quote the maximum you might need, let the order partially fill down to what the AMM leg actually produced, and skip a second round trip on the critical path.
 
 ```python theme={null}
-# Anti-pattern: 5 small quotes for one intent
-for amount in [1_000_000] * 5:
-    quote = httpx.get(QUOTE_URL, params={"sell_amounts": str(amount), ...})
+# Anti-pattern: five small quotes for one intent
+for _ in range(5):
+    httpx.post(QUOTES_URL, json=intent_for("1000000"))
 
-# Recommended: 1 quote, optional partial fill
-quote = httpx.get(QUOTE_URL, params={"sell_amounts": "5000000", ...})
-# Fill any amount up to the quote at the firm price.
+# Recommended: one quote, partial fill enabled
+httpx.post(QUOTES_URL, json=intent_for("5000000", partial_fill=True))
+# Settles at any size up to the quote, on the firm terms.
 ```
 
-## 4. Don't probe unsupported tokens
+## 4. Quote only what's tradable
 
-Requesting quotes for tokens that aren't supported on a given chain costs maker compute and signals an unfiltered taker. Use the `/tokens` endpoint with the `isAvailable` flag as the canonical liquidity check before requesting a quote.
+Probing corridors that aren't supported costs LP compute and marks you as an unfiltered taker. Make the pair list your gate:
 
 ```python theme={null}
 import httpx
 
-NETWORK = "ethereum"
-tokens = httpx.get(f"https://api.tetrafi.io/pmm/{NETWORK}/v3/tokens").json()
-available = {addr for addr, t in tokens["tokens"].items() if t.get("isAvailable")}
+pairs = httpx.get(
+    "https://api.tetrafi.io/api/v1/pairs",
+    headers={"X-API-Key": KEY},
+).json()["pairs"]
 
-if sell_token in available and buy_token in available:
-    quote = httpx.get(QUOTE_URL, params=...)
+tradable = {(p["input"]["chainId"], p["input"]["address"].lower(),
+             p["output"]["chainId"], p["output"]["address"].lower()) for p in pairs}
+
+if (10, usdc_op.lower(), 8453, usdc_base.lower()) in tradable:
+    quotes = httpx.post(QUOTES_URL, json=..., headers=...)
 ```
 
-You can request a quote for any supported token against any other supported token..
+Any listed pair can be quoted against any other supported leg - the list is the canonical availability check.
 
-## 5. Firm quote means 0% slippage
+## 5. Firm means firm
 
-A TetraFi quote is **executable at the price you get until expiry**. This matters when comparing TetraFi quotes to AMM quotes in a routing decision. Don't apply an "expected slippage" adjustment to the TetraFi quote that you'd normally apply to a Uniswap quote.
+An RFQ quote is **executable at its stated terms until `validUntil`**, enforced by the escrow. When your router compares a TetraFi quote against AMM routes, don't haircut it with the "expected slippage" you'd apply to a pool price:
 
-| Source              | Returned price     | What you actually receive              |
-| ------------------- | ------------------ | -------------------------------------- |
-| TetraFi RFQ           | Firm               | Same as returned price (pre-execution) |
-| AMM (Uniswap, etc.) | Mid-price estimate | Returned price minus slippage cost     |
+| Source              | Returned price     | What you actually receive               |
+| ------------------- | ------------------ | --------------------------------------- |
+| TetraFi RFQ           | Firm, escrow-enforced | The quoted terms - or a refund       |
+| AMM (Uniswap, etc.) | Mid-price estimate | Estimate minus slippage and MEV cost    |
 
-## 6. Pass origin so we can identify legitimate flow
+Comparing a firm quote and a pool estimate as if they were the same kind of number systematically misroutes flow away from your best price.
 
-The following four fields tell us who is really behind a quote request. Send the ones that match your integration shape - they feed abuse-prevention and market-maker reputation, so accuracy matters.
+## 6. Show us whose flow it is
 
-| Field            | Send when                                             | Value                                                         |
-| ---------------- | ----------------------------------------------------- | ------------------------------------------------------------- |
-| `taker_address`  | Always (required)                                     | The address that will sign the order.                         |
-| `origin_address` | Your taker is not the end-user's own wallet           | The real end-user's EOA.                                      |
-| `origin_target`  | The swap is executed by a contract on the user's side | The to address of the resulting transaction.                  |
-| `origin_source`  | You aggregate flow from multiple upstream sources     | A stable identifier for the sub-source the request came from. |
+Attribution fields tell TetraFi and the LPs who is really behind a request. They feed abuse prevention and per-source reputation, so accuracy directly shapes the pricing you receive:
 
-**If you're a direct integrator** - the `taker_address` is a real user wallet and there is no contract of yours in between: you don't need any of the `origin_*` fields.
+| Field           | Send when                                                | Value                                                        |
+| --------------- | -------------------------------------------------------- | ------------------------------------------------------------ |
+| `user`          | Always (required)                                        | The wallet that signs and funds the order                    |
+| `directUserId`  | You're a broker acting for onboarded end-users           | The end-user's ID from your workspace's direct-user registry |
+| `signerWallet`  | The signing wallet differs from the funding `user`       | The wallet that will actually sign                           |
+| `metadata` source tag | You aggregate flow from multiple upstream sources  | A stable identifier per sub-source                           |
 
-**If you route through your own contract** - `taker_address` is your settlement/router contract, so TetraFi can't see the real user from it. Send `origin_address` = the end-user's EOA. Depending on your integration profile, TetraFi may require `origin_address` on every request; if that applies to you we'll tell you, and requests without it will be rejected.
+**Direct integrator** - `user` is the end-user's own wallet, nothing in between: the required field is all you need.
 
-**If a contract executes the swap on the user's side** - additionally send `origin_target` = the `to` address of the resulting transaction (the contract that executes the swap). This is specifically the transaction target, not just any intermediate in your call path. TetraFi screens this contract before forwarding the request.
+**Broker flows** - your users onboard through your workspace; send `directUserId` so screening and reputation attach to the actual person, not your whole integration.
 
-**If you aggregate flow from multiple upstream sources** - additionally send `origin_source` = a stable, consistent identifier for the specific sub-source a request came from (e.g. one value for your own UI, a distinct value per downstream partner). This lets TetraFi and market makers manage reputation per sub-source rather than treating your entire integration as one bucket - so one bad downstream partner doesn't taint your  good flow. It's a free-text string; keep the values stable over time.
+**Aggregated flows** - tag each upstream source consistently in `metadata`. Reputation then accrues per sub-source, so one bad downstream partner can't taint the rest of your flow.
 
 <Warning>
-  **Send the true end-user EOA.** Inaccurate values simultaneously blind reputation tracking and weaken address screening, which degrades the quality of liquidity you receive and can get your integration de-prioritized.
+  **Attribute honestly.** Wrong or missing attribution blinds screening and reputation at the same time - the result is worse pricing for all of your flow and, in persistent cases, de-prioritisation.
 </Warning>
 
-## Summary checklist
+## Pre-launch checklist
 
 Before going live, confirm:
 
-* You connect to the Price API stream and use it as the pre-quote filter
-* You never cache a quote between issuance and execution
-* You request one quote per intended fill (use partial fills for flex sizing)
-* You only execute one quote for the same fill (token pair) per transaction
-* You only request quotes for tokens with `isAvailable=true`
-* You compare TetraFi's firm quote to AMM quotes net of expected AMM slippage
-* You pass the real end-user address
+* The price stream - not firm quotes - drives your pre-trade filtering
+* No quote is ever cached between issuance and execution
+* One quote per intended fill; `partialFill` covers flexible sizing
+* Only one quote per fill is ever executed
+* Every quoted pair appears in `/api/v1/pairs`
+* AMM comparisons are net of slippage; TetraFi quotes are not haircut
+* Attribution fields reflect the true origin of the flow
 
-Following all these recommendations materially reduces the chance of being deny-listed and is the difference between a stable integration and one that quietly degrades over weeks.
+An integration that holds all seven lines is the difference between stable access and one that quietly degrades over weeks.
