@@ -1,39 +1,43 @@
 ---
 title: "Quickstart"
-description: "Make your first trade on TetraFi using the RFQ API - from quote request to settlement."
+description: "From your first firm quote to a settled trade on the RFQ API."
 ---
 
-This guide walks you through making your first trade on TetraFi using the RFQ API. You'll learn how to discover supported assets, request quotes, sign orders, and submit them for settlement.
+This walkthrough takes you from zero to a settled RFQ trade: discover what you can trade, collect firm quotes, sign the winning one, and see it through settlement.
 
 <Info>
-  **What you'll build:** A complete trade flow from quote request to settlement.
+  **What you'll build:** A complete trade flow from quote collection to settlement.
 
   **Time required:** 10-15 minutes
 
-  **Prerequisites:** Basic understanding of EVM wallets and token approvals.
+  **Prerequisites:** Basic familiarity with EVM wallets and token approvals, plus an API key (`tfk_test_` for the sandbox).
 </Info>
 
-## 1. Discover Supported Chains and Tokens
+## Step 1 - Find What's Tradable
 
-Before requesting quotes, identify which chains and tokens TetraFi supports. This information changes as new assets are added, so your integration should refresh it regularly.
+Coverage grows as new corridors and LPs come online, so have your integration refresh this data on a schedule rather than pinning it.
 
-### Get Supported Chains
+### List Tradable Pairs
 
-Retrieve the supported blockchains:
+Fetch the pairs currently quotable across your workspace's eligible solvers:
 
 ```
-GET /pmm/chains
+GET /api/v1/pairs
 ```
 
 <CodeGroup>
   ```bash bash theme={null}
-  curl --get https://api.tetrafi.io/pmm/chains
+  curl https://api.tetrafi.io/api/v1/pairs \
+    -H "X-API-Key: tfk_test_..."
   ```
 
   ```python python theme={null}
   import httpx
 
-  resp = httpx.get("https://api.tetrafi.io/pmm/chains")
+  resp = httpx.get(
+      "https://api.tetrafi.io/api/v1/pairs",
+      headers={"X-API-Key": "tfk_test_..."},
+  )
   data = resp.json()
   print(data)
   ```
@@ -43,125 +47,92 @@ Response (abridged):
 
 ```json theme={null}
 {
-  "ethereum": 1,
-  "polygon": 137,
-  "arbitrum": 42161,
-  "optimism": 10,
-  "base": 8453,
-  "bsc": 56,
-  "hyperevm": 999,
-  "avalanche": 43114,
-  "solana": 2,
-  ...
+  "pairs": [
+    {
+      "input":  { "chainId": 10,   "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", "symbol": "USDC", "decimals": 6 },
+      "output": { "chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "symbol": "USDC", "decimals": 6 },
+      "corridor": "optimism-base"
+    }
+  ]
 }
 ```
 
-Use these network names in subsequent API calls (e.g., `/pmm/ethereum/v3/quote`).
+Each entry names the exact input and output asset - use those `chainId` + `address` pairs verbatim in your quote requests. The networks themselves are listed on [Supported Chains](/supported-chains).
 
-### Get Tokens for a Chain
+### See Who's Quoting
 
-Once you know which chain you want to trade on, retrieve the list of supported tokens:
+Solvers and LPs are the counterparties behind every RFQ quote. You can inspect the roster your workspace can reach:
 
 ```
-GET /pmm/{network}/v3/tokenlist
+GET /api/v1/solvers
 ```
 
 <CodeGroup>
   ```bash bash theme={null}
-  curl --get https://api.tetrafi.io/pmm/ethereum/v3/tokenlist
+  curl https://api.tetrafi.io/api/v1/solvers \
+    -H "X-API-Key: tfk_test_..."
   ```
 
   ```python python theme={null}
   import httpx
 
-  resp = httpx.get("https://api.tetrafi.io/pmm/ethereum/v3/tokenlist")
-  data = resp.json()
-
-  # Show first 5 tokens
-  tokens = data.get("tokens", [])
-  for t in tokens[:5]:
-      print(f'{t["symbol"]} ({t["address"][:10]}...) decimals={t["decimals"]}')
+  resp = httpx.get(
+      "https://api.tetrafi.io/api/v1/solvers",
+      headers={"X-API-Key": "tfk_test_..."},
+  )
+  for s in resp.json()["solvers"][:5]:
+      print(s["id"], s.get("status"))
   ```
 </CodeGroup>
 
-Response (abridged):
+Key discovery fields:
 
-```json theme={null}
-{
-  "tokens": [
-    {
-      "chainId": 1,
-      "address": "0xec53bF...1F83",
-      "decimals": 18,
-      "name": "Eigenlayer",
-      "symbol": "EIGEN",
-      "logoURI": "https://tetrafi-public-images.s3.eu-west-2...",
-      "tags": [],
-      "extensions": {
-        "color": "#FFFFFF",
-        "displayDecimals": 1,
-        "availability": {
-          "isAvailable": true,
-          "canBuy": true,
-          "canSell": true
-        }
-      }
-    }
-    ...
-  ],
-  "total": 398
-}
-```
-
-Key fields:
-
-| Field                         | Description                                                                     |
-| ----------------------------- | ------------------------------------------------------------------------------- |
-| `symbol`                      | Human-readable token symbol                                                     |
-| `address`                     | Token contract address - use this in all subsequent requests                    |
-| `decimals`                    | For converting human amounts to base units (e.g., 1 WETH = 1 × 10¹⁸ base units) |
-| `availability.canBuy/canSell` | Whether trading is enabled in either direction                                  |
+| Field                  | Description                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `input` / `output`     | The tradable asset on each side - `chainId` plus contract `address`              |
+| `decimals`             | Converts human amounts to base units (1 USDC = 1 × 10⁶ base units)               |
+| `corridor`             | Directional route name; the cross-chain analog of a trading pair                 |
+| solver `id` / `status` | Who can quote, and whether they're currently active                              |
 
 <Tip>
-  **Caching recommendation:** Refresh token lists at least once daily. Token availability can change due to liquidity conditions or new listings.
+  **Refresh cadence:** re-pull pairs at least daily. Corridor coverage shifts with LP inventory and new listings.
 </Tip>
 
-## 2. Request a Quote
+## Step 2 - Collect Firm Quotes
 
-Quotes return the exact price and settlement parameters for your trade. Regular quotes expire typically within 60-75 seconds (depending on the blockchain), so request them when you're ready to execute.
+A quote is an executable commitment with an expiry, so ask for quotes when you're ready to act - typically they stay valid for about a minute.
 
 ### Authentication
 
 <Warning>
-  Unauthenticated requests receive significantly worse prices and are heavily rate limited.
+  Requests without a credential are rejected with `401 AUTH_REQUIRED` - there is no anonymous quoting.
 </Warning>
 
-You can try the API in demo mode, however, we encourage you to [request an API key](/core-concepts/authentication) to get production-grade pricing and higher limits.
+Use a `tfk_test_` key against the sandbox while you build, then switch to `tfk_live_` for production. See [Authentication](/core-concepts/authentication) for key setup.
 
-### Basic Quote Request
+### A First Quote Request
 
 ```
-GET /pmm/{chain}/v3/quote
+POST /api/v1/rfq/quotes
 ```
 
-Required parameters:
+The request body describes your intent:
 
-| Parameter                       | Description                                                | Example                        |
-| ------------------------------- | ---------------------------------------------------------- | ------------------------------ |
-| `sell_tokens`                   | Token(s) you're selling (contract address)                 | `0xC02a...` (WETH)             |
-| `buy_tokens`                    | Token(s) you're buying                                     | `0xA0b8...` (USDC)             |
-| `sell_amounts` OR `buy_amounts` | Amount in base units. Use one, not both.                   | `1000000000000000000` (1 WETH) |
-| `taker_address`                 | Wallet that signs the order                                | `0xYourWalletAddress`          |
-| `receiver_address`              | Address to receive bought tokens (if different from taker) | `taker_address`                |
-| `gasless`                       | Set to `false` for self-execution (default is `true`)      | `false`                        |
+| Field                | Description                                                          | Example                       |
+| -------------------- | -------------------------------------------------------------------- | ----------------------------- |
+| `user`               | Wallet that signs and funds the trade                                | `0xYourWalletAddress`         |
+| `intent.inputs[]`    | What you're sending: `{user, asset{chainId, address}, amount}`       | 25 USDC on Optimism           |
+| `intent.outputs[]`   | What you receive: `{receiver, asset{chainId, address}}`              | USDC on Base                  |
+| `intent.swapType`    | `ExactInput` or `ExactOutput`                                        | `ExactInput`                  |
+| `supportedTypes`     | Order payloads your signer can handle                                | `["escrow-v0"]`               |
 
 <Note>
-  **Swap and send:** `taker_address` signs the order; the bought tokens go to `receiver_address`. `receiver_address` is optional and defaults to `taker_address`. Works in both gasless and self-execution modes.
+  **Swap and send:** the input's `user` signs and funds; each output's `receiver` collects. Point `receiver` at a different wallet to deliver elsewhere - it works in both execution modes.
 </Note>
 
-<Accordion title="Choosing sell_amounts vs buy_amounts">
-  * Use `sell_amounts` when you know exactly how much you want to sell (e.g., "Sell 1 WETH")
-  * Use `buy_amounts` when you know exactly how much you want to receive (e.g., "Buy 5000 USDC")
+<Accordion title="ExactInput or ExactOutput?">
+  * `ExactInput` fixes what you send - "sell 25 USDC, receive whatever it buys"
+  * `ExactOutput` fixes what you get - "deliver exactly 20 USDC, charge what it takes"
 </Accordion>
 
 <Accordion title="Converting human amounts to base units">
@@ -172,238 +143,209 @@ Required parameters:
   For example: 1.5 WETH (18 decimals) = 1.5 × 10¹⁸ = `1500000000000000000`
 </Accordion>
 
-Example - selling 1 WETH for USDC on Ethereum:
+Example - moving 25 USDC from Optimism to Base:
 
 <CodeGroup>
   ```bash bash theme={null}
-  curl https://api.tetrafi.io/pmm/ethereum/v3/quote \
-    --get \
-    --data-urlencode "sell_tokens=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" \
-    --data-urlencode "buy_tokens=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" \
-    --data-urlencode "sell_amounts=1000000000000000000" \
-    --data-urlencode "taker_address=0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693" \
-    --data-urlencode "gasless=false"
+  curl -X POST https://api.tetrafi.io/api/v1/rfq/quotes \
+    -H "X-API-Key: tfk_test_..." \
+    -H "Content-Type: application/json" \
+    -d '{
+      "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+      "intent": {
+        "intentType": "swap",
+        "inputs": [{
+          "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+          "asset": {"chainId": 10, "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"},
+          "amount": "25000000"
+        }],
+        "outputs": [{
+          "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+          "asset": {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}
+        }],
+        "swapType": "ExactInput"
+      },
+      "supportedTypes": ["escrow-v0"]
+    }'
   ```
 
   ```python python theme={null}
   import httpx
-  from web3 import Web3
 
-  NETWORK = "ethereum"
-  URL = f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote"
+  API = "https://api.tetrafi.io/api/v1"
+  ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
 
-  buy_token = Web3.to_checksum_address(
-      "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-  )  # USDC
+  usdc_op   = {"chainId": 10,   "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"}
+  usdc_base = {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}
 
-  sell_token = Web3.to_checksum_address(
-      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-  )  # WETH
+  amount_human = 25.0
+  decimals = 6
 
-  sell_token_decimals = 18
-  sell_amounts = 0.01
-
-  params = {
-      "buy_tokens": buy_token,
-      "sell_tokens": sell_token,
-      "sell_amounts": int(sell_amounts * 10**sell_token_decimals),
-      "taker_address": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
-      "gasless": "false",
-  }
-
-  response = httpx.get(URL, params=params)
-  data = response.json()
-  print(data)
+  resp = httpx.post(
+      f"{API}/rfq/quotes",
+      json={
+          "user": ME,
+          "intent": {
+              "intentType": "swap",
+              "inputs": [{"user": ME, "asset": usdc_op,
+                          "amount": str(int(amount_human * 10**decimals))}],
+              "outputs": [{"receiver": ME, "asset": usdc_base}],
+              "swapType": "ExactInput",
+          },
+          "supportedTypes": ["escrow-v0"],
+      },
+      headers={"X-API-Key": "tfk_test_..."},
+  )
+  quotes = resp.json()
+  print(quotes)
   ```
 </CodeGroup>
 
 <Tip>
-  **Building a wallet or super-app?** TetraFi also supports gasless execution where TetraFi submits on-chain on behalf of your users. See the [Gasless guide](/rfq-api/guides/gasless-execution) for details.
+  **Building a wallet or super-app?** Quotes whose execution mode is `apiSubmit` let TetraFi handle on-chain submission for your users. The [Order Submission guide](/rfq-api/guides/gasless-execution) covers that path end to end.
 </Tip>
 
-### Understanding the Response
+### Making Sense of the Response
+
+Every entry is a firm quote from a competing solver or LP - ranked, with the best first:
 
 ```json theme={null}
 {
-  "requestId": "dd78b459-2dcf-4478-9393-5e9d10e1d573",
-  "type": "121",
-  "status": "SIG_SUCCESS",
-  "quoteId": "121-897150427680310661818327515657942468...",
-  "chainId": 1,
-  "approvalType": "Standard",
-  "nativeToken": "ETH",
-  "taker": "0x5Bad99...BcB6",
-  "receiver": "0x5Bad99...BcB6",
-  "expiry": 1773827371,
-  "slippage": 0.0,
-  "gasFee": {
-    "native": "0",
-    "usd": 0.0
-  },
-  "buyTokens": {
-    "0xA0b869...eB48": {
-      "amount": "23197992",
-      "decimals": 6,
-      "priceUsd": 0.999863,
-      "symbol": "USDC",
-      "minimumAmount": "23197992",
-      "price": 0.0004310717927655118,
-      "priceBeforeFee": 0.00042891596855834495,
-      "amountBeforeFee": "23314591",
-      "deltaFromExpected": -0.005043930479229898
+  "quotes": [
+    {
+      "quoteId": "q_01J2M8...",
+      "solverId": "lp-atlas",
+      "order": {
+        "type": "escrow-v0",
+        "payload": { "domain": { "...": "..." }, "types": { "...": "..." }, "message": { "...": "..." } }
+      },
+      "validUntil": 1784560045,
+      "eta": 40,
+      "preview": {
+        "inputs":  [{ "asset": "eip155:10/erc20:0x0b2C...Ff85",  "amount": "25000000", "symbol": "USDC", "decimals": 6 }],
+        "outputs": [{ "asset": "eip155:8453/erc20:0x8335...2913", "amount": "24987500", "symbol": "USDC", "decimals": 6 }]
+      },
+      "integrityChecksum": "9c41f2...",
+      "routingPath": "direct",
+      "platformFeeBps": 5,
+      "lpSpreadBps": 3
     }
-  },
-  "sellTokens": {
-    "0xC02aaA...6Cc2": {
-      "amount": "10000000000000000",
-      "decimals": 18,
-      "priceUsd": 2331.24,
-      "symbol": "WETH",
-      "price": 2319.7992,
-      "priceBeforeFee": 2331.4590113330582
-    }
-  },
-  "settlementAddress": "0xbbbbbB...AD5F",
-  "approvalTarget": "0xbbbbbB...AD5F",
-  "requiredSignatures": [],
-  "priceImpact": -0.005043930479229898,
-  "partnerFee": {
-    "0xEeeeeE...EEeE": "50000000000000"
-  },
-  "warnings": [],
-  "info": "You are using TetraFi's public API. For hi...",
-  "tx": {
-    "to": "0xbbbbbB...AD5F",
-    "value": "0x0",
-    "data": "0x4dcebcba000000000000000000000000000000...",
-    "from": "0x5Bad99...BcB6",
-    "gas": 91793,
-    "gasPrice": 154958393
-  },
-  "makers": [
-    "🦙"
   ],
-  "toSign": {
-    "partner_id": 0,
-    "expiry": 1773827371,
-    "taker_address": "0x5Bad99...BcB6",
-    "maker_address": "0xBEE321...a000",
-    "maker_nonce": "3272802511230603750",
-    "taker_token": "0xC02aaA...6Cc2",
-    "maker_token": "0xA0b869...eB48",
-    "taker_amount": "10000000000000000",
-    "maker_amount": "23197992",
-    "receiver": "0x5Bad99...BcB6",
-    "packed_commands": "0"
-  },
-  "onchainOrderType": "SingleOrder",
-  "partialFillOffset": 12
+  "totalQuotes": 3,
+  "metadata": {
+    "totalDurationMs": 380,
+    "solversQueried": 5,
+    "solversSuccess": 3
+  }
 }
 ```
 
-Key items to note:
+What to read first:
 
-| Field            | Description                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------- |
-| `quoteId`        | Unique quote identifier for monitoring settlement                                                       |
-| `expiry`         | Unix timestamp - order is invalid after this time                                                       |
-| `buyTokens`      | Tokens you'll receive, keyed by contract address. `amount` is the guaranteed fill amount (no slippage). |
-| `approvalTarget` | Contract that needs token approval (if not already approved).                                           |
-| `toSign`         | EIP-712 message fields you must sign                                                                    |
-| `tx`             | Ready-to-broadcast transaction - sign the EIP-712 typed data and submit on-chain                        |
+| Field                | Description                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| `quoteId`            | Carries the quote through preflight, submission, and tracking                            |
+| `solverId`           | The LP or solver standing behind this commitment                                         |
+| `preview.outputs`    | What you'll receive - the amount here is what the escrow enforces                        |
+| `validUntil`         | Unix expiry; sign and submit before it passes                                            |
+| `order`              | The `escrow-v0` EIP-712 envelope you sign - exactly as returned                          |
+| `integrityChecksum`  | Ties your submission to this precise quote; any drift is rejected                        |
+| `metadata`           | The competition at a glance - how many were asked, how many answered                     |
 
 <Warning>
-  **Important.** Make sure `approvalTarget` is always picked up from the quote response, not hardcoded. You may receive different targets for different quotes depending on how the trade is handled.
+  **Never hardcode contract addresses.** Approval spenders and settler addresses come from the preflight `nextActions` for the quote you picked - they differ by chain and funding lock.
 
-  As of June 2026, you may see either of the following two contracts in the quote response:
+  For reference, on Optimism the escrow settlers currently are:
 
-  * router contract: `0xBeb0009ACa35087ce7cCF11637E24dd1Aad3bf2A`
-  * settlement contract: `0xbbbbbBB520d69a9775E85b458C58c648259FAD5F`
+  * input settler (escrow): `0x2778258002a69a0cB1DfD29b360a0bB1654C8652`
+  * compact settler (resource lock): `0x7dfFC9e7db5a96887666c1a6D215E5d3Fb306d69`
 
-  See [Smart Contracts](/core-concepts/settlement-smart-contracts) and [Token Approvals guide](/core-concepts/token-approvals) for more information.
+  See [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts) and the [Token Approvals guide](/core-concepts/token-approvals).
 </Warning>
 
-## 3. Sign & Submit
+## Step 3 - Sign and Settle
 
-With self-execution, the `/v3/quote` response includes a `tx` object ready to submit. You add your `nonce` and `chainId`, sign the transaction, and broadcast on-chain. There's no separate order submission step.
+Preflight your chosen quote, run any approval actions it lists, then follow its plan: sign the `escrow-v0` payload and submit - or broadcast the prepared transaction yourself when the quote's mode is `walletBroadcast`.
 
 <Note>
-  Partial fills are also supported. See the [Partial Fills guide](/rfq-api/guides/partial-fills) for details.
+  Partial fills are supported when the intent sets `partialFill: true`. See the [Partial Fills guide](/rfq-api/guides/partial-fills).
 </Note>
 
-The `tx` object from the quote response contains the complete settlement calldata. You just need to add your `nonce` and `chainId`, then sign and submit.
+The preflight plan (`nextActions`) contains everything: approval transactions ready to broadcast, the typed data to sign, and where to submit it.
 
 <Info>
-  For [gasless execution](/rfq-api/guides/gasless-execution), you sign EIP-712 typed data and POST to `/v3/order` instead. See the [EIP-712 order type schemas](/rfq-api/guides/gasless-execution#eip-712-order-type-schemas) for the full type definitions (`SingleOrder`, `MultiOrder`, `AggregateOrder`).
+  For the full `apiSubmit` path - signing the typed data and POSTing the order while TetraFi handles gas - see the [Order Submission guide](/rfq-api/guides/gasless-execution).
 </Info>
 
 ```python theme={null}
+import time
+
 import httpx
 from eth_account import Account
-from web3 import Web3
+from eth_account.messages import encode_typed_data
 
+API = "https://api.tetrafi.io/api/v1"
+KEY = "tfk_test_..."
 PRIVATE_KEY = "0x<your_private_key_hex>"
-RPC_URL = "https://eth.llamarpc.com"
-NETWORK = "ethereum"
 
-# --- 1. Request a quote ---
-taker_address = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
-
-response = httpx.get(
-    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
-    params={
-        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        "sell_amounts": 1000000000000000000,
-        "taker_address": taker_address,
-        "gasless": "false",
-    },
-)
-quote = response.json()
-
-# --- 2. Sign and submit the transaction ---
-
-w3 = Web3(Web3.HTTPProvider(RPC_URL))
+headers = {"X-API-Key": KEY}
 account = Account.from_key(PRIVATE_KEY)
 
-tx = quote["tx"]
-tx["nonce"] = w3.eth.get_transaction_count(account.address)
-tx["chainId"] = quote["chainId"]
+# --- 1. Pick the best quote ---
+selected = quotes["quotes"][0]
 
-signed_tx = w3.eth.account.sign_transaction(tx, account.key)
-tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+# --- 2. Preflight it ---
+pf = httpx.post(f"{API}/rfq/orders/preflight", headers=headers,
+                json={"quoteResponse": selected}).json()
 
-print(f"Transaction: {tx_hash.hex()}")
-receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-print(f'Settled in block {receipt["blockNumber"]}')
+# (run any tokenApproval actions here - see the Token Approvals guide)
+
+# --- 3. Sign the escrow-v0 payload ---
+sign_action = next(a for a in pf["nextActions"] if a["purpose"] == "orderSignature")
+signable = encode_typed_data(full_message=sign_action["typedData"])
+signature = Account.sign_message(signable, private_key=PRIVATE_KEY).signature.hex()
+
+# --- 4. Submit ---
+order = httpx.post(f"{API}/rfq/orders",
+                   headers={**headers, "Idempotency-Key": selected["quoteId"]},
+                   json={"quoteResponse": selected, "signature": signature}).json()
+print("Order:", order["id"])
+
+# --- 5. Follow it to settlement ---
+while True:
+    o = httpx.get(f"{API}/rfq/orders/{order['id']}", headers=headers).json()
+    print("status:", o["status"])
+    if o["status"] in ("settled", "failed"):
+        break
+    time.sleep(2)
 ```
 
-Key points:
+The moving parts:
 
-| Step       | What happens                                                     |
-| ---------- | ---------------------------------------------------------------- |
-| Sign       | Sign the transaction using your private key                      |
-| Broadcast  | Submit the transaction on-chain via your RPC provider            |
-| Settlement | Tokens arrive at your `receiver` address in the same transaction |
+| Step       | What happens                                                                  |
+| ---------- | ----------------------------------------------------------------------------- |
+| Preflight  | Confirms the quote is still executable and hands you the exact action plan    |
+| Sign       | Your wallet signs the order's typed data, verbatim                            |
+| Settle     | Funds lock in escrow, delivery is verified, and your output is released - or the escrow refunds you |
 
-## Next Steps
+## Where Next
 
-Ready to explore more? Dive into the guides:
+Ready for more? The guides go deeper:
 
 <CardGroup cols={2}>
   <Card title="Token Approvals" icon="key" href="/core-concepts/token-approvals">
-    Manage token approvals for trading.
+    The approval loop and the three funding locks.
   </Card>
 
-  <Card title="Gasless Execution" icon="wand-magic-sparkles" href="/rfq-api/guides/gasless-execution">
-    Let TetraFi submit on-chain for your users - ideal for wallets and super-apps.
+  <Card title="Order Submission" icon="wand-magic-sparkles" href="/rfq-api/guides/gasless-execution">
+    Let TetraFi land the transaction - ideal for wallets and super-apps.
   </Card>
 
   <Card title="Partial Fills" icon="chart-pie" href="/rfq-api/guides/partial-fills">
-    Combine market maker and AMM liquidity.
+    Fill what's available now, refund the rest.
   </Card>
 
   <Card title="Multi-Token Trades" icon="arrows-rotate" href="/rfq-api/guides/multi-token-trades">
-    Swap multiple tokens in a single transaction.
+    Multiple inputs and outputs in a single order.
   </Card>
 </CardGroup>

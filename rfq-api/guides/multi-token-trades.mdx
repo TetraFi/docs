@@ -1,196 +1,180 @@
 ---
 title: "Multi-Token Trades"
-description: "Swap multiple tokens in a single atomic transaction."
+description: "Trade several tokens at once - one order, one atomic settlement."
 ---
 
-TetraFi supports three trading modes, all settled atomically in a single transaction:
+TetraFi handles three trade shapes, each settling atomically in a single order:
 
-| Mode        | Example                      | `type` in response |
-| ----------- | ---------------------------- | ------------------ |
-| One-to-one  | WETH → USDC                  | `121`              |
-| Many-to-one | (WETH + WBTC) → USDC         | `M21`              |
-| One-to-many | WETH → (USDT + USDC + PYUSD) | `12M`              |
+| Shape       | Example                      | Intent structure            |
+| ----------- | ---------------------------- | --------------------------- |
+| One-to-one  | WETH → USDC                  | 1 input, 1 output           |
+| Many-to-one | (WETH + WBTC) → USDC         | multiple inputs, 1 output   |
+| One-to-many | WETH → (USDT + USDC + PYUSD) | 1 input, multiple outputs   |
 
-Multi-token trades (many-to-one and one-to-many) are useful when rebalancing portfolios, consolidating stablecoin positions, or distributing a single asset into multiple tokens - all without paying gas for separate swaps.
+Many-to-one and one-to-many shapes shine when you're rebalancing a portfolio, consolidating stablecoin balances, or fanning one asset out into several - without running a separate swap (and paying separate overhead) for each leg.
 
-## How It Differs from Single-Token Trades
+## What Changes vs a Single-Token Trade
 
-The API interface is nearly identical. The differences are:
+The API surface barely moves. The differences:
 
-**Request:** Pass comma-separated token addresses and amounts instead of single values.
+**Request:** list several entries in `intent.inputs[]` or `intent.outputs[]` instead of one each.
 
-**Response:** The `onchainOrderType` is `MultiOrder` or `AggregateOrder` instead of `SingleOrder`. The API returns `MultiOrder` when a single maker fills the trade, or `AggregateOrder` when multiple makers are involved.
+**Response:** the order payload widens to cover every leg. When one LP fills everything, you get a single-counterparty order; when several LPs each take a slice, the payload becomes a split fill with one entry per counterparty.
 
-**EIP-712 signing:** `MultiOrder` uses flat array types (`address[]`, `uint256[]`), while `AggregateOrder` uses nested arrays (`address[][]`, `uint256[][]`) with one entry per maker.
+**Signing:** unchanged - preflight hands you the complete typed envelope for whatever shape came back, and you sign it verbatim. One signature covers every leg.
 
-## 1. Request a Multi-Token Quote
+## 1. Quote a Multi-Token Intent
 
-Separate multiple token addresses and amounts with commas. The order of amounts must match the order of token addresses.
+List each leg as its own entry. Amounts pair with their own entry, so decimals stay unambiguous.
 
 ### Many-to-one: sell USDC + DAI → buy USDT
 
 ```python theme={null}
 import httpx
 
-NETWORK = "ethereum"
+API = "https://api.tetrafi.io/api/v1"
+ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+headers = {"X-API-Key": "tfk_live_..."}
 
 # Many-to-one: sell USDC + DAI -> buy USDT
-resp = httpx.get(
-    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
-    params={
-        "sell_tokens": ",".join(
-            [
-                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # USDC
-                "0x6B175474E89094C44Da98b954EedeAC495271d0F",  # DAI
-            ]
-        ),
-        "buy_tokens": "0xdAC17F958D2ee523a2206206994597C13D831ec7",  # USDT
-        "sell_amounts": ",".join(
-            [
-                "100000000",  # 100 USDC (6 decimals)
-                "100000000000000000000",  # 100 DAI (18 decimals)
-            ]
-        ),
-        "taker_address": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
-        "gasless": "false",
+resp = httpx.post(
+    f"{API}/rfq/quotes",
+    json={
+        "user": ME,
+        "intent": {
+            "intentType": "swap",
+            "inputs": [
+                {"user": ME,
+                 "asset": {"chainId": 1, "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"},  # USDC
+                 "amount": "100000000"},                    # 100 USDC (6 decimals)
+                {"user": ME,
+                 "asset": {"chainId": 1, "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F"},  # DAI
+                 "amount": "100000000000000000000"},        # 100 DAI (18 decimals)
+            ],
+            "outputs": [
+                {"receiver": ME,
+                 "asset": {"chainId": 1, "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7"}},  # USDT
+            ],
+            "swapType": "ExactInput",
+        },
+        "supportedTypes": ["escrow-v0"],
     },
+    headers=headers,
 )
-quote = resp.json()
-print(
-    f'Quote type: {quote.get("type")}, order type: {quote.get("onchainOrderType")}'
-)
-print(quote)
+quotes = resp.json()["quotes"]
+print(f"{len(quotes)} quotes for the 2-in-1-out intent")
 ```
 
 ### One-to-many: sell WETH → buy USDT + USDC + PYUSD
 
-For one-to-many, specify a single `sell_tokens` / `sell_amounts` and comma-separated `buy_tokens`. Use `buy_amounts` instead of `sell_amounts` to control how much of each output token you want:
+Flip the shape: a single input, several outputs. Use `ExactOutput` when you want to pin how much of each output token arrives:
 
 ```python theme={null}
-resp = httpx.get(
-    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
-    params={
-        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  # WETH
-        "buy_tokens": ",".join([
-            "0xdAC17F958D2ee523a2206206994597C13D831ec7",  # USDT
-            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # USDC
-            "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",  # PYUSD
-        ]),
-        "buy_amounts": ",".join([
-            "500000000",  # 500 USDT
-            "500000000",  # 500 USDC
-            "500000000",  # 500 PYUSD
-        ]),
-        "taker_address": "0xYourWalletAddress",
-        "gasless": "false",
+resp = httpx.post(
+    f"{API}/rfq/quotes",
+    json={
+        "user": ME,
+        "intent": {
+            "intentType": "swap",
+            "inputs": [
+                {"user": ME,
+                 "asset": {"chainId": 1, "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"}},  # WETH
+            ],
+            "outputs": [
+                {"receiver": ME,
+                 "asset": {"chainId": 1, "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7"},  # USDT
+                 "amount": "500000000"},   # 500 USDT
+                {"receiver": ME,
+                 "asset": {"chainId": 1, "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"},  # USDC
+                 "amount": "500000000"},   # 500 USDC
+                {"receiver": ME,
+                 "asset": {"chainId": 1, "address": "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8"},  # PYUSD
+                 "amount": "500000000"},   # 500 PYUSD
+            ],
+            "swapType": "ExactOutput",
+        },
+        "supportedTypes": ["escrow-v0"],
     },
+    headers=headers,
 )
-quote = resp.json()
+quotes = resp.json()["quotes"]
 ```
 
-## 2. Understand the Response
+## 2. Read the Multi-Leg Response
 
-The response structure is the same as single-token quotes, but with multiple entries in `sellTokens` or `buyTokens`:
+The response looks like any other quote list, with `preview` widened to every leg:
 
-When a single maker fills the trade, the API returns `MultiOrder` with flat arrays:
+When a single LP covers the whole intent, the preview pairs your inputs against its combined delivery:
 
 ```json theme={null}
 {
-  "type": "M21",
-  "onchainOrderType": "MultiOrder",
-  "toSign": {
-    "partner_id": 0,
-    "expiry": 1772453661,
-    "taker_address": "0x5Bad...bBcB6",
-    "maker_address": "0xE873...",
-    "maker_nonce": "297211...",
-    "taker_tokens": ["0xA0b8...", "0x6B17..."],
-    "maker_tokens": ["0xdAC1..."],
-    "taker_amounts": ["100000000", "100000000000000000000"],
-    "maker_amounts": ["198898842"],
-    "receiver": "0x5Bad...bBcB6",
-    "commands": "0x00000000"
-  }
+  "quoteId": "q_01J3F...",
+  "solverId": "lp-atlas",
+  "order": { "type": "escrow-v0", "payload": { "...": "one envelope covering both inputs" } },
+  "preview": {
+    "inputs": [
+      { "asset": "eip155:1/erc20:0xA0b8...eB48", "amount": "100000000",             "symbol": "USDC" },
+      { "asset": "eip155:1/erc20:0x6B17...1d0F", "amount": "100000000000000000000", "symbol": "DAI" }
+    ],
+    "outputs": [
+      { "asset": "eip155:1/erc20:0xdAC1...1ec7", "amount": "198898842", "symbol": "USDT" }
+    ]
+  },
+  "validUntil": 1784560100
 }
 ```
 
-When multiple makers are involved, the API returns `AggregateOrder` with nested arrays - one entry per maker:
+When several LPs split the fill, the quote is a split-fill order - each counterparty commits to its slice, but you still see one combined preview and sign once:
 
 ```json theme={null}
 {
-  "type": "M21",
-  "onchainOrderType": "AggregateOrder",
-  "toSign": {
-    "partner_id": 0,
-    "expiry": 1772453661,
-    "taker_address": "0x5Bad...bBcB6",
-    "maker_addresses": ["0xE873...", "0x51C7..."],
-    "maker_nonces": ["297211...", "297211..."],
-    "taker_tokens": [["0xA0b8..."], ["0x6B17..."]],
-    "maker_tokens": [["0xdAC1..."], ["0xdAC1..."]],
-    "taker_amounts": [["100000000"], ["100000000000000000000"]],
-    "maker_amounts": [["99453999"], ["99444843"]],
-    "receiver": "0x5Bad...bBcB6",
-    "commands": "0x00000000"
-  }
+  "quoteId": "q_01J3G...",
+  "solverId": "split:lp-atlas+lp-borealis",
+  "order": { "type": "escrow-v0", "payload": { "...": "split fill - one slice per LP, one taker signature" } },
+  "preview": {
+    "inputs": [
+      { "asset": "eip155:1/erc20:0xA0b8...eB48", "amount": "100000000",             "symbol": "USDC" },
+      { "asset": "eip155:1/erc20:0x6B17...1d0F", "amount": "100000000000000000000", "symbol": "DAI" }
+    ],
+    "outputs": [
+      { "asset": "eip155:1/erc20:0xdAC1...1ec7", "amount": "198898842", "symbol": "USDT" }
+    ]
+  },
+  "validUntil": 1784560100
 }
 ```
 
-Note the key structural differences: `MultiOrder` uses singular `maker_address` / `maker_nonce` and flat token/amount arrays, while `AggregateOrder` uses plural `maker_addresses` / `maker_nonces` and nested arrays where each outer index corresponds to a maker.
+The structural takeaway: single-LP orders carry one counterparty commitment; split fills carry one per LP - but from your side the contract is identical: the escrow enforces the combined minimum delivery, atomically, or refunds every leg.
 
-## 3. Sign and Broadcast
+## 3. Preflight, Sign, Settle
 
-The API returns `MultiOrder` or `AggregateOrder` depending on whether one or multiple makers fill the trade. For self-execution, this distinction doesn't matter - you broadcast the `tx` object directly. For gasless (EIP-712 signing), use the `onchainOrderType` from the response as your `primaryType`.
+Shape makes no difference to your code. Preflight the quote you picked, sign the typed data it returns, submit - the same three calls as a one-to-one trade:
 
 ```python theme={null}
-import httpx
 from eth_account import Account
-from web3 import Web3
+from eth_account.messages import encode_typed_data
 
 PRIVATE_KEY = "0x<your_private_key_hex>"
-RPC_URL = "https://eth.llamarpc.com"
-NETWORK = "ethereum"
-
-# --- 1. Request a multi-token quote ---
-
-taker_address = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
-
-resp = httpx.get(
-    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
-    params={
-        "sell_tokens": ",".join(
-            [
-                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # USDC
-                "0x6B175474E89094C44Da98b954EedeAC495271d0F",  # DAI
-            ]
-        ),
-        "buy_tokens": "0xdAC17F958D2ee523a2206206994597C13D831ec7",  # USDT
-        "sell_amounts": ",".join(
-            [
-                "100000000",  # 100 USDC
-                "100000000000000000000",  # 100 DAI
-            ]
-        ),
-        "taker_address": taker_address,
-        "gasless": "false",
-    },
-)
-quote = resp.json()
-
-# --- 2. Sign and submit ---
-
-w3 = Web3(Web3.HTTPProvider(RPC_URL))
 account = Account.from_key(PRIVATE_KEY)
 
-tx = quote["tx"]
-tx["nonce"] = w3.eth.get_transaction_count(account.address)
-tx["chainId"] = quote["chainId"]
+# --- 1. Pick from the multi-token quotes ---
+selected = quotes[0]
 
-signed_tx = w3.eth.account.sign_transaction(tx, account.key)
-tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-print(f"Multi-token trade submitted: {tx_hash.hex()}")
+# --- 2. Preflight ---
+pf = httpx.post(f"{API}/rfq/orders/preflight", headers=headers,
+                json={"quoteResponse": selected}).json()
+
+# --- 3. Sign the (multi-leg) escrow-v0 payload and submit ---
+sign_action = next(a for a in pf["nextActions"] if a["purpose"] == "orderSignature")
+signable = encode_typed_data(full_message=sign_action["typedData"])
+signature = Account.sign_message(signable, private_key=PRIVATE_KEY).signature.hex()
+
+order = httpx.post(f"{API}/rfq/orders",
+                   headers={**headers, "Idempotency-Key": selected["quoteId"]},
+                   json={"quoteResponse": selected, "signature": signature}).json()
+print(f"Multi-token order submitted: {order['id']}")
 ```
 
 <Info>
-  The API selects the order type automatically - `SingleOrder`, `MultiOrder`, or `AggregateOrder` - based on the trade structure. Use the `onchainOrderType` from the quote response as your `primaryType`. See the [EIP-712 order type schemas](/rfq-api/guides/gasless-execution#eip-712-order-type-schemas) for the full type definitions.
+  The order payload's shape - single counterparty or split fill - is chosen by the platform from how LPs answered your intent. You never select it: sign whatever preflight returns. The [Order Submission guide](/rfq-api/guides/gasless-execution) breaks down what the envelope always binds.
 </Info>

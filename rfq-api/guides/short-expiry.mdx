@@ -1,58 +1,75 @@
 ---
 title: "Short Expiry"
-description: "Request quotes with shorter expiry windows for latency-sensitive integrations."
+description: "Trade validity window against spread - tighter quotes for integrations that can act fast."
 ---
 
-Short expiry quotes have a narrower validity window than standard quotes. Because the market maker's risk window is smaller, short expiry quotes offer tighter pricing. The trade-off is that the transaction must be **included in a block** before the quote expires, not just signed and broadcast.
+A quote's `validUntil` is part of its price: the shorter the window an LP must hold its commitment, the tighter it can quote. Integrations that sign and submit quickly can lean into that - request a shorter validity horizon and collect the spread improvement. The flip side: your signed order must reach settlement before the window closes, or the escrow refunds instead of filling.
 
 <Note>
-  Short expiry is only available for **self-execution** (`gasless=false`).
+  You control the window from the intent side with `minValidUntil` - the minimum expiry you're willing to accept. Leave it unset and LPs choose their standard windows.
 </Note>
 
-## Expiry Windows by Chain
+## Typical Validity Windows
 
-| Chain     | Short expiry | Standard expiry |
-| --------- | ------------ | --------------- |
-| Ethereum  | 5s           | 75s             |
-| Arbitrum  | 3s           | 60s             |
-| Base      | 3s           | 60s             |
-| BSC       | 3s           | 60s             |
-| Polygon   | N/A          | 60s             |
-| Optimism  | N/A          | 60s             |
-| Hyperevm  | N/A          | 60s             |
-| Avalanche | N/A          | 60s             |
-| Solana    | N/A          | 90s             |
+Windows vary by corridor and LP; treat these as representative rather than contractual - the authoritative number is always the `validUntil` on the quote itself:
 
-## Requesting Short Expiry Quotes
+| Network       | Fast-mover window | Standard window |
+| ------------- | ----------------- | --------------- |
+| Optimism      | ~5s               | ~60s            |
+| Base          | ~5s               | ~60s            |
+| Ethereum      | ~10s              | ~75s            |
+| Arc           | -                 | quoted per venue |
+| Cross-chain corridors | -         | longer, covering both legs |
 
-Pass `expiry_type=short` when calling `/v3/quote`:
+## Asking for a Specific Window
 
-```bash theme={null}
-curl "https://api.tetrafi.io/pmm/ethereum/v3/quote?\
-  buy_tokens=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&\
-  sell_tokens=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2&\
-  sell_amounts=1000000000000000000&\
-  taker_address=0xYOUR_ADDRESS&\
-  gasless=false&\
-  expiry_type=short" \
-  -H "Authorization: Bearer YOUR_API_KEY"
+Set `minValidUntil` (unix seconds) inside the intent - quotes expiring before that moment are filtered out before they reach you:
+
+```python theme={null}
+import time
+
+import httpx
+
+API = "https://api.tetrafi.io/api/v1"
+ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+
+resp = httpx.post(
+    f"{API}/rfq/quotes",
+    json={
+        "user": ME,
+        "intent": {
+            "intentType": "swap",
+            "inputs": [{"user": ME,
+                        "asset": {"chainId": 10, "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"},
+                        "amount": "25000000"}],
+            "outputs": [{"receiver": ME,
+                         "asset": {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}}],
+            "swapType": "ExactInput",
+            "minValidUntil": int(time.time()) + 30,   # give me at least 30s to act
+        },
+        "supportedTypes": ["escrow-v0"],
+    },
+    headers={"X-API-Key": "tfk_live_..."},
+)
+for q in resp.json()["quotes"]:
+    print(q["solverId"], "valid for", q["validUntil"] - int(time.time()), "s")
 ```
 
-The returned quote will have a shorter validity window matching the chain-specific durations above. Your transaction must be included in a block within that window. Signing and broadcasting alone is not enough. If your transaction doesn't land in the target block, you may need to increase your gas price. Note that even a higher fee may not guarantee inclusion if the block is full (e.g. due to MEV bundles).
+Working the other direction - accepting *short* windows for better pricing - is simply a matter of tolerating small `validUntil` horizons and submitting immediately: preflight, sign, and POST in one pass, with no user interaction between quote and submission. If your submission misses the window, the order is rejected up-front or refunds through the escrow - you are never left with a stale fill.
 
-## Using with the Price API
+## Pairing with the Price Feed
 
-If you use the [Price API](/price-api/introduction) for indicative pricing before requesting firm quotes, make sure the expiry types match. Subscribe to the `short` expiry stream by including `expiry_type=short` in the WebSocket URL, so the indicative prices you receive reflect the same pricing that `/v3/quote` will return.
+If you use the [price feed](/price-api/introduction) for pre-trade estimates, keep your indicative and firm horizons consistent - an estimate built on a longer-horizon stream will drift from what short-window firm quotes actually offer. See [Quote Expiry](/price-api/reference#quote-expiry) for how expiry interacts with streamed pricing.
 
 <Warning>
-  Mixing expiry types between the Price API stream and firm RFQ quotes will give you inaccurate pre-trade estimates. See [Quote Expiry](/price-api/reference#quote-expiry) for details.
+  Comparing short-window firm quotes against long-horizon indicative prices will systematically misestimate your execution quality - align the two before drawing conclusions.
 </Warning>
 
 ## Trade-offs
 
-|                      | Short expiry                                                                              | Standard expiry                            |
-| -------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **Pricing**          | Tighter spreads                                                                           | Slightly wider spreads                     |
-| **Execution window** | Transaction must be included in a block before expiry; may require aggressive gas pricing | More time to manage signing and submission |
-| **Availability**     | Self-execution only                                                                       | Self-execution and gasless                 |
-| **Best for**         | Latency-sensitive integrations                                                            | Most integrators                           |
+|                      | Shorter windows                                                            | Standard windows                          |
+| -------------------- | -------------------------------------------------------------------------- | ----------------------------------------- |
+| **Pricing**          | Tighter spreads                                                            | Slightly wider spreads                    |
+| **Execution window** | Settlement must land before `validUntil` - automate the sign-and-submit hop | Room for slower flows and user interaction |
+| **Failure mode**     | Up-front rejection or escrow refund - never a stale fill                   | Same guarantees, more slack               |
+| **Best for**         | Latency-sensitive programmatic integrations                                | Most integrators                          |

@@ -1,189 +1,168 @@
 ---
 title: "Partial Fills"
-description: "Execute only a portion of a quoted order - useful when combining RFQ liquidity with other sources."
+description: "Let an order settle for the size that's actually available - and get the rest back."
 ---
 
-Partial fills let you execute only a portion of a quoted order size. This is useful when combining RFQ liquidity with other sources (e.g. AMM fallback), or when market conditions change and you only need part of the originally requested size.
+A partial fill lets your order settle for less than the full requested size when full liquidity isn't there at execution time. That's valuable when you're blending RFQ liquidity with other sources, or when conditions move and taking part of the size beats taking none of it.
 
 <Note>
-  Partial fills are only supported for self-execution (`gasless=false`). Gasless quotes cannot be partially filled.
+  Partial fills are opt-in per intent: set `intent.partialFill: true` on the quote request. Orders without the flag are all-or-nothing - they settle in full or refund in full.
 </Note>
 
 ## How It Works
 
-The quote response includes a `partialFillOffset` field that tells you where in the transaction calldata to modify the fill amount. By default, quotes are filled fully - to partially fill, you replace the taker amount at that offset with your desired amount.
+Partial-fill behavior is declared, not engineered: the flag rides on your intent, LPs quote knowing partial settlement is acceptable, and the escrow enforces proportionality - whatever fraction of your input is consumed, you receive at least the matching fraction of the quoted output. The unconsumed remainder of your input is released back to you.
 
-Partial fill amounts must be less than the original `taker_amount` in the quote, specified in base units (same as the original quote), and encoded as a 64-character hex string (32 bytes, zero-padded).
+There is no calldata surgery on your side. The signed order already encodes the partial-fill terms, and the settlement contract derives the fill arithmetic - your integration just reads the outcome.
 
-## Understanding the Calldata Structure
+## What a Partial Outcome Looks Like
 
-The `partialFillOffset` is a word index (0-indexed) counting 32-byte segments in the encoded calldata. Each word is 32 bytes = 64 hex characters.
-
-```
-0x           // Hex prefix (2 characters)
-4dcebcba     // Function selector (8 characters)
-[word 0]     // First 32-byte word (64 characters)
-[word 1]     // Second 32-byte word (64 characters)
-...
-[word N]     // filledTakerAmount (64 characters) ← partialFillOffset = N
-```
-
-The position in the hex string is:
+A partially filled order reports both sides of the story:
 
 ```
-position = 10 + (offset × 64)
+requested input : 1000000000  (1,000 USDC)
+consumed input  :  650000000  (650 USDC settled)
+delivered output:  649350000  (per the quoted rate, proportionally enforced)
+refunded input  :  350000000  (350 USDC released back)
 ```
 
-where `10` accounts for the `0x` prefix (2 chars) and the 4-byte function selector (8 chars).
+| Aspect            | Guarantee                                                                  |
+| ----------------- | -------------------------------------------------------------------------- |
+| Rate              | The fill settles at no worse than the quoted rate, pro-rata                |
+| Remainder         | Unconsumed input is released by the escrow, not left locked               |
+| Atomicity per leg | Each settled portion is delivery-versus-payment, same as a full fill      |
 
 ## Step by Step
 
-### 1. Request a Quote
+### 1. Quote with the Flag
 
 ```python theme={null}
 import httpx
 
-NETWORK = "ethereum"
+API = "https://api.tetrafi.io/api/v1"
+ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+headers = {"X-API-Key": "tfk_live_..."}
 
-resp = httpx.get(
-    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
-    params={
-        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        "sell_amounts": "1000000000000000000",  # 1 WETH
-        "taker_address": "0xYourWalletAddress",
-        "gasless": "false",
+resp = httpx.post(
+    f"{API}/rfq/quotes",
+    json={
+        "user": ME,
+        "intent": {
+            "intentType": "swap",
+            "inputs": [{"user": ME,
+                        "asset": {"chainId": 10, "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"},
+                        "amount": "1000000000"}],   # 1,000 USDC
+            "outputs": [{"receiver": ME,
+                         "asset": {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}}],
+            "swapType": "ExactInput",
+            "partialFill": True,
+        },
+        "supportedTypes": ["escrow-v0"],
     },
+    headers=headers,
 )
-quote = resp.json()
+quotes = resp.json()["quotes"]
 ```
 
-Key fields in the response:
+Key response behavior:
 
-| Field                       | Description                                                |
-| --------------------------- | ---------------------------------------------------------- |
-| `sellTokens.<token>.amount` | Originally requested amount                                |
-| `tx.data`                   | Original calldata                                          |
-| `partialFillOffset`         | Word index where `filledTakerAmount` lives in the calldata |
+| Field                  | With `partialFill: true`                                        |
+| ---------------------- | --------------------------------------------------------------- |
+| `preview.outputs`      | The full-size delivery if the whole order fills                 |
+| quote's fill terms     | Carry the pro-rata floor the escrow will enforce on any portion |
 
-### 2. Calculate Your Partial Fill Amount
+### 2. Preflight, Sign, Submit
 
-Decide how much of the original order you want to fill. The amount must be in base units and less than the original `taker_amount`:
-
-```python theme={null}
-sell_token = list(quote["sellTokens"].keys())[0]
-original_amount = int(quote["sellTokens"][sell_token]["amount"])
-
-# Fill 50% of the original order
-fill_amount = original_amount // 2
-```
-
-### 3. Modify the Calldata
-
-Replace the fill amount in the transaction calldata at the position indicated by `partialFillOffset`:
-
-```python theme={null}
-def apply_partial_fill(tx_data: str, offset: int, fill_amount: int) -> str:
-    pos = 10 + offset * 64
-    return (
-        tx_data[:pos]
-        + f"{fill_amount:064x}"
-        + tx_data[pos + 64:]
-    )
-
-modified_data = apply_partial_fill(
-    quote["tx"]["data"],
-    quote["partialFillOffset"],
-    fill_amount,
-)
-```
-
-### 4. Sign and Broadcast
-
-From here, the flow is the same as the standard [self-execution quickstart](/rfq-api/quickstart) - use the **modified** calldata in the transaction, sign, and submit:
+Nothing changes in your execution code - the partial-fill terms are already inside the payload you sign:
 
 ```python theme={null}
 from eth_account import Account
-from web3 import Web3
+from eth_account.messages import encode_typed_data
 
-PRIVATE_KEY = "0x<your_private_key>"
-RPC_URL = "https://eth.llamarpc.com"
+selected = quotes[0]
 
-w3 = Web3(Web3.HTTPProvider(RPC_URL))
-account = Account.from_key(PRIVATE_KEY)
+pf = httpx.post(f"{API}/rfq/orders/preflight", headers=headers,
+                json={"quoteResponse": selected}).json()
 
-# Submit with the modified calldata
-tx = quote["tx"]
-tx["data"] = modified_data
-tx["nonce"] = w3.eth.get_transaction_count(account.address)
-tx["chainId"] = quote["chainId"]
+sign_action = next(a for a in pf["nextActions"] if a["purpose"] == "orderSignature")
+signable = encode_typed_data(full_message=sign_action["typedData"])
+signature = Account.sign_message(signable, private_key="0x<your_private_key>").signature.hex()
 
-signed_tx = w3.eth.account.sign_transaction(tx, account.key)
-tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-print(f"Partial fill transaction: {tx_hash.hex()}")
+order = httpx.post(f"{API}/rfq/orders",
+                   headers={**headers, "Idempotency-Key": selected["quoteId"]},
+                   json={"quoteResponse": selected, "signature": signature}).json()
+```
+
+### 3. Read the Settled Amounts
+
+Check the final order record for what actually filled versus what came back:
+
+```python theme={null}
+import time
+
+while True:
+    o = httpx.get(f"{API}/rfq/orders/{order['id']}", headers=headers).json()
+    if o["status"] in ("settled", "failed"):
+        break
+    time.sleep(2)
+
+print("status:", o["status"])
+# A settled partial fill reports the consumed input, delivered output,
+# and refunded remainder on the order record.
 ```
 
 ## Full Example
 
 ```python theme={null}
+import time
+
 import httpx
 from eth_account import Account
-from web3 import Web3
+from eth_account.messages import encode_typed_data
 
+API = "https://api.tetrafi.io/api/v1"
+KEY = "tfk_live_..."
 PRIVATE_KEY = "0x<your_private_key_hex>"
-NETWORK = "ethereum"
-RPC_URL = "https://eth.llamarpc.com"
-FILL_PERCENT = 50  # Fill 50% of the quoted amount
+ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
 
-# --- 1. Request a self-execution quote ---
+headers = {"X-API-Key": KEY}
 
-taker_address = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
-
-quote_resp = httpx.get(
-    f"https://api.tetrafi.io/pmm/{NETWORK}/v3/quote",
-    params={
-        "sell_tokens": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        "buy_tokens": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        "sell_amounts": "1000000000000000000",  # 1 WETH
-        "taker_address": taker_address,
-        "gasless": "false",
+# --- 1. Quote 1,000 USDC with partial fills allowed ---
+quotes = httpx.post(f"{API}/rfq/quotes", headers=headers, json={
+    "user": ME,
+    "intent": {
+        "intentType": "swap",
+        "inputs": [{"user": ME,
+                    "asset": {"chainId": 10, "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"},
+                    "amount": "1000000000"}],
+        "outputs": [{"receiver": ME,
+                     "asset": {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}}],
+        "swapType": "ExactInput",
+        "partialFill": True,
     },
-)
-quote = quote_resp.json()
+    "supportedTypes": ["escrow-v0"],
+}).json()["quotes"]
 
-sell_token = list(quote["sellTokens"].keys())[0]
-original_amount = int(quote["sellTokens"][sell_token]["amount"])
-buy_token = list(quote["buyTokens"].values())[0]
-print(
-    f'Quote: sell 1 WETH -> buy ~{int(buy_token["amount"]) / 10 ** buy_token["decimals"]:.2f} USDC'
-)
+selected = quotes[0]
+print("Quoted by:", selected["solverId"])
 
-# --- 2. Calculate partial fill amount ---
+# --- 2. Preflight and sign ---
+pf = httpx.post(f"{API}/rfq/orders/preflight", headers=headers,
+                json={"quoteResponse": selected}).json()
+sign_action = next(a for a in pf["nextActions"] if a["purpose"] == "orderSignature")
+signable = encode_typed_data(full_message=sign_action["typedData"])
+signature = Account.sign_message(signable, private_key=PRIVATE_KEY).signature.hex()
 
-fill_amount = original_amount * FILL_PERCENT // 100
-print(f"Partial fill: {FILL_PERCENT}% -> {fill_amount} base units")
+# --- 3. Submit ---
+order = httpx.post(f"{API}/rfq/orders",
+                   headers={**headers, "Idempotency-Key": selected["quoteId"]},
+                   json={"quoteResponse": selected, "signature": signature}).json()
 
-# --- 3. Splice the calldata ---
-
-def apply_partial_fill(tx_data: str, offset: int, amount: int) -> str:
-    pos = 10 + offset * 64
-    return tx_data[:pos] + f"{amount:064x}" + tx_data[pos + 64 :]
-
-modified_data = apply_partial_fill(
-    quote["tx"]["data"], quote["partialFillOffset"], fill_amount
-)
-
-# --- 4. Sign and submit with modified calldata ---
-
-w3 = Web3(Web3.HTTPProvider(RPC_URL))
-account = Account.from_key(PRIVATE_KEY)
-
-tx = quote["tx"]
-tx["data"] = modified_data
-tx["nonce"] = w3.eth.get_transaction_count(account.address)
-tx["chainId"] = quote["chainId"]
-
-signed_tx = w3.eth.account.sign_transaction(tx, account.key)
-tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-print(f"Partial fill submitted: {tx_hash.hex()}")
+# --- 4. See how much filled ---
+while True:
+    o = httpx.get(f"{API}/rfq/orders/{order['id']}", headers=headers).json()
+    if o["status"] in ("settled", "failed"):
+        print("final:", o["status"])
+        break
+    time.sleep(2)
 ```
