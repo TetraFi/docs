@@ -1,102 +1,128 @@
 ---
-title: "Trade by Tx Hash"
-description: "Retrieve trade details for a specific transaction hash. Returns the trade with token metadata and pricing."
-openapi: "GET /v2/tx/{tx_hash}"
+title: "Trade Detail"
+description: "Fetch one trade's complete record: the list-schema fields plus a status timeline of every transition and references to settlement evidence, scoped to your workspace."
+openapi: "GET /workspaces/{id}/trades/{tradeId}"
 mode: "wide"
 ---
 
 ## OpenAPI
 
-````yaml /specs/trade-history-api.json get /v2/tx/{tx_hash}
+````yaml /specs/trade-history-api.json get /workspaces/{id}/trades/{tradeId}
 openapi: 3.1.0
 info:
   title: TetraFi Trade History API
-  version: '2'
+  version: '1'
   description: >-
-    Retrieve trade history by wallet address or transaction hash across all
-    supported chains.
+    Read-only, workspace-scoped access to every trade that ran through your workspace - filtered
+    lists with cursor pagination, plus single-trade detail with status timeline and settlement
+    evidence, across all supported chains.
 servers:
-  - url: https://api.tetrafi.io/history
+  - url: https://api.tetrafi.io/api/v1
 security:
-  - bearerAuth: []
+  - apiKeyAuth: []
 paths:
-  /v2/tx/{tx_hash}:
+  /workspaces/{id}/trades/{tradeId}:
     get:
-      summary: Trade by Tx Hash
+      summary: Trade Detail
       description: >-
-        Retrieve trade details for a specific transaction hash. Returns the
-        trade with token metadata and pricing.
-      operationId: getTradeByTxHash
+        Returns one trade's complete record: every field from the list schema plus the status
+        timeline (each transition with its timestamp) and references to settlement evidence.
+      operationId: getTradeById
       parameters:
-        - name: tx_hash
+        - name: id
           in: path
           required: true
           schema:
             type: string
-            title: Transaction Hash
-            description: Tx Hash of the trade
-          description: Tx Hash of the trade
-          example: '0x710f37af3bfed8fca8b07ccb6835f193fef02648f13508448a932f6885c509b9'
+            title: Workspace Id
+            description: Workspace whose trades are returned - results are scoped to it
+          description: Workspace whose trades are returned - results are scoped to it
+          example: ws_123
+        - name: tradeId
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Trade Id
+            description: Trade identifier from the trades list
+          description: Trade identifier from the trades list
+          example: tr_01J4A...
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TradeHistoryResponse-Input'
-        '400':
-          description: 'Error Response: Invalid Request'
+                $ref: '#/components/schemas/TradeDetailResponse'
+        '401':
+          description: 'Error Response: Authentication Required'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrApiResponse'
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: 'Error Response: Not found'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrApiResponse'
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-        '500':
-          description: 'Error Response: Internal Server Error'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrApiResponse'
 components:
   schemas:
-    TradeHistoryResponse-Input:
-      properties:
-        results:
-          items:
-            $ref: '#/components/schemas/TradeDetailsResponse'
-          type: array
-          title: Results
-        nextAvailableTimestamp:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Nextavailabletimestamp
-        metadata:
-          $ref: '#/components/schemas/HistoryMetadata'
-      type: object
-      required:
-        - results
-        - metadata
-      title: TradeHistoryResponse
-    ErrApiResponse:
+    TradeDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/TradeRecord'
+        - type: object
+          properties:
+            timeline:
+              items:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    title: Status
+                  at:
+                    type: string
+                    format: date-time
+                    title: At
+                required:
+                  - status
+                  - at
+              type: array
+              title: Timeline
+              description: Status transitions in order, each with the time it occurred (ISO-8601)
+            settlementEvidence:
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    title: Type
+                    description: Kind of evidence, e.g. settlement transaction
+                  ref:
+                    type: string
+                    title: Ref
+                    description: Reference to the evidence - a transaction hash or artifact
+                      URI
+              type: array
+              title: Settlementevidence
+              description: References to the artifacts that prove settlement
+      title: TradeDetailResponse
+      description: >-
+        The list-schema trade record extended with its timeline and settlement evidence references.
+    ErrorResponse:
       properties:
         error:
-          $ref: '#/components/schemas/SimpleApiError'
+          $ref: '#/components/schemas/ApiError'
       type: object
       required:
         - error
-      title: ErrApiResponse
+      title: ErrorResponse
     HTTPValidationError:
       properties:
         detail:
@@ -106,201 +132,198 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    TradeDetailsResponse:
+    TradeRecord:
       properties:
-        chain_id:
-          type: integer
-          title: Chain Id
-        txHash:
+        tradeId:
           type: string
-          title: Txhash
+          title: Tradeid
+          description: Identifier for detail and timeline lookups
+        orderId:
+          type: string
+          title: Orderid
+          description: The order this trade settled under
         status:
           type: string
           title: Status
-        type:
+          description: Lifecycle state - settled, failed, or an in-flight state
+        product:
+          $ref: '#/components/schemas/Product'
+        shape:
+          $ref: '#/components/schemas/Shape'
+        corridor:
           type: string
-          title: Type
-        taker:
+          title: Corridor
+          description: Directional route the trade executed on
+        solverId:
           type: string
-          title: Taker
-        receiver:
-          type: string
-          title: Receiver
-        sellTokens:
-          additionalProperties:
-            $ref: '#/components/schemas/TokenHistoryApiResponse'
+          title: Solverid
+          description: The solver or LP that filled the trade
+        preview:
           type: object
-          title: Selltokens
-        buyTokens:
-          additionalProperties:
-            $ref: '#/components/schemas/TokenHistoryApiResponse'
-          type: object
-          title: Buytokens
+          properties:
+            inputs:
+              items:
+                $ref: '#/components/schemas/PreviewLeg'
+              type: array
+              title: Inputs
+            outputs:
+              items:
+                $ref: '#/components/schemas/PreviewLeg'
+              type: array
+              title: Outputs
+          title: Preview
+          description: Inputs and outputs with amounts, symbols, and USD values
         volumeUsd:
           anyOf:
             - type: number
             - type: 'null'
           title: Volumeusd
-        gasFeeUsd:
-          anyOf:
-            - type: number
-            - type: 'null'
-          title: Gasfeeusd
-        timestamp:
+          description: Trade volume in USD
+        platformFeeBps:
+          type: integer
+          title: Platformfeebps
+          description: Fee applied to this trade, in basis points
+        txHash:
           type: string
-          title: Timestamp
-        route:
-          $ref: '#/components/schemas/Route'
-        gasless:
-          type: boolean
-          title: Gasless
-        partnerFeeNative:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Partnerfeenative
-        partnerFeeBps:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Partnerfeebps
+          title: Txhash
+          description: Settlement transaction hash
+        settledAt:
+          type: string
+          format: date-time
+          title: Settledat
+          description: Settlement time (ISO-8601)
       type: object
       required:
-        - chain_id
-        - txHash
+        - tradeId
+        - orderId
         - status
-        - type
-        - taker
-        - receiver
-        - sellTokens
-        - buyTokens
-        - timestamp
-        - route
-        - gasless
-      title: TradeDetailsResponse
+        - product
+        - shape
+        - corridor
+        - solverId
+        - preview
+        - txHash
+        - settledAt
+      title: TradeRecord
       metadata:
         results: 4
-        timestamp: '2024-01-24 10:51:08'
+        timestamp: '2024-01-24T10:51:08Z'
         tokens:
-          '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270':
+          eip155:137/erc20:0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270:
             decimals: 18
-            icon: >-
-              https://bebop-public-images.s3.eu-west-2.amazonaws.com/wmatic_token_icon.svg
+            icon: https://bebop-public-images.s3.eu-west-2.amazonaws.com/wmatic_token_icon.svg
             name: Wrapped Matic
             symbol: WMATIC
-          '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
+          eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174:
             decimals: 6
             icon: https://bebop-public-images.s3.eu-west-2.amazonaws.com/usdc.svg
             name: USD Coin (PoS)
             symbol: USDC
-          '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063':
+          eip155:137/erc20:0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063:
             decimals: 18
             icon: https://bebop-public-images.s3.eu-west-2.amazonaws.com/dai.svg
             name: (PoS) Dai Stablecoin
             symbol: DAI
-          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE':
+          eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE:
             decimals: 18
             icon: https://bebop-public-images.s3.eu-west-2.amazonaws.com/matic.svg
             name: Matic
             symbol: MATIC
-      results:
-        - buyTokens:
-            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
-              amount: '2969969'
-              amountUsd: 2.9697647979999995
-          chain_id: 137
-          gasFeeUsd: 0.02548362251502344
-          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          sellTokens:
-            '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063':
-              amount: '3000000000000000000'
-              amountUsd: 2.9995950000000002
-          status: Success
-          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          timestamp: '2024-01-24 10:50:36Z'
-          txHash: '0x50d72e9e73e6871057930df352c87587e7dd041e75680821449cbf1970d2870d'
-          type: '121'
+      trades:
+        - tradeId: tr_01HMWXD...
+          orderId: ord_01HMWXD...
+          status: settled
+          product: router
+          shape: one-to-one
+          corridor: polygon-polygon
+          solverId: lp-atlas
+          preview:
+            inputs:
+              - asset: eip155:137/erc20:0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063
+                amount: '3000000000000000000'
+                symbol: DAI
+                amountUsd: 2.9995950000000002
+            outputs:
+              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+                amount: '2969969'
+                symbol: USDC
+                amountUsd: 2.9697647979999995
           volumeUsd: 2.9697647979999995
-        - buyTokens:
-            '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE':
-              amount: '1324757967403350565'
-              amountUsd: 0.9707238483714452
-          chain_id: 137
-          gasFeeUsd: 0.022206536455804983
-          gasless: false
-          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          sellTokens:
-            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
-              amount: '1000000'
-              amountUsd: 1.001
-          status: Success
-          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          timestamp: '2024-01-24 10:50:25Z'
-          txHash: '0xb7b8fddfcc7cd7275f2fe82f44bf1e9c618c538e76f0dd39e5fd67e17fe15572'
-          type: '121'
+          platformFeeBps: 5
+          txHash: '0x50d72e9e73e6871057930df352c87587e7dd041e75680821449cbf1970d2870d'
+          settledAt: '2024-01-24T10:50:36Z'
+        - tradeId: tr_01HMWXC...
+          orderId: ord_01HMWXC...
+          status: settled
+          product: router
+          shape: one-to-one
+          corridor: polygon-polygon
+          solverId: lp-atlas
+          preview:
+            inputs:
+              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+                amount: '1000000'
+                symbol: USDC
+                amountUsd: 1.001
+            outputs:
+              - asset: eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
+                amount: '1324757967403350565'
+                symbol: MATIC
+                amountUsd: 0.9707238483714452
           volumeUsd: 0.9707238483714452
-        - buyTokens:
-            '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE':
-              amount: '1321707791213987268'
-              amountUsd: 0.9690523312530294
-          chain_id: 137
-          gasFeeUsd: 0.02387818130317773
-          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          sellTokens:
-            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
-              amount: '1000000'
-              amountUsd: 1.001
-          status: Success
-          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          timestamp: '2024-01-24 10:50:18Z'
-          txHash: '0x91c8a994b33ae8d17eeaa9a757fa3338561402f204d05a5f59a70dc3389aa390'
-          type: '121'
+          platformFeeBps: 5
+          txHash: '0xb7b8fddfcc7cd7275f2fe82f44bf1e9c618c538e76f0dd39e5fd67e17fe15572'
+          settledAt: '2024-01-24T10:50:25Z'
+        - tradeId: tr_01HMWXB...
+          orderId: ord_01HMWXB...
+          status: settled
+          product: router
+          shape: one-to-one
+          corridor: polygon-polygon
+          solverId: lp-atlas
+          preview:
+            inputs:
+              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+                amount: '1000000'
+                symbol: USDC
+                amountUsd: 1.001
+            outputs:
+              - asset: eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
+                amount: '1321707791213987268'
+                symbol: MATIC
+                amountUsd: 0.9690523312530294
           volumeUsd: 0.9690523312530294
-        - buyTokens:
-            '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174':
-              amount: '2200006'
-              amountUsd: 2.197060866
-          chain_id: 137
-          gasFeeUsd: 0.017446675003110115
-          gasless: false
-          receiver: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          sellTokens:
-            '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270':
-              amount: '3000000000000000000'
-              amountUsd: 2.20989
-          status: Success
-          taker: '0xF36bC73f9783539E1DAC8Cf6d2bfd74e0663699C'
-          timestamp: '2024-01-24 10:49:50Z'
-          txHash: '0x22dd9e22528e904be9ba100828339f5a7699d2ea3cbf0dc678b90418d38b9d10'
-          type: '121'
+          platformFeeBps: 5
+          txHash: '0x91c8a994b33ae8d17eeaa9a757fa3338561402f204d05a5f59a70dc3389aa390'
+          settledAt: '2024-01-24T10:50:18Z'
+        - tradeId: tr_01HMWXA...
+          orderId: ord_01HMWXA...
+          status: settled
+          product: router
+          shape: one-to-one
+          corridor: polygon-polygon
+          solverId: lp-atlas
+          preview:
+            inputs:
+              - asset: eip155:137/erc20:0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
+                amount: '3000000000000000000'
+                symbol: WMATIC
+                amountUsd: 2.20989
+            outputs:
+              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+                amount: '2200006'
+                symbol: USDC
+                amountUsd: 2.197060866
           volumeUsd: 2.197060866
-    HistoryMetadata:
+          platformFeeBps: 5
+          txHash: '0x22dd9e22528e904be9ba100828339f5a7699d2ea3cbf0dc678b90418d38b9d10'
+          settledAt: '2024-01-24T10:49:50Z'
+    ApiError:
       properties:
-        timestamp:
+        code:
           type: string
-          title: Timestamp
-        results:
-          anyOf:
-            - type: integer
-            - type: 'null'
-          title: Results
-        tokens:
-          additionalProperties:
-            additionalProperties:
-              $ref: '#/components/schemas/HistoryToken'
-            type: object
-          type: object
-          title: Tokens
-      type: object
-      required:
-        - timestamp
-        - tokens
-      title: HistoryMetadata
-    SimpleApiError:
-      properties:
-        errorCode:
-          type: integer
-          title: Errorcode
+          title: Code
+          description: Machine-readable error code, e.g. AUTH_REQUIRED
         message:
           anyOf:
             - type: string
@@ -308,8 +331,8 @@ components:
           title: Message
       type: object
       required:
-        - errorCode
-      title: SimpleApiError
+        - code
+      title: ApiError
     ValidationError:
       properties:
         loc:
@@ -331,58 +354,54 @@ components:
         - msg
         - type
       title: ValidationError
-    TokenHistoryApiResponse:
+    PreviewLeg:
       properties:
+        asset:
+          type: string
+          title: Asset
+          description: Network-qualified asset identifier
         amount:
           anyOf:
             - type: string
             - type: 'null'
           title: Amount
+        symbol:
+          type: string
+          title: Symbol
         amountUsd:
           anyOf:
             - type: number
             - type: 'null'
           title: Amountusd
       type: object
-      title: TokenHistoryApiResponse
-    Route:
+      title: PreviewLeg
+    Product:
       type: string
       enum:
-        - JAM
-        - PMM
-        - PREDICTION
-      title: Route
-    HistoryToken:
-      properties:
-        name:
-          type: string
-          title: Name
-        symbol:
-          type: string
-          title: Symbol
-        decimals:
-          type: integer
-          title: Decimals
-        displayDecimals:
-          anyOf:
-            - type: integer
-            - type: 'null'
-          title: Displaydecimals
-        icon:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Icon
-      type: object
-      required:
-        - name
-        - symbol
-        - decimals
-      title: HistoryToken
+        - router
+        - rfq
+      title: Product
+      description: 'The customer contract the trade ran under: router or rfq.'
+    Shape:
+      type: string
+      enum:
+        - one-to-one
+        - one-to-many
+        - many-to-one
+        - split-fill
+        - partial
+      title: Shape
+      description: >-
+        Trade shape. one-to-one - single swap; one-to-many - one input fanned into multiple
+        outputs; many-to-one - multiple inputs consolidated into one output; split-fill -
+        one intent filled by multiple LPs, each committing a slice; partial - a partialFill
+        order that settled below full size, remainder refunded.
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      description: API key passed as a Bearer token.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Workspace API key (tfk_test_/tfk_live_); results are scoped to the key's
+        workspace.
 
 ````
