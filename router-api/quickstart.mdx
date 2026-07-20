@@ -1,0 +1,466 @@
+---
+title: "Quickstart"
+description: "Your first Router API trade - candidates, preflight, signing, and settlement."
+---
+
+This guide takes you through a first trade on the Router API end to end: request ranked candidates, preflight the one you pick, sign the order payload, submit it, and watch settlement land.
+
+<Info>
+  **What you'll build:** A complete trade flow over ranked multi-source routing.
+
+  **Time required:** 10-15 minutes
+
+  **Prerequisites:** Basic familiarity with EVM wallets and token approvals, plus an API key (`tfk_test_` works against the sandbox).
+</Info>
+
+## Router vs RFQ at a Glance
+
+The RFQ API returns only firm solver/LP quotes backed by the escrow's delivery-or-refund guarantee. The Router API casts a wider net - it fans your request across every eligible execution source and hands back ranked candidates, each stating its own guarantees.
+
+|                  | RFQ API                                   | Router API                                      |
+| ---------------- | ----------------------------------------- | ----------------------------------------------- |
+| Liquidity reach  | Eligible solvers and LPs only             | DEX, RFQ venue, bridges, issuers, fiat rails    |
+| Coverage         | Supported corridors                       | Broadest - assets and chains beyond any one source |
+| Guarantees       | Escrow delivery-or-refund on every quote  | Printed per candidate - firmness, fees, settlement model |
+| Execution        | `apiSubmit` or `walletBroadcast`          | `apiSubmit` or `walletBroadcast`, per candidate |
+| Namespace        | `/api/v1/rfq/`                            | `/api/v1/router/`                               |
+
+## Step 1 - Ask for Candidates
+
+```
+POST /api/v1/router/quotes
+```
+
+The request describes your intent - what goes in, what comes out - rather than a fixed route:
+
+| Field                | Description                                            | Example                          |
+| -------------------- | ------------------------------------------------------ | -------------------------------- |
+| `user`               | Wallet initiating the trade                            | `0xYourWalletAddress`            |
+| `intent.inputs[]`    | Asset(s) you're sending: `{user, asset{chainId, address}, amount}` | 25 USDC on Optimism  |
+| `intent.outputs[]`   | Asset(s) you receive: `{receiver, asset{chainId, address}}`        | USDC on Base         |
+| `supportedTypes`     | Order payload types your signer handles                | `["escrow-v0"]`                  |
+
+Useful optional fields:
+
+| Field                 | Description                                                    | Default        |
+| --------------------- | -------------------------------------------------------------- | -------------- |
+| `intent.swapType`     | `ExactInput` (fix what you send) or `ExactOutput` (fix what you get) | `ExactInput` |
+| `intent.preference`   | Ranking bias: `Price`, `Speed`, `InputPriority`, `TrustMinimization` | `Price`   |
+| `intent.partialFill`  | Allow the order to fill partially                              | `false`        |
+| `solverOptions`       | Include/exclude specific solvers, tune timeouts                | server-managed |
+| `routingOptions`      | Multi-leg planner controls (`routes`, `maxRouteLegs`)          | server-managed |
+
+<Note>
+  **Swap and send:** the `user` on an input signs and funds the trade; each output's `receiver` gets the proceeds. Set a different `receiver` to deliver to another wallet - it works in both execution modes.
+</Note>
+
+<Accordion title="ExactInput or ExactOutput?">
+  * `ExactInput` when the amount you're sending is fixed - "swap 25 USDC, get whatever that buys"
+  * `ExactOutput` when the amount you need is fixed - "I need exactly 20 USDC on Base, charge me what it takes"
+</Accordion>
+
+Example - moving 25 USDC on Optimism into USDC on Base:
+
+```python theme={null}
+import httpx
+
+API = "https://api.tetrafi.io/api/v1"
+KEY = "tfk_test_..."
+ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+
+resp = httpx.post(
+    f"{API}/router/quotes",
+    json={
+        "user": ME,
+        "intent": {
+            "intentType": "swap",
+            "inputs": [{
+                "user": ME,
+                "asset": {"chainId": 10, "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"},
+                "amount": "25000000",
+            }],
+            "outputs": [{
+                "receiver": ME,
+                "asset": {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"},
+            }],
+            "swapType": "ExactInput",
+        },
+        "supportedTypes": ["escrow-v0"],
+    },
+    headers={"X-API-Key": KEY},
+)
+quotes = resp.json()
+print(f"{quotes['totalQuotes']} candidates")
+```
+
+### Reading the Candidate List
+
+The response is a ranked list - every entry is executable, and the aggregation metadata tells you how the sweep went:
+
+```json theme={null}
+{
+  "quotes": [
+    {
+      "quoteId": "q_01HZX...",
+      "solverId": "tetrafi-native",
+      "order": { "type": "escrow-v0", "payload": { "...": "EIP-712 typed data, sign verbatim" } },
+      "validUntil": 1784560000,
+      "eta": 45,
+      "preview": {
+        "inputs":  [{ "asset": "eip155:10/erc20:0x0b2C...Ff85", "amount": "25000000" }],
+        "outputs": [{ "asset": "eip155:8453/erc20:0x8335...2913", "amount": "24987500" }]
+      },
+      "integrityChecksum": "b74d21...",
+      "routingPath": "direct",
+      "platformFeeBps": 5,
+      "lpSpreadBps": 3
+    },
+    {
+      "quoteId": "q_01HZY...",
+      "solverId": "bridge-route",
+      "composite": { "legs": ["..."], "executionModel": "sequential" },
+      "validUntil": 1784559900,
+      "preview": { "...": "..." }
+    }
+  ],
+  "totalQuotes": 2,
+  "metadata": {
+    "totalDurationMs": 412,
+    "solversQueried": 6,
+    "solversSuccess": 2,
+    "routes": { "...": "planner pass details" }
+  }
+}
+```
+
+**Direct candidates** (like the first above) carry an `order` payload you sign, and settle natively via `apiSubmit`. **Composite candidates** (like the second) are planner-assembled multi-leg routes - their `composite` block describes the legs, and they typically execute via `walletBroadcast` with prepared transactions from preflight:
+
+```json theme={null}
+{
+  "quoteId": "q_01HZY...",
+  "solverId": "bridge-route",
+  "composite": {
+    "legs": [
+      { "kind": "bridgeBurnMint", "chainId": 10 },
+      { "kind": "sameChainSwap", "chainId": 8453 }
+    ],
+    "executionModel": "sequential"
+  },
+  "validUntil": 1784559900,
+  "preview": {
+    "inputs":  [{ "asset": "eip155:10/erc20:0x0b2C...Ff85", "amount": "25000000" }],
+    "outputs": [{ "asset": "eip155:8453/erc20:0x8335...2913", "amount": "24924100" }]
+  }
+}
+```
+
+The fields that matter most:
+
+| Field                | Why you care                                                                   |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `quoteId`            | Identifies the candidate through preflight, submission, and status             |
+| `solverId`           | Which source produced it                                                       |
+| `order`              | The `escrow-v0` payload you'll sign - use it exactly as returned               |
+| `validUntil`         | Firmness window; the candidate expires at this timestamp                       |
+| `eta`                | Expected seconds to settlement                                                 |
+| `preview`            | Human-readable ins and outs - what you send, what you receive                  |
+| `integrityChecksum`  | Binds your submission to this exact quote; mutations are rejected              |
+| `composite`          | Present on multi-leg planner routes; absent on direct single-source quotes     |
+| `metadata`           | Sweep stats - how many sources answered, timing, planner results               |
+
+## Step 2 - Preflight the One You Picked
+
+```
+POST /api/v1/router/orders/preflight
+```
+
+Preflight checks the candidate is still submit-ready and returns `nextActions` - an ordered execution plan telling you exactly what to do: approvals to mine, payloads to sign, where to submit.
+
+```python theme={null}
+selected = quotes["quotes"][0]
+
+pf = httpx.post(
+    f"{API}/router/orders/preflight",
+    json={"quoteResponse": selected},
+    headers={"X-API-Key": KEY},
+).json()
+
+for a in pf["nextActions"]:
+    print(a["type"], a["purpose"], a["actor"])
+```
+
+Each action carries `type` (`evmTransaction`, `signTypedData`, `postOrder`, ...), `purpose` (`tokenApproval`, `orderSignature`, `orderSubmit`, ...), and `actor` - `userWallet` means your side signs or broadcasts; `tetrafiApi` means it goes through the API with your key. Token-approval actions arrive as ready-to-broadcast transactions; see [Token Approvals](/core-concepts/token-approvals) for the full treatment.
+
+<Tip>
+  Approval actions marked `frequency: "reusableSetup"` (like a bounded Permit2 grant) persist across trades - run them once and they stop appearing.
+</Tip>
+
+## Step 3 - Sign and Send
+
+How the trade lands depends on the candidate's execution mode - preflight already told you which path you're on:
+
+<Tabs>
+  <Tab title="apiSubmit (native settlement)">
+    The `signTypedData` action carries the EIP-712 payload; sign it verbatim and submit where `submitTo` points. TetraFi puts the settlement on-chain.
+
+    ```python theme={null}
+    from eth_account import Account
+    from eth_account.messages import encode_typed_data
+
+    PRIVATE_KEY = "0x<your_private_key>"
+
+    sign_action = next(a for a in pf["nextActions"] if a["purpose"] == "orderSignature")
+
+    signable = encode_typed_data(full_message=sign_action["typedData"])
+    signature = Account.sign_message(signable, private_key=PRIVATE_KEY).signature.hex()
+
+    order = httpx.post(
+        f"{API}/router/orders",
+        json={"quoteResponse": selected, "signature": signature},
+        headers={"X-API-Key": KEY, "Idempotency-Key": selected["quoteId"]},
+    ).json()
+    print("Order:", order["id"])
+    ```
+
+    Sign **exactly** the typed data preflight returns - the `integrityChecksum` rejects any drift between what you were shown and what you submit. Use an `Idempotency-Key` header so a retried POST can't double-submit.
+
+    Submission fields:
+
+    | Field           | Type   | Description                                                                                                   |
+    | --------------- | ------ | ------------------------------------------------------------------------------------------------------------- |
+    | `quoteResponse` | object | The selected candidate, passed back unchanged from the quotes response                                        |
+    | `signature`     | string | Your EIP-712 signature over the `escrow-v0` payload (hex)                                                     |
+    | signature scheme | -     | Standard ECDSA (EOA) by default; smart-contract wallets verify via EIP-1271 `isValidSignature` on-chain       |
+
+    <Accordion title="escrow-v0 payload reference">
+      The `order` field on a candidate (and the `typedData` on preflight's `orderSignature` action) is a complete EIP-712 envelope - domain, types, and a `StandardOrder` message covering:
+
+      | Aspect                | What it encodes                                                                     |
+      | --------------------- | ----------------------------------------------------------------------------------- |
+      | Parties               | The funding wallet and each output's receiver                                       |
+      | Assets and amounts    | Inputs you escrow and the minimum outputs that must be delivered                    |
+      | Validity              | Expiry after which the unfilled order refunds instead of settling                   |
+      | Replay protection     | A nonce scoped to the signing domain                                                |
+      | Integrity             | The signed terms are bound to your submission via `integrityChecksum`               |
+
+      You never assemble this payload yourself - sign the structure exactly as returned. Any field you'd want to change (receiver, amount, expiry) changes at quote time, not signing time.
+    </Accordion>
+  </Tab>
+
+  <Tab title="walletBroadcast (self-execution)">
+    Candidates that settle through an external venue or bridge hand you a prepared transaction instead - broadcast it from your own wallet and RPC.
+
+    ```python theme={null}
+    from web3 import Web3
+
+    w3 = Web3(Web3.HTTPProvider("https://mainnet.optimism.io"))
+
+    tx_action = next(a for a in pf["nextActions"] if a["type"] == "evmTransaction"
+                     and a["purpose"] != "tokenApproval")
+    tx = {
+        **tx_action["tx"],  # {to, data, value} - as prepared
+        "from": account.address,
+        "nonce": w3.eth.get_transaction_count(account.address),
+        "gasPrice": w3.eth.gas_price,
+    }
+
+    signed = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    print("Broadcast:", tx_hash.hex())
+    ```
+
+    Follow any `after` steps the action lists (`waitForTransactionMined`, `rerunPreflight`, `postOrder`) - multi-leg routes sometimes need a second preflight once the first leg mines.
+  </Tab>
+</Tabs>
+
+### Funding Lock Variants
+
+The escrow can pull your input three ways; preflight picks whichever the corridor and token support, so your code stays the same:
+
+* **Permit2** - one reusable approval of the Permit2 contract, then each order authorizes its pull inside the signature.
+* **EIP-3009** - USDC-style tokens authorize the transfer entirely inside the signed message; no approval transaction ever.
+* **Resource lock** - pre-deposited balance in the compact settler, drawn per order.
+
+## Step 4 - Watch It Settle
+
+Poll the order, or subscribe over WebSocket for push updates:
+
+```
+GET /api/v1/router/orders/{id}
+```
+
+```python theme={null}
+import time
+
+while True:
+    o = httpx.get(f"{API}/router/orders/{order['id']}",
+                  headers={"X-API-Key": KEY}).json()
+    print("status:", o["status"])
+    if o["status"] in ("settled", "failed"):
+        break
+    time.sleep(2)
+```
+
+Prefer push? Open `wss://api.tetrafi.io/api/v1/ws?token=<key>` and subscribe to the `orders:{orderId}` topic:
+
+| Event              | Meaning                                                       |
+| ------------------ | ------------------------------------------------------------- |
+| `order.created`    | The order was accepted and is progressing                     |
+| `order.settled`    | Delivery confirmed - DvP complete, funds released             |
+| `order.failed`     | The order could not settle - escrowed funds follow the refund path |
+| `compliance.event` | A compliance checkpoint fired on the order                    |
+
+The order record carries more than the bare status:
+
+| Field       | Description                                                              |
+| ----------- | ------------------------------------------------------------------------ |
+| `id`        | Order identifier - use it for polling and the `orders:{id}` WS topic     |
+| `status`    | Lifecycle state; `settled` and `failed` are terminal                     |
+| `txHash`    | Settlement transaction hash, once one is broadcast                       |
+| `quoteId`   | Links the order back to the candidate you accepted                       |
+
+Because settlement is delivery-versus-payment, a failure is never a loss: if delivery can't be proven before expiry, the escrow refunds the input.
+
+## Full Example
+
+<Tabs>
+  <Tab title="apiSubmit">
+    ```python theme={null}
+    import time
+
+    import httpx
+    from eth_account import Account
+    from eth_account.messages import encode_typed_data
+
+    # --- Config ---
+    API = "https://api.tetrafi.io/api/v1"
+    KEY = "tfk_test_..."
+    PRIVATE_KEY = "0x<your_private_key_hex>"
+    ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+
+    account = Account.from_key(PRIVATE_KEY)
+    headers = {"X-API-Key": KEY}
+
+    # --- 1. Candidates ---
+    quotes = httpx.post(f"{API}/router/quotes", headers=headers, json={
+        "user": ME,
+        "intent": {
+            "intentType": "swap",
+            "inputs": [{"user": ME,
+                        "asset": {"chainId": 10, "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"},
+                        "amount": "25000000"}],
+            "outputs": [{"receiver": ME,
+                         "asset": {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}}],
+            "swapType": "ExactInput",
+        },
+        "supportedTypes": ["escrow-v0"],
+    }).json()
+
+    selected = quotes["quotes"][0]
+    out = selected["preview"]["outputs"][0]
+    print(f"Best candidate delivers ~{int(out['amount']) / 1e6:.2f} USDC on Base")
+
+    # --- 2. Preflight ---
+    pf = httpx.post(f"{API}/router/orders/preflight", headers=headers,
+                    json={"quoteResponse": selected}).json()
+
+    # --- 3. Handle approvals, then sign ---
+    #   (see Token Approvals for the tokenApproval action loop)
+    sign_action = next(a for a in pf["nextActions"] if a["purpose"] == "orderSignature")
+    signable = encode_typed_data(full_message=sign_action["typedData"])
+    signature = Account.sign_message(signable, private_key=PRIVATE_KEY).signature.hex()
+
+    # --- 4. Submit ---
+    order = httpx.post(f"{API}/router/orders",
+                       headers={**headers, "Idempotency-Key": selected["quoteId"]},
+                       json={"quoteResponse": selected, "signature": signature}).json()
+    print("Order:", order["id"])
+
+    # --- 5. Track ---
+    while True:
+        o = httpx.get(f"{API}/router/orders/{order['id']}", headers=headers).json()
+        print("status:", o["status"])
+        if o["status"] in ("settled", "failed"):
+            break
+        time.sleep(2)
+    ```
+  </Tab>
+
+  <Tab title="walletBroadcast">
+    ```python theme={null}
+    import time
+
+    import httpx
+    from eth_account import Account
+    from web3 import Web3
+
+    # --- Config ---
+    API = "https://api.tetrafi.io/api/v1"
+    KEY = "tfk_test_..."
+    PRIVATE_KEY = "0x<your_private_key_hex>"
+    ME = "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+
+    account = Account.from_key(PRIVATE_KEY)
+    headers = {"X-API-Key": KEY}
+    w3 = Web3(Web3.HTTPProvider("https://mainnet.optimism.io"))
+
+    # --- 1. Candidates ---
+    quotes = httpx.post(f"{API}/router/quotes", headers=headers, json={
+        "user": ME,
+        "intent": {
+            "intentType": "swap",
+            "inputs": [{"user": ME,
+                        "asset": {"chainId": 10, "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"},
+                        "amount": "25000000"}],
+            "outputs": [{"receiver": ME,
+                         "asset": {"chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"}}],
+            "swapType": "ExactInput",
+        },
+        "supportedTypes": ["escrow-v0"],
+    }).json()
+
+    # Pick a walletBroadcast candidate (e.g. an external bridge route)
+    selected = quotes["quotes"][0]
+
+    # --- 2. Preflight ---
+    pf = httpx.post(f"{API}/router/orders/preflight", headers=headers,
+                    json={"quoteResponse": selected}).json()
+
+    # --- 3. Broadcast the prepared transaction(s) in order ---
+    for action in pf["nextActions"]:
+        if action["type"] != "evmTransaction" or action["actor"] != "userWallet":
+            continue
+        tx = {
+            **action["tx"],
+            "from": account.address,
+            "nonce": w3.eth.get_transaction_count(account.address),
+            "gasPrice": w3.eth.gas_price,
+        }
+        signed = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+        print("mined:", tx_hash.hex())
+
+    # --- 4. Track the order through the API ---
+    order_id = pf.get("orderId") or selected["quoteId"]
+    while True:
+        o = httpx.get(f"{API}/router/orders/{order_id}", headers=headers).json()
+        print("status:", o["status"])
+        if o["status"] in ("settled", "failed"):
+            break
+        time.sleep(2)
+    ```
+  </Tab>
+</Tabs>
+
+## Keep Building
+
+<CardGroup cols={2}>
+  <Card title="Token Approvals" icon="key" href="/core-concepts/token-approvals">
+    The approval loop, lock types, and reusable setup.
+  </Card>
+
+  <Card title="RFQ API Quickstart" icon="bolt" href="/rfq-api/quickstart">
+    The firm-quote path, when escrow guarantees matter most.
+  </Card>
+</CardGroup>

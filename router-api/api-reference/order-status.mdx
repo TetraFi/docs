@@ -1,0 +1,147 @@
+---
+title: "Order Status"
+description: "Read the lifecycle state of a submitted order: pending while it progresses, then the terminal settled or failed. The same transitions stream over WebSocket, and because settlement is delivery-versus-payment, a failed order refunds the escrowed input rather than losing funds."
+openapi: "GET /orders/{id}"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/router-api.json get /orders/{id}
+openapi: 3.1.0
+info:
+  title: TetraFi Router API
+  version: '1'
+  description: >-
+    Multi-source routing over every eligible execution source. One intent fans out across
+    direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails, and comes back
+    as ranked executable candidates - each stating its own guarantees.
+servers:
+  - url: https://api.tetrafi.io/api/v1/router
+    description: >-
+      Router namespace base URL. The chain is no longer part of the URL - every asset in an
+      intent names its network via chainId. The same host serves the sandbox: authenticate
+      with a tfk_test_ key to route against test corridors, tfk_live_ for production.
+security:
+  - apiKeyAuth: []
+paths:
+  /orders/{id}:
+    get:
+      summary: Order Status
+      description: >-
+        Returns the lifecycle state of a submitted order: pending while it progresses, then
+        the terminal settled or failed. The same transitions arrive as WebSocket events (order.created,
+        order.settled, order.failed) on the orders:{id} topic. Because settlement is delivery-versus-payment,
+        failed never means lost funds - the escrowed input follows the refund path.
+      operationId: getOrderStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Order Id
+          description: Order identifier returned by POST /orders.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatusResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    OrderStatus:
+      type: string
+      enum:
+        - pending
+        - settled
+        - failed
+      title: OrderStatus
+      description: >-
+        Order lifecycle state. pending - accepted and progressing; settled - delivery proven
+        and funds released (terminal); failed - could not settle before expiry, the escrowed
+        input follows the refund path (terminal). The same transitions are pushed over WebSocket
+        as order.created, order.settled, and order.failed on the orders:{id} topic.
+    OrderStatusResponse:
+      properties:
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        txHash:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Txhash
+          description: >-
+            Settlement transaction hash - present once a settlement transaction has been broadcast.
+        settledAmounts:
+          anyOf:
+            - additionalProperties:
+                type: string
+              type: object
+            - type: 'null'
+          title: Settledamounts
+          description: Delivered amounts keyed by asset, present once the order settles.
+        failure:
+          anyOf:
+            - type: object
+              properties:
+                code:
+                  type: string
+                  title: Code
+                  description: Machine-readable failure reason.
+                message:
+                  type: string
+                  title: Message
+                  description: Human-readable failure explanation.
+            - type: 'null'
+          title: Failure
+          description: Populated on failed orders; the escrowed input follows the refund path.
+      type: object
+      required:
+        - status
+      title: OrderStatusResponse
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Service-account API key (tfk_test_/tfk_live_).
+
+````

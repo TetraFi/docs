@@ -1,0 +1,91 @@
+---
+title: "Introduction"
+description: "Route trades across every eligible liquidity source and choose from ranked executable candidates."
+---
+
+The Router API fans your request across every eligible execution source - direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails - and returns ranked executable candidates with an explicit recommendation.
+
+## Where It Fits
+
+* You need **the broadest coverage** - assets, chains, and corridors beyond what any single liquidity source quotes
+* You want **ranked candidates with a recommendation** rather than a single take-it-or-leave-it price
+* You value **failure isolation** - one source being down, slow, or empty never suppresses valid candidates from the others
+
+## Quick Reference
+
+|                    |                                                                     |
+| ------------------ | ------------------------------------------------------------------- |
+| **Transport**      | REST                                                                |
+| **Authentication** | API key (`X-API-Key` header)                                        |
+| **Signing**        | EIP-712 (`escrow-v0` order payload)                                 |
+| **On-chain tx**    | TetraFi submits (`apiSubmit`) or you broadcast (`walletBroadcast`)    |
+| **Guarantees**     | Stated per candidate: firmness, atomicity, settlement model, fees   |
+| **Complexity**     | Medium - quote selection plus preflight before signing              |
+
+## The Trade Flow
+
+Each candidate carries an `executionMode` telling you who puts the transaction on-chain. Preflight returns the exact `nextActions` for the candidate you selected.
+
+<Tabs>
+  <Tab title="apiSubmit (native settlement)">
+    TetraFi submits the settlement transaction. Your user signs the order; TetraFi handles the rest.
+
+    | Step | Action              | You send                                              | You get back                                  |
+    | ---- | ------------------- | ----------------------------------------------------- | --------------------------------------------- |
+    | 1    | Request quotes      | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation            |
+    | 2    | Preflight           | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` execution plan                  |
+    | 3    | Sign the order      | EIP-712 `escrow-v0` payload → taker wallet            | Signature                                     |
+    | 4    | Submit to TetraFi     | Signed order → `POST /api/v1/router/orders`             | Order ID                                      |
+    | 5    | Track settlement    | Order ID → `GET /api/v1/router/orders/{id}` or WebSocket | Status: `settled`                             |
+  </Tab>
+
+  <Tab title="walletBroadcast (self-execution)">
+    You broadcast the transaction yourself - used by candidates that settle through an external venue or bridge.
+
+    | Step | Action             | You send                                              | You get back                       |
+    | ---- | ------------------ | ----------------------------------------------------- | ---------------------------------- |
+    | 1    | Request quotes     | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation |
+    | 2    | Preflight          | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` with the tx to send  |
+    | 3    | Broadcast on-chain | Prepared tx → your RPC                                | On-chain settlement                |
+  </Tab>
+</Tabs>
+
+See [Execution Modes](/core-concepts/execution-modes) for a detailed comparison.
+
+## Guarantees, Stated Per Candidate
+
+The Router API never averages guarantees across sources. Every candidate in the response states its own terms, and the ranking compares them net of gas and explicit fees:
+
+| Field                | Description                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| `preview.outputs`    | What you receive if this candidate executes as quoted                              |
+| `validUntil`         | Firmness window - the candidate is executable until this timestamp                 |
+| `composite`          | Present when the candidate is a multi-leg planner route rather than a direct quote |
+| `integrityChecksum`  | Tamper-evidence binding the quote you sign to the quote you were shown             |
+
+A candidate filled by the RFQ venue keeps RFQ-grade firmness; a multi-leg bridge route states its own settlement model. The product you called is still Router - the guarantees you rely on are the ones printed on the candidate, never implied by a source label.
+
+## Endpoint Map
+
+| Endpoint                              | Purpose                                            |
+| ------------------------------------- | -------------------------------------------------- |
+| `POST /api/v1/router/quotes`          | Request ranked candidates across eligible sources  |
+| `POST /api/v1/router/orders/preflight`| Check submit-readiness and get `nextActions`       |
+| `POST /api/v1/router/orders`          | Submit a signed order for settlement               |
+| `GET /api/v1/router/orders/{id}`      | Track order and settlement status                  |
+
+<Note>
+  `POST /api/v1/quotes` and `/api/v1/orders/*` remain available as documented temporary aliases for the Router namespace and emit deprecation metadata. New integrations should target `/api/v1/router/*`.
+</Note>
+
+## Keep Going
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/router-api/quickstart">
+    Make your first trade in 10-15 minutes.
+  </Card>
+
+  <Card title="Token Approvals" icon="key" href="/core-concepts/token-approvals">
+    Set up ERC-20 approvals before trading.
+  </Card>
+</CardGroup>

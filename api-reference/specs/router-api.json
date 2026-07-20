@@ -1,0 +1,1577 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TetraFi Router API",
+    "version": "1",
+    "description": "Multi-source routing over every eligible execution source. One intent fans out across direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails, and comes back as ranked executable candidates - each stating its own guarantees."
+  },
+  "servers": [
+    {
+      "url": "https://api.tetrafi.io/api/v1/router",
+      "description": "Router namespace base URL. The chain is no longer part of the URL - every asset in an intent names its network via chainId. The same host serves the sandbox: authenticate with a tfk_test_ key to route against test corridors, tfk_live_ for production."
+    }
+  ],
+  "paths": {
+    "/quotes": {
+      "post": {
+        "summary": "Quotes",
+        "description": "Request ranked, executable candidates for a trade intent. The router sweeps every eligible source - direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails - and returns each candidate with its own stated guarantees. Several knobs from older quote APIs are deliberately absent here: there is no gasless flag (who lands the transaction is the per-candidate `executionMode`: `apiSubmit` | `walletBroadcast`), no slippage parameter (each candidate prints guaranteed minimum outputs instead), no approval-type choice (preflight selects the funding lock - Permit2, EIP-3009, or resource lock - that the corridor and token support), and no per-request fee fields (monetization is the `platformFeeBps` configured on your workspace, echoed on every candidate).",
+        "operationId": "requestQuotes",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "QuotesRequest",
+                "properties": {
+                  "user": {
+                    "type": "string",
+                    "title": "User",
+                    "description": "Wallet initiating the trade. It signs the order payload and, on walletBroadcast candidates, broadcasts the prepared transactions.",
+                    "example": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+                  },
+                  "intent": {
+                    "type": "object",
+                    "title": "Intent",
+                    "description": "Declares what goes in and what must come out, rather than a fixed route. Each asset carries its own chainId, so a single intent can span networks.",
+                    "properties": {
+                      "intentType": {
+                        "type": "string",
+                        "title": "Intent Type",
+                        "description": "Kind of intent; `swap` for a token-for-token trade.",
+                        "default": "swap"
+                      },
+                      "inputs": {
+                        "type": "array",
+                        "title": "Inputs",
+                        "description": "Asset(s) the user supplies. Ordered; multi-input intents escrow each entry.",
+                        "items": {
+                          "type": "object",
+                          "title": "IntentInput",
+                          "properties": {
+                            "user": {
+                              "type": "string",
+                              "title": "User",
+                              "description": "Wallet that funds and signs this input. Usually identical to the top-level user; it differs only in delegated flows."
+                            },
+                            "asset": {
+                              "type": "object",
+                              "title": "Asset",
+                              "description": "Asset reference: chainId names the network (this replaces the per-chain base URL of earlier APIs) and address the token contract.",
+                              "properties": {
+                                "chainId": {
+                                  "type": "integer",
+                                  "title": "Chainid",
+                                  "description": "Chain ID, e.g. 10 for Optimism."
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "title": "Address",
+                                  "description": "Token contract address on that chain."
+                                }
+                              },
+                              "required": ["chainId", "address"]
+                            },
+                            "amount": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Amount",
+                              "description": "Base-unit amount to send. Required when swapType is ExactInput; leave unset with ExactOutput, where the router computes the input needed."
+                            }
+                          },
+                          "required": ["user", "asset"]
+                        }
+                      },
+                      "outputs": {
+                        "type": "array",
+                        "title": "Outputs",
+                        "description": "Asset(s) that must be delivered, each with its own receiver.",
+                        "items": {
+                          "type": "object",
+                          "title": "IntentOutput",
+                          "properties": {
+                            "receiver": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Receiver",
+                              "description": "Wallet that receives this output. Defaults to the top-level user when unset; set a different address for swap-and-send. Works in both execution modes."
+                            },
+                            "asset": {
+                              "type": "object",
+                              "title": "Asset",
+                              "description": "Asset reference: chainId names the destination network and address the token contract.",
+                              "properties": {
+                                "chainId": {
+                                  "type": "integer",
+                                  "title": "Chainid",
+                                  "description": "Chain ID, e.g. 8453 for Base."
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "title": "Address",
+                                  "description": "Token contract address on that chain."
+                                }
+                              },
+                              "required": ["chainId", "address"]
+                            },
+                            "amount": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Amount",
+                              "description": "Base-unit amount that must arrive. Set only when swapType is ExactOutput; with ExactInput, delivery is whatever each candidate prints in its preview."
+                            }
+                          },
+                          "required": ["asset"]
+                        }
+                      },
+                      "swapType": {
+                        "type": "string",
+                        "enum": ["ExactInput", "ExactOutput"],
+                        "title": "Swap Type",
+                        "description": "Which side is fixed. ExactInput pins the amounts you send (amounts live on inputs); ExactOutput pins what must arrive (amounts live on outputs). This one switch replaces the older choose-one convention between sell and buy amounts.",
+                        "default": "ExactInput"
+                      },
+                      "preference": {
+                        "type": "string",
+                        "enum": ["Price", "Speed", "InputPriority", "TrustMinimization"],
+                        "title": "Preference",
+                        "description": "Ranking bias for the candidate list: best net price, fastest settlement, input-order priority, or fewest trust assumptions.",
+                        "default": "Price"
+                      },
+                      "partialFill": {
+                        "type": "boolean",
+                        "title": "Partial Fill",
+                        "description": "Allow the order to settle partially when the full size is not available from a single candidate.",
+                        "default": false
+                      }
+                    },
+                    "required": ["inputs", "outputs"]
+                  },
+                  "supportedTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Supported Types",
+                    "description": "Order payload types your signer can handle. `escrow-v0` is the current settlement payload - send `[\"escrow-v0\"]`.",
+                    "example": ["escrow-v0"]
+                  },
+                  "minValidUntil": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Min Valid Until",
+                    "description": "Earliest acceptable candidate expiry (unix seconds). Candidates whose firmness window closes sooner are filtered out - useful when your flow needs time between quoting and submission."
+                  },
+                  "solverOptions": {
+                    "anyOf": [
+                      {
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Solver Options",
+                    "description": "Per-request solver tuning: include or exclude specific solvers and adjust sweep timeouts. Server-managed defaults apply when omitted."
+                  },
+                  "routingOptions": {
+                    "anyOf": [
+                      {
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Routing Options",
+                    "description": "Multi-leg planner controls such as `routes` and `maxRouteLegs`. Server-managed defaults apply when omitted."
+                  }
+                },
+                "required": ["user", "intent", "supportedTypes"]
+              },
+              "examples": {
+                "ExactInput": {
+                  "summary": "Fix the input",
+                  "description": "Send exactly 25 USDC on Optimism; receive whatever that buys on Base.",
+                  "value": {
+                    "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                    "intent": {
+                      "intentType": "swap",
+                      "inputs": [
+                        {
+                          "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 10,
+                            "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+                          },
+                          "amount": "25000000"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 8453,
+                            "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                          }
+                        }
+                      ],
+                      "swapType": "ExactInput"
+                    },
+                    "supportedTypes": ["escrow-v0"]
+                  }
+                },
+                "ExactOutput": {
+                  "summary": "Fix the output",
+                  "description": "Deliver exactly 20 USDC on Base; the router works out the required input on Optimism.",
+                  "value": {
+                    "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                    "intent": {
+                      "intentType": "swap",
+                      "inputs": [
+                        {
+                          "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 10,
+                            "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+                          }
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 8453,
+                            "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                          },
+                          "amount": "20000000"
+                        }
+                      ],
+                      "swapType": "ExactOutput"
+                    },
+                    "supportedTypes": ["escrow-v0"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotesResponse"
+                },
+                "examples": {
+                  "Default": {
+                    "summary": "Move 25 USDC on Optimism into USDC on Base",
+                    "value": {
+                      "quotes": [
+                        {
+                          "quoteId": "q_01HZXK7Q9R2M4T6V8W0Y2A4C6E",
+                          "solverId": "tetrafi-native",
+                          "executionMode": "apiSubmit",
+                          "order": {
+                            "type": "escrow-v0",
+                            "payload": {
+                              "...": "EIP-712 typed data - sign verbatim"
+                            }
+                          },
+                          "validUntil": 1784560000,
+                          "eta": 45,
+                          "preview": {
+                            "inputs": [
+                              {
+                                "asset": "eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+                                "amount": "25000000",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998
+                              }
+                            ],
+                            "outputs": [
+                              {
+                                "asset": "eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                                "amount": "24987500",
+                                "minimumAmount": "24950000",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998,
+                                "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+                              }
+                            ]
+                          },
+                          "integrityChecksum": "b74d21c09a4e5f38",
+                          "routingPath": "direct",
+                          "platformFeeBps": 5,
+                          "lpSpreadBps": 3,
+                          "composite": null,
+                          "gas": {
+                            "native": "0",
+                            "usd": 0
+                          },
+                          "warnings": []
+                        },
+                        {
+                          "quoteId": "q_01HZYA3B5D7F9H1J3L5N7P9R1T",
+                          "solverId": "bridge-route",
+                          "executionMode": "walletBroadcast",
+                          "order": null,
+                          "validUntil": 1784559900,
+                          "eta": 180,
+                          "preview": {
+                            "inputs": [
+                              {
+                                "asset": "eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+                                "amount": "25000000",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998
+                              }
+                            ],
+                            "outputs": [
+                              {
+                                "asset": "eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                                "amount": "24924100",
+                                "minimumAmount": "24875000",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998,
+                                "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+                              }
+                            ]
+                          },
+                          "integrityChecksum": "0f83aa517c2d9b64",
+                          "routingPath": "multiLeg",
+                          "platformFeeBps": 5,
+                          "lpSpreadBps": null,
+                          "composite": {
+                            "legs": [
+                              {
+                                "kind": "bridgeBurnMint",
+                                "chainId": 10
+                              },
+                              {
+                                "kind": "sameChainSwap",
+                                "chainId": 8453
+                              }
+                            ],
+                            "executionModel": "sequential"
+                          },
+                          "gas": {
+                            "native": "412000000000000",
+                            "usd": 1.38
+                          },
+                          "warnings": []
+                        }
+                      ],
+                      "totalQuotes": 2,
+                      "metadata": {
+                        "totalDurationMs": 412,
+                        "solversQueried": 6,
+                        "solversSuccess": 2,
+                        "routes": {
+                          "plannerPasses": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "summary": "Submit Order",
+        "description": "Submit a signed order for settlement. Pass the selected candidate back unchanged together with the taker's EIP-712 signature over its escrow-v0 payload; the API verifies the signature against the integrityChecksum and, on apiSubmit candidates, lands the settlement transaction on-chain and carries the gas. Send an Idempotency-Key header (the quoteId works well) so a retried POST can never double-submit.",
+        "operationId": "submitOrder",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency Key"
+            },
+            "description": "Client-chosen key that makes retries safe: a repeated POST carrying the same key returns the original order instead of creating a second one."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "summary": "Order Status",
+        "description": "Returns the lifecycle state of a submitted order: pending while it progresses, then the terminal settled or failed. The same transitions arrive as WebSocket events (order.created, order.settled, order.failed) on the orders:{id} topic. Because settlement is delivery-versus-payment, failed never means lost funds - the escrowed input follows the refund path.",
+        "operationId": "getOrderStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            },
+            "description": "Order identifier returned by POST /orders."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/preflight": {
+      "post": {
+        "summary": "Preflight",
+        "description": "Check that the candidate you selected is still submit-ready and receive nextActions - an ordered execution plan covering everything between selection and a submitted order: approvals to mine, deposits for bridge legs, the exact payload to sign, and where to send it. Actions marked frequency reusableSetup (like a bounded Permit2 grant) persist across trades and stop appearing once done. Re-run preflight whenever an action lists rerunPreflight in its after steps - multi-leg routes often need a second pass after the first leg mines.",
+        "operationId": "preflightOrder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "OrderPreflightRequest",
+                "properties": {
+                  "quoteResponse": {
+                    "$ref": "#/components/schemas/QuoteCandidate",
+                    "title": "Selected candidate",
+                    "description": "The candidate to preflight, passed back exactly as it appeared in the quotes response. The plan is computed against this candidate's terms and the user's current on-chain state."
+                  }
+                },
+                "required": ["quoteResponse"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPreflightResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pairs": {
+      "get": {
+        "summary": "Tradable Pairs",
+        "operationId": "getPairs",
+        "description": "Lists the corridors the router currently quotes, expressed over the production chain roster: ethereum (1), optimism (10), base (8453), and arc (5042). Authenticating with a tfk_test_ key exposes the sandbox roster as well - arc-testnet (5042002), solana-devnet (1399811151), tron-shasta, and adi-testnet (99999). Pair availability within the roster follows each venue's listed assets.",
+        "servers": [
+          {
+            "url": "https://api.tetrafi.io/api/v1/router"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mapping of chain slugs to chain IDs across which tradable pairs are quoted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "description": "Chain slug mapped to chain ID for every network with at least one tradable pair."
+                },
+                "example": {
+                  "ethereum": 1,
+                  "optimism": 10,
+                  "base": 8453,
+                  "arc": 5042
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiError": {
+        "properties": {
+          "error": {
+            "type": "object",
+            "title": "Error",
+            "description": "Error envelope returned on non-validation failures.",
+            "properties": {
+              "type": {
+                "type": "string",
+                "title": "Type",
+                "description": "Broad error family, e.g. invalid_request_error or routing_error."
+              },
+              "code": {
+                "type": "string",
+                "title": "Code",
+                "description": "Stable machine-readable identifier for the specific failure."
+              },
+              "message": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Message",
+                "description": "Human-readable explanation of what went wrong."
+              },
+              "param": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Param",
+                "description": "Request field the failure points at, when one applies."
+              },
+              "doc_url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Doc Url",
+                "description": "Link to the documentation for this error code."
+              },
+              "details": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MinimumSizeNote"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Structured context for size-related rejections - the smallest viable trade when the request sits under the corridor floor."
+              }
+            },
+            "required": ["type", "code", "message"]
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requestid",
+            "description": "Correlation identifier to quote when contacting support."
+          }
+        },
+        "type": "object",
+        "required": ["error"],
+        "title": "ApiError"
+      },
+      "FundingLockType": {
+        "type": "string",
+        "enum": ["Permit2", "EIP-3009", "ResourceLock"],
+        "title": "FundingLockType",
+        "description": "Mechanism the escrow uses to pull the input asset. Never requested by the client - preflight picks whichever the corridor and token support: a reusable Permit2 allowance, an EIP-3009 in-signature authorization, or a pre-funded resource lock in the compact settler."
+      },
+      "OrderSubmitRequest": {
+        "properties": {
+          "quoteResponse": {
+            "$ref": "#/components/schemas/QuoteCandidate",
+            "title": "Selected candidate",
+            "description": "The candidate you picked, passed back exactly as it appeared in the quotes response. The integrityChecksum binds the submission to those terms; any mutation is rejected."
+          },
+          "signature": {
+            "type": "string",
+            "title": "Signature",
+            "description": "Hex-encoded EIP-712 signature over the escrow-v0 payload from quote.order (equivalently, the typedData on preflight's orderSignature action)."
+          },
+          "signScheme": {
+            "type": "string",
+            "title": "Sign Scheme",
+            "description": "How the signature verifies: EIP712 for standard ECDSA from an EOA (the default), or EIP1271 for smart-contract wallets that validate via isValidSignature on-chain.",
+            "default": "EIP712"
+          },
+          "permit2Lock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Permit2Lock"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permit2 lock",
+            "description": "Inline Permit2 material - include only when the preflight plan asked for it; a standing Permit2 grant makes this unnecessary."
+          },
+          "eip3009Authorization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Eip3009Authorization"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "EIP-3009 authorization",
+            "description": "Signed transfer authorization for EIP-3009 tokens (USDC-style) when preflight selected that lock. Resource-lock candidates need no inline material - the balance is already deposited."
+          }
+        },
+        "type": "object",
+        "required": ["quoteResponse", "signature"],
+        "title": "OrderSubmitRequest"
+      },
+      "GasEstimate": {
+        "properties": {
+          "native": {
+            "type": "string",
+            "title": "Native",
+            "description": "Estimated gas cost in the execution chain's native currency, base units. Zero on apiSubmit candidates, where TetraFi carries the gas."
+          },
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd",
+            "description": "The same estimate in US dollars, when a price is available."
+          }
+        },
+        "type": "object",
+        "required": ["native"],
+        "title": "GasEstimate"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MinimumSizeNote": {
+        "properties": {
+          "native": {
+            "type": "number",
+            "title": "Native",
+            "description": "Smallest viable trade size, expressed in the input asset's own units."
+          },
+          "usd": {
+            "type": "number",
+            "title": "Usd",
+            "description": "The same floor expressed in US dollars."
+          }
+        },
+        "type": "object",
+        "required": ["native", "usd"],
+        "title": "MinimumSizeNote"
+      },
+      "OrderStatus": {
+        "type": "string",
+        "enum": ["pending", "settled", "failed"],
+        "title": "OrderStatus",
+        "description": "Order lifecycle state. pending - accepted and progressing; settled - delivery proven and funds released (terminal); failed - could not settle before expiry, the escrowed input follows the refund path (terminal). The same transitions are pushed over WebSocket as order.created, order.settled, and order.failed on the orders:{id} topic."
+      },
+      "Order": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Order identifier - use it for GET /orders/{id} polling and the orders:{id} WebSocket topic."
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus",
+            "description": "State at creation time - normally pending."
+          },
+          "quoteId": {
+            "type": "string",
+            "title": "Quoteid",
+            "description": "Candidate this order was created from."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat",
+            "description": "When the order was accepted."
+          }
+        },
+        "type": "object",
+        "required": ["id", "status", "quoteId", "createdAt"],
+        "title": "Order"
+      },
+      "OrderStatusResponse": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "txHash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Txhash",
+            "description": "Settlement transaction hash - present once a settlement transaction has been broadcast."
+          },
+          "settledAmounts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settledamounts",
+            "description": "Delivered amounts keyed by asset, present once the order settles."
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "title": "Code",
+                    "description": "Machine-readable failure reason."
+                  },
+                  "message": {
+                    "type": "string",
+                    "title": "Message",
+                    "description": "Human-readable failure explanation."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure",
+            "description": "Populated on failed orders; the escrowed input follows the refund path."
+          }
+        },
+        "type": "object",
+        "required": ["status"],
+        "title": "OrderStatusResponse"
+      },
+      "StandardOrder": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Order payload type; escrow-v0 for the current settlement contract."
+          },
+          "payload": {
+            "type": "object",
+            "title": "Payload",
+            "description": "Complete EIP-712 envelope - domain, types, and the StandardOrder message - delivered verbatim by the API. Treat it as opaque: sign exactly what arrives in quote.order (or the typedData on preflight's orderSignature action) and never assemble or edit it locally. The signed terms cover the parties, the inputs you escrow, the minimum outputs that must be delivered, an expiry after which the unfilled order refunds, and a domain-scoped nonce; they are bound to your submission by the integrityChecksum."
+          }
+        },
+        "type": "object",
+        "required": ["type", "payload"],
+        "title": "StandardOrder",
+        "description": "The escrow-v0 order payload a candidate asks you to sign. Anything you would want different - receiver, amounts, expiry - changes at quote time, not signing time."
+      },
+      "Permit2Lock": {
+        "properties": {
+          "signature": {
+            "type": "string",
+            "title": "Signature",
+            "description": "Signed Permit2 permit authorizing the escrow to pull the input token."
+          },
+          "deadline": {
+            "type": "integer",
+            "title": "Deadline",
+            "description": "Unix timestamp after which the permit is void."
+          }
+        },
+        "type": "object",
+        "required": ["signature", "deadline"],
+        "title": "Permit2Lock",
+        "description": "Permit2 funding lock: one reusable approval of the Permit2 contract, after which each order authorizes its own pull inside the signature."
+      },
+      "Eip3009Authorization": {
+        "properties": {
+          "signature": {
+            "type": "string",
+            "title": "Signature",
+            "description": "Signed transferWithAuthorization message."
+          },
+          "validAfter": {
+            "type": "integer",
+            "title": "Valid After",
+            "description": "Unix timestamp from which the authorization becomes usable."
+          },
+          "validBefore": {
+            "type": "integer",
+            "title": "Valid Before",
+            "description": "Unix timestamp at which the authorization expires."
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce",
+            "description": "Random 32-byte nonce making the authorization single-use."
+          }
+        },
+        "type": "object",
+        "required": ["signature", "validAfter", "validBefore", "nonce"],
+        "title": "Eip3009Authorization",
+        "description": "EIP-3009 funding lock for USDC-style tokens: the transfer is authorized entirely inside the signed message, so no approval transaction ever exists."
+      },
+      "PriceWarning": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "Numeric warning identifier."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "What the warning flags - unusual pricing, thin liquidity, or similar."
+          }
+        },
+        "type": "object",
+        "required": ["code", "message"],
+        "title": "PriceWarning",
+        "description": "Non-blocking warning attached to a candidate's warnings array so unusual conditions surface before you select it."
+      },
+      "QuotesResponse": {
+        "properties": {
+          "quotes": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteCandidate"
+            },
+            "type": "array",
+            "title": "Quotes",
+            "description": "Ranked executable candidates, best first under the requested preference. Every entry is independently executable and states its own guarantees; one source being down, slow, or empty never suppresses candidates from the others."
+          },
+          "totalQuotes": {
+            "type": "integer",
+            "title": "Totalquotes",
+            "description": "Number of candidates returned."
+          },
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "How the sweep went - aggregation stats across sources plus the planner's route detail.",
+            "properties": {
+              "totalDurationMs": {
+                "type": "integer",
+                "title": "Totaldurationms",
+                "description": "Wall-clock milliseconds for the full sweep."
+              },
+              "solversQueried": {
+                "type": "integer",
+                "title": "Solversqueried",
+                "description": "Sources the request fanned out to."
+              },
+              "solversSuccess": {
+                "type": "integer",
+                "title": "Solverssuccess",
+                "description": "Sources that returned at least one usable candidate."
+              },
+              "routes": {
+                "type": "object",
+                "title": "Routes",
+                "description": "Multi-leg planner pass details."
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": ["quotes", "totalQuotes"],
+        "title": "QuotesResponse"
+      },
+      "PreviewOutput": {
+        "properties": {
+          "asset": {
+            "type": "string",
+            "title": "Asset",
+            "description": "Delivered asset in CAIP-19 form, e.g. eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913."
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount",
+            "description": "Base-unit amount delivered if the candidate executes exactly as quoted."
+          },
+          "minimumAmount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimumamount",
+            "description": "Floor the settlement must deliver - the per-candidate guarantee that replaces a request-level slippage parameter."
+          },
+          "decimals": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals",
+            "description": "Token decimals, for converting base units to a display amount."
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol",
+            "description": "Token ticker symbol."
+          },
+          "priceUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priceusd",
+            "description": "Reference US-dollar price per whole token, when available."
+          },
+          "receiver": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver",
+            "description": "Wallet this output is delivered to."
+          }
+        },
+        "type": "object",
+        "required": ["asset", "amount"],
+        "title": "PreviewOutput"
+      },
+      "PreviewInput": {
+        "properties": {
+          "asset": {
+            "type": "string",
+            "title": "Asset",
+            "description": "Escrowed asset in CAIP-19 form, e.g. eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85."
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount",
+            "description": "Base-unit amount the user sends."
+          },
+          "decimals": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals",
+            "description": "Token decimals, for converting base units to a display amount."
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol",
+            "description": "Token ticker symbol."
+          },
+          "priceUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priceusd",
+            "description": "Reference US-dollar price per whole token, when available."
+          }
+        },
+        "type": "object",
+        "required": ["asset", "amount"],
+        "title": "PreviewInput"
+      },
+      "PreflightNextAction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["evmTransaction", "signTypedData", "postOrder", "linkWallet", "fundLpAccount"],
+            "title": "Type",
+            "description": "What kind of step this is: a transaction to broadcast, typed data to sign, an order to POST, a wallet to link, or an LP account to fund."
+          },
+          "purpose": {
+            "type": "string",
+            "enum": ["tokenApproval", "bridgeDeposit", "orderSignature", "orderSubmit", "walletLink", "tradeLedgerAuthorization", "lpFunding"],
+            "title": "Purpose",
+            "description": "Why the step exists: a token approval to mine, a deposit for a bridge leg, the order payload to sign, the submission itself, a wallet link, a trade-ledger authorization, or LP account funding."
+          },
+          "actor": {
+            "type": "string",
+            "enum": ["userWallet", "tetrafiApi"],
+            "title": "Actor",
+            "description": "Who performs the step: userWallet means your side signs or broadcasts; tetrafiApi means it goes through the API under your key."
+          },
+          "frequency": {
+            "type": "string",
+            "enum": ["perTrade", "reusableSetup"],
+            "title": "Frequency",
+            "description": "perTrade steps recur on every order; reusableSetup steps - like a bounded Permit2 grant - persist across trades and stop appearing once completed."
+          },
+          "chainId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chainid",
+            "description": "Chain the step touches, when it is chain-bound."
+          },
+          "tx": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreflightEvmTransaction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ready-to-broadcast transaction for evmTransaction steps."
+          },
+          "typedData": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StandardOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "EIP-712 envelope for signTypedData steps - sign it verbatim."
+          },
+          "submitTo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitto",
+            "description": "Where the resulting artifact goes, e.g. /orders for a signed payload."
+          },
+          "after": {
+            "items": {
+              "type": "string",
+              "enum": ["waitForTransactionMined", "rerunPreflight", "postOrder"]
+            },
+            "type": "array",
+            "title": "After",
+            "description": "Follow-ups once the step completes: wait for the transaction to mine, run preflight again (multi-leg routes often need this after the first leg), or post the order.",
+            "default": []
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "Free-form human-readable context for the step."
+          }
+        },
+        "type": "object",
+        "required": ["type", "purpose", "actor", "frequency"],
+        "title": "PreflightNextAction",
+        "description": "One step in the ordered execution plan preflight returns. Execute the actions in order; together they cover everything between candidate selection and a submitted order."
+      },
+      "OrderPreflightResponse": {
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "title": "Quoteid",
+            "description": "Candidate the plan applies to."
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "description": "True when nothing stands between you and submission - the remaining nextActions are just the signature and the POST."
+          },
+          "fundingLock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FundingLockType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lock mechanism preflight selected for pulling the input - your code stays the same whichever it picks."
+          },
+          "lockDetails": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Permit2Lock"
+              },
+              {
+                "$ref": "#/components/schemas/Eip3009Authorization"
+              },
+              {
+                "$ref": "#/components/schemas/ResourceLock"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lockdetails",
+            "description": "Parameters of the selected funding lock, when it needs client-side material."
+          },
+          "nextActions": {
+            "items": {
+              "$ref": "#/components/schemas/PreflightNextAction"
+            },
+            "type": "array",
+            "title": "Nextactions",
+            "description": "Ordered execution plan; empty when the candidate is immediately submittable."
+          }
+        },
+        "type": "object",
+        "required": ["quoteId", "ready", "nextActions"],
+        "title": "OrderPreflightResponse"
+      },
+      "QuoteCandidate": {
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "title": "Quoteid",
+            "description": "Identifier that follows the candidate through preflight, submission, and status."
+          },
+          "solverId": {
+            "type": "string",
+            "title": "Solverid",
+            "description": "Source that produced the candidate - e.g. tetrafi-native, a DEX adapter, or a bridge route."
+          },
+          "executionMode": {
+            "type": "string",
+            "enum": ["apiSubmit", "walletBroadcast"],
+            "title": "Executionmode",
+            "description": "Who lands the transaction on-chain: apiSubmit means TetraFi submits the settlement after you sign; walletBroadcast means you broadcast a prepared transaction yourself. This per-candidate property replaces a request-level gasless flag."
+          },
+          "order": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StandardOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The escrow-v0 payload to sign, present on direct candidates. Composite planner routes carry prepared transactions via preflight instead."
+          },
+          "validUntil": {
+            "type": "integer",
+            "title": "Validuntil",
+            "description": "Unix timestamp ending the firmness window; the candidate expires at this moment."
+          },
+          "eta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta",
+            "description": "Expected seconds until settlement."
+          },
+          "preview": {
+            "type": "object",
+            "title": "Preview",
+            "description": "Human-readable ins and outs - what the user sends and what arrives if the candidate executes as quoted.",
+            "properties": {
+              "inputs": {
+                "items": {
+                  "$ref": "#/components/schemas/PreviewInput"
+                },
+                "type": "array",
+                "title": "Inputs"
+              },
+              "outputs": {
+                "items": {
+                  "$ref": "#/components/schemas/PreviewOutput"
+                },
+                "type": "array",
+                "title": "Outputs"
+              }
+            },
+            "required": ["inputs", "outputs"]
+          },
+          "integrityChecksum": {
+            "type": "string",
+            "title": "Integritychecksum",
+            "description": "Tamper-evidence binding the terms you were shown to the terms you submit; any drift between them is rejected."
+          },
+          "routingPath": {
+            "type": "string",
+            "title": "Routingpath",
+            "description": "Route shape - direct for a single-source fill; multi-leg routes describe their legs in composite."
+          },
+          "platformFeeBps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platformfeebps",
+            "description": "Platform fee applied to this candidate, in basis points. Monetization is configured per workspace, not passed per request."
+          },
+          "lpSpreadBps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lpspreadbps",
+            "description": "Spread earned by the liquidity provider on this candidate, in basis points."
+          },
+          "composite": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "legs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    },
+                    "title": "Legs",
+                    "description": "Ordered legs of the planner route, each naming its kind and chain."
+                  },
+                  "executionModel": {
+                    "type": "string",
+                    "title": "Executionmodel",
+                    "description": "How the legs run, e.g. sequential."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composite",
+            "description": "Present on planner-assembled multi-leg routes; absent on direct single-source quotes."
+          },
+          "gas": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GasEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gas context for the candidate; the ranking already compares candidates net of gas and explicit fees."
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/PriceWarning"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Non-blocking warnings attached to the candidate.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": ["quoteId", "solverId", "executionMode", "validUntil", "preview", "integrityChecksum"],
+        "title": "QuoteCandidate"
+      },
+      "ResourceLock": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Asset held in the compact settler."
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount",
+            "description": "Locked balance drawn per order, base units."
+          }
+        },
+        "type": "object",
+        "required": ["token", "amount"],
+        "title": "ResourceLock",
+        "description": "Resource-lock funding: balance pre-deposited into the compact settler and drawn per order - no approval or in-signature authorization needed at trade time."
+      },
+      "PreflightEvmTransaction": {
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "title": "Chainid",
+            "description": "Chain to broadcast on."
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From",
+            "description": "Sender - your wallet; fill it in when assembling the final transaction."
+          },
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "Contract the transaction calls."
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "description": "Native value to attach, as prepared."
+          },
+          "data": {
+            "type": "string",
+            "title": "Data",
+            "description": "Calldata - broadcast exactly as prepared."
+          },
+          "gas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas",
+            "description": "Suggested gas limit."
+          },
+          "gasPrice": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gasprice",
+            "description": "Suggested gas price; you may re-estimate from your own RPC."
+          }
+        },
+        "type": "object",
+        "required": ["to", "value", "data"],
+        "title": "PreflightEvmTransaction"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Service-account API key (tfk_test_/tfk_live_)."
+      }
+    }
+  },
+  "security": [
+    {
+      "apiKeyAuth": []
+    }
+  ]
+}

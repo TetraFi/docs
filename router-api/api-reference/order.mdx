@@ -1,0 +1,507 @@
+---
+title: "Orders"
+description: "Submit a selected candidate for settlement together with the taker's EIP-712 signature over its escrow-v0 payload. The API checks the signature against the integrity checksum and, on apiSubmit candidates, lands the settlement transaction on-chain and carries the gas; an Idempotency-Key header makes retries safe."
+openapi: "POST /orders"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/router-api.json post /orders
+openapi: 3.1.0
+info:
+  title: TetraFi Router API
+  version: '1'
+  description: >-
+    Multi-source routing over every eligible execution source. One intent fans out across
+    direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails, and comes back
+    as ranked executable candidates - each stating its own guarantees.
+servers:
+  - url: https://api.tetrafi.io/api/v1/router
+    description: >-
+      Router namespace base URL. The chain is no longer part of the URL - every asset in an
+      intent names its network via chainId. The same host serves the sandbox: authenticate
+      with a tfk_test_ key to route against test corridors, tfk_live_ for production.
+security:
+  - apiKeyAuth: []
+paths:
+  /orders:
+    post:
+      summary: Submit Order
+      description: >-
+        Submit a signed order for settlement. Pass the selected candidate back unchanged together
+        with the taker's EIP-712 signature over its escrow-v0 payload; the API verifies the
+        signature against the integrityChecksum and, on apiSubmit candidates, lands the settlement
+        transaction on-chain and carries the gas. Send an Idempotency-Key header (the quoteId
+        works well) so a retried POST can never double-submit.
+      operationId: submitOrder
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            title: Idempotency Key
+          description: >-
+            Client-chosen key that makes retries safe: a repeated POST carrying the same key
+            returns the original order instead of creating a second one.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderSubmitRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    OrderSubmitRequest:
+      properties:
+        quoteResponse:
+          $ref: '#/components/schemas/QuoteCandidate'
+          title: Selected candidate
+          description: >-
+            The candidate you picked, passed back exactly as it appeared in the quotes response.
+            The integrityChecksum binds the submission to those terms; any mutation is rejected.
+        signature:
+          type: string
+          title: Signature
+          description: >-
+            Hex-encoded EIP-712 signature over the escrow-v0 payload from quote.order (equivalently,
+            the typedData on preflight's orderSignature action).
+        signScheme:
+          type: string
+          title: Sign Scheme
+          description: >-
+            How the signature verifies: EIP712 for standard ECDSA from an EOA (the default),
+            or EIP1271 for smart-contract wallets that validate via isValidSignature on-chain.
+          default: EIP712
+        permit2Lock:
+          anyOf:
+            - $ref: '#/components/schemas/Permit2Lock'
+            - type: 'null'
+          title: Permit2 lock
+          description: >-
+            Inline Permit2 material - include only when the preflight plan asked for it; a
+            standing Permit2 grant makes this unnecessary.
+        eip3009Authorization:
+          anyOf:
+            - $ref: '#/components/schemas/Eip3009Authorization'
+            - type: 'null'
+          title: EIP-3009 authorization
+          description: >-
+            Signed transfer authorization for EIP-3009 tokens (USDC-style) when preflight
+            selected that lock. Resource-lock candidates need no inline material - the balance
+            is already deposited.
+      type: object
+      required:
+        - quoteResponse
+        - signature
+      title: OrderSubmitRequest
+    GasEstimate:
+      properties:
+        native:
+          type: string
+          title: Native
+          description: >-
+            Estimated gas cost in the execution chain's native currency, base units. Zero
+            on apiSubmit candidates, where TetraFi carries the gas.
+        usd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Usd
+          description: The same estimate in US dollars, when a price is available.
+      type: object
+      required:
+        - native
+      title: GasEstimate
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    OrderStatus:
+      type: string
+      enum:
+        - pending
+        - settled
+        - failed
+      title: OrderStatus
+      description: >-
+        Order lifecycle state. pending - accepted and progressing; settled - delivery proven
+        and funds released (terminal); failed - could not settle before expiry, the escrowed
+        input follows the refund path (terminal). The same transitions are pushed over WebSocket
+        as order.created, order.settled, and order.failed on the orders:{id} topic.
+    Order:
+      properties:
+        id:
+          type: string
+          title: Id
+          description: >-
+            Order identifier - use it for GET /orders/{id} polling and the orders:{id} WebSocket
+            topic.
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+          description: State at creation time - normally pending.
+        quoteId:
+          type: string
+          title: Quoteid
+          description: Candidate this order was created from.
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+          description: When the order was accepted.
+      type: object
+      required:
+        - id
+        - status
+        - quoteId
+        - createdAt
+      title: Order
+    StandardOrder:
+      properties:
+        type:
+          type: string
+          title: Type
+          description: Order payload type; escrow-v0 for the current settlement contract.
+        payload:
+          type: object
+          title: Payload
+          description: >-
+            Complete EIP-712 envelope - domain, types, and the StandardOrder message - delivered
+            verbatim by the API. Treat it as opaque: sign exactly what arrives in quote.order
+            (or the typedData on preflight's orderSignature action) and never assemble or
+            edit it locally. The signed terms cover the parties, the inputs you escrow, the
+            minimum outputs that must be delivered, an expiry after which the unfilled order
+            refunds, and a domain-scoped nonce; they are bound to your submission by the integrityChecksum.
+      type: object
+      required:
+        - type
+        - payload
+      title: StandardOrder
+      description: >-
+        The escrow-v0 order payload a candidate asks you to sign. Anything you would want
+        different - receiver, amounts, expiry - changes at quote time, not signing time.
+    Permit2Lock:
+      properties:
+        signature:
+          type: string
+          title: Signature
+          description: Signed Permit2 permit authorizing the escrow to pull the input token.
+        deadline:
+          type: integer
+          title: Deadline
+          description: Unix timestamp after which the permit is void.
+      type: object
+      required:
+        - signature
+        - deadline
+      title: Permit2Lock
+      description: >-
+        Permit2 funding lock: one reusable approval of the Permit2 contract, after which each
+        order authorizes its own pull inside the signature.
+    Eip3009Authorization:
+      properties:
+        signature:
+          type: string
+          title: Signature
+          description: Signed transferWithAuthorization message.
+        validAfter:
+          type: integer
+          title: Valid After
+          description: Unix timestamp from which the authorization becomes usable.
+        validBefore:
+          type: integer
+          title: Valid Before
+          description: Unix timestamp at which the authorization expires.
+        nonce:
+          type: string
+          title: Nonce
+          description: Random 32-byte nonce making the authorization single-use.
+      type: object
+      required:
+        - signature
+        - validAfter
+        - validBefore
+        - nonce
+      title: Eip3009Authorization
+      description: >-
+        EIP-3009 funding lock for USDC-style tokens: the transfer is authorized entirely inside
+        the signed message, so no approval transaction ever exists.
+    PriceWarning:
+      properties:
+        code:
+          type: integer
+          title: Code
+          description: Numeric warning identifier.
+        message:
+          type: string
+          title: Message
+          description: What the warning flags - unusual pricing, thin liquidity, or similar.
+      type: object
+      required:
+        - code
+        - message
+      title: PriceWarning
+      description: >-
+        Non-blocking warning attached to a candidate's warnings array so unusual conditions
+        surface before you select it.
+    PreviewOutput:
+      properties:
+        asset:
+          type: string
+          title: Asset
+          description: >-
+            Delivered asset in CAIP-19 form, e.g. eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.
+        amount:
+          type: string
+          title: Amount
+          description: Base-unit amount delivered if the candidate executes exactly as quoted.
+        minimumAmount:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Minimumamount
+          description: >-
+            Floor the settlement must deliver - the per-candidate guarantee that replaces
+            a request-level slippage parameter.
+        decimals:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Decimals
+          description: Token decimals, for converting base units to a display amount.
+        symbol:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Symbol
+          description: Token ticker symbol.
+        priceUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceusd
+          description: Reference US-dollar price per whole token, when available.
+        receiver:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Receiver
+          description: Wallet this output is delivered to.
+      type: object
+      required:
+        - asset
+        - amount
+      title: PreviewOutput
+    PreviewInput:
+      properties:
+        asset:
+          type: string
+          title: Asset
+          description: >-
+            Escrowed asset in CAIP-19 form, e.g. eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85.
+        amount:
+          type: string
+          title: Amount
+          description: Base-unit amount the user sends.
+        decimals:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Decimals
+          description: Token decimals, for converting base units to a display amount.
+        symbol:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Symbol
+          description: Token ticker symbol.
+        priceUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceusd
+          description: Reference US-dollar price per whole token, when available.
+      type: object
+      required:
+        - asset
+        - amount
+      title: PreviewInput
+    QuoteCandidate:
+      properties:
+        quoteId:
+          type: string
+          title: Quoteid
+          description: Identifier that follows the candidate through preflight, submission,
+            and status.
+        solverId:
+          type: string
+          title: Solverid
+          description: >-
+            Source that produced the candidate - e.g. tetrafi-native, a DEX adapter, or a
+            bridge route.
+        executionMode:
+          type: string
+          enum:
+            - apiSubmit
+            - walletBroadcast
+          title: Executionmode
+          description: >-
+            Who lands the transaction on-chain: apiSubmit means TetraFi submits the settlement
+            after you sign; walletBroadcast means you broadcast a prepared transaction yourself.
+            This per-candidate property replaces a request-level sponsored-gas flag.
+        order:
+          anyOf:
+            - $ref: '#/components/schemas/StandardOrder'
+            - type: 'null'
+          description: >-
+            The escrow-v0 payload to sign, present on direct candidates. Composite planner
+            routes carry prepared transactions via preflight instead.
+        validUntil:
+          type: integer
+          title: Validuntil
+          description: Unix timestamp ending the firmness window; the candidate expires at
+            this moment.
+        eta:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Eta
+          description: Expected seconds until settlement.
+        preview:
+          type: object
+          title: Preview
+          description: >-
+            Human-readable ins and outs - what the user sends and what arrives if the candidate
+            executes as quoted.
+          properties:
+            inputs:
+              items:
+                $ref: '#/components/schemas/PreviewInput'
+              type: array
+              title: Inputs
+            outputs:
+              items:
+                $ref: '#/components/schemas/PreviewOutput'
+              type: array
+              title: Outputs
+          required:
+            - inputs
+            - outputs
+        integrityChecksum:
+          type: string
+          title: Integritychecksum
+          description: >-
+            Tamper-evidence binding the terms you were shown to the terms you submit; any
+            drift between them is rejected.
+        routingPath:
+          type: string
+          title: Routingpath
+          description: >-
+            Route shape - direct for a single-source fill; multi-leg routes describe their
+            legs in composite.
+        platformFeeBps:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Platformfeebps
+          description: >-
+            Platform fee applied to this candidate, in basis points. Monetization is configured
+            per workspace, not passed per request.
+        lpSpreadBps:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Lpspreadbps
+          description: Spread earned by the liquidity provider on this candidate, in basis
+            points.
+        composite:
+          anyOf:
+            - type: object
+              properties:
+                legs:
+                  type: array
+                  items:
+                    type: object
+                  title: Legs
+                  description: Ordered legs of the planner route, each naming its kind and
+                    chain.
+                executionModel:
+                  type: string
+                  title: Executionmodel
+                  description: How the legs run, e.g. sequential.
+            - type: 'null'
+          title: Composite
+          description: >-
+            Present on planner-assembled multi-leg routes; absent on direct single-source
+            quotes.
+        gas:
+          anyOf:
+            - $ref: '#/components/schemas/GasEstimate'
+            - type: 'null'
+          description: >-
+            Gas context for the candidate; the ranking already compares candidates net of
+            gas and explicit fees.
+        warnings:
+          items:
+            $ref: '#/components/schemas/PriceWarning'
+          type: array
+          title: Warnings
+          description: Non-blocking warnings attached to the candidate.
+          default: []
+      type: object
+      required:
+        - quoteId
+        - solverId
+        - executionMode
+        - validUntil
+        - preview
+        - integrityChecksum
+      title: QuoteCandidate
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Service-account API key (tfk_test_/tfk_live_).
+
+````

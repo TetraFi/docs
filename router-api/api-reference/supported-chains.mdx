@@ -1,0 +1,65 @@
+---
+title: "Tradable Pairs"
+description: "List the corridors the router currently quotes, as a mapping of chain slugs to chain IDs. Production keys see the live roster; tfk_test_ keys additionally expose the sandbox networks."
+openapi: "GET /pairs"
+mode: "wide"
+---
+
+## OpenAPI
+
+````yaml /specs/router-api.json get /pairs
+openapi: 3.1.0
+info:
+  title: TetraFi Router API
+  version: '1'
+  description: >-
+    Multi-source routing over every eligible execution source. One intent fans out across
+    direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails, and comes back
+    as ranked executable candidates - each stating its own guarantees.
+servers:
+  - url: https://api.tetrafi.io/api/v1/router
+    description: >-
+      Router namespace base URL. The chain is no longer part of the URL - every asset in an
+      intent names its network via chainId. The same host serves the sandbox: authenticate
+      with a tfk_test_ key to route against test corridors, tfk_live_ for production.
+security:
+  - apiKeyAuth: []
+paths:
+  /pairs:
+    get:
+      summary: Tradable Pairs
+      operationId: getPairs
+      description: >-
+        Lists the corridors the router currently quotes, expressed over the production chain
+        roster: ethereum (1), optimism (10), base (8453), and arc (5042). Authenticating with
+        a tfk_test_ key exposes the sandbox roster as well - arc-testnet (5042002), solana-devnet
+        (1399811151), tron-shasta, and adi-testnet (99999). Pair availability within the roster
+        follows each venue's listed assets.
+      servers:
+        - url: https://api.tetrafi.io/api/v1/router
+      responses:
+        '200':
+          description: Mapping of chain slugs to chain IDs across which tradable pairs are
+            quoted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+                description: Chain slug mapped to chain ID for every network with at least
+                  one tradable pair.
+              example:
+                ethereum: 1
+                optimism: 10
+                base: 8453
+                arc: 5042
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Service-account API key (tfk_test_/tfk_live_).
+
+````
