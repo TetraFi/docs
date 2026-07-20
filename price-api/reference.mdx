@@ -1,36 +1,36 @@
 ---
 title: "Reference"
-description: "Key facts, message types, schemas, and coverage details for the Price API."
+description: "Topic grammar, stream families, and expiry behavior for the price feed."
 ---
 
-## Pricing Modes
+## Stream Families
 
-The stream supports two pricing modes, controlled by the `gasless` parameter on the WebSocket URL:
+Two topic families cover TetraFi's liquidity, both carried on the same WebSocket connection:
 
-| Mode               | Parameter       | Settlement                          | Last look                                | Pricing                |
-| ------------------ | --------------- | ----------------------------------- | ---------------------------------------- | ---------------------- |
-| **Self-execution** | `gasless=false` | You submit the transaction on-chain | No - quotes are firm once signed         | Slightly wider spreads |
-| **Gasless**        | `gasless=true`  | TetraFi submits on-chain for you      | Yes - maker can reject before settlement | Tighter spreads        |
+| Family              | Topic pattern                                            | Covers                                    | Sizing                  |
+| ------------------- | -------------------------------------------------------- | ----------------------------------------- | ----------------------- |
+| **Corridor prices** | `prices:{srcChain}:{input}:{dstChain}:{output}:{tier}`   | On-chain pairs, same-chain or cross-chain | Tiered: `1k`-`1m`       |
+| **OTC prices**      | `prices:otc:{inputSymbol}:{outputSymbol}:{tier}`         | OTC venue symbols                         | Tiered: `1k`-`1m`       |
 
-**Self-execution** is the default and recommended mode for solvers and aggregators. Since there's no last look, the price you see is firm - but spreads are slightly wider to compensate.
+**Corridor topics** name assets by chain and address, so a subscription prices exactly the route you'd trade - including cross-chain corridors where the two legs live on different networks.
 
-**Gasless** is designed for wallets and super-apps where gasless UX matters. Market makers retain last look, meaning they can reject a quote before settlement. In return, they offer tighter pricing.
+**OTC topics** use venue symbols for desk-quoted markets. The tier suffix works identically: subscribe at the notional you intend to trade, because a `1m` clip does not price like a `10k` clip.
 
 <Tip>
-  **Choosing the right mode:** If you're a solver or aggregator executing trades yourself, use self-execution. If you're building a wallet where users shouldn't pay gas, use gasless. Make sure your RFQ API quotes match the stream you're subscribed to.
+  **Match your stream to your execution.** Estimate with the same corridor and tier you'll request firm quotes for - a `10k`-tier estimate tells you little about a seven-figure fill.
 </Tip>
 
 ## Quote Expiry
 
-The `expiry_type` parameter controls how long quotes remain valid. Short expiry is only available for self-execution - since gasless quotes are submitted by the maker, the taker doesn't control submission timing.
+Streamed prices are indicative and continuously refreshed; firm quotes carry a hard `validUntil`. When you move from estimate to execution, the validity window you request (via `minValidUntil` on the intent) shapes the pricing you receive:
 
-| Expiry type | Availability               | Window                                 | Best for                                                                        |
-| ----------- | -------------------------- | -------------------------------------- | ------------------------------------------------------------------------------- |
-| `standard`  | Self-execution and gasless | \~60-75s (varies by chain)             | Most integrators - easier to manage, more time to sign and submit               |
-| `short`     | Self-execution only        | \~5s on Ethereum, \~3s on other chains | Latency-sensitive solvers - must submit by end of block, but pricing is tighter |
+| Validity request        | Availability                | Window                             | Best for                                                                 |
+| ----------------------- | --------------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
+| Standard (unset)        | All integrations            | ~60-75s typical (varies by chain)  | Most integrators - room to sign and submit without automation pressure   |
+| Tight (near-term `minValidUntil`) | Automated pipelines | As low as a few seconds            | Latency-sensitive solvers - tighter spreads for a smaller LP risk window |
 
-Short expiry quotes offer better prices because the market maker's risk window is smaller. However, they require fast execution infrastructure - you need to sign and broadcast within a single block.
+Shorter windows price tighter because the LP holds risk for less time - but your sign-and-submit hop must complete inside the window, or the order refunds through the escrow.
 
 <Warning>
-  If you request `short` expiry quotes from the RFQ API, subscribe to the `short` expiry pricing stream to get matching indicative prices. Mixing expiry types between the stream and firm quotes will give you inaccurate pre-trade estimates.
+  Keep your estimation horizon and your firm-quote horizon aligned. Estimating from long-horizon streamed prices while requesting tight-window firm quotes (or vice versa) will systematically skew your pre-trade numbers. See [Short Expiry](/rfq-api/guides/short-expiry) for the execution-side view.
 </Warning>
