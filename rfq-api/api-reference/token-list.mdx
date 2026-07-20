@@ -1,87 +1,113 @@
 ---
-title: "Token List"
-description: "This endpoint will return all tokens available for trading on TetraFi PMM, in tokenlist format, with extra info."
-openapi: "GET /v3/tokenlist"
+title: "Tradable Pairs"
+description: "Every directional pair the workspace's solvers and LPs quote right now, each entry naming the exact input and output assets plus a corridor slug. Coverage follows LP inventory and listings - refresh at least daily instead of pinning the list."
+openapi: "GET /pairs"
 mode: "wide"
 ---
 
 ## OpenAPI
 
-````yaml /specs/rfq-api.json get /v3/tokenlist
+````yaml /specs/rfq-api.json get /pairs
 openapi: 3.1.0
 info:
   title: TetraFi RFQ API
-  version: '3'
+  version: '1'
   description: >-
-    Request-for-quote trading API. Get quotes and execute token swaps directly
-    with market makers.
+    Firm, escrow-backed quotes from competing solvers and LPs. Every quote is a signed
+    commitment priced from the counterparty's own inventory - executable exactly as
+    returned, with no re-pricing and no last look - and every order settles through a
+    delivery-or-refund escrow: the output is delivered or the input comes back, never
+    limbo.
 servers:
-  - url: https://api.tetrafi.io/pmm/{chain}
-    variables:
-      chain:
-        default: ethereum
-        enum:
-          - ethereum
-          - polygon
-          - arbitrum
-          - optimism
-          - base
-          - bsc
-          - blast
-          - zksync
-          - mode
-          - scroll
-          - taiko
-          - superseed
-          - berachain
-          - hyperevm
-          - avalanche
-        description: Blockchain network
+  - url: https://api.tetrafi.io/api/v1/rfq
+    description: >-
+      RFQ namespace base URL. The chain is no longer part of the URL - every asset in an
+      intent names its network via chainId. The same host serves the sandbox: authenticate
+      with a tfk_test_ key to quote against test corridors, tfk_live_ for production.
 security:
-  - bearerAuth: []
+  - apiKeyAuth: []
 paths:
-  /v3/tokenlist:
+  /pairs:
     get:
-      summary: Token List
+      summary: Tradable Pairs
+      operationId: getPairs
       description: >-
-        This endpoint will return all tokens available for trading on TetraFi PMM,
-        in tokenlist format, with extra info.
-      operationId: getTokenList
+        Lists every directional pair at least one solver/LP in your workspace currently
+        quotes, each entry naming the exact input and output asset plus its corridor slug.
+        Coverage moves with LP inventory and new listings - refresh at least daily rather
+        than pinning the list. The production roster spans ethereum (1), optimism (10),
+        base (8453), and arc (5042); a tfk_test_ key additionally exposes sandbox networks
+        such as arc-testnet (5042002) and solana-devnet (1399811151).
+      servers:
+        - url: https://api.tetrafi.io/api/v1
       parameters:
-        - name: active_only
+        - name: activeOnly
           in: query
           required: false
           schema:
             type: boolean
             title: Active Only
-            description: Return only active tokens
+            description: >-
+              Keep only pairs with at least one counterparty pricing right now (status
+              active).
             default: true
-          description: Return only active tokens
-        - name: gasless
+          description: >-
+            Keep only pairs with at least one counterparty pricing right now (status
+            active).
+        - name: chainId
           in: query
           required: false
           schema:
-            type: boolean
-            title: Gasless
-            description: Return gasless tokens
-            default: false
-          description: Return gasless tokens
-        - name: expiry_type
+            anyOf:
+              - type: integer
+              - type: 'null'
+            title: Chain Id
+            description: >-
+              Restrict to pairs whose input or output sits on this chain, e.g. 10 or
+              8453.
+          description: >-
+            Restrict to pairs whose input or output sits on this chain, e.g. 10 or 8453.
+        - name: corridor
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/ExpiryType'
-            title: Expiry Type
-            description: Return standard or short expiry tokens
-            default: standard
-          description: Return standard or short expiry tokens
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Corridor
+            description: Restrict to one directional corridor slug, e.g. optimism-base.
+          description: Restrict to one directional corridor slug, e.g. optimism-base.
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PMMTokenList'
+                $ref: '#/components/schemas/PairsResponse'
+              example:
+                pairs:
+                  - input:
+                      chainId: 10
+                      address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'
+                      symbol: USDC
+                      decimals: 6
+                    output:
+                      chainId: 8453
+                      address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+                      symbol: USDC
+                      decimals: 6
+                    corridor: optimism-base
+                  - input:
+                      chainId: 8453
+                      address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+                      symbol: USDC
+                      decimals: 6
+                    output:
+                      chainId: 10
+                      address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'
+                      symbol: USDC
+                      decimals: 6
+                    corridor: base-optimism
         '422':
           description: Validation Error
           content:
@@ -90,53 +116,6 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    ExpiryType:
-      type: string
-      enum:
-        - standard
-        - short
-      title: ExpiryType
-    PMMTokenList:
-      properties:
-        keywords:
-          items:
-            type: string
-          type: array
-          title: Keywords
-        logoURI:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Logouri
-        name:
-          type: string
-          title: Name
-        tags:
-          anyOf:
-            - additionalProperties:
-                $ref: '#/components/schemas/Tag'
-              type: object
-            - type: 'null'
-          title: Tags
-        timestamp:
-          type: string
-          title: Timestamp
-        tokens:
-          items:
-            $ref: '#/components/schemas/PMMTokenListToken'
-          type: array
-          title: Tokens
-        version:
-          anyOf:
-            - $ref: '#/components/schemas/Version'
-            - type: 'null'
-      type: object
-      required:
-        - keywords
-        - name
-        - timestamp
-        - tokens
-      title: PMMTokenList
     HTTPValidationError:
       properties:
         detail:
@@ -146,77 +125,98 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    Tag:
+    PairsResponse:
       properties:
-        name:
-          type: string
-          title: Name
-        description:
-          type: string
-          title: Description
+        pairs:
+          items:
+            $ref: '#/components/schemas/Pair'
+          type: array
+          title: Pairs
+          description: >-
+            Every directional pair at least one workspace-eligible solver/LP currently
+            quotes.
+        asOf:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: As Of
+          description: >-
+            When this roster snapshot was computed. Coverage moves with LP inventory and
+            listings - refresh at least daily rather than pinning it.
+        totalPairs:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Total Pairs
+          description: Number of pair entries returned.
       type: object
       required:
-        - name
-        - description
-      title: Tag
-    PMMTokenListToken:
+        - pairs
+      title: PairsResponse
+    Pair:
+      properties:
+        input:
+          $ref: '#/components/schemas/PairAsset'
+          description: >-
+            Asset the taker supplies - the exact chainId and contract address to reference
+            in intent.inputs.
+        output:
+          $ref: '#/components/schemas/PairAsset'
+          description: Asset delivered to the receiver - reference it in intent.outputs.
+        corridor:
+          type: string
+          title: Corridor
+          description: >-
+            Directional route slug, e.g. optimism-base - the cross-chain analog of a
+            trading-pair name. The reverse direction is listed as its own pair.
+      type: object
+      required:
+        - input
+        - output
+        - corridor
+      title: Pair
+      description: >-
+        One directional tradable pair. input and output name exact assets; use their
+        chainId + address verbatim in quote intents.
+    PairAsset:
       properties:
         chainId:
           type: integer
           title: Chainid
+          description: Network the asset lives on, e.g. 10 for Optimism or 8453 for Base.
         address:
           type: string
           title: Address
-        decimals:
-          type: integer
-          title: Decimals
-        name:
-          type: string
-          title: Name
+          description: >-
+            Token contract address - copy it verbatim into your intent; never substitute a
+            wrapped or bridged variant.
         symbol:
           type: string
           title: Symbol
-        logoURI:
+          description: Ticker symbol, for display only - never use it as an identifier.
+        decimals:
+          type: integer
+          title: Decimals
+          description: >-
+            Base-unit scale: human amount times 10^decimals, so 1 USDC (6 decimals) is
+            1000000.
+        name:
           anyOf:
             - type: string
             - type: 'null'
-          title: Logouri
-        tags:
-          anyOf:
-            - items:
-                type: string
-              type: array
-            - type: 'null'
-          title: Tags
-        extensions:
-          anyOf:
-            - $ref: '#/components/schemas/PMMExtensions'
-            - type: 'null'
+          title: Name
+          description: Full display name of the token.
       type: object
       required:
         - chainId
         - address
-        - decimals
-        - name
         - symbol
-      title: PMMTokenListToken
-    Version:
-      properties:
-        major:
-          type: integer
-          title: Major
-        minor:
-          type: integer
-          title: Minor
-        patch:
-          type: integer
-          title: Patch
-      type: object
-      required:
-        - major
-        - minor
-        - patch
-      title: Version
+        - decimals
+      title: PairAsset
+      description: >-
+        Exact asset on one side of a tradable pair. The chainId + address pair is the
+        identity to reference in quote intents.
     ValidationError:
       properties:
         loc:
@@ -238,60 +238,10 @@ components:
         - msg
         - type
       title: ValidationError
-    PMMExtensions:
-      properties:
-        color:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Color
-        color_light:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Color Light
-        displayDecimals:
-          anyOf:
-            - type: integer
-            - type: 'null'
-          title: Displaydecimals
-        preview:
-          anyOf:
-            - type: boolean
-            - type: 'null'
-          title: Preview
-        added:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Added
-        availability:
-          anyOf:
-            - $ref: '#/components/schemas/AvailabilityResponse'
-            - type: 'null'
-      type: object
-      title: PMMExtensions
-    AvailabilityResponse:
-      properties:
-        isAvailable:
-          type: boolean
-          title: Isavailable
-        canBuy:
-          type: boolean
-          title: Canbuy
-        canSell:
-          type: boolean
-          title: Cansell
-      type: object
-      required:
-        - isAvailable
-        - canBuy
-        - canSell
-      title: AvailabilityResponse
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      description: API key passed as a Bearer token.
-
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Service-account API key (tfk_test_/tfk_live_).
 ````

@@ -2,423 +2,494 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TetraFi RFQ API",
-    "version": "3",
-    "description": "Request-for-quote trading API. Get quotes and execute token swaps directly with market makers."
+    "version": "1",
+    "description": "Firm, escrow-backed quotes from competing solvers and LPs. Every quote is a signed commitment priced from the counterparty's own inventory - executable exactly as returned, with no re-pricing and no last look - and every order settles through a delivery-or-refund escrow: the output is delivered or the input comes back, never limbo."
   },
   "servers": [
     {
-      "url": "https://api.tetrafi.io/pmm/{chain}",
-      "variables": {
-        "chain": {
-          "default": "ethereum",
-          "enum": [
-            "ethereum",
-            "polygon",
-            "arbitrum",
-            "optimism",
-            "base",
-            "bsc",
-            "blast",
-            "zksync",
-            "mode",
-            "scroll",
-            "taiko",
-            "superseed",
-            "berachain",
-            "hyperevm",
-            "avalanche"
-          ],
-          "description": "Blockchain network"
-        }
-      }
+      "url": "https://api.tetrafi.io/api/v1/rfq",
+      "description": "RFQ namespace base URL. The chain is no longer part of the URL - every asset in an intent names its network via chainId. The same host serves the sandbox: authenticate with a tfk_test_ key to quote against test corridors, tfk_live_ for production."
     }
   ],
   "paths": {
-    "/v3/quote": {
-      "get": {
-        "summary": "Quote",
-        "description": "## Overview\n            Get a quote for the requested tokens and amounts. This endpoint allows you to request quotes for one-to-one trades as well as multi token trades (one-to-many and many-to-one).\n\n            ## Executing the quote\n            By default this is a gasless quote and will need to be submitted to [`/order`](#/v3/post_order_v3_order_post)\n\n            Specifying `gasless=false` to the API will return `tx` that can be used to self execute. You may also specify `skip_validation` for use cases where validations are a constraint.",
-        "operationId": "getQuote",
-        "parameters": [
-          {
-            "name": "sell_tokens",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "x-default": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-              "example": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-            },
-            "description": "The tokens that will be supplied by the taker"
-          },
-          {
-            "name": "buy_tokens",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "x-default": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-              "example": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-            },
-            "description": "The tokens that will be supplied by the maker"
-          },
-          {
-            "name": "sell_amounts",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "x-default": "1000000000",
-              "example": "1000000000"
-            },
-            "description": "The amount of each taker token, order respective to taker_tokens"
-          },
-          {
-            "name": "buy_amounts",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
+    "/quotes": {
+      "post": {
+        "summary": "Quotes",
+        "description": "## Overview\nCollect firm quotes for a trade intent. The request fans out to every eligible solver and LP in your workspace, and each one answers with a signed commitment priced from its own inventory - executable exactly as returned, no re-pricing, no last look. One-to-one trades and multi-token shapes (one-to-many and many-to-one) are all expressed through the intent's `inputs` and `outputs` arrays.\n\n## What comes back\nOnly firm solver/LP escrow quotes, ranked best first - never DEX, bridge, issuer, or indicative candidates. If no eligible counterparty can price the pair, the response is a typed `productUnavailable` error rather than a silent fallback to another liquidity source.\n\n## Executing a quote\nPick a candidate, preflight it via `POST /orders/preflight`, then follow the plan. Several knobs from older quote APIs are deliberately absent: who lands the transaction is the per-quote `executionMode` (`apiSubmit` | `walletBroadcast`) instead of a gasless flag; guaranteed minimum outputs replace a slippage parameter; and the funding lock (Permit2, EIP-3009, or resource lock) is selected by preflight rather than requested up front.",
+        "operationId": "requestQuotes",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "QuotesRequest",
+                "properties": {
+                  "user": {
+                    "type": "string",
+                    "title": "User",
+                    "description": "Wallet that signs the order and funds the trade. On walletBroadcast quotes it also broadcasts the prepared settlement transaction.",
+                    "example": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693"
+                  },
+                  "intent": {
+                    "type": "object",
+                    "title": "Intent",
+                    "description": "States what must go in and what must come out - not a route. Every asset carries its own chainId, so one intent can cross networks; multi-token shapes use multiple entries in inputs or outputs.",
+                    "properties": {
+                      "intentType": {
+                        "type": "string",
+                        "title": "Intent Type",
+                        "description": "Intent kind; use `swap` for a token-for-token trade.",
+                        "default": "swap"
+                      },
+                      "inputs": {
+                        "type": "array",
+                        "title": "Inputs",
+                        "description": "Asset(s) the taker supplies. Ordered; every entry is escrowed when the order settles.",
+                        "items": {
+                          "type": "object",
+                          "title": "IntentInput",
+                          "properties": {
+                            "user": {
+                              "type": "string",
+                              "title": "User",
+                              "description": "Wallet funding and signing this input - normally identical to the top-level user, different only in delegated setups."
+                            },
+                            "asset": {
+                              "type": "object",
+                              "title": "Asset",
+                              "description": "Asset reference: chainId picks the network (the URL no longer carries a chain) and address the token contract.",
+                              "properties": {
+                                "chainId": {
+                                  "type": "integer",
+                                  "title": "Chainid",
+                                  "description": "Chain ID, e.g. 10 for Optimism."
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "title": "Address",
+                                  "description": "Token contract address on that chain."
+                                }
+                              },
+                              "required": ["chainId", "address"]
+                            },
+                            "amount": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Amount",
+                              "description": "Base-unit amount supplied. Required when swapType is ExactInput; omit under ExactOutput, where the quoting counterparties compute the input needed."
+                            }
+                          },
+                          "required": ["user", "asset"]
+                        }
+                      },
+                      "outputs": {
+                        "type": "array",
+                        "title": "Outputs",
+                        "description": "Asset(s) that must be delivered; each entry can name its own receiver.",
+                        "items": {
+                          "type": "object",
+                          "title": "IntentOutput",
+                          "properties": {
+                            "receiver": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Receiver",
+                              "description": "Wallet the output is delivered to. Falls back to the top-level user when unset; point it elsewhere for swap-and-send - supported in both execution modes."
+                            },
+                            "asset": {
+                              "type": "object",
+                              "title": "Asset",
+                              "description": "Asset reference: chainId names the destination network and address the token contract.",
+                              "properties": {
+                                "chainId": {
+                                  "type": "integer",
+                                  "title": "Chainid",
+                                  "description": "Chain ID, e.g. 8453 for Base."
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "title": "Address",
+                                  "description": "Token contract address on that chain."
+                                }
+                              },
+                              "required": ["chainId", "address"]
+                            },
+                            "amount": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "title": "Amount",
+                              "description": "Base-unit amount that must arrive. Set only when swapType is ExactOutput; under ExactInput the delivery is whatever each firm quote commits to in its preview."
+                            }
+                          },
+                          "required": ["asset"]
+                        }
+                      },
+                      "swapType": {
+                        "type": "string",
+                        "enum": ["ExactInput", "ExactOutput"],
+                        "title": "Swap Type",
+                        "description": "Which side is pinned. ExactInput fixes what you send (amounts sit on inputs); ExactOutput fixes what must arrive (amounts sit on outputs). This one switch replaces the older pick-one convention between sell and buy amounts.",
+                        "default": "ExactInput"
+                      },
+                      "partialFill": {
+                        "type": "boolean",
+                        "title": "Partial Fill",
+                        "description": "Let the order settle partially when no single counterparty can cover the full size; the unfilled remainder follows the refund path.",
+                        "default": false
+                      }
+                    },
+                    "required": ["inputs", "outputs"]
+                  },
+                  "supportedTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Supported Types",
+                    "description": "Order payload types your signer understands. The current settlement payload is `escrow-v0` - pass `[\"escrow-v0\"]`.",
+                    "example": ["escrow-v0"]
+                  },
+                  "minValidUntil": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Min Valid Until",
+                    "description": "Earliest quote expiry (unix seconds) you will accept. Firm quotes whose window closes sooner are dropped before ranking - set it when your flow needs headroom between quoting and signing."
+                  },
+                  "solverOptions": {
+                    "anyOf": [
+                      {
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Solver Options",
+                    "description": "Per-request solver tuning: pin or exclude specific roster ids from GET /solvers, or adjust the sweep timeout. Server-managed defaults apply when omitted."
+                  }
                 },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Buy Token Amounts",
-              "description": "The amount of each maker token, order respective to maker_tokens"
-            },
-            "description": "The amount of each maker token, order respective to maker_tokens",
-            "examples": {
-              "None": {
-                "description": "Use when specifying 'sell_amounts'"
+                "required": ["user", "intent", "supportedTypes"]
               },
-              "One": {
-                "summary": "One To One / Many To One",
-                "description": "Use for 'One To One' or 'One To Many' quotes",
-                "value": "100000000"
-              },
-              "Many": {
-                "summary": "One To Many",
-                "description": "Use for 'One To Many' quotes",
-                "value": "100000000,100000000"
+              "examples": {
+                "ExactInput": {
+                  "summary": "Fix the input",
+                  "description": "Send exactly 25 USDC on Optimism; receive what it buys on Base.",
+                  "value": {
+                    "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                    "intent": {
+                      "intentType": "swap",
+                      "inputs": [
+                        {
+                          "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 10,
+                            "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+                          },
+                          "amount": "25000000"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 8453,
+                            "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                          }
+                        }
+                      ],
+                      "swapType": "ExactInput"
+                    },
+                    "supportedTypes": ["escrow-v0"]
+                  }
+                },
+                "ExactOutput": {
+                  "summary": "Fix the output",
+                  "description": "Deliver exactly 20 USDC on Base; the competing LPs price the input required on Optimism.",
+                  "value": {
+                    "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                    "intent": {
+                      "intentType": "swap",
+                      "inputs": [
+                        {
+                          "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 10,
+                            "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+                          }
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 8453,
+                            "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                          },
+                          "amount": "20000000"
+                        }
+                      ],
+                      "swapType": "ExactOutput"
+                    },
+                    "supportedTypes": ["escrow-v0"]
+                  }
+                },
+                "ManyToOne": {
+                  "summary": "Many to one",
+                  "description": "Consolidate USDC held on Optimism and Base into a single USDC delivery on Ethereum - one order, one signature.",
+                  "value": {
+                    "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                    "intent": {
+                      "intentType": "swap",
+                      "inputs": [
+                        {
+                          "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 10,
+                            "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+                          },
+                          "amount": "25000000"
+                        },
+                        {
+                          "user": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 8453,
+                            "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                          },
+                          "amount": "15000000"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                          "asset": {
+                            "chainId": 1,
+                            "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+                          }
+                        }
+                      ],
+                      "swapType": "ExactInput"
+                    },
+                    "supportedTypes": ["escrow-v0"]
+                  }
+                }
               }
             }
-          },
-          {
-            "name": "taker_address",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "x-default": "0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6",
-              "example": "0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6"
-            },
-            "description": "Address which will sign the order"
-          },
-          {
-            "name": "receiver_address",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Receiver Address",
-              "description": "Address which will receive the taker tokens. (Defaults to taker_address if not specified)"
-            },
-            "description": "Address which will receive the taker tokens. (Defaults to taker_address if not specified)"
-          },
-          {
-            "name": "approval_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/ApprovalType",
-              "title": "Type of approval",
-              "description": "Type of Approval for EVM: Standard/Permit/Permit2",
-              "default": "Standard"
-            },
-            "description": "Type of Approval for EVM: Standard/Permit/Permit2"
-          },
-          {
-            "name": "buy_tokens_ratios",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Buy Tokens Ratios",
-              "description": "Ratios of maker tokens to receive for each taker token"
-            },
-            "description": "Ratios of maker tokens to receive for each taker token",
-            "examples": {
-              "Default": {},
-              "One To Many": {
-                "summary": "One To Many",
-                "description": "Use ONLY with 'One To Many' quotes and specified 'sell_amounts'",
-                "value": "0.5,0.5"
-              }
-            }
-          },
-          {
-            "name": "sell_tokens_ratios",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Sell Tokens Ratios",
-              "description": "Ratios of taker tokens to receive for each maker token"
-            },
-            "description": "Ratios of taker tokens to receive for each maker token",
-            "examples": {
-              "Default": {},
-              "Many To One": {
-                "summary": "Many To One",
-                "description": "Use ONLY with 'Many To One' quotes and specified 'buy_amounts'",
-                "value": "0.5,0.5"
-              }
-            }
-          },
-          {
-            "name": "gasless",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "title": "Gasless",
-              "description": "Set to false to receive call data and self execute.",
-              "x-default": false
-            },
-            "description": "Set to false to receive call data and self execute."
-          },
-          {
-            "name": "slippage",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Slippage",
-              "description": "The slippage to use"
-            },
-            "description": "The slippage to use"
-          },
-          {
-            "name": "origin_address",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Origin Address",
-              "description": "Original user of the quote if different than taker."
-            },
-            "description": "Original user of the quote if different than taker."
-          },
-          {
-            "name": "expiry_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/ExpiryType",
-              "title": "Type of expiry",
-              "description": "Standard, Short (5 seconds)",
-              "default": "standard"
-            },
-            "description": "Standard, Short (5 seconds)"
-          },
-          {
-            "name": "fee",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                }
-              ],
-              "title": "Partner Fee",
-              "description": "Fee (bps) to be charged for this quote",
-              "default": "0"
-            },
-            "description": "Fee (bps) to be charged for this quote"
           }
-        ],
+        },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuoteApiResponse"
+                  "$ref": "#/components/schemas/QuotesResponse"
                 },
                 "examples": {
                   "EVM": {
-                    "summary": "EVM (Ethereum, Polygon, etc.)",
+                    "summary": "EVM (Optimism to Base)",
+                    "description": "Two competing LPs answer a 25 USDC Optimism-to-Base intent. Note minimumAmount equals amount: the quote is the commitment.",
                     "value": {
-                      "requestId": "31a8cd0e-4566-48ad-8fe0-92efcde63dc2",
-                      "type": "121",
-                      "status": "SIG_SUCCESS",
-                      "quoteId": "121-197055704233248307894658608409132099557",
-                      "chainId": 1,
-                      "approvalType": "Standard",
-                      "nativeToken": "ETH",
-                      "taker": "0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6",
-                      "receiver": "0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6",
-                      "expiry": 1772813487,
-                      "slippage": 0,
-                      "gasFee": {
-                        "native": "0",
-                        "usd": 0
-                      },
-                      "buyTokens": {
-                        "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": {
-                          "amount": "504765657558485082",
-                          "decimals": 18,
-                          "priceUsd": 1980.81,
-                          "symbol": "WETH",
-                          "minimumAmount": "504765657558485082",
-                          "price": 1981.1173462888255,
-                          "priceBeforeFee": 1971.2599999999998,
-                          "amountBeforeFee": "507289753761553600",
-                          "deltaFromExpected": -0.00010614305258680328
+                      "quotes": [
+                        {
+                          "quoteId": "q_01J2M8W3N9RQK5T7V1X4Z6B8D0",
+                          "solverId": "lp-atlas",
+                          "executionMode": "apiSubmit",
+                          "order": {
+                            "type": "escrow-v0",
+                            "payload": {
+                              "...": "EIP-712 typed data - sign verbatim"
+                            }
+                          },
+                          "validUntil": 1784560045,
+                          "eta": 40,
+                          "validity": {
+                            "validUntil": 1784560045,
+                            "minValidUntil": null
+                          },
+                          "preview": {
+                            "inputs": [
+                              {
+                                "asset": "eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+                                "amount": "25000000",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998
+                              }
+                            ],
+                            "outputs": [
+                              {
+                                "asset": "eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                                "amount": "24987500",
+                                "minimumAmount": "24987500",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998,
+                                "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                                "amountBeforeFees": "25007500",
+                                "deltaFromMid": -0.00011
+                              }
+                            ]
+                          },
+                          "integrityChecksum": "9c41f2e8b06d5a73",
+                          "routingPath": "direct",
+                          "platformFeeBps": 5,
+                          "lpSpreadBps": 3,
+                          "splitFill": null,
+                          "gas": {
+                            "native": "0",
+                            "usd": 0
+                          },
+                          "warnings": []
+                        },
+                        {
+                          "quoteId": "q_01J2M8X0F2H4K6M8P0R2T4V6X8",
+                          "solverId": "lp-meridian",
+                          "executionMode": "walletBroadcast",
+                          "order": {
+                            "type": "escrow-v0",
+                            "payload": {
+                              "...": "EIP-712 typed data - sign verbatim"
+                            }
+                          },
+                          "validUntil": 1784560032,
+                          "eta": 55,
+                          "validity": {
+                            "validUntil": 1784560032,
+                            "minValidUntil": null
+                          },
+                          "preview": {
+                            "inputs": [
+                              {
+                                "asset": "eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+                                "amount": "25000000",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998
+                              }
+                            ],
+                            "outputs": [
+                              {
+                                "asset": "eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                                "amount": "24981200",
+                                "minimumAmount": "24981200",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9998,
+                                "receiver": "0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693",
+                                "amountBeforeFees": "25001200",
+                                "deltaFromMid": -0.00036
+                              }
+                            ]
+                          },
+                          "integrityChecksum": "0f83aa517c2d9b64",
+                          "routingPath": "direct",
+                          "platformFeeBps": 5,
+                          "lpSpreadBps": 4,
+                          "splitFill": null,
+                          "gas": {
+                            "native": "391000000000000",
+                            "usd": 1.31
+                          },
+                          "warnings": []
                         }
-                      },
-                      "sellTokens": {
-                        "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
-                          "amount": "1000000000",
-                          "decimals": 6,
-                          "priceUsd": 0.999951,
-                          "symbol": "USDC",
-                          "price": 0.0005047656575584851,
-                          "priceBeforeFee": 0.0005072897537615536
-                        }
-                      },
-                      "settlementAddress": "0xbbbbbBB520d69a9775E85b458C58c648259FAD5F",
-                      "approvalTarget": "0xbbbbbBB520d69a9775E85b458C58c648259FAD5F",
-                      "requiredSignatures": [],
-                      "priceImpact": -0.00010614305258680328,
-                      "partnerFee": {
-                        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE": "2524096203068442"
-                      },
-                      "warnings": [],
-                      "tx": {
-                        "to": "0xbbbbbBB520d69a9775E85b458C58c648259FAD5F",
-                        "value": "0x0",
-                        "data": "0x4dcebcba00...",
-                        "from": "0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6",
-                        "gas": 102504,
-                        "gasPrice": 459274878
-                      },
-                      "makers": [
-                        "🦖2"
                       ],
-                      "toSign": {
-                        "partner_id": 0,
-                        "expiry": 1772813487,
-                        "taker_address": "0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6",
-                        "maker_address": "0xA8020EcBC321e0C8cEA26B3507f207482d0100c2",
-                        "maker_nonce": "2772802508865834001",
-                        "taker_token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-                        "maker_token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-                        "taker_amount": "1000000000",
-                        "maker_amount": "504765657558485082",
-                        "receiver": "0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6",
-                        "packed_commands": "0"
-                      },
-                      "onchainOrderType": "SingleOrder",
-                      "partialFillOffset": 12
+                      "totalQuotes": 2,
+                      "metadata": {
+                        "totalDurationMs": 380,
+                        "solversQueried": 5,
+                        "solversSuccess": 2
+                      }
                     }
                   },
                   "Solana": {
-                    "summary": "Solana",
+                    "summary": "Solana (sandbox)",
+                    "description": "A solana-devnet (1399811151) quote reached with a tfk_test_ key. The Solana settlement program sits inside the order payload - sign the payload verbatim, as on EVM.",
                     "value": {
-                      "requestId": "e3a9ea52-422a-4670-8136-78edd249e112",
-                      "type": "121",
-                      "status": "QUOTE_INDIC_ROUTE",
-                      "quoteId": "121-244365056209752849084454405377701099760",
-                      "chainId": 2,
-                      "approvalType": "Standard",
-                      "nativeToken": "SOL",
-                      "taker": "6ZRCB7AAqGre6c72PRz3MHLC73VMYvJ8bi9KHf1HFpNk",
-                      "receiver": "6ZRCB7AAqGre6c72PRz3MHLC73VMYvJ8bi9KHf1HFpNk",
-                      "expiry": 1772813478,
-                      "slippage": 0,
-                      "gasFee": {
-                        "native": "0",
-                        "usd": 0
-                      },
-                      "buyTokens": {
-                        "So11111111111111111111111111111111111111112": {
-                          "amount": "11721973075",
-                          "decimals": 9,
-                          "priceUsd": 84.7,
-                          "symbol": "WSOL",
-                          "minimumAmount": "11721973075",
-                          "price": 85.30987007065788,
-                          "priceBeforeFee": 85.30987007065788,
-                          "amountBeforeFee": "11721973075",
-                          "deltaFromExpected": -0.007100228458694477
+                      "quotes": [
+                        {
+                          "quoteId": "q_01J2M9A7C9E1G3J5L7N9Q1S3U5",
+                          "solverId": "lp-helios",
+                          "executionMode": "apiSubmit",
+                          "order": {
+                            "type": "escrow-v0",
+                            "payload": {
+                              "programId": "BEboPej97QDH5PS9xzCVxM5vvorvwENjtt3PV5n8b62",
+                              "...": "prepared Solana settlement message - sign verbatim"
+                            }
+                          },
+                          "validUntil": 1784560030,
+                          "eta": 25,
+                          "validity": {
+                            "validUntil": 1784560030,
+                            "minValidUntil": null
+                          },
+                          "preview": {
+                            "inputs": [
+                              {
+                                "asset": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                                "amount": "1000000000",
+                                "decimals": 6,
+                                "symbol": "USDC",
+                                "priceUsd": 0.9999
+                              }
+                            ],
+                            "outputs": [
+                              {
+                                "asset": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:So11111111111111111111111111111111111111112",
+                                "amount": "11721973075",
+                                "minimumAmount": "11721973075",
+                                "decimals": 9,
+                                "symbol": "WSOL",
+                                "priceUsd": 84.7,
+                                "receiver": "6ZRCB7AAqGre6c72PRz3MHLC73VMYvJ8bi9KHf1HFpNk",
+                                "amountBeforeFees": "11728008321",
+                                "deltaFromMid": -0.00071
+                              }
+                            ]
+                          },
+                          "integrityChecksum": "5e2d90ac47b1f386",
+                          "routingPath": "direct",
+                          "platformFeeBps": 5,
+                          "lpSpreadBps": 6,
+                          "splitFill": null,
+                          "gas": {
+                            "native": "0",
+                            "usd": 0
+                          },
+                          "warnings": []
                         }
-                      },
-                      "sellTokens": {
-                        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": {
-                          "amount": "1000000000",
-                          "decimals": 6,
-                          "priceUsd": 0.999951,
-                          "symbol": "USDC",
-                          "price": 0.011721973075,
-                          "priceBeforeFee": 0.011721973075
-                        }
-                      },
-                      "settlementAddress": "BEboPej97QDH5PS9xzCVxM5vvorvwENjtt3PV5n8b62",
-                      "approvalTarget": "",
-                      "requiredSignatures": [],
-                      "priceImpact": -0.007100228458694477,
-                      "warnings": [],
-                      "solana_tx": "AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA...",
-                      "blockhash": "4dori8DoX1gEzFdrFjRnKd37EmL6Akh75VfHzkxo1NNL",
-                      "makers": [
-                        "🦊"
-                      ]
+                      ],
+                      "totalQuotes": 1,
+                      "metadata": {
+                        "totalDurationMs": 295,
+                        "solversQueried": 2,
+                        "solversSuccess": 1
+                      }
                     }
                   }
                 }
@@ -438,16 +509,28 @@
         }
       }
     },
-    "/v3/order": {
+    "/orders": {
       "post": {
-        "summary": "Order",
-        "description": "This endpoint provides a simple order placement mechanism for quotes retrieved from [/quote](#/v3/v3_quote_v3_quote_post) endpoint. You will be required to sign the quote object using an EOA private key and POST this signature along with the quote ID to place an order.\n\n            TetraFi submits order on chain having received maker and taker signatures. This means that TetraFi pays the network (gas) fees as they are already included in the price.",
+        "summary": "Submit Order",
+        "description": "Places an order against a firm quote collected from `POST /quotes`. Send the chosen candidate back untouched as `quoteResponse`, together with the taker's signature over its escrow-v0 payload; the API checks the signature against the integrityChecksum and - on apiSubmit quotes - lands the settlement transaction on-chain itself. Gas on that path is carried by TetraFi and already reflected in the quoted price. `signScheme` defaults to EIP712 for standard EOA signatures; smart-contract wallets pass EIP1271 and are verified via isValidSignature on-chain. Always send an Idempotency-Key header (the quoteId is a natural choice): a retried POST can then never double-submit.",
         "operationId": "submitOrder",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency Key"
+            },
+            "description": "Client-chosen key that makes retries safe: a repeated POST carrying the same key returns the original order instead of creating a second one."
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_post_order_v3_order_post"
+                "$ref": "#/components/schemas/OrderSubmitRequest"
               }
             }
           },
@@ -459,7 +542,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrderApiResponse"
+                  "$ref": "#/components/schemas/Order"
                 }
               }
             }
@@ -477,20 +560,21 @@
         }
       }
     },
-    "/v3/order-status": {
+    "/orders/{id}": {
       "get": {
         "summary": "Order Status",
-        "description": "Returns the status of a previously submitted order. Possible statuses include Pending, Success, Failed, and Expired.",
+        "description": "Returns where a submitted order stands in its lifecycle. Statuses are lowercase: `pending` while the order progresses, then exactly one terminal state - `settled` or `failed`. The same transitions arrive as WebSocket events (order.created, order.settled, order.failed) on the orders:{id} topic, so polling is optional. Because settlement is delivery-or-refund, `failed` never strands funds: the escrowed input is returned along the refund path.",
         "operationId": "getOrderStatus",
         "parameters": [
           {
-            "name": "quote_id",
-            "in": "query",
+            "name": "id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Quote Id"
-            }
+              "title": "Order Id"
+            },
+            "description": "Order identifier returned by POST /orders."
           }
         ],
         "responses": {
@@ -517,47 +601,64 @@
         }
       }
     },
-    "/v3/tokenlist": {
+    "/pairs": {
       "get": {
-        "summary": "Token List",
-        "description": "This endpoint will return all tokens available for trading on TetraFi PMM, in tokenlist format, with extra info.",
-        "operationId": "getTokenList",
+        "summary": "Tradable Pairs",
+        "description": "Lists every directional pair at least one solver/LP in your workspace currently quotes, each entry naming the exact input and output asset plus its corridor slug. Coverage moves with LP inventory and new listings - refresh at least daily rather than pinning the list. The production roster spans ethereum (1), optimism (10), base (8453), and arc (5042); a tfk_test_ key additionally exposes sandbox networks such as arc-testnet (5042002) and solana-devnet (1399811151).",
+        "operationId": "getPairs",
+        "servers": [
+          {
+            "url": "https://api.tetrafi.io/api/v1"
+          }
+        ],
         "parameters": [
           {
-            "name": "active_only",
+            "name": "activeOnly",
             "in": "query",
             "required": false,
             "schema": {
               "type": "boolean",
               "title": "Active Only",
-              "description": "Return only active tokens",
+              "description": "Keep only pairs with at least one counterparty pricing right now (status active).",
               "default": true
             },
-            "description": "Return only active tokens"
+            "description": "Keep only pairs with at least one counterparty pricing right now (status active)."
           },
           {
-            "name": "gasless",
+            "name": "chainId",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "title": "Gasless",
-              "description": "Return gasless tokens",
-              "default": false
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chain Id",
+              "description": "Restrict to pairs whose input or output sits on this chain, e.g. 10 or 8453."
             },
-            "description": "Return gasless tokens"
+            "description": "Restrict to pairs whose input or output sits on this chain, e.g. 10 or 8453."
           },
           {
-            "name": "expiry_type",
+            "name": "corridor",
             "in": "query",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/ExpiryType",
-              "title": "Expiry Type",
-              "description": "Return standard or short expiry tokens",
-              "default": "standard"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Corridor",
+              "description": "Restrict to one directional corridor slug, e.g. optimism-base."
             },
-            "description": "Return standard or short expiry tokens"
+            "description": "Restrict to one directional corridor slug, e.g. optimism-base."
           }
         ],
         "responses": {
@@ -566,91 +667,41 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PMMTokenList"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v3/token-info": {
-      "get": {
-        "summary": "Token Info",
-        "description": "Returns detailed metadata for all tokens available for trading on TetraFi, including price, decimals, and display information. Use /tokenlist for the standard token list format.",
-        "operationId": "getTokenInfo",
-        "parameters": [
-          {
-            "name": "gasless",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "title": "Gasless",
-              "description": "Return gasless tokens",
-              "default": false
-            },
-            "description": "Return gasless tokens"
-          },
-          {
-            "name": "expiry_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/ExpiryType",
-              "title": "Expiry Type",
-              "description": "Return standard or short expiry tokens",
-              "default": "standard"
-            },
-            "description": "Return standard or short expiry tokens"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenInfoApiResponse"
+                  "$ref": "#/components/schemas/PairsResponse"
                 },
                 "example": {
-                  "tokens": {
-                    "CBETH": {
-                      "availability": {
-                        "canBuy": false,
-                        "canSell": false,
-                        "isAvailable": false
+                  "pairs": [
+                    {
+                      "input": {
+                        "chainId": 10,
+                        "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+                        "symbol": "USDC",
+                        "decimals": 6
                       },
-                      "chainId": 137,
-                      "contractAddress": "0x4b4327dB1600B8B1440163F667e199CEf35385f5",
-                      "decimals": 18,
-                      "name": "Coinbase Wrapped Staked ETH",
-                      "ticker": "CBETH"
+                      "output": {
+                        "chainId": 8453,
+                        "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                        "symbol": "USDC",
+                        "decimals": 6
+                      },
+                      "corridor": "optimism-base"
                     },
-                    "SAND": {
-                      "availability": {
-                        "canBuy": true,
-                        "canSell": true,
-                        "isAvailable": true
+                    {
+                      "input": {
+                        "chainId": 8453,
+                        "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                        "symbol": "USDC",
+                        "decimals": 6
                       },
-                      "chainId": 137,
-                      "contractAddress": "0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683",
-                      "decimals": 18,
-                      "name": "The Sandbox",
-                      "priceUsd": 0.33122916548934794,
-                      "ticker": "SAND"
+                      "output": {
+                        "chainId": 10,
+                        "address": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+                        "symbol": "USDC",
+                        "decimals": 6
+                      },
+                      "corridor": "base-optimism"
                     }
-                  }
+                  ]
                 }
               }
             }
@@ -668,33 +719,186 @@
         }
       }
     },
-    "/chains": {
+    "/solvers": {
       "get": {
-        "summary": "Supported Chains",
-        "operationId": "getChains",
-        "description": "Returns a mapping of chain names to chain IDs supported by the RFQ API.",
+        "summary": "Solver Roster",
+        "description": "Lists the solvers and LPs your workspace can reach - the counterparties every quote request fans out to. An id appears here only after the counterparty clears the workspace's eligibility gates (onboarding, compliance, corridor coverage); `status` then says whether it is pricing right now. An empty eligible roster for a pair is exactly what surfaces as a typed productUnavailable answer on POST /quotes.",
+        "operationId": "getSolvers",
         "servers": [
           {
-            "url": "https://api.tetrafi.io/pmm"
+            "url": "https://api.tetrafi.io/api/v1"
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SolverStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status",
+              "description": "Keep only counterparties in this roster state."
+            },
+            "description": "Keep only counterparties in this roster state."
+          },
+          {
+            "name": "corridor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Corridor",
+              "description": "Keep only counterparties eligible to quote this corridor slug, e.g. optimism-base."
+            },
+            "description": "Keep only counterparties eligible to quote this corridor slug, e.g. optimism-base."
           }
         ],
         "responses": {
           "200": {
-            "description": "Mapping of chain names to chain IDs",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "integer"
-                  }
+                  "$ref": "#/components/schemas/SolversResponse"
                 },
                 "example": {
-                  "ethereum": 1,
-                  "polygon": 137,
-                  "arbitrum": 42161,
-                  "base": 8453,
-                  "bsc": 56
+                  "solvers": [
+                    {
+                      "id": "lp-atlas",
+                      "status": "active",
+                      "kind": "lp",
+                      "corridors": ["optimism-base", "base-optimism"],
+                      "firstSeenAt": "2026-01-12T09:30:00Z",
+                      "lastQuoteAt": "2026-07-20T13:58:41Z",
+                      "eligibilityNote": null
+                    },
+                    {
+                      "id": "solver-corsair",
+                      "status": "standby",
+                      "kind": "solver",
+                      "corridors": ["ethereum-arc"],
+                      "firstSeenAt": "2026-03-02T16:05:00Z",
+                      "lastQuoteAt": "2026-07-19T22:14:03Z",
+                      "eligibilityNote": "inventory rebalancing - expected to resume pricing shortly"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/preflight": {
+      "post": {
+        "summary": "Preflight",
+        "description": "Verifies that your chosen quote is still submit-ready and returns `nextActions` - the ordered plan covering everything between selection and a submitted order: approvals to mine, the exact payload to sign, and where to send it. This is also the only place to learn settlement and approval contract addresses - they differ by chain and funding lock, so never hardcode them. Steps marked frequency reusableSetup (a bounded Permit2 grant, say) survive across trades and stop appearing once completed; re-run preflight whenever a finished action lists rerunPreflight among its after steps.",
+        "operationId": "preflightOrder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "title": "OrderPreflightRequest",
+                "properties": {
+                  "quoteResponse": {
+                    "$ref": "#/components/schemas/QuoteCandidate",
+                    "title": "Selected quote",
+                    "description": "The firm quote to preflight, passed back exactly as it appeared in the quotes response. The plan is computed against this quote's terms and the taker's current on-chain state."
+                  }
+                },
+                "required": ["quoteResponse"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPreflightResponse"
+                },
+                "example": {
+                  "quoteId": "q_01J2M8W3N9RQK5T7V1X4Z6B8D0",
+                  "ready": false,
+                  "fundingLock": "Permit2",
+                  "lockDetails": null,
+                  "nextActions": [
+                    {
+                      "type": "evmTransaction",
+                      "purpose": "tokenApproval",
+                      "actor": "userWallet",
+                      "frequency": "reusableSetup",
+                      "chainId": 10,
+                      "tx": {
+                        "chainId": 10,
+                        "to": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+                        "value": "0x0",
+                        "data": "0x095ea7b3...",
+                        "gas": 60000
+                      },
+                      "after": ["waitForTransactionMined", "rerunPreflight"]
+                    },
+                    {
+                      "type": "signTypedData",
+                      "purpose": "orderSignature",
+                      "actor": "userWallet",
+                      "frequency": "perTrade",
+                      "chainId": 10,
+                      "typedData": {
+                        "type": "escrow-v0",
+                        "payload": {
+                          "...": "EIP-712 envelope - sign verbatim"
+                        }
+                      },
+                      "after": ["postOrder"]
+                    },
+                    {
+                      "type": "postOrder",
+                      "purpose": "orderSubmit",
+                      "actor": "tetrafiApi",
+                      "frequency": "perTrade",
+                      "submitTo": "/orders",
+                      "after": []
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -707,30 +911,69 @@
     "schemas": {
       "ApiError": {
         "properties": {
-          "errorCode": {
-            "type": "integer",
-            "title": "Errorcode"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
+          "error": {
+            "type": "object",
+            "title": "Error",
+            "description": "Error envelope returned on non-validation failures.",
+            "properties": {
+              "type": {
+                "type": "string",
+                "title": "Type",
+                "description": "Broad error family, e.g. invalid_request_error or quoting_error."
               },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message"
-          },
-          "fee": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MinSizeFee"
+              "code": {
+                "type": "string",
+                "title": "Code",
+                "description": "Stable machine-readable identifier for the specific failure, e.g. product_unavailable when no eligible LP can quote the pair."
               },
-              {
-                "type": "null"
+              "message": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Message",
+                "description": "Human-readable explanation of what went wrong."
+              },
+              "param": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Param",
+                "description": "Request field the failure points at, when one applies."
+              },
+              "rejectionClass": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RejectionClass"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Typed class of the rejection, when the failure is one of the classified quote/order rejections - see RejectionClass for the expiry, integrity, eligibility, and productUnavailable semantics."
+              },
+              "details": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MinimumSizeNote"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Structured context for size-related rejections - the smallest viable trade when the request falls under the corridor floor."
               }
-            ]
+            },
+            "required": ["type", "code", "message"]
           },
           "requestId": {
             "anyOf": [
@@ -741,110 +984,104 @@
                 "type": "null"
               }
             ],
-            "title": "Requestid"
+            "title": "Requestid",
+            "description": "Correlation identifier to quote when contacting support."
           }
         },
         "type": "object",
-        "required": [
-          "errorCode"
-        ],
+        "required": ["error"],
         "title": "ApiError"
       },
-      "ApprovalType": {
+      "FundingLockType": {
         "type": "string",
-        "enum": [
-          "Standard",
-          "Permit",
-          "Permit2"
-        ],
-        "title": "ApprovalType"
+        "enum": ["Permit2", "EIP-3009", "ResourceLock"],
+        "title": "FundingLockType",
+        "description": "How the escrow pulls the input asset. The client never chooses it - preflight selects whatever the corridor and token support: Permit2 (one reusable allowance, then per-order authorization inside the signature), EIP-3009 (a transfer authorization carried entirely in the signed message, USDC-style), or ResourceLock (balance pre-deposited into the compact settler)."
       },
-      "AvailabilityResponse": {
-        "properties": {
-          "isAvailable": {
-            "type": "boolean",
-            "title": "Isavailable"
-          },
-          "canBuy": {
-            "type": "boolean",
-            "title": "Canbuy"
-          },
-          "canSell": {
-            "type": "boolean",
-            "title": "Cansell"
-          }
-        },
-        "type": "object",
-        "required": [
-          "isAvailable",
-          "canBuy",
-          "canSell"
-        ],
-        "title": "AvailabilityResponse"
+      "SolverStatus": {
+        "type": "string",
+        "enum": ["active", "standby", "offline"],
+        "title": "SolverStatus",
+        "description": "Roster state of a solver/LP. active - pricing now and included in quote fan-out; standby - eligible but temporarily not pricing (maintenance or inventory rebalancing); offline - unreachable or disabled, excluded from fan-out. Eligibility itself is decided upstream of this status: only counterparties that cleared the workspace's onboarding and compliance gates appear in the roster at all."
       },
-      "Body_post_order_v3_order_post": {
+      "OrderSubmitRequest": {
         "properties": {
-          "quote_id": {
-            "type": "string",
-            "title": "Quote ID",
-            "description": "Id of the quote to use for the order"
+          "quoteResponse": {
+            "$ref": "#/components/schemas/QuoteCandidate",
+            "title": "Selected quote",
+            "description": "The firm quote you picked, passed back exactly as it appeared in the quotes response. The integrityChecksum binds your submission to those terms; any mutation is rejected."
           },
           "signature": {
             "type": "string",
             "title": "Signature",
-            "description": "Taker's signature produced from the toSign field in the quote"
+            "description": "Hex-encoded EIP-712 signature over the escrow-v0 payload from quote.order (equivalently, the typedData on preflight's orderSignature action)."
           },
-          "sign_scheme": {
+          "signScheme": {
             "type": "string",
             "title": "Sign Scheme",
-            "description": "Sign scheme used to produce the signature",
+            "description": "How the signature verifies: EIP712 for standard ECDSA from an EOA (the default), or EIP1271 for smart-contract wallets validated through isValidSignature on-chain.",
             "default": "EIP712"
           },
-          "permit2": {
+          "permit2Lock": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Permit2"
+                "$ref": "#/components/schemas/Permit2Lock"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Permit2 info",
-            "description": "Permit2 info for taker"
+            "title": "Permit2 lock",
+            "description": "Inline Permit2 material - include it only when the preflight plan asked for it; a standing Permit2 grant makes this unnecessary."
           },
-          "permit": {
+          "eip3009Authorization": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Permit"
+                "$ref": "#/components/schemas/Eip3009Authorization"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Permit info",
-            "description": "Permit info for taker"
+            "title": "EIP-3009 authorization",
+            "description": "Signed transfer authorization for EIP-3009 tokens (USDC-style) when preflight selected that lock. Resource-lock quotes need no inline material - the balance is already deposited."
           }
         },
         "type": "object",
-        "required": [
-          "quote_id",
-          "signature"
-        ],
-        "title": "Body_post_order_v3_order_post"
+        "required": ["quoteResponse", "signature"],
+        "title": "OrderSubmitRequest"
       },
-      "ExpiryType": {
-        "type": "string",
-        "enum": [
-          "standard",
-          "short"
-        ],
-        "title": "ExpiryType"
+      "ValidityWindow": {
+        "properties": {
+          "validUntil": {
+            "type": "integer",
+            "title": "Valid Until",
+            "description": "Unix second at which the quote stops being executable - sign and submit before it."
+          },
+          "minValidUntil": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Valid Until",
+            "description": "Floor the request asked for via minValidUntil; quotes expiring sooner were filtered out before ranking. Null when the request set no floor."
+          }
+        },
+        "type": "object",
+        "required": ["validUntil"],
+        "title": "ValidityWindow",
+        "description": "Firmness window of a quote - the span in which it is executable exactly as signed. This replaces the older fixed expiry tiers: each quote states its own window, and integrations that need more runway raise the floor per request instead of choosing a tier."
       },
-      "GasFeeResponse": {
+      "GasEstimate": {
         "properties": {
           "native": {
             "type": "string",
-            "title": "Native"
+            "title": "Native",
+            "description": "Estimated gas cost in the settlement chain's native currency, base units. Zero on apiSubmit quotes, where TetraFi carries the gas."
           },
           "usd": {
             "anyOf": [
@@ -855,14 +1092,13 @@
                 "type": "null"
               }
             ],
-            "title": "Usd"
+            "title": "Usd",
+            "description": "The same estimate in US dollars, when a price is available."
           }
         },
         "type": "object",
-        "required": [
-          "native"
-        ],
-        "title": "GasFeeResponse"
+        "required": ["native"],
+        "title": "GasEstimate"
       },
       "HTTPValidationError": {
         "properties": {
@@ -877,463 +1113,31 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "MakerSummaryResponse": {
+      "SolverInfo": {
         "properties": {
-          "num_trades": {
-            "type": "integer",
-            "title": "Num Trades"
-          },
-          "fee_currency": {
+          "id": {
             "type": "string",
-            "title": "Fee Currency"
+            "title": "Id",
+            "description": "Stable roster identifier - the same string that appears as solverId on every quote this counterparty returns."
           },
-          "total_fees_native": {
-            "type": "string",
-            "title": "Total Fees Native"
+          "status": {
+            "$ref": "#/components/schemas/SolverStatus",
+            "description": "Whether the counterparty is pricing right now."
           },
-          "total_surplus_tetrafi": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer",
-                "enum": [
-                  0
-                ],
-                "const": 0
-              }
-            ],
-            "title": "Total Surplus TetraFi"
-          },
-          "total_surplus_user": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer",
-                "enum": [
-                  0
-                ],
-                "const": 0
-              }
-            ],
-            "title": "Total Surplus User"
-          },
-          "first_trade_ts": {
+          "kind": {
             "anyOf": [
               {
                 "type": "string",
-                "format": "date-time"
+                "enum": ["lp", "solver"]
               },
               {
                 "type": "null"
               }
             ],
-            "title": "First Trade Ts"
+            "title": "Kind",
+            "description": "What stands behind the id: lp for a market-making liquidity provider quoting from its own inventory, solver for an execution agent that fills intents."
           },
-          "last_trade_ts": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Trade Ts"
-          }
-        },
-        "type": "object",
-        "required": [
-          "num_trades",
-          "fee_currency",
-          "total_fees_native",
-          "total_surplus_tetrafi",
-          "total_surplus_user",
-          "first_trade_ts",
-          "last_trade_ts"
-        ],
-        "title": "MakerSummaryResponse"
-      },
-      "MakerTrade": {
-        "type": "object",
-        "title": "MakerTrade"
-      },
-      "MinSizeFee": {
-        "properties": {
-          "ether": {
-            "type": "number",
-            "title": "Ether"
-          },
-          "usd": {
-            "type": "number",
-            "title": "Usd"
-          }
-        },
-        "type": "object",
-        "required": [
-          "ether",
-          "usd"
-        ],
-        "title": "MinSizeFee"
-      },
-      "MultiOrderWithHooks": {
-        "properties": {
-          "partner_id": {
-            "type": "integer",
-            "title": "Partner Id"
-          },
-          "expiry": {
-            "type": "integer",
-            "title": "Expiry"
-          },
-          "taker_address": {
-            "type": "string",
-            "title": "Taker Address"
-          },
-          "maker_address": {
-            "type": "string",
-            "title": "Maker Address"
-          },
-          "maker_nonce": {
-            "type": "string",
-            "title": "Maker Nonce"
-          },
-          "taker_tokens": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Taker Tokens"
-          },
-          "maker_tokens": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Maker Tokens"
-          },
-          "taker_amounts": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Taker Amounts"
-          },
-          "maker_amounts": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Maker Amounts"
-          },
-          "receiver": {
-            "type": "string",
-            "title": "Receiver"
-          },
-          "commands": {
-            "type": "string",
-            "title": "Commands"
-          },
-          "hooksHash": {
-            "type": "string",
-            "title": "Hookshash"
-          }
-        },
-        "type": "object",
-        "required": [
-          "partner_id",
-          "expiry",
-          "taker_address",
-          "maker_address",
-          "maker_nonce",
-          "taker_tokens",
-          "maker_tokens",
-          "taker_amounts",
-          "maker_amounts",
-          "receiver",
-          "commands",
-          "hooksHash"
-        ],
-        "title": "MultiOrderWithHooks"
-      },
-      "OrderApiResponse": {
-        "properties": {
-          "txHash": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Txhash"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "expiry": {
-            "type": "integer",
-            "title": "Expiry"
-          }
-        },
-        "type": "object",
-        "required": [
-          "status",
-          "expiry"
-        ],
-        "title": "OrderApiResponse",
-        "examples": [
-          {
-            "expiry": 1692811212,
-            "status": "Success",
-            "txHash": "0x41d4d98fca62eeb0a86da4765bae213fe74203c33612e59a48c69555d66abeca"
-          }
-        ]
-      },
-      "OrderApiStatus": {
-        "type": "string",
-        "enum": [
-          "Pending",
-          "Success",
-          "Settled",
-          "Confirmed",
-          "Failed"
-        ],
-        "title": "OrderApiStatus"
-      },
-      "OrderStatusResponse": {
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/OrderApiStatus"
-          },
-          "txHash": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Txhash"
-          },
-          "amounts": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Amounts"
-          },
-          "surplus": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Surplus"
-          },
-          "eventId": {
-            "type": "string",
-            "title": "Eventid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "status",
-          "eventId"
-        ],
-        "title": "OrderStatusResponse"
-      },
-      "PMMExtensions": {
-        "properties": {
-          "color": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Color"
-          },
-          "color_light": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Color Light"
-          },
-          "displayDecimals": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Displaydecimals"
-          },
-          "preview": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preview"
-          },
-          "added": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Added"
-          },
-          "availability": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AvailabilityResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "title": "PMMExtensions"
-      },
-      "PMMTokenList": {
-        "properties": {
-          "keywords": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Keywords"
-          },
-          "logoURI": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Logouri"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "$ref": "#/components/schemas/Tag"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
-          },
-          "timestamp": {
-            "type": "string",
-            "title": "Timestamp"
-          },
-          "tokens": {
-            "items": {
-              "$ref": "#/components/schemas/PMMTokenListToken"
-            },
-            "type": "array",
-            "title": "Tokens"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Version"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "keywords",
-          "name",
-          "timestamp",
-          "tokens"
-        ],
-        "title": "PMMTokenList"
-      },
-      "PMMTokenListToken": {
-        "properties": {
-          "chainId": {
-            "type": "integer",
-            "title": "Chainid"
-          },
-          "address": {
-            "type": "string",
-            "title": "Address"
-          },
-          "decimals": {
-            "type": "integer",
-            "title": "Decimals"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "symbol": {
-            "type": "string",
-            "title": "Symbol"
-          },
-          "logoURI": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Logouri"
-          },
-          "tags": {
+          "corridors": {
             "anyOf": [
               {
                 "items": {
@@ -1345,188 +1149,184 @@
                 "type": "null"
               }
             ],
-            "title": "Tags"
+            "title": "Corridors",
+            "description": "Directional corridor slugs this counterparty quotes, e.g. optimism-base."
           },
-          "extensions": {
+          "firstSeenAt": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PMMExtensions"
+                "type": "string",
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "First Seen At",
+            "description": "When the counterparty first joined the workspace roster."
+          },
+          "lastQuoteAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Quote At",
+            "description": "Most recent time it returned a firm quote to this workspace."
+          },
+          "eligibilityNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Note",
+            "description": "Why quoting is currently limited, when it is - e.g. inventory rebalancing or a corridor gate. Null when the counterparty is fully eligible."
           }
         },
         "type": "object",
-        "required": [
-          "chainId",
-          "address",
-          "decimals",
-          "name",
-          "symbol"
-        ],
-        "title": "PMMTokenListToken"
+        "required": ["id", "status"],
+        "title": "SolverInfo",
+        "description": "One solver or LP the workspace can reach. Quote requests fan out only to listed entries, so this roster is the complete universe of possible counterparties for your firm quotes."
       },
-      "Permit": {
+      "SolversResponse": {
         "properties": {
-          "signature": {
-            "type": "string",
-            "title": "Signature"
-          },
-          "approvals_deadline": {
-            "type": "integer",
-            "title": "Approvals Deadline"
-          }
-        },
-        "type": "object",
-        "required": [
-          "signature",
-          "approvals_deadline"
-        ],
-        "title": "Permit"
-      },
-      "Permit2": {
-        "properties": {
-          "signature": {
-            "type": "string",
-            "title": "Signature"
-          },
-          "approvals_deadline": {
-            "type": "integer",
-            "title": "Approvals Deadline"
-          },
-          "token_addresses": {
+          "solvers": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SolverInfo"
             },
             "type": "array",
-            "title": "Token Addresses"
+            "title": "Solvers",
+            "description": "The workspace's counterparty roster - every solver and LP that quote requests can reach."
+          }
+        },
+        "type": "object",
+        "required": ["solvers"],
+        "title": "SolversResponse"
+      },
+      "MinimumSizeNote": {
+        "properties": {
+          "native": {
+            "type": "number",
+            "title": "Native",
+            "description": "Smallest viable trade size, expressed in the input asset's own units."
           },
-          "token_nonces": {
+          "usd": {
+            "type": "number",
+            "title": "Usd",
+            "description": "The same floor expressed in US dollars."
+          }
+        },
+        "type": "object",
+        "required": ["native", "usd"],
+        "title": "MinimumSizeNote"
+      },
+      "SplitFillDetail": {
+        "properties": {
+          "fills": {
             "items": {
-              "type": "integer"
+              "type": "object",
+              "title": "SplitFillSlice",
+              "properties": {
+                "solverId": {
+                  "type": "string",
+                  "title": "Solverid",
+                  "description": "LP taking this slice of the order."
+                },
+                "portionBps": {
+                  "type": "integer",
+                  "title": "Portionbps",
+                  "description": "Slice of the total input covered by this LP, in basis points of the order size."
+                },
+                "outputAmount": {
+                  "type": "string",
+                  "title": "Outputamount",
+                  "description": "Base-unit output this slice delivers."
+                }
+              },
+              "required": ["solverId", "portionBps"]
             },
             "type": "array",
-            "title": "Token Nonces"
+            "title": "Fills",
+            "description": "Ordered slices, one per participating LP."
+          },
+          "executionModel": {
+            "type": "string",
+            "title": "Executionmodel",
+            "description": "How the slices settle - atomic: every slice delivers inside the same escrow order or the whole order refunds."
           }
         },
         "type": "object",
-        "required": [
-          "signature",
-          "approvals_deadline",
-          "token_addresses",
-          "token_nonces"
-        ],
-        "title": "Permit2"
+        "required": ["fills"],
+        "title": "SplitFillDetail",
+        "description": "Breakdown present when several LPs jointly fill one order. The taker experience does not change: a single escrow-v0 payload, a single signature, and one delivery-or-refund guarantee covering every slice."
       },
-      "PriceWarning": {
+      "Order": {
         "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code"
-          },
-          "message": {
+          "id": {
             "type": "string",
-            "title": "Message"
-          }
-        },
-        "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
-        "title": "PriceWarning"
-      },
-      "QuoteApiResponse": {
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "title": "Requestid"
-          },
-          "type": {
-            "type": "string",
-            "title": "Type"
+            "title": "Id",
+            "description": "Order identifier - poll GET /orders/{id} with it or subscribe to the orders:{id} WebSocket topic."
           },
           "status": {
-            "type": "string",
-            "title": "Status"
+            "$ref": "#/components/schemas/OrderStatus",
+            "description": "State at acceptance time - normally pending."
           },
           "quoteId": {
             "type": "string",
-            "title": "Quoteid"
+            "title": "Quoteid",
+            "description": "The firm quote this order executes."
           },
-          "chainId": {
-            "type": "integer",
-            "title": "Chainid"
-          },
-          "approvalType": {
-            "$ref": "#/components/schemas/ApprovalType"
-          },
-          "nativeToken": {
+          "createdAt": {
             "type": "string",
-            "title": "Nativetoken"
+            "format": "date-time",
+            "title": "Createdat",
+            "description": "When the API accepted the submission."
+          }
+        },
+        "type": "object",
+        "required": ["id", "status", "quoteId", "createdAt"],
+        "title": "Order",
+        "examples": [
+          {
+            "id": "ord_01J2M9C1D3F5H7K9M1P3R5T7V9",
+            "status": "pending",
+            "quoteId": "q_01J2M8W3N9RQK5T7V1X4Z6B8D0",
+            "createdAt": "2026-07-20T14:02:11Z"
+          }
+        ]
+      },
+      "OrderStatus": {
+        "type": "string",
+        "enum": ["pending", "settled", "failed"],
+        "title": "OrderStatus",
+        "description": "Order lifecycle state, lowercase. pending - accepted and progressing; settled - delivery proven and funds released (terminal); failed - the order could not settle inside its window, so the escrowed input follows the refund path (terminal, never lost funds). Each transition is also pushed over WebSocket as order.created, order.settled, or order.failed on the orders:{id} topic."
+      },
+      "OrderStatusResponse": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
           },
-          "taker": {
-            "type": "string",
-            "title": "Taker"
-          },
-          "receiver": {
-            "type": "string",
-            "title": "Receiver"
-          },
-          "expiry": {
-            "type": "integer",
-            "title": "Expiry"
-          },
-          "slippage": {
-            "type": "number",
-            "title": "Slippage"
-          },
-          "gasFee": {
-            "$ref": "#/components/schemas/GasFeeResponse"
-          },
-          "buyTokens": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ResponseBuyToken"
-            },
-            "type": "object",
-            "title": "Buytokens"
-          },
-          "sellTokens": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ResponseSellToken"
-            },
-            "type": "object",
-            "title": "Selltokens"
-          },
-          "settlementAddress": {
-            "type": "string",
-            "title": "Settlementaddress"
-          },
-          "approvalTarget": {
-            "type": "string",
-            "title": "Approvaltarget"
-          },
-          "requiredSignatures": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Requiredsignatures"
-          },
-          "priceImpact": {
+          "txHash": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Priceimpact"
+            "title": "Txhash",
+            "description": "Settlement transaction hash - present once a settlement transaction has been broadcast."
           },
-          "partnerFee": {
+          "settledAmounts": {
             "anyOf": [
               {
                 "additionalProperties": {
@@ -1538,103 +1338,81 @@
                 "type": "null"
               }
             ],
-            "title": "Partnerfee"
+            "title": "Settledamounts",
+            "description": "Base-unit amounts actually delivered, keyed by asset, populated once the order settles."
           },
-          "protocolFee": {
+          "settledAt": {
             "anyOf": [
               {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
+                "type": "string",
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Protocolfee"
+            "title": "Settledat",
+            "description": "When delivery was proven on-chain, on settled orders."
           },
-          "warnings": {
+          "failure": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "title": "Code",
+                    "description": "Machine-readable failure reason."
+                  },
+                  "message": {
+                    "type": "string",
+                    "title": "Message",
+                    "description": "Human-readable failure explanation."
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure",
+            "description": "Populated on failed orders. The escrowed input follows the refund path - a failure is never lost funds."
+          }
+        },
+        "type": "object",
+        "required": ["status"],
+        "title": "OrderStatusResponse"
+      },
+      "RejectionClass": {
+        "type": "string",
+        "enum": ["expiry", "integrity", "eligibility", "productUnavailable"],
+        "title": "RejectionClass",
+        "description": "Typed class of a rejected quote request or order submission. expiry - the quote's firmness window closed before the order arrived; collect fresh quotes and retry. integrity - the submitted candidate no longer matches its integrityChecksum, meaning the terms drifted between quoting and submission. eligibility - the workspace, wallet, or corridor fails a gate (compliance, roster membership, or size floor). productUnavailable - no eligible solver/LP can currently quote the requested pair; POST /quotes answers with this class instead of silently substituting a different liquidity source."
+      },
+      "PairsResponse": {
+        "properties": {
+          "pairs": {
             "items": {
-              "$ref": "#/components/schemas/PriceWarning"
+              "$ref": "#/components/schemas/Pair"
             },
             "type": "array",
-            "title": "Warnings",
-            "default": []
+            "title": "Pairs",
+            "description": "Every directional pair at least one workspace-eligible solver/LP currently quotes."
           },
-          "info": {
+          "asOf": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Info"
+            "title": "As Of",
+            "description": "When this roster snapshot was computed. Coverage moves with LP inventory and listings - refresh at least daily rather than pinning it."
           },
-          "tx": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TxData"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "solana_tx": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Solana Tx"
-          },
-          "blockhash": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Blockhash"
-          },
-          "makers": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Makers"
-          },
-          "toSign": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SingleOrderToSign"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tosign"
-          },
-          "onchainOrderType": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Onchainordertype"
-          },
-          "partialFillOffset": {
+          "totalPairs": {
             "anyOf": [
               {
                 "type": "integer"
@@ -1643,97 +1421,263 @@
                 "type": "null"
               }
             ],
-            "title": "Partialfilloffset"
-          },
-          "guaranteeBoost": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Guaranteeboost"
+            "title": "Total Pairs",
+            "description": "Number of pair entries returned."
           }
         },
         "type": "object",
-        "required": [
-          "requestId",
-          "type",
-          "status",
-          "quoteId",
-          "chainId",
-          "approvalType",
-          "nativeToken",
-          "taker",
-          "receiver",
-          "expiry",
-          "slippage",
-          "gasFee",
-          "buyTokens",
-          "sellTokens",
-          "settlementAddress",
-          "approvalTarget",
-          "requiredSignatures",
-          "makers",
-          "toSign",
-          "onchainOrderType"
-        ],
-        "title": "QuoteApiResponse"
+        "required": ["pairs"],
+        "title": "PairsResponse"
       },
-      "ResponseBuyToken": {
+      "Pair": {
         "properties": {
-          "amount": {
+          "input": {
+            "$ref": "#/components/schemas/PairAsset",
+            "description": "Asset the taker supplies - the exact chainId and contract address to reference in intent.inputs."
+          },
+          "output": {
+            "$ref": "#/components/schemas/PairAsset",
+            "description": "Asset delivered to the receiver - reference it in intent.outputs."
+          },
+          "corridor": {
             "type": "string",
-            "title": "Amount"
+            "title": "Corridor",
+            "description": "Directional route slug, e.g. optimism-base - the cross-chain analog of a trading-pair name. The reverse direction is listed as its own pair."
+          }
+        },
+        "type": "object",
+        "required": ["input", "output", "corridor"],
+        "title": "Pair",
+        "description": "One directional tradable pair. input and output name exact assets; use their chainId + address verbatim in quote intents."
+      },
+      "Permit2Lock": {
+        "properties": {
+          "signature": {
+            "type": "string",
+            "title": "Signature",
+            "description": "Signed Permit2 permit authorizing the escrow to pull the input token."
           },
-          "decimals": {
+          "deadline": {
             "type": "integer",
-            "title": "Decimals"
+            "title": "Deadline",
+            "description": "Unix timestamp after which the permit is void."
+          }
+        },
+        "type": "object",
+        "required": ["signature", "deadline"],
+        "title": "Permit2Lock",
+        "description": "Permit2 funding lock: one reusable approval of the Permit2 contract, after which every order authorizes its own pull inside the signature."
+      },
+      "Eip3009Authorization": {
+        "properties": {
+          "signature": {
+            "type": "string",
+            "title": "Signature",
+            "description": "Signed transferWithAuthorization message."
           },
-          "priceUsd": {
+          "validAfter": {
+            "type": "integer",
+            "title": "Valid After",
+            "description": "Unix timestamp from which the authorization becomes usable."
+          },
+          "validBefore": {
+            "type": "integer",
+            "title": "Valid Before",
+            "description": "Unix timestamp at which the authorization expires."
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce",
+            "description": "Random 32-byte nonce making the authorization single-use."
+          }
+        },
+        "type": "object",
+        "required": ["signature", "validAfter", "validBefore", "nonce"],
+        "title": "Eip3009Authorization",
+        "description": "EIP-3009 funding lock for USDC-style tokens: the transfer is authorized entirely inside the signed message, so no approval transaction ever exists."
+      },
+      "PriceWarning": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "Numeric warning identifier."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "What the warning flags - unusual pricing, thin corridor inventory, or similar."
+          }
+        },
+        "type": "object",
+        "required": ["code", "message"],
+        "title": "PriceWarning",
+        "description": "Non-blocking warning attached to a quote's warnings array so unusual conditions surface before you select it."
+      },
+      "QuoteCandidate": {
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "title": "Quoteid",
+            "description": "Identifier that follows this quote through preflight, submission, and status tracking."
+          },
+          "solverId": {
+            "type": "string",
+            "title": "Solverid",
+            "description": "The LP or solver standing behind the commitment - a roster id from GET /solvers."
+          },
+          "executionMode": {
+            "type": "string",
+            "enum": ["apiSubmit", "walletBroadcast"],
+            "title": "Executionmode",
+            "description": "Who puts the settlement on-chain: apiSubmit - TetraFi submits after you sign and carries the gas; walletBroadcast - you broadcast the prepared transaction from your own RPC. This is a per-quote property; there is no request-level gasless flag."
+          },
+          "order": {
             "anyOf": [
               {
-                "type": "number"
+                "$ref": "#/components/schemas/StandardOrder"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Priceusd"
+            "description": "The escrow-v0 payload to sign, exactly as returned. Null only when the quote's signable material is delivered through preflight instead."
           },
-          "symbol": {
+          "validUntil": {
+            "type": "integer",
+            "title": "Validuntil",
+            "description": "Unix second the firmness window closes; the quote expires at this moment - sign and submit before it."
+          },
+          "eta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta",
+            "description": "Expected seconds from submission to settlement."
+          },
+          "validity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValidityWindow"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Structured firmness window - validUntil restated together with the request's minValidUntil floor, for integrations that track expiries explicitly."
+          },
+          "preview": {
+            "type": "object",
+            "title": "Preview",
+            "description": "Human-readable trade terms - what the taker escrows and what the escrow enforces on delivery.",
+            "properties": {
+              "inputs": {
+                "items": {
+                  "$ref": "#/components/schemas/PreviewInput"
+                },
+                "type": "array",
+                "title": "Inputs"
+              },
+              "outputs": {
+                "items": {
+                  "$ref": "#/components/schemas/PreviewOutput"
+                },
+                "type": "array",
+                "title": "Outputs"
+              }
+            },
+            "required": ["inputs", "outputs"]
+          },
+          "integrityChecksum": {
             "type": "string",
-            "title": "Symbol"
+            "title": "Integritychecksum",
+            "description": "Tamper-evidence binding the terms you were shown to the terms you submit; any drift between the two is rejected as an integrity failure."
+          },
+          "routingPath": {
+            "type": "string",
+            "title": "Routingpath",
+            "description": "Always direct on RFQ quotes - a single escrow fill with no planner legs. Split fills remain direct and are described in splitFill."
+          },
+          "platformFeeBps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platformfeebps",
+            "description": "Platform fee applied to this quote, in basis points. Monetization is configured on the workspace, not passed per request."
+          },
+          "lpSpreadBps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lpspreadbps",
+            "description": "Spread the quoting LP earns on this trade, in basis points."
+          },
+          "splitFill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SplitFillDetail"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Splitfill",
+            "description": "Populated when several LPs jointly fill the size inside one order; null on single-counterparty quotes. Either way there is one payload, one signature, one guarantee."
+          },
+          "gas": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GasEstimate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gas context for the quote; zero-native on apiSubmit, where TetraFi carries the cost."
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/PriceWarning"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Non-blocking warnings attached to the quote.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": ["quoteId", "solverId", "executionMode", "validUntil", "preview", "integrityChecksum"],
+        "title": "QuoteCandidate",
+        "description": "One firm, escrow-backed quote from a competing solver or LP. Settlement and approval contract addresses are deliberately absent here - preflight's nextActions carry the exact contracts for the quote you pick, so integrations never hardcode them."
+      },
+      "PreviewOutput": {
+        "properties": {
+          "asset": {
+            "type": "string",
+            "title": "Asset",
+            "description": "Delivered asset in CAIP-19 form, e.g. eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913."
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount",
+            "description": "Base-unit delivery if the order settles exactly as quoted."
           },
           "minimumAmount": {
-            "type": "string",
-            "title": "Minimumamount"
-          },
-          "price": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price"
-          },
-          "priceBeforeFee": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pricebeforefee"
-          },
-          "amountBeforeFee": {
             "anyOf": [
               {
                 "type": "string"
@@ -1742,38 +1686,32 @@
                 "type": "null"
               }
             ],
-            "title": "Amountbeforefee"
+            "title": "Minimumamount",
+            "description": "Floor the escrow enforces on delivery. On firm RFQ quotes this equals amount - the quote is the commitment, which is why no slippage parameter exists."
           },
-          "deltaFromExpected": {
+          "decimals": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Deltafromexpected"
-          }
-        },
-        "type": "object",
-        "required": [
-          "amount",
-          "decimals",
-          "symbol",
-          "minimumAmount"
-        ],
-        "title": "ResponseBuyToken"
-      },
-      "ResponseSellToken": {
-        "properties": {
-          "amount": {
-            "type": "string",
-            "title": "Amount"
+            "title": "Decimals",
+            "description": "Token decimals, for converting base units to a display amount."
           },
-          "decimals": {
-            "type": "integer",
-            "title": "Decimals"
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol",
+            "description": "Token ticker symbol."
           },
           "priceUsd": {
             "anyOf": [
@@ -1784,310 +1722,370 @@
                 "type": "null"
               }
             ],
-            "title": "Priceusd"
+            "title": "Priceusd",
+            "description": "Reference US-dollar price per whole token, when available."
+          },
+          "receiver": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver",
+            "description": "Wallet this output is delivered to."
+          },
+          "amountBeforeFees": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amountbeforefees",
+            "description": "Delivery before the platform fee and LP spread are taken, for fee transparency."
+          },
+          "deltaFromMid": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deltafrommid",
+            "description": "Relative distance of the quoted price from a reference mid; negative means worse than mid. Useful for best-execution checks across competing quotes."
+          }
+        },
+        "type": "object",
+        "required": ["asset", "amount"],
+        "title": "PreviewOutput"
+      },
+      "PreviewInput": {
+        "properties": {
+          "asset": {
+            "type": "string",
+            "title": "Asset",
+            "description": "Escrowed asset in CAIP-19 form, e.g. eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85."
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount",
+            "description": "Base-unit amount the taker escrows."
+          },
+          "decimals": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals",
+            "description": "Token decimals, for converting base units to a display amount."
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol",
+            "description": "Token ticker symbol."
+          },
+          "priceUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priceusd",
+            "description": "Reference US-dollar price per whole token, when available."
+          }
+        },
+        "type": "object",
+        "required": ["asset", "amount"],
+        "title": "PreviewInput"
+      },
+      "StandardOrder": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Order payload type; escrow-v0 for the current settlement contract."
+          },
+          "payload": {
+            "type": "object",
+            "title": "Payload",
+            "description": "Complete EIP-712 envelope - domain, types, and the StandardOrder message - delivered verbatim by the API. Treat it as opaque: sign exactly what arrives in quote.order (or the typedData on preflight's orderSignature action) and never assemble or edit it locally. The signed terms name the parties, the inputs you escrow, the minimum outputs that must be delivered, an expiry after which the unfilled order refunds, and a domain-scoped nonce; the integrityChecksum binds them to your submission."
+          }
+        },
+        "type": "object",
+        "required": ["type", "payload"],
+        "title": "StandardOrder",
+        "description": "The escrow-v0 order payload a firm quote asks you to sign. One envelope covers single-counterparty and split fills alike - one signature either way. Anything you would want different (receiver, amounts, expiry) changes at quote time, never at signing time."
+      },
+      "PreflightNextAction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["evmTransaction", "signTypedData", "postOrder", "linkWallet", "fundLpAccount"],
+            "title": "Type",
+            "description": "What kind of step this is: a transaction to broadcast, typed data to sign, an order to POST, a wallet to link, or an LP account to fund."
+          },
+          "purpose": {
+            "type": "string",
+            "enum": ["tokenApproval", "bridgeDeposit", "orderSignature", "orderSubmit", "walletLink", "tradeLedgerAuthorization", "lpFunding"],
+            "title": "Purpose",
+            "description": "Why the step exists: a token approval to mine, a deposit step, the order payload to sign, the submission itself, a wallet link, a trade-ledger authorization, or LP account funding."
+          },
+          "actor": {
+            "type": "string",
+            "enum": ["userWallet", "tetrafiApi"],
+            "title": "Actor",
+            "description": "Who performs the step: userWallet means your side signs or broadcasts; tetrafiApi means it goes through the API under your key."
+          },
+          "frequency": {
+            "type": "string",
+            "enum": ["perTrade", "reusableSetup"],
+            "title": "Frequency",
+            "description": "perTrade steps recur on every order; reusableSetup steps - like a bounded Permit2 grant - persist across trades and stop appearing once completed."
+          },
+          "chainId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chainid",
+            "description": "Chain the step touches, when it is chain-bound."
+          },
+          "tx": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreflightEvmTransaction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ready-to-broadcast transaction for evmTransaction steps."
+          },
+          "typedData": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StandardOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "EIP-712 envelope for signTypedData steps - sign it verbatim."
+          },
+          "submitTo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitto",
+            "description": "Where the resulting artifact goes, e.g. /orders for a signed payload."
+          },
+          "after": {
+            "items": {
+              "type": "string",
+              "enum": ["waitForTransactionMined", "rerunPreflight", "postOrder"]
+            },
+            "type": "array",
+            "title": "After",
+            "description": "Follow-ups once the step completes: wait for the transaction to mine, run preflight again, or post the order.",
+            "default": []
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "Free-form human-readable context for the step."
+          }
+        },
+        "type": "object",
+        "required": ["type", "purpose", "actor", "frequency"],
+        "title": "PreflightNextAction",
+        "description": "One step in the ordered execution plan preflight returns. Execute the actions in order; together they cover everything between quote selection and a submitted order."
+      },
+      "OrderPreflightResponse": {
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "title": "Quoteid",
+            "description": "Quote the plan applies to."
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "description": "True when nothing stands between you and submission - the remaining nextActions are just the signature and the POST."
+          },
+          "fundingLock": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FundingLockType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lock mechanism preflight selected for pulling the input - your code stays the same whichever it picks."
+          },
+          "lockDetails": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Permit2Lock"
+              },
+              {
+                "$ref": "#/components/schemas/Eip3009Authorization"
+              },
+              {
+                "$ref": "#/components/schemas/ResourceLock"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lockdetails",
+            "description": "Parameters of the selected funding lock, when it needs client-side material."
+          },
+          "nextActions": {
+            "items": {
+              "$ref": "#/components/schemas/PreflightNextAction"
+            },
+            "type": "array",
+            "title": "Nextactions",
+            "description": "Ordered execution plan; empty when the quote is immediately submittable."
+          }
+        },
+        "type": "object",
+        "required": ["quoteId", "ready", "nextActions"],
+        "title": "OrderPreflightResponse"
+      },
+      "PairAsset": {
+        "properties": {
+          "chainId": {
+            "type": "integer",
+            "title": "Chainid",
+            "description": "Network the asset lives on, e.g. 10 for Optimism or 8453 for Base."
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "Token contract address - copy it verbatim into your intent; never substitute a wrapped or bridged variant."
           },
           "symbol": {
             "type": "string",
-            "title": "Symbol"
-          },
-          "price": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price"
-          },
-          "priceBeforeFee": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pricebeforefee"
-          }
-        },
-        "type": "object",
-        "required": [
-          "amount",
-          "decimals",
-          "symbol"
-        ],
-        "title": "ResponseSellToken"
-      },
-      "SingleOrderToSign": {
-        "properties": {
-          "partner_id": {
-            "type": "integer",
-            "title": "Partner Id"
-          },
-          "expiry": {
-            "type": "integer",
-            "title": "Expiry"
-          },
-          "taker_address": {
-            "type": "string",
-            "title": "Taker Address"
-          },
-          "maker_address": {
-            "type": "string",
-            "title": "Maker Address"
-          },
-          "maker_nonce": {
-            "type": "string",
-            "title": "Maker Nonce"
-          },
-          "taker_token": {
-            "type": "string",
-            "title": "Taker Token"
-          },
-          "maker_token": {
-            "type": "string",
-            "title": "Maker Token"
-          },
-          "taker_amount": {
-            "type": "string",
-            "title": "Taker Amount"
-          },
-          "maker_amount": {
-            "type": "string",
-            "title": "Maker Amount"
-          },
-          "receiver": {
-            "type": "string",
-            "title": "Receiver"
-          },
-          "packed_commands": {
-            "type": "string",
-            "title": "Packed Commands"
-          }
-        },
-        "type": "object",
-        "required": [
-          "partner_id",
-          "expiry",
-          "taker_address",
-          "maker_address",
-          "maker_nonce",
-          "taker_token",
-          "maker_token",
-          "taker_amount",
-          "maker_amount",
-          "receiver",
-          "packed_commands"
-        ],
-        "title": "SingleOrderToSign"
-      },
-      "SingleOrderWithHooks": {
-        "properties": {
-          "partner_id": {
-            "type": "integer",
-            "title": "Partner Id"
-          },
-          "expiry": {
-            "type": "integer",
-            "title": "Expiry"
-          },
-          "taker_address": {
-            "type": "string",
-            "title": "Taker Address"
-          },
-          "maker_address": {
-            "type": "string",
-            "title": "Maker Address"
-          },
-          "maker_nonce": {
-            "type": "string",
-            "title": "Maker Nonce"
-          },
-          "taker_token": {
-            "type": "string",
-            "title": "Taker Token"
-          },
-          "maker_token": {
-            "type": "string",
-            "title": "Maker Token"
-          },
-          "taker_amount": {
-            "type": "string",
-            "title": "Taker Amount"
-          },
-          "maker_amount": {
-            "type": "string",
-            "title": "Maker Amount"
-          },
-          "receiver": {
-            "type": "string",
-            "title": "Receiver"
-          },
-          "packed_commands": {
-            "type": "string",
-            "title": "Packed Commands"
-          },
-          "hooksHash": {
-            "type": "string",
-            "title": "Hookshash"
-          }
-        },
-        "type": "object",
-        "required": [
-          "partner_id",
-          "expiry",
-          "taker_address",
-          "maker_address",
-          "maker_nonce",
-          "taker_token",
-          "maker_token",
-          "taker_amount",
-          "maker_amount",
-          "receiver",
-          "packed_commands",
-          "hooksHash"
-        ],
-        "title": "SingleOrderWithHooks"
-      },
-      "Tag": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "description"
-        ],
-        "title": "Tag"
-      },
-      "TokenApiResponse": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "ticker": {
-            "type": "string",
-            "title": "Ticker"
-          },
-          "availability": {
-            "$ref": "#/components/schemas/AvailabilityResponse"
-          },
-          "priceUsd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Priceusd"
-          },
-          "chainId": {
-            "type": "integer",
-            "title": "Chainid"
-          },
-          "contractAddress": {
-            "type": "string",
-            "title": "Contractaddress"
+            "title": "Symbol",
+            "description": "Ticker symbol, for display only - never use it as an identifier."
           },
           "decimals": {
             "type": "integer",
-            "title": "Decimals"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "ticker",
-          "availability",
-          "chainId",
-          "contractAddress",
-          "decimals"
-        ],
-        "title": "TokenApiResponse"
-      },
-      "TokenInfoApiResponse": {
-        "properties": {
-          "tokens": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/TokenApiResponse"
-            },
-            "type": "object",
-            "title": "Tokens"
-          }
-        },
-        "type": "object",
-        "required": [
-          "tokens"
-        ],
-        "title": "TokenInfoApiResponse",
-        "examples": [
-          {
-            "tokens": {
-              "CBETH": {
-                "availability": {
-                  "canBuy": false,
-                  "canSell": false,
-                  "isAvailable": false
-                },
-                "chainId": 137,
-                "contractAddress": "0x4b4327dB1600B8B1440163F667e199CEf35385f5",
-                "decimals": 18,
-                "name": "Coinbase Wrapped Staked ETH",
-                "ticker": "CBETH"
+            "title": "Decimals",
+            "description": "Base-unit scale: human amount times 10^decimals, so 1 USDC (6 decimals) is 1000000."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
               },
-              "SAND": {
-                "availability": {
-                  "canBuy": true,
-                  "canSell": true,
-                  "isAvailable": true
-                },
-                "chainId": 137,
-                "contractAddress": "0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683",
-                "decimals": 18,
-                "name": "The Sandbox",
-                "priceUsd": 0.33122916548934794,
-                "ticker": "SAND"
+              {
+                "type": "null"
               }
-            }
+            ],
+            "title": "Name",
+            "description": "Full display name of the token."
           }
-        ]
+        },
+        "type": "object",
+        "required": ["chainId", "address", "symbol", "decimals"],
+        "title": "PairAsset",
+        "description": "Exact asset on one side of a tradable pair. The chainId + address pair is the identity to reference in quote intents."
       },
-      "TokenPermissions": {
+      "QuotesResponse": {
+        "properties": {
+          "quotes": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteCandidate"
+            },
+            "type": "array",
+            "title": "Quotes",
+            "description": "Firm quotes ranked best price first. Every entry is a signed, executable commitment from a competing solver or LP - never a DEX, bridge, issuer, or indicative price. When no eligible counterparty can quote, the API returns a typed productUnavailable error instead of padding this list from another source."
+          },
+          "totalQuotes": {
+            "type": "integer",
+            "title": "Totalquotes",
+            "description": "Number of firm quotes returned."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the sweep went - the competition behind the response, at a glance."
+          }
+        },
+        "type": "object",
+        "required": ["quotes", "totalQuotes"],
+        "title": "QuotesResponse"
+      },
+      "ResourceLock": {
         "properties": {
           "token": {
             "type": "string",
-            "title": "Token"
+            "title": "Token",
+            "description": "Asset held in the compact settler."
           },
           "amount": {
             "type": "string",
-            "title": "Amount"
+            "title": "Amount",
+            "description": "Locked balance drawn per order, base units."
           }
         },
         "type": "object",
-        "required": [
-          "token",
-          "amount"
-        ],
-        "title": "TokenPermissions"
+        "required": ["token", "amount"],
+        "title": "ResourceLock",
+        "description": "Resource-lock funding: balance pre-deposited into the compact settler and drawn per order - no approval or in-signature authorization needed at trade time."
       },
-      "TxData": {
+      "PreflightEvmTransaction": {
         "properties": {
           "chainId": {
             "type": "integer",
-            "title": "Chainid"
+            "title": "Chainid",
+            "description": "Chain to broadcast on."
           },
           "from": {
             "anyOf": [
@@ -2098,19 +2096,23 @@
                 "type": "null"
               }
             ],
-            "title": "From"
+            "title": "From",
+            "description": "Sender - your wallet; fill it in when assembling the final transaction."
           },
           "to": {
             "type": "string",
-            "title": "To"
+            "title": "To",
+            "description": "Contract the transaction calls."
           },
           "value": {
             "type": "string",
-            "title": "Value"
+            "title": "Value",
+            "description": "Native value to attach, as prepared."
           },
           "data": {
             "type": "string",
-            "title": "Data"
+            "title": "Data",
+            "description": "Calldata - broadcast exactly as prepared."
           },
           "gas": {
             "anyOf": [
@@ -2121,7 +2123,8 @@
                 "type": "null"
               }
             ],
-            "title": "Gas"
+            "title": "Gas",
+            "description": "Suggested gas limit."
           },
           "gasPrice": {
             "anyOf": [
@@ -2132,11 +2135,13 @@
                 "type": "null"
               }
             ],
-            "title": "Gasprice"
+            "title": "Gasprice",
+            "description": "Suggested gas price; you may re-estimate from your own RPC."
           }
         },
         "type": "object",
-        "title": "TxData"
+        "required": ["to", "value", "data"],
+        "title": "PreflightEvmTransaction"
       },
       "ValidationError": {
         "properties": {
@@ -2164,48 +2169,45 @@
           }
         },
         "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
+        "required": ["loc", "msg", "type"],
         "title": "ValidationError"
       },
-      "Version": {
+      "QuoteMetadata": {
         "properties": {
-          "major": {
+          "totalDurationMs": {
             "type": "integer",
-            "title": "Major"
+            "title": "Totaldurationms",
+            "description": "Wall-clock milliseconds spent sweeping the solver roster."
           },
-          "minor": {
+          "solversQueried": {
             "type": "integer",
-            "title": "Minor"
+            "title": "Solversqueried",
+            "description": "Eligible solvers/LPs the request fanned out to."
           },
-          "patch": {
+          "solversSuccess": {
             "type": "integer",
-            "title": "Patch"
+            "title": "Solverssuccess",
+            "description": "How many answered with a usable firm quote before the deadline."
           }
         },
         "type": "object",
-        "required": [
-          "major",
-          "minor",
-          "patch"
-        ],
-        "title": "Version"
+        "required": ["totalDurationMs", "solversQueried", "solversSuccess"],
+        "title": "QuoteMetadata",
+        "description": "Aggregation stats for the quote sweep - the competition behind the response, at a glance."
       }
     },
     "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "API key passed as a Bearer token."
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Service-account API key (tfk_test_/tfk_live_)."
       }
     }
   },
   "security": [
     {
-      "bearerAuth": []
+      "apiKeyAuth": []
     }
   ]
 }

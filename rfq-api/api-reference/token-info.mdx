@@ -1,102 +1,97 @@
 ---
-title: "Token Info"
-description: "Returns detailed metadata for all tokens available for trading on TetraFi, including price, decimals, and display information. Use /tokenlist for the standard token list format."
-openapi: "GET /v3/token-info"
+title: "Solvers"
+description: "The counterparty roster your quote requests fan out to - every solver and LP that cleared the workspace's eligibility gates, with live pricing status, corridor coverage, and quoting history. An empty roster for a pair is what surfaces as a typed productUnavailable error on POST /quotes."
+openapi: "GET /solvers"
 mode: "wide"
 ---
 
 ## OpenAPI
 
-````yaml /specs/rfq-api.json get /v3/token-info
+````yaml /specs/rfq-api.json get /solvers
 openapi: 3.1.0
 info:
   title: TetraFi RFQ API
-  version: '3'
+  version: '1'
   description: >-
-    Request-for-quote trading API. Get quotes and execute token swaps directly
-    with market makers.
+    Firm, escrow-backed quotes from competing solvers and LPs. Every quote is a signed
+    commitment priced from the counterparty's own inventory - executable exactly as
+    returned, with no re-pricing and no last look - and every order settles through a
+    delivery-or-refund escrow: the output is delivered or the input comes back, never
+    limbo.
 servers:
-  - url: https://api.tetrafi.io/pmm/{chain}
-    variables:
-      chain:
-        default: ethereum
-        enum:
-          - ethereum
-          - polygon
-          - arbitrum
-          - optimism
-          - base
-          - bsc
-          - blast
-          - zksync
-          - mode
-          - scroll
-          - taiko
-          - superseed
-          - berachain
-          - hyperevm
-          - avalanche
-        description: Blockchain network
+  - url: https://api.tetrafi.io/api/v1/rfq
+    description: >-
+      RFQ namespace base URL. The chain is no longer part of the URL - every asset in an
+      intent names its network via chainId. The same host serves the sandbox: authenticate
+      with a tfk_test_ key to quote against test corridors, tfk_live_ for production.
 security:
-  - bearerAuth: []
+  - apiKeyAuth: []
 paths:
-  /v3/token-info:
+  /solvers:
     get:
-      summary: Token Info
+      summary: Solver Roster
+      operationId: getSolvers
       description: >-
-        Returns detailed metadata for all tokens available for trading on TetraFi,
-        including price, decimals, and display information. Use /tokenlist for
-        the standard token list format.
-      operationId: getTokenInfo
+        Lists the solvers and LPs your workspace can reach - the counterparties every
+        quote request fans out to. An id appears here only after the counterparty clears
+        the workspace's eligibility gates (onboarding, compliance, corridor coverage);
+        `status` then says whether it is pricing right now. An empty eligible roster for a
+        pair is exactly what surfaces as a typed productUnavailable answer on POST
+        /quotes.
+      servers:
+        - url: https://api.tetrafi.io/api/v1
       parameters:
-        - name: gasless
+        - name: status
           in: query
           required: false
           schema:
-            type: boolean
-            title: Gasless
-            description: Return gasless tokens
-            default: false
-          description: Return gasless tokens
-        - name: expiry_type
+            anyOf:
+              - $ref: '#/components/schemas/SolverStatus'
+              - type: 'null'
+            title: Status
+            description: Keep only counterparties in this roster state.
+          description: Keep only counterparties in this roster state.
+        - name: corridor
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/ExpiryType'
-            title: Expiry Type
-            description: Return standard or short expiry tokens
-            default: standard
-          description: Return standard or short expiry tokens
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Corridor
+            description: >-
+              Keep only counterparties eligible to quote this corridor slug, e.g.
+              optimism-base.
+          description: >-
+            Keep only counterparties eligible to quote this corridor slug, e.g.
+            optimism-base.
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenInfoApiResponse'
+                $ref: '#/components/schemas/SolversResponse'
               example:
-                tokens:
-                  CBETH:
-                    availability:
-                      canBuy: false
-                      canSell: false
-                      isAvailable: false
-                    chainId: 137
-                    contractAddress: '0x4b4327dB1600B8B1440163F667e199CEf35385f5'
-                    decimals: 18
-                    name: Coinbase Wrapped Staked ETH
-                    ticker: CBETH
-                  SAND:
-                    availability:
-                      canBuy: true
-                      canSell: true
-                      isAvailable: true
-                    chainId: 137
-                    contractAddress: '0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683'
-                    decimals: 18
-                    name: The Sandbox
-                    priceUsd: 0.33122916548934794
-                    ticker: SAND
+                solvers:
+                  - id: lp-atlas
+                    status: active
+                    kind: lp
+                    corridors:
+                      - optimism-base
+                      - base-optimism
+                    firstSeenAt: '2026-01-12T09:30:00Z'
+                    lastQuoteAt: '2026-07-20T13:58:41Z'
+                    eligibilityNote: null
+                  - id: solver-corsair
+                    status: standby
+                    kind: solver
+                    corridors:
+                      - ethereum-arc
+                    firstSeenAt: '2026-03-02T16:05:00Z'
+                    lastQuoteAt: '2026-07-19T22:14:03Z'
+                    eligibilityNote: >-
+                      inventory rebalancing - expected to resume pricing shortly
         '422':
           description: Validation Error
           content:
@@ -105,46 +100,20 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    ExpiryType:
+    SolverStatus:
       type: string
       enum:
-        - standard
-        - short
-      title: ExpiryType
-    TokenInfoApiResponse:
-      properties:
-        tokens:
-          additionalProperties:
-            $ref: '#/components/schemas/TokenApiResponse'
-          type: object
-          title: Tokens
-      type: object
-      required:
-        - tokens
-      title: TokenInfoApiResponse
-      examples:
-        - tokens:
-            CBETH:
-              availability:
-                canBuy: false
-                canSell: false
-                isAvailable: false
-              chainId: 137
-              contractAddress: '0x4b4327dB1600B8B1440163F667e199CEf35385f5'
-              decimals: 18
-              name: Coinbase Wrapped Staked ETH
-              ticker: CBETH
-            SAND:
-              availability:
-                canBuy: true
-                canSell: true
-                isAvailable: true
-              chainId: 137
-              contractAddress: '0xBbba073C31bF03b8ACf7c28EF0738DeCF3695683'
-              decimals: 18
-              name: The Sandbox
-              priceUsd: 0.33122916548934794
-              ticker: SAND
+        - active
+        - standby
+        - offline
+      title: SolverStatus
+      description: >-
+        Roster state of a solver/LP. active - pricing now and included in quote fan-out;
+        standby - eligible but temporarily not pricing (maintenance or inventory
+        rebalancing); offline - unreachable or disabled, excluded from fan-out.
+        Eligibility itself is decided upstream of this status: only counterparties that
+        cleared the workspace's onboarding and compliance gates appear in the roster at
+        all.
     HTTPValidationError:
       properties:
         detail:
@@ -154,39 +123,82 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    TokenApiResponse:
+    SolverInfo:
       properties:
-        name:
+        id:
           type: string
-          title: Name
-        ticker:
-          type: string
-          title: Ticker
-        availability:
-          $ref: '#/components/schemas/AvailabilityResponse'
-        priceUsd:
+          title: Id
+          description: >-
+            Stable roster identifier - the same string that appears as solverId on every
+            quote this counterparty returns.
+        status:
+          $ref: '#/components/schemas/SolverStatus'
+          description: Whether the counterparty is pricing right now.
+        kind:
           anyOf:
-            - type: number
+            - type: string
+              enum:
+                - lp
+                - solver
             - type: 'null'
-          title: Priceusd
-        chainId:
-          type: integer
-          title: Chainid
-        contractAddress:
-          type: string
-          title: Contractaddress
-        decimals:
-          type: integer
-          title: Decimals
+          title: Kind
+          description: >-
+            What stands behind the id: lp for a market-making liquidity provider quoting
+            from its own inventory, solver for an execution agent that fills intents.
+        corridors:
+          anyOf:
+            - items:
+                type: string
+              type: array
+            - type: 'null'
+          title: Corridors
+          description: >-
+            Directional corridor slugs this counterparty quotes, e.g. optimism-base.
+        firstSeenAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: First Seen At
+          description: When the counterparty first joined the workspace roster.
+        lastQuoteAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Quote At
+          description: Most recent time it returned a firm quote to this workspace.
+        eligibilityNote:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Eligibility Note
+          description: >-
+            Why quoting is currently limited, when it is - e.g. inventory rebalancing or a
+            corridor gate. Null when the counterparty is fully eligible.
       type: object
       required:
-        - name
-        - ticker
-        - availability
-        - chainId
-        - contractAddress
-        - decimals
-      title: TokenApiResponse
+        - id
+        - status
+      title: SolverInfo
+      description: >-
+        One solver or LP the workspace can reach. Quote requests fan out only to listed
+        entries, so this roster is the complete universe of possible counterparties for
+        your firm quotes.
+    SolversResponse:
+      properties:
+        solvers:
+          items:
+            $ref: '#/components/schemas/SolverInfo'
+          type: array
+          title: Solvers
+          description: >-
+            The workspace's counterparty roster - every solver and LP that quote requests
+            can reach.
+      type: object
+      required:
+        - solvers
+      title: SolversResponse
     ValidationError:
       properties:
         loc:
@@ -208,27 +220,10 @@ components:
         - msg
         - type
       title: ValidationError
-    AvailabilityResponse:
-      properties:
-        isAvailable:
-          type: boolean
-          title: Isavailable
-        canBuy:
-          type: boolean
-          title: Canbuy
-        canSell:
-          type: boolean
-          title: Cansell
-      type: object
-      required:
-        - isAvailable
-        - canBuy
-        - canSell
-      title: AvailabilityResponse
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      description: API key passed as a Bearer token.
-
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Service-account API key (tfk_test_/tfk_live_).
 ````

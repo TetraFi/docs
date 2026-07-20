@@ -1,65 +1,59 @@
 ---
-title: "Order"
-description: "This endpoint provides a simple order placement mechanism for quotes retrieved from [/quote](#/v3/v3_quote_v3_quote_post) endpoint. You will be required to sign the quote object using an EOA private key and POST this signature along with the quote ID to place an order."
-openapi: "POST /v3/order"
+title: "Orders"
+description: "Place an order against a firm quote. Send the chosen candidate back untouched as quoteResponse together with the taker signature over its escrow-v0 payload - signScheme EIP712 from an EOA by default, EIP1271 for smart-contract wallets - and an Idempotency-Key header so a retried POST can never double-submit."
+openapi: "POST /orders"
 mode: "wide"
 ---
 
-TetraFi submits order on chain having received maker and taker signatures. This means that TetraFi pays the network (gas) fees as they are already included in the price.
-
-
-
 ## OpenAPI
 
-````yaml /specs/rfq-api.json post /v3/order
+````yaml /specs/rfq-api.json post /orders
 openapi: 3.1.0
 info:
   title: TetraFi RFQ API
-  version: '3'
+  version: '1'
   description: >-
-    Request-for-quote trading API. Get quotes and execute token swaps directly
-    with market makers.
+    Firm, escrow-backed quotes from competing solvers and LPs. Every quote is a signed commitment
+    priced from the counterparty's own inventory - executable exactly as returned, with no re-pricing
+    and no last look - and every order settles through a delivery-or-refund escrow: the output
+    is delivered or the input comes back, never limbo.
 servers:
-  - url: https://api.tetrafi.io/pmm/{chain}
-    variables:
-      chain:
-        default: ethereum
-        enum:
-          - ethereum
-          - polygon
-          - arbitrum
-          - optimism
-          - base
-          - bsc
-          - blast
-          - zksync
-          - mode
-          - scroll
-          - taiko
-          - superseed
-          - berachain
-          - hyperevm
-          - avalanche
-        description: Blockchain network
+  - url: https://api.tetrafi.io/api/v1/rfq
+    description: >-
+      RFQ namespace base URL. The chain is no longer part of the URL - every asset in an intent
+      names its network via chainId. The same host serves the sandbox: authenticate with a tfk_test_
+      key to quote against test corridors, tfk_live_ for production.
 security:
-  - bearerAuth: []
+  - apiKeyAuth: []
 paths:
-  /v3/order:
+  /orders:
     post:
-      summary: Order
+      summary: Submit Order
       description: >-
-        This endpoint provides a simple order placement mechanism for quotes
-        retrieved from [/quote](#/v3/v3_quote_v3_quote_post) endpoint. You will
-        be required to sign the quote object using an EOA private key and POST
-        this signature along with the quote ID to place an order.
-
-                    TetraFi submits order on chain having received maker and taker signatures. This means that TetraFi pays the network (gas) fees as they are already included in the price.
+        Places an order against a firm quote collected from `POST /quotes`. Send the chosen candidate
+        back untouched as `quoteResponse`, together with the taker's signature over its escrow-v0
+        payload; the API checks the signature against the integrityChecksum and - on apiSubmit
+        quotes - lands the settlement transaction on-chain itself. Gas on that path is carried
+        by TetraFi and already reflected in the quoted price. `signScheme` defaults to EIP712
+        for standard EOA signatures; smart-contract wallets pass EIP1271 and are verified via
+        isValidSignature on-chain. Always send an Idempotency-Key header (the quoteId is a natural
+        choice): a retried POST can then never double-submit.
       operationId: submitOrder
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            title: Idempotency Key
+          description: >-
+            Client-chosen key that makes retries safe: a repeated POST carrying the same key returns
+            the original order instead of creating a second one.
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Body_post_order_v3_order_post'
+              $ref: '#/components/schemas/OrderSubmitRequest'
         required: true
       responses:
         '200':
@@ -67,7 +61,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderApiResponse'
+                $ref: '#/components/schemas/Order'
         '422':
           description: Validation Error
           content:
@@ -76,60 +70,89 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    Body_post_order_v3_order_post:
+    OrderSubmitRequest:
       properties:
-        quote_id:
-          type: string
-          title: Quote ID
-          description: Id of the quote to use for the order
+        quoteResponse:
+          $ref: '#/components/schemas/QuoteCandidate'
+          title: Selected quote
+          description: >-
+            The firm quote you picked, passed back exactly as it appeared in the quotes response.
+            The integrityChecksum binds your submission to those terms; any mutation is rejected.
         signature:
           type: string
           title: Signature
-          description: Taker's signature produced from the toSign field in the quote
-        sign_scheme:
+          description: >-
+            Hex-encoded EIP-712 signature over the escrow-v0 payload from quote.order (equivalently,
+            the typedData on preflight's orderSignature action).
+        signScheme:
           type: string
           title: Sign Scheme
-          description: Sign scheme used to produce the signature
+          description: >-
+            How the signature verifies: EIP712 for standard ECDSA from an EOA (the default), or
+            EIP1271 for smart-contract wallets validated through isValidSignature on-chain.
           default: EIP712
-        permit2:
+        permit2Lock:
           anyOf:
-            - $ref: '#/components/schemas/Permit2'
+            - $ref: '#/components/schemas/Permit2Lock'
             - type: 'null'
-          title: Permit2 info
-          description: Permit2 info for taker
-        permit:
+          title: Permit2 lock
+          description: >-
+            Inline Permit2 material - include it only when the preflight plan asked for it; a
+            standing Permit2 grant makes this unnecessary.
+        eip3009Authorization:
           anyOf:
-            - $ref: '#/components/schemas/Permit'
+            - $ref: '#/components/schemas/Eip3009Authorization'
             - type: 'null'
-          title: Permit info
-          description: Permit info for taker
+          title: EIP-3009 authorization
+          description: >-
+            Signed transfer authorization for EIP-3009 tokens (USDC-style) when preflight selected
+            that lock. Resource-lock quotes need no inline material - the balance is already deposited.
       type: object
       required:
-        - quote_id
+        - quoteResponse
         - signature
-      title: Body_post_order_v3_order_post
-    OrderApiResponse:
+      title: OrderSubmitRequest
+    ValidityWindow:
       properties:
-        txHash:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Txhash
-        status:
-          type: string
-          title: Status
-        expiry:
+        validUntil:
           type: integer
-          title: Expiry
+          title: Valid Until
+          description: Unix second at which the quote stops being executable - sign and submit
+            before it.
+        minValidUntil:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Min Valid Until
+          description: >-
+            Floor the request asked for via minValidUntil; quotes expiring sooner were filtered
+            out before ranking. Null when the request set no floor.
       type: object
       required:
-        - status
-        - expiry
-      title: OrderApiResponse
-      examples:
-        - expiry: 1692811212
-          status: Success
-          txHash: '0x41d4d98fca62eeb0a86da4765bae213fe74203c33612e59a48c69555d66abeca'
+        - validUntil
+      title: ValidityWindow
+      description: >-
+        Firmness window of a quote - the span in which it is executable exactly as signed. This
+        replaces the older fixed expiry tiers: each quote states its own window, and integrations
+        that need more runway raise the floor per request instead of choosing a tier.
+    GasEstimate:
+      properties:
+        native:
+          type: string
+          title: Native
+          description: >-
+            Estimated gas cost in the settlement chain's native currency, base units. Zero on
+            apiSubmit quotes, where TetraFi carries the gas.
+        usd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Usd
+          description: The same estimate in US dollars, when a price is available.
+      type: object
+      required:
+        - native
+      title: GasEstimate
     HTTPValidationError:
       properties:
         detail:
@@ -139,44 +162,400 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    Permit2:
+    SplitFillDetail:
+      properties:
+        fills:
+          items:
+            type: object
+            title: SplitFillSlice
+            properties:
+              solverId:
+                type: string
+                title: Solverid
+                description: LP taking this slice of the order.
+              portionBps:
+                type: integer
+                title: Portionbps
+                description: Slice of the total input covered by this LP, in basis points of the
+                  order size.
+              outputAmount:
+                type: string
+                title: Outputamount
+                description: Base-unit output this slice delivers.
+            required:
+              - solverId
+              - portionBps
+          type: array
+          title: Fills
+          description: Ordered slices, one per participating LP.
+        executionModel:
+          type: string
+          title: Executionmodel
+          description: >-
+            How the slices settle - atomic: every slice delivers inside the same escrow order
+            or the whole order refunds.
+      type: object
+      required:
+        - fills
+      title: SplitFillDetail
+      description: >-
+        Breakdown present when several LPs jointly fill one order. The taker experience does not
+        change: a single escrow-v0 payload, a single signature, and one delivery-or-refund guarantee
+        covering every slice.
+    Order:
+      properties:
+        id:
+          type: string
+          title: Id
+          description: Order identifier - poll GET /orders/{id} with it or subscribe to the orders:{id}
+            WebSocket topic.
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+          description: State at acceptance time - normally pending.
+        quoteId:
+          type: string
+          title: Quoteid
+          description: The firm quote this order executes.
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+          description: When the API accepted the submission.
+      type: object
+      required:
+        - id
+        - status
+        - quoteId
+        - createdAt
+      title: Order
+      examples:
+        - id: ord_01J2M9C1D3F5H7K9M1P3R5T7V9
+          status: pending
+          quoteId: q_01J2M8W3N9RQK5T7V1X4Z6B8D0
+          createdAt: '2026-07-20T14:02:11Z'
+    OrderStatus:
+      type: string
+      enum:
+        - pending
+        - settled
+        - failed
+      title: OrderStatus
+      description: >-
+        Order lifecycle state, lowercase. pending - accepted and progressing; settled - delivery
+        proven and funds released (terminal); failed - the order could not settle inside its window,
+        so the escrowed input follows the refund path (terminal, never lost funds). Each transition
+        is also pushed over WebSocket as order.created, order.settled, or order.failed on the
+        orders:{id} topic.
+    Permit2Lock:
       properties:
         signature:
           type: string
           title: Signature
-        approvals_deadline:
+          description: Signed Permit2 permit authorizing the escrow to pull the input token.
+        deadline:
           type: integer
-          title: Approvals Deadline
-        token_addresses:
-          items:
-            type: string
-          type: array
-          title: Token Addresses
-        token_nonces:
-          items:
-            type: integer
-          type: array
-          title: Token Nonces
+          title: Deadline
+          description: Unix timestamp after which the permit is void.
       type: object
       required:
         - signature
-        - approvals_deadline
-        - token_addresses
-        - token_nonces
-      title: Permit2
-    Permit:
+        - deadline
+      title: Permit2Lock
+      description: >-
+        Permit2 funding lock: one reusable approval of the Permit2 contract, after which every
+        order authorizes its own pull inside the signature.
+    Eip3009Authorization:
       properties:
         signature:
           type: string
           title: Signature
-        approvals_deadline:
+          description: Signed transferWithAuthorization message.
+        validAfter:
           type: integer
-          title: Approvals Deadline
+          title: Valid After
+          description: Unix timestamp from which the authorization becomes usable.
+        validBefore:
+          type: integer
+          title: Valid Before
+          description: Unix timestamp at which the authorization expires.
+        nonce:
+          type: string
+          title: Nonce
+          description: Random 32-byte nonce making the authorization single-use.
       type: object
       required:
         - signature
-        - approvals_deadline
-      title: Permit
+        - validAfter
+        - validBefore
+        - nonce
+      title: Eip3009Authorization
+      description: >-
+        EIP-3009 funding lock for USDC-style tokens: the transfer is authorized entirely inside
+        the signed message, so no approval transaction ever exists.
+    PriceWarning:
+      properties:
+        code:
+          type: integer
+          title: Code
+          description: Numeric warning identifier.
+        message:
+          type: string
+          title: Message
+          description: What the warning flags - unusual pricing, thin corridor inventory, or similar.
+      type: object
+      required:
+        - code
+        - message
+      title: PriceWarning
+      description: >-
+        Non-blocking warning attached to a quote's warnings array so unusual conditions surface
+        before you select it.
+    QuoteCandidate:
+      properties:
+        quoteId:
+          type: string
+          title: Quoteid
+          description: Identifier that follows this quote through preflight, submission, and status
+            tracking.
+        solverId:
+          type: string
+          title: Solverid
+          description: The LP or solver standing behind the commitment - a roster id from GET
+            /solvers.
+        executionMode:
+          type: string
+          enum:
+            - apiSubmit
+            - walletBroadcast
+          title: Executionmode
+          description: >-
+            Who puts the settlement on-chain: apiSubmit - TetraFi submits after you sign and carries
+            the gas; walletBroadcast - you broadcast the prepared transaction from your own RPC.
+            This is a per-quote property; there is no request-level sponsored-gas flag.
+        order:
+          anyOf:
+            - $ref: '#/components/schemas/StandardOrder'
+            - type: 'null'
+          description: >-
+            The escrow-v0 payload to sign, exactly as returned. Null only when the quote's signable
+            material is delivered through preflight instead.
+        validUntil:
+          type: integer
+          title: Validuntil
+          description: >-
+            Unix second the firmness window closes; the quote expires at this moment - sign and
+            submit before it.
+        eta:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Eta
+          description: Expected seconds from submission to settlement.
+        validity:
+          anyOf:
+            - $ref: '#/components/schemas/ValidityWindow'
+            - type: 'null'
+          description: >-
+            Structured firmness window - validUntil restated together with the request's minValidUntil
+            floor, for integrations that track expiries explicitly.
+        preview:
+          type: object
+          title: Preview
+          description: Human-readable trade terms - what the taker escrows and what the escrow
+            enforces on delivery.
+          properties:
+            inputs:
+              items:
+                $ref: '#/components/schemas/PreviewInput'
+              type: array
+              title: Inputs
+            outputs:
+              items:
+                $ref: '#/components/schemas/PreviewOutput'
+              type: array
+              title: Outputs
+          required:
+            - inputs
+            - outputs
+        integrityChecksum:
+          type: string
+          title: Integritychecksum
+          description: >-
+            Tamper-evidence binding the terms you were shown to the terms you submit; any drift
+            between the two is rejected as an integrity failure.
+        routingPath:
+          type: string
+          title: Routingpath
+          description: >-
+            Always direct on RFQ quotes - a single escrow fill with no planner legs. Split fills
+            remain direct and are described in splitFill.
+        platformFeeBps:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Platformfeebps
+          description: >-
+            Platform fee applied to this quote, in basis points. Monetization is configured on
+            the workspace, not passed per request.
+        lpSpreadBps:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Lpspreadbps
+          description: Spread the quoting LP earns on this trade, in basis points.
+        splitFill:
+          anyOf:
+            - $ref: '#/components/schemas/SplitFillDetail'
+            - type: 'null'
+          title: Splitfill
+          description: >-
+            Populated when several LPs jointly fill the size inside one order; null on single-counterparty
+            quotes. Either way there is one payload, one signature, one guarantee.
+        gas:
+          anyOf:
+            - $ref: '#/components/schemas/GasEstimate'
+            - type: 'null'
+          description: Gas context for the quote; zero-native on apiSubmit, where TetraFi carries
+            the cost.
+        warnings:
+          items:
+            $ref: '#/components/schemas/PriceWarning'
+          type: array
+          title: Warnings
+          description: Non-blocking warnings attached to the quote.
+          default: []
+      type: object
+      required:
+        - quoteId
+        - solverId
+        - executionMode
+        - validUntil
+        - preview
+        - integrityChecksum
+      title: QuoteCandidate
+      description: >-
+        One firm, escrow-backed quote from a competing solver or LP. Settlement and approval contract
+        addresses are deliberately absent here - preflight's nextActions carry the exact contracts
+        for the quote you pick, so integrations never hardcode them.
+    PreviewOutput:
+      properties:
+        asset:
+          type: string
+          title: Asset
+          description: Delivered asset in CAIP-19 form, e.g. eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.
+        amount:
+          type: string
+          title: Amount
+          description: Base-unit delivery if the order settles exactly as quoted.
+        minimumAmount:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Minimumamount
+          description: >-
+            Floor the escrow enforces on delivery. On firm RFQ quotes this equals amount - the
+            quote is the commitment, which is why no slippage parameter exists.
+        decimals:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Decimals
+          description: Token decimals, for converting base units to a display amount.
+        symbol:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Symbol
+          description: Token ticker symbol.
+        priceUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceusd
+          description: Reference US-dollar price per whole token, when available.
+        receiver:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Receiver
+          description: Wallet this output is delivered to.
+        amountBeforeFees:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Amountbeforefees
+          description: Delivery before the platform fee and LP spread are taken, for fee transparency.
+        deltaFromMid:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Deltafrommid
+          description: >-
+            Relative distance of the quoted price from a reference mid; negative means worse than
+            mid. Useful for best-execution checks across competing quotes.
+      type: object
+      required:
+        - asset
+        - amount
+      title: PreviewOutput
+    PreviewInput:
+      properties:
+        asset:
+          type: string
+          title: Asset
+          description: Escrowed asset in CAIP-19 form, e.g. eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85.
+        amount:
+          type: string
+          title: Amount
+          description: Base-unit amount the taker escrows.
+        decimals:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Decimals
+          description: Token decimals, for converting base units to a display amount.
+        symbol:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Symbol
+          description: Token ticker symbol.
+        priceUsd:
+          anyOf:
+            - type: number
+            - type: 'null'
+          title: Priceusd
+          description: Reference US-dollar price per whole token, when available.
+      type: object
+      required:
+        - asset
+        - amount
+      title: PreviewInput
+    StandardOrder:
+      properties:
+        type:
+          type: string
+          title: Type
+          description: Order payload type; escrow-v0 for the current settlement contract.
+        payload:
+          type: object
+          title: Payload
+          description: >-
+            Complete EIP-712 envelope - domain, types, and the StandardOrder message - delivered
+            verbatim by the API. Treat it as opaque: sign exactly what arrives in quote.order
+            (or the typedData on preflight's orderSignature action) and never assemble or edit
+            it locally. The signed terms name the parties, the inputs you escrow, the minimum
+            outputs that must be delivered, an expiry after which the unfilled order refunds,
+            and a domain-scoped nonce; the integrityChecksum binds them to your submission.
+      type: object
+      required:
+        - type
+        - payload
+      title: StandardOrder
+      description: >-
+        The escrow-v0 order payload a firm quote asks you to sign. One envelope covers single-counterparty
+        and split fills alike - one signature either way. Anything you would want different (receiver,
+        amounts, expiry) changes at quote time, never at signing time.
     ValidationError:
       properties:
         loc:
@@ -199,9 +578,10 @@ components:
         - type
       title: ValidationError
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      description: API key passed as a Bearer token.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Service-account API key (tfk_test_/tfk_live_).
 
 ````
