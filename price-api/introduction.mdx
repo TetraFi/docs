@@ -1,49 +1,51 @@
 ---
 title: "Introduction"
-description: "Real-time streaming indicative prices from TetraFi's market makers via WebSocket."
+description: "Live indicative pricing streamed from TetraFi's liquidity network over WebSocket."
 ---
 
-The Price API streams real-time indicative prices from TetraFi's market makers over WebSocket. Each message contains a full snapshot of pricing across all supported pairs on a network, encoded as Protocol Buffers for compact, low-latency delivery.
+The price feed streams live indicative prices from TetraFi's solvers and LPs over WebSocket. Subscribe to the corridors you care about and receive continuous updates sized by tier - and, for full-depth consumers, snapshot streams covering aggregated book depth across a network's pairs.
 
-## When to Use
+## Where It Fits
 
-* You need **real-time indicative prices** for pre-trade estimation before requesting a firm quote from the [RFQ API](/rfq-api/introduction)
-* You are building a **solver or aggregator** that evaluates TetraFi liquidity continuously without consuming quote rate limits
-* You want a **live order book view** of TetraFi's aggregated market maker depth across all pairs on a network
+* You need **live indicative prices** to estimate a trade before requesting a firm quote from the [RFQ API](/rfq-api/introduction)
+* You run a **solver or aggregator** that evaluates TetraFi liquidity continuously without spending quote rate limits
+* You want a **standing view of depth** across TetraFi's aggregated LP liquidity on the pairs you route
 
-## At a Glance
+## Quick Reference
 
 |                    |                                                    |
 | ------------------ | -------------------------------------------------- |
 | **Transport**      | WebSocket                                          |
-| **Authentication** | API key                                            |
-| **Complexity**     | Medium - protobuf decoding + connection management |
+| **Authentication** | API key or JWT via the `token` query parameter     |
+| **Complexity**     | Medium - subscription management + stream decoding |
 
-## How It Works
+## The Flow
 
-| Step | Action           | You send                               | You get back                                      |
-| ---- | ---------------- | -------------------------------------- | ------------------------------------------------- |
-| 1    | Connect          | WebSocket URL + API key + pricing mode | Connection established                            |
-| 2    | Receive messages | -                                      | Protobuf-encoded price snapshots for all pairs    |
-| 3    | Decode           | Protobuf message → language bindings   | Bid/ask depth levels per pair, ordered best-first |
+| Step | Action           | You send                                         | You get back                                      |
+| ---- | ---------------- | ------------------------------------------------ | ------------------------------------------------- |
+| 1    | Connect          | `wss://api.tetrafi.io/api/v1/ws?token=<key>`      | Connection established                            |
+| 2    | Subscribe        | `prices:{srcChain}:{input}:{dstChain}:{output}:{tier}` topics | Confirmation per topic               |
+| 3    | Receive updates  | -                                                | Price events for your corridors, best-first       |
 
-See the [Reference](/price-api/reference) for a detailed pricing mode and expiry comparison.
+Size tiers (`1k`, `10k`, `100k`, `1m`) let you subscribe at the notional you actually trade - a `100k` subscription prices a hundred-thousand-unit clip, not a spot midpoint. Up to 50 concurrent subscriptions per connection.
 
-## Key Endpoints
+See the [Reference](/price-api/reference) for pricing modes and expiry behavior.
 
-| Endpoint                                       | Purpose                                                       |
-| ---------------------------------------------- | ------------------------------------------------------------- |
-| `wss://api.tetrafi.io/pmm/{network}/v3/pricing` | Streaming price connection                                    |
-| `GET /pmm/{network}/v3/tokenlist`              | Resolve token symbols to contract addresses for pair matching |
+## Endpoint Map
 
-## Next Steps
+| Endpoint                                   | Purpose                                                     |
+| ------------------------------------------ | ----------------------------------------------------------- |
+| `wss://api.tetrafi.io/api/v1/ws`            | The streaming connection - price and order event topics     |
+| `GET /api/v1/pairs`                        | Resolve tradable pairs and asset addresses for subscriptions |
+
+## Keep Going
 
 <CardGroup cols={2}>
   <Card title="Quickstart" icon="bolt" href="/price-api/quickstart">
-    Connect, decode, and process the pricing stream in 10-15 minutes.
+    Connect, subscribe, and process the price stream in 10-15 minutes.
   </Card>
 
   <Card title="Estimating VWAP" icon="chart-line" href="/price-api/guides/vwap-estimation">
-    Estimate execution prices for specific trade sizes without requesting a firm quote.
+    Estimate execution prices for specific sizes without burning a firm quote.
   </Card>
 </CardGroup>
