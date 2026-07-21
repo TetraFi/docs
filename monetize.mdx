@@ -1,46 +1,46 @@
 ---
 title: "Monetize"
-description: "Earn revenue on every trade your users make through TetraFi."
+description: "Turn your integration's flow into revenue, one settled trade at a time."
 ---
 
-Every trade that flows through TetraFi can generate revenue for your product. There are two ways to collect fees  - choose whichever fits your workflow.
+Any flow you route across TetraFi can pay you back. Two fee models are available - use the one that matches how your product works.
 
 ## Pick a fee model
 
 <Tabs>
   <Tab title="Workspace fee">
-    Agree a fee rate with TetraFi and it is configured on your workspace - applied automatically to every quote under your API keys. No code changes required, and every quote discloses it via `platformFeeBps`.
+    Set a rate once, at the workspace level, as part of your integration agreement. From then on it rides on every quote issued under your keys automatically - zero code, with `platformFeeBps` disclosing it on each quote.
   </Tab>
 
-  <Tab title="Per-quote fee">
-    A per-request `fee` override - vary the fee by corridor, trade size, or user tier over a single workspace - is part of the Router API target surface. Until it ships, fee tiers are handled through workspace configuration. See the [implementation guide](/core-concepts/monetization) for details.
+  <Tab title="Per-quote override">
+    For integrators running several fee tiers over one workspace - say, different rates per corridor or per user segment - a request-level `fee` override is on the Router API's target surface. Until it ships, tiering is handled in workspace configuration. Details in the [implementation guide](/core-concepts/monetization).
   </Tab>
 </Tabs>
 
 ## From trade to payout
 
 <Steps>
-  <Step title="Choose your fee model">
-    Agree your rate with TetraFi and have it set on your workspace - most integrators start with a single flat rate.
+  <Step title="Set your rate">
+    Agree the basis-point rate with TetraFi and have it configured on your workspace - a single flat rate is the usual starting point.
   </Step>
 
-  <Step title="Trades settle with your fee included">
-    The fee is priced into the quote - the taker's receive side already reflects it, and the taker's input amount stays the same. Each quote discloses its components via `platformFeeBps` and `lpSpreadBps`.
+  <Step title="Fees ride inside each quote">
+    Quoted receive-amounts already account for your fee; what the taker pays in never changes. Each quote itemises its components through `platformFeeBps` and `lpSpreadBps`.
   </Step>
 
-  <Step title="Get paid">
-    Monitor fee-bearing volume via [Trade History](/trade-history-api/introduction) - results are scoped to your workspace - and settle per your workspace agreement.
+  <Step title="Collect">
+    Track fee-bearing volume in [Trade History](/trade-history-api/introduction) - scoped to your workspace - and settle on the cadence in your agreement.
   </Step>
 </Steps>
 
-## Coverage across products
+## One model, both products
 
-Workspace fees apply on both the [RFQ API](/rfq-api/introduction) and the [Router API](/router-api/introduction), so you can monetize from day one. The disclosure mechanism is the same on both - see the [implementation guide](/core-concepts/monetization) for details.
+Whether flow goes through the [RFQ API](/rfq-api/introduction) or the [Router API](/router-api/introduction), the workspace fee applies identically and is disclosed the same way - revenue starts with your first settled trade. The [implementation guide](/core-concepts/monetization) has the field-level detail.
 
-## Setting the right rate
+## Finding your number
 
-Most integrators charge between 5 and 50 bps depending on their product and audience. Higher fees widen the quoted spread, which can make your pricing less competitive if your users compare across venues. Starting lower and adjusting based on volume data is a common approach.
+Rates between 5 and 50 bps are typical, and where you land depends on what you're building and for whom. A heavier fee shows up as a wider effective spread - noticeable to users who shop venues - so many teams open conservatively and let volume data argue for adjustments.
 
 <Card icon="wrench" href="/core-concepts/monetization" title="Implementation guide">
-  Ready to add fees? The technical guide covers fee disclosure fields and code examples.
+  Ready to wire it up? Fee disclosure fields and working examples inside.
 </Card>

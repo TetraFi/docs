@@ -1,31 +1,31 @@
 ---
 title: "Monetization"
-description: "Attach a partner fee to your integration and collect revenue on every trade."
+description: "Wire fee revenue into your integration - configuration, disclosure fields, and tracking."
 ---
 
-This guide covers how partner fees attach to your quotes. Fee collection works differently depending on which API you use. For business context - fee models, payment terms, and practical considerations - see [Monetize](/monetize).
+This is the technical side of partner fees: where they attach and how to read them back. Each product surfaces fees slightly differently. Commercial framing - models, terms, rate guidance - lives in [Monetize](/monetize).
 
 <Note>
-  Partner fees are configured on your **workspace** as part of your integration agreement. Once set, they apply automatically - you do not pass a fee on each request.
+  Your fee lives in **workspace configuration**, agreed as part of onboarding. From that point it attaches itself to every quote - requests carry no fee field.
 </Note>
 
 ## Fee mechanics
 
-Your workspace fee is expressed in basis points. One basis point is 0.01%, so a 25 bps fee means 0.25%. The fee is priced into the quote - the taker's receive side already reflects it, and every quote discloses its fee components:
+Fees are denominated in basis points (25 bps = 0.25%). Quotes arrive with the fee already baked into the receive side, and itemise their components so nothing is hidden:
 
 | Response field   | Type    | Description                                                        |
 | ---------------- | ------- | ------------------------------------------------------------------ |
 | `platformFeeBps` | integer | Platform/partner fee applied to this quote, in basis points        |
 | `lpSpreadBps`    | integer | The liquidity provider's spread component, disclosed per quote     |
 
-The two APIs differ in how fees are collected:
+Product-by-product, the surface looks like this:
 
-|                | Router API              | RFQ API                                              |
-| -------------- | ----------------------- | ---------------------------------------------------- |
-| **Collection** | Priced into settlement  | Priced into the firm quote                           |
-| **Disclosure** | `platformFeeBps` per candidate | `platformFeeBps` per quote                     |
-| **Payout**     | Per your workspace agreement | Per your workspace agreement                    |
-| **Tracking**   | [Trade History](/trade-history-api/introduction) + order receipts | [Trade History](/trade-history-api/introduction) |
+|                    | Router API              | RFQ API                                              |
+| ------------------ | ----------------------- | ---------------------------------------------------- |
+| **Where it lands** | Inside each candidate's settlement terms | Inside the firm quote                 |
+| **How you see it** | `platformFeeBps` per candidate | `platformFeeBps` per quote                     |
+| **How you're paid**| Per your workspace agreement | Per your workspace agreement                    |
+| **Where to audit** | [Trade History](/trade-history-api/introduction) + order receipts | [Trade History](/trade-history-api/introduction) |
 
 ## Reading the fee on a quote
 
@@ -63,9 +63,7 @@ for quote in resp.json()["quotes"]:
 
 ### Tracking your revenue
 
-Use [Trade History](/trade-history-api/quickstart) to monitor trades attributed to your workspace at any time. Authenticate with your API key and the results are scoped to your workspace. See [Authentication](/core-concepts/authentication) for details.
-
-For a complete walkthrough including pagination, see the [Trade History quickstart](/trade-history-api/quickstart).
+Fee-bearing volume is auditable whenever you like through [Trade History](/trade-history-api/quickstart) - your API key scopes everything to your own workspace automatically ([credential details here](/core-concepts/authentication)). The [quickstart](/trade-history-api/quickstart) covers filters and pagination end to end.
 
 ## Per-request fee overrides
 
