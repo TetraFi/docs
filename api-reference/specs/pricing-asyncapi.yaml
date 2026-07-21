@@ -10,26 +10,26 @@ servers:
 
 channels:
   pricing:
-    address: /pmm/{chain}/v3/pricing?gasless={gasless}&expiry_type={expiry_type}&format={format}
+    address: /api/v1/ws?token={token}&format={format}&network={network}
     parameters:
       chain:
         description: "Blockchain network (example: ethereum, arbitrum, base, etc.)"
         default: ethereum
       format:
         description: "Message encoding format. Options: protobuf, json. Default: json."
-      gasless:
-        description: "Set to true for pricing for the gasless mode. Default: false."
-      expiry_type:
-        description: "Quote expiry window. Options: standard, short. Default: standard."
+      network:
+        description: "Network whose aggregated book to snapshot (example: optimism, base)."
+      token:
+        description: "Your API key (or JWT), passed as a query parameter."
     bindings:
       ws:
-        headers:
+        query:
           type: object
-          required: [Authorization]
+          required: [token]
           properties:
-            Authorization:
+            token:
               type: string
-              description: "Your API key as a Bearer token: `Bearer <API_KEY>`."
+              description: "Your API key (or JWT) - browsers cannot set custom WebSocket headers."
     servers:
       - $ref: "#/servers/production"
     messages:

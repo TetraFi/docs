@@ -1,15 +1,15 @@
 ---
 title: "Introduction"
-description: "Live indicative pricing streamed from TetraFi's liquidity network over WebSocket."
+description: "Live indicative pricing, streamed continuously from TetraFi's liquidity network."
 ---
 
-The price feed streams live indicative prices from TetraFi's solvers and LPs over WebSocket. Subscribe to the corridors you care about and receive continuous updates sized by tier - and, for full-depth consumers, snapshot streams covering aggregated book depth across a network's pairs.
+Instead of asking for prices one at a time, subscribe once: the price feed carries continuous indicative updates from TetraFi's solvers and LPs over a single WebSocket. Pick the corridors and size tiers you care about - and, for full-depth consumers, take per-network snapshot streams of the aggregated book.
 
 ## Where It Fits
 
-* You need **live indicative prices** to estimate a trade before requesting a firm quote from the [RFQ API](/rfq-api/introduction)
-* You run a **solver or aggregator** that evaluates TetraFi liquidity continuously without spending quote rate limits
-* You want a **standing view of depth** across TetraFi's aggregated LP liquidity on the pairs you route
+* **Pre-trade sizing** - screen a trade against live prices first, and spend a firm [RFQ](/rfq-api/introduction) quote only once it clears your bar
+* **Continuous evaluation** - solvers and aggregators watching TetraFi liquidity around the clock, with zero draw on quote rate limits
+* **A standing depth picture** - aggregated LP liquidity across your routed pairs, always current
 
 ## Quick Reference
 
@@ -17,15 +17,15 @@ The price feed streams live indicative prices from TetraFi's solvers and LPs ove
 | ------------------ | -------------------------------------------------- |
 | **Transport**      | WebSocket                                          |
 | **Authentication** | API key or JWT via the `token` query parameter     |
-| **Complexity**     | Medium - subscription management + stream decoding |
+| **Complexity**     | Moderate - you manage subscriptions and decode the stream |
 
-## The Flow
+## From Connect to First Price
 
-| Step | Action           | You send                                         | You get back                                      |
-| ---- | ---------------- | ------------------------------------------------ | ------------------------------------------------- |
-| 1    | Connect          | `wss://api.tetrafi.io/api/v1/ws?token=<key>`      | Connection established                            |
-| 2    | Subscribe        | `prices:{srcChain}:{input}:{dstChain}:{output}:{tier}` topics | Confirmation per topic               |
-| 3    | Receive updates  | -                                                | Price events for your corridors, best-first       |
+| Stage | What happens                                       | Result                                            |
+| ----- | -------------------------------------------------- | ------------------------------------------------- |
+| 1     | Open `wss://api.tetrafi.io/api/v1/ws?token=<key>`   | Connection established                            |
+| 2     | Subscribe: `prices:{srcChain}:{input}:{dstChain}:{output}:{tier}` | Confirmation per topic            |
+| 3     | Listen                                             | Price events for your corridors, best level first |
 
 Size tiers (`1k`, `10k`, `100k`, `1m`) let you subscribe at the notional you actually trade - a `100k` subscription prices a hundred-thousand-unit clip, not a spot midpoint. Up to 50 concurrent subscriptions per connection.
 
@@ -46,6 +46,6 @@ See the [Reference](/price-api/reference) for pricing modes and expiry behavior.
   </Card>
 
   <Card title="Estimating VWAP" icon="chart-line" href="/price-api/guides/vwap-estimation">
-    Estimate execution prices for specific sizes without burning a firm quote.
+    Work out what your size would really cost - without burning a firm quote.
   </Card>
 </CardGroup>

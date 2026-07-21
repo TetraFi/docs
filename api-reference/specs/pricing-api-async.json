@@ -3,12 +3,12 @@
   "info": {
     "title": "TetraFi Price API",
     "version": "3",
-    "description": "Real-time pricing WebSocket for TetraFi RFQ trading. Streams order book levels\n(bids and asks) for all available token pairs on a given chain.\n\n## Connection\n\nConnect via WebSocket to `wss://api.tetrafi.io/pmm/{chain}/v3/pricing` with\nyour API key in the `Authorization` header as a Bearer token\n(`Authorization: Bearer <API_KEY>`).\n\n## Message Format\n\nMessages are delivered in Protocol Buffers format.\n\n## Update Frequency\n\nPrice updates are published approximately every second. Each message contains\nthe full current state of the order book for all pairs.\n"
+    "description": "Real-time pricing WebSocket for TetraFi RFQ trading. Streams order book levels\n(bids and asks) for all available token pairs on a given chain.\n\n## Connection\n\nConnect via WebSocket to `wss://api.tetrafi.io/api/v1/ws` with\nyour API key passed as the `token` query parameter.\n\n## Message Format\n\nMessages are delivered in Protocol Buffers format.\n\n## Update Frequency\n\nPrice updates are published approximately every second. Each message contains\nthe full current state of the order book for all pairs.\n"
   },
   "servers": {
     "production": {
       "host": "api.tetrafi.io",
-      "pathname": "/pmm/{chain}/v3/pricing",
+      "pathname": "/api/v1/ws",
       "protocol": "wss",
       "description": "Production pricing WebSocket",
       "variables": {
@@ -52,33 +52,19 @@
                 "default": "protobuf",
                 "description": "Message encoding format."
               },
-              "gasless": {
-                "type": "boolean",
-                "default": false,
-                "description": "Set to true to receive gasless pricing (longer expiry, TetraFi submits tx)."
-              },
-              "expiry_type": {
+              "network": {
                 "type": "string",
-                "enum": [
-                  "standard",
-                  "short"
-                ],
-                "default": "standard",
-                "description": "Quote expiry window. Short expiry gives tighter prices on some chains."
+                "description": "Network whose aggregated book to snapshot (for example optimism)."
+              },
+              "token": {
+                "type": "string",
+                "description": "Your API key (or JWT), passed as a query parameter."
               }
             }
           },
           "headers": {
             "type": "object",
-            "required": [
-              "Authorization"
-            ],
-            "properties": {
-              "Authorization": {
-                "type": "string",
-                "description": "Your API key as a Bearer token: `Bearer <API_KEY>`."
-              }
-            }
+            "properties": {}
           }
         }
       },

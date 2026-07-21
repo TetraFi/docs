@@ -1,21 +1,21 @@
 ---
 title: "Quickstart"
-description: "Connect to the price feed and start consuming live liquidity-network pricing over WebSocket."
+description: "Get the price stream flowing - connect, decode, and read live depth in minutes."
 ---
 
-TetraFi's price feed delivers live indicative pricing from the liquidity network over WebSocket, with depth snapshots encoded as protobuf for compact, low-latency delivery. This guide gets you connected, decoding, and consuming the stream.
+TetraFi's price feed pushes live indicative pricing over WebSocket, with depth snapshots wire-encoded as protobuf to keep messages small and latency low. By the end of this page you'll have a client connected, decoding, and printing live market state.
 
 <Info>
-  **What you'll build:** A WebSocket client that receives and decodes real-time pricing data.
+  **Outcome:** a working WebSocket consumer decoding live depth snapshots.
 
-  **Time required:** 10-15 minutes
+  **Time:** 10-15 minutes.
 
-  **Prerequisites:** Python 3.10+, [uv](https://docs.astral.sh/uv/) (or pip), and an API key from TetraFi.
+  **Before you start:** Python 3.10+, [uv](https://docs.astral.sh/uv/) or pip, and a TetraFi API key.
 </Info>
 
 ## 1. Generate the Schema Bindings
 
-The Price API encodes messages using Protocol Buffers for compact, low-latency delivery. You'll need to generate Python bindings from the schema.
+Depth snapshots travel as Protocol Buffers, so the first step is turning the schema into a Python module you can decode with.
 
 ### The Wire Schema
 
@@ -38,19 +38,19 @@ message TetraFiPricingUpdate {
 }
 ```
 
-Each `PriceUpdate` contains:
+What each `PriceUpdate` carries:
 
-| Field            | Description                                                 |
-| ---------------- | ----------------------------------------------------------- |
-| `base`           | Base token contract address (raw bytes)                     |
-| `quote`          | Quote token contract address (raw bytes)                    |
-| `last_update_ts` | Timestamp of the last price update (milliseconds)           |
-| `bids`           | Flat array of floats: `[price₁, size₁, price₂, size₂, ...]` |
-| `asks`           | Flat array of floats: `[price₁, size₁, price₂, size₂, ...]` |
+| Field            | Meaning                                                          |
+| ---------------- | ----------------------------------------------------------------- |
+| `base`           | The pair's base-side contract address, as raw bytes               |
+| `quote`          | The pair's quote-side contract address, as raw bytes              |
+| `last_update_ts` | Millisecond timestamp of the most recent refresh                  |
+| `bids`           | Interleaved floats - price then size, repeating, best level first |
+| `asks`           | Same interleaved layout on the ask side                           |
 
-### Generate Python Bindings
+### Compile to Python
 
-Install the protobuf compiler tools and generate the Python module:
+Pull in the protobuf toolchain and compile:
 
 <CodeGroup>
   ```bash uv theme={null}
@@ -72,7 +72,7 @@ Install the protobuf compiler tools and generate the Python module:
   ```
 </CodeGroup>
 
-This produces `tetrafi_pb2.py` - the module you'll import to decode messages.
+The compiler emits `tetrafi_pb2.py`; importing it gives you the decoder classes used below.
 
 ## 2. Open the Stream
 
@@ -82,7 +82,7 @@ All streaming runs over TetraFi's WebSocket endpoint:
 wss://api.tetrafi.io/api/v1/ws
 ```
 
-### Connection Parameters
+### What Goes on the URL
 
 | Parameter | Required | Description                                                              |
 | --------- | -------- | ------------------------------------------------------------------------ |
@@ -94,7 +94,7 @@ wss://api.tetrafi.io/api/v1/ws
   Topic-based JSON subscriptions (`prices:{srcChain}:{input}:{dstChain}:{output}:{tier}` - see the [Reference](/price-api/reference)) are available on this endpoint today. The protobuf full-depth snapshot mode documented below is the target surface for depth consumers and may evolve before general availability.
 </Note>
 
-### Open the Connection
+### First Connection
 
 ```python theme={null}
 import asyncio
@@ -120,24 +120,22 @@ async def main():
         ping_timeout=10,
         max_size=2**21,
     ) as ws:
-        print(f"Connected to pricing stream on {NETWORK}")
+        print(f"Stream open on {NETWORK}")
 
         async for blob in ws:
             update = TetraFiPricingUpdate()
             update.ParseFromString(blob)
-            print(f"Received {len(update.pairs)} pairs")
+            print(f"Snapshot covers {len(update.pairs)} pairs")
 asyncio.run(main())
 ```
 
 ## 3. Turn Bytes into Prices
 
-Each message contains updates for multiple trading pairs. To extract pricing for a specific pair, match on the `base` and `quote` addresses.
+A snapshot spans many pairs at once; picking out yours is a matter of matching the `base` and `quote` address bytes.
 
 ### Look Up Asset Addresses
 
-(optional)
-
-First, look up the contract addresses for the tokens you want:
+(You can skip this if you already track addresses.) Resolve symbols through the tradable-pair list:
 
 ```python theme={null}
 def fetch_pair_assets(chain_id: int) -> dict:
@@ -161,17 +159,17 @@ base_addr = assets["WETH"]["address"].lower()
 quote_addr = assets["USDC"]["address"].lower()
 ```
 
-### Parse Bids and Asks
+### Unpack the Depth Arrays
 
-The `bids` and `asks` fields are flat float arrays encoding `(price, size)` pairs:
+`bids` and `asks` arrive flattened - price, size, price, size - so re-pair them before use:
 
 ```python theme={null}
 def address_to_hex(b: bytes) -> str:
-    """Convert raw protobuf bytes to a hex address."""
+    """Render the protobuf address bytes as a 0x-hex string."""
     return "0x" + b.hex()
 
 def to_levels(flat: list[float]) -> list[tuple[float, float]]:
-    """Unpack flat [price, size, price, size, ...] into level tuples."""
+    """Re-pair the flattened price/size floats into (price, size) levels."""
     it = iter(flat)
     return list(zip(it, it, strict=True))
 
@@ -214,20 +212,20 @@ async def stream_prices(pair_base: str, pair_quote: str):
 asyncio.run(stream_prices(base_addr, quote_addr))
 ```
 
-### Reading the Depth Levels
+### How to Read a Level
 
-Bids are ordered best (highest) first, asks are ordered best (lowest) first. Each level represents a price point with available size in base token units.
+Both sides arrive pre-sorted from your perspective: the top bid is the highest, the top ask the lowest, and every level pairs a price with the base-token size available there.
 
-For example, if `bids = [2450.50, 1.5, 2449.80, 3.0]`, that means:
+So `bids = [2411.20, 2.4, 2410.55, 5.1]` decodes to:
 
 | Level | Price   | Size     |
 | ----- | ------- | -------- |
-| 1     | 2450.50 | 1.5 WETH |
-| 2     | 2449.80 | 3.0 WETH |
+| 1     | 2411.20 | 2.4 WETH |
+| 2     | 2410.55 | 5.1 WETH |
 
 ## 4. End to End
 
-Putting it all together - a complete script that connects, resolves a trading pair, and prints live pricing:
+Everything wired together - resolve the pair, open the stream, print live pricing:
 
 ```python theme={null}
 import asyncio
@@ -257,7 +255,7 @@ def to_levels(flat: list[float]) -> list[tuple[float, float]]:
     it = iter(flat)
     return list(zip(it, it, strict=True))
 
-# 1. Resolve token addresses from the pair list
+# Symbol -> address resolution via the tradable-pair list
 resp = httpx.get("https://api.tetrafi.io/api/v1/pairs",
                  headers={"X-API-Key": API_KEY}, timeout=10.0)
 assets = {}
@@ -269,8 +267,7 @@ base_symbol, quote_symbol = PAIR.split("/")
 base_addr = assets[base_symbol]["address"].lower()
 quote_addr = assets[quote_symbol]["address"].lower()
 
-# 2. Connect to the pricing stream
-
+# Open the stream and print live pricing
 async def main():
     async with websockets.connect(
         WSS_URL,
@@ -278,7 +275,7 @@ async def main():
         ping_timeout=10,
         max_size=2**21,
     ) as ws:
-        print(f"Connected - streaming {PAIR} on {NETWORK}\n")
+        print(f"Stream open - {PAIR} on {NETWORK}\n")
 
         async for blob in ws:
             update = TetraFiPricingUpdate()
@@ -313,17 +310,17 @@ asyncio.run(main())
 ```
 
 <Note>
-  **Prices are indicative.** The Price API streams real-time market data for monitoring and pre-trade analysis. To get firm, executable quotes, use the [RFQ API](/rfq-api/introduction).
+  **Nothing on this stream is executable.** Streamed depth is for monitoring, sizing, and pre-trade analysis - when you're ready to trade, the [RFQ API](/rfq-api/introduction) turns intent into a firm commitment.
 </Note>
 
 ## Keep Going
 
 <CardGroup cols={2}>
   <Card title="RFQ API Quickstart" icon="bolt" href="/rfq-api/quickstart">
-    Execute trades against the prices you're streaming.
+    Turn what you're streaming into settled trades.
   </Card>
 
-  <Card title="Price API Reference" icon="book" href="/price-api/reference">
-    Message types, connection limits, and coverage details.
+  <Card title="Price Feed Reference" icon="book" href="/price-api/reference">
+    Topic grammar, stream families, and expiry behavior.
   </Card>
 </CardGroup>

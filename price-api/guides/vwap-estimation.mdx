@@ -1,40 +1,37 @@
 ---
 title: "Estimating VWAP"
-description: "Estimate the indicative execution price for a given trade size using the Price API stream - without requesting a firm quote."
+description: "Work out what a given size would really cost from streamed depth - no firm quote needed."
 ---
 
-Solvers and aggregators often need to estimate what price they'd get for a specific trade size before committing to a firm RFQ quote. The Price API stream provides enough depth data to calculate a **Volume-Weighted Average Price (VWAP)** locally, giving you a reliable indicative price at any size.
+Before committing to a firm RFQ quote, it's often worth knowing roughly what a specific size would execute at. The depth carried on the price stream is enough to compute a **volume-weighted average price (VWAP)** on your side - a dependable indicative number for any trade size, calculated locally and instantly.
 
 <Info>
-  **Use case:** You're a solver or aggregator evaluating whether to bid on an intent. Instead of requesting a firm quote (which has rate limits and expiry), you estimate the execution price from the live stream to decide if the trade is worth pursuing.
+  **Typical scenario:** you're deciding whether an intent is worth bidding on. Rather than burning a rate-limited firm quote that expires in seconds, you derive the likely execution price straight from the live stream and only go firm when the trade clears your bar.
 </Info>
 
-## How It Works
+## The Idea
 
-The Price API streams order book levels as `(price, size)` pairs, sorted best-first. To estimate the execution price for a target trade size, you walk through these levels from best to worst, accumulating volume until you've filled the target amount.
+Stream levels arrive as `(price, size)` pairs, best price first. Pricing a target size means consuming those levels in order - best to worst - until the target is covered. The VWAP is then simply total quote spent over total base received: the blended price of everything you'd have eaten through.
 
-The VWAP is the notional-weighted average price across all levels you'd consume.
+## Walking the Book
 
-## The Algorithm
-
-### Step-by-Step Breakdown
+### The Four Moves
 
 <Steps>
-  <Step title="Sort levels by best price">
-    For a **buy**, sort asks lowest-first (cheapest prices first).
-    For a **sell**, sort bids highest-first (best bid prices first).
+  <Step title="Order the levels">
+    Buying? Consume asks, cheapest first. Selling? Consume bids, richest first.
   </Step>
 
-  <Step title="Walk through levels">
-    For each level, calculate the notional value (`price × size`). Take the lesser of the level's notional and your remaining target - this handles partial fills on the last level.
+  <Step title="Consume level by level">
+    A level's capacity is `price × size`. Fill from it up to whatever target remains - the final level usually gets consumed only partially.
   </Step>
 
-  <Step title="Accumulate">
-    Track total base tokens filled and total quote spent. The ratio gives you the VWAP.
+  <Step title="Blend the totals">
+    Keep running sums of base filled and quote spent; dividing one by the other yields the VWAP.
   </Step>
 
-  <Step title="Check for sufficient liquidity">
-    If `remaining > 0` after exhausting all levels, the stream doesn't have enough depth for your size. You may want to fall back to a firm quote or split across sources.
+  <Step title="Notice when depth runs out">
+    A positive remainder after the last level means the stream can't absorb your size - go straight to a firm quote, or split the trade across sources.
   </Step>
 </Steps>
 
@@ -43,23 +40,18 @@ def estimate_vwap(
     levels: list[tuple[float, float]],
     target_notional: float,
     intent: str,  # "buy" or "sell"
-) -> tuple[float, float, float]:
+) -> tuple[float, float]:
     """
-    Estimate the VWAP for a target notional trade size.
+    Blend streamed depth levels into an execution estimate for one target size.
 
-    Args:
-        levels: Price levels as (price, size) tuples from the stream.
-                Bids are highest-first, asks are lowest-first.
-        target_notional: The total notional (in quote terms) you want to trade.
-        intent: "buy" (you're buying base, consuming asks)
-                or "sell" (you're selling base, consuming bids).
+    levels          -- (price, size) tuples from the stream, best price first.
+    target_notional -- how much (in quote terms) you intend to trade.
+    intent          -- "buy" eats asks; "sell" eats bids.
 
-    Returns:
-        (vwap, unfilled)
-        - vwap: the effective execution price
-        - unfilled: remaining notional that couldn't be filled (0 if fully filled)
+    Gives back (vwap, leftover): the blended price, and any notional the
+    book couldn't absorb (0 when the size fits).
     """
-    # Sort: cheapest first for buys, most expensive first for sells
+    # Buys want ascending prices; sells want descending.
     sorted_levels = sorted(levels, key=lambda l: l[0], reverse=(intent == "sell"))
 
     remaining = target_notional
@@ -85,9 +77,9 @@ def estimate_vwap(
     return vwap, remaining
 ```
 
-## Full Example
+## Putting It on the Stream
 
-Combining the VWAP estimation with the Price API stream from the [Quickstart](/price-api/quickstart):
+Wire the estimator into the WebSocket connection from the [Quickstart](/price-api/quickstart) and it re-prices on every snapshot:
 
 ```python theme={null}
 import asyncio
@@ -109,7 +101,7 @@ WSS_URL = (
 )
 
 PAIR = "WETH/USDC"
-TARGET_NOTIONAL = 100_000  # estimate price for $100k trade
+TARGET_NOTIONAL = 250_000  # price a $250k clip
 
 def address_to_hex(b: bytes) -> str:
     return "0x" + b.hex()
@@ -144,7 +136,7 @@ def estimate_vwap(
 
     return total_quote / total_base, remaining
 
-# Resolve token addresses from the pair list
+# Map symbols to addresses via the tradable-pair list
 resp = httpx.get("https://api.tetrafi.io/api/v1/pairs",
                  headers={"X-API-Key": API_KEY}, timeout=10.0)
 tokens = {}
@@ -163,7 +155,7 @@ async def main():
         ping_timeout=10,
         max_size=2**21,
     ) as ws:
-        print(f"Connected - estimating VWAP for {PAIR} at ${TARGET_NOTIONAL:,}\n")
+        print(f"Streaming - pricing {PAIR} at ${TARGET_NOTIONAL:,}\n")
 
         async for blob in ws:
             update = TetraFiPricingUpdate()
@@ -182,10 +174,10 @@ async def main():
                 if not bids or not asks:
                     continue
 
-                # Estimate VWAP for buying $100k of WETH
+                # What would a $250k buy cost right now?
                 buy_vwap, buy_unfilled = estimate_vwap(asks, TARGET_NOTIONAL, "buy")
 
-                # Estimate VWAP for selling $100k of WETH
+                # And a $250k sell?
                 sell_vwap, sell_unfilled = estimate_vwap(bids, TARGET_NOTIONAL, "sell")
 
                 print(
@@ -199,30 +191,30 @@ async def main():
 asyncio.run(main())
 ```
 
-Example output for a \$100,000 WETH/USDC estimate:
+A \$250,000 WETH/USDC run prints something like:
 
 ```json theme={null}
 {
   "pair": "WETH/USDC",
-  "target_notional": 100000,
+  "target_notional": 250000,
   "buy": {
-    "vwap": 2330.0,
+    "vwap": 2412.85,
     "unfilled": 0.0
   },
   "sell": {
-    "vwap": 2328.39,
+    "vwap": 2409.12,
     "unfilled": 0.0
   }
 }
 ```
 
 <Warning>
-  These are **indicative** estimates based on streamed depth. The actual execution price from a firm quote may differ due to market maker inventory changes, timing, and quote-specific parameters.
+  A streamed VWAP is an **estimate**, nothing more. The firm quote you eventually request can land elsewhere - LP inventory shifts, time passes, and quote-level parameters apply. Treat it as a filter, not a promise.
 </Warning>
 
-## Key Considerations
+## Watch-outs
 
-* **Check for sufficient depth.** If `unfilled > 0` after exhausting all levels, the stream doesn't have enough liquidity for your trade size. Fall back to a firm quote or split across sources.
-* **VWAP diverges from top-of-book at size.** For small trades the top level is a reasonable proxy. For larger sizes, the VWAP will be meaningfully worse - that's the whole point of estimating it.
-* **Tier cadence varies between pairs.** Two pairs with the same top-of-book price can have very different depth profiles. Always estimate at your actual trade size rather than assuming uniform depth.
-* **Stream prices update frequently.** Re-estimate on each new message rather than caching stale VWAP values.
+* **A leftover means the book is too thin.** When `unfilled > 0`, the streamed depth can't take your size - request a firm quote or break the trade up instead of trusting the partial number.
+* **Size is what separates VWAP from top-of-book.** Tiny clips track the best level closely; real size digs into worse levels, and quantifying exactly how much worse is why you're computing this at all.
+* **Depth profiles differ pair to pair.** Identical top-of-book prices can hide wildly different books underneath - always estimate at your true size instead of extrapolating.
+* **Never reuse an old estimate.** The stream refreshes constantly; recompute on every message rather than holding onto a number that's already stale.

@@ -51,29 +51,16 @@ bindings:
               - protobuf
             default: protobuf
             description: Message encoding format.
-          gasless:
-            type: boolean
-            default: false
-            description: >-
-              Set to true to receive gasless pricing (longer expiry, TetraFi
-              submits tx).
-          expiry_type:
+          network:
             type: string
-            enum:
-              - standard
-              - short
-            default: standard
             description: >-
-              Quote expiry window. Short expiry gives tighter prices on some
-              chains.
-      headers:
-        type: object
-        required:
-          - Authorization
-        properties:
-          Authorization:
+              Network whose aggregated book to snapshot (for example
+              optimism).
+          token:
             type: string
-            description: 'Your API key as a Bearer token: `Bearer <API_KEY>`.'
+            description: >-
+              Your API key (or JWT), passed as a query parameter - browsers
+              cannot set custom WebSocket headers.
     schemaProperties:
       - name: query
         type: object
@@ -85,28 +72,13 @@ bindings:
             enumValues:
               - protobuf
             required: false
-          - name: gasless
-            type: boolean
-            description: >-
-              Set to true to receive gasless pricing (longer expiry, TetraFi
-              submits tx).
-            required: false
-          - name: expiry_type
+          - name: network
             type: string
-            description: >-
-              Quote expiry window. Short expiry gives tighter prices on some
-              chains.
-            enumValues:
-              - standard
-              - short
+            description: Network whose aggregated book to snapshot.
             required: false
-      - name: headers
-        type: object
-        required: false
-        properties:
-          - name: Authorization
+          - name: token
             type: string
-            description: 'Your API key as a Bearer token: `Bearer <API_KEY>`.'
+            description: Your API key (or JWT), passed as a query parameter.
             required: true
 operations:
   - &ref_0

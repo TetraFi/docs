@@ -24,10 +24,10 @@ Two topic families cover TetraFi's liquidity, both carried on the same WebSocket
 
 Streamed prices are indicative and continuously refreshed; firm quotes carry a hard `validUntil`. When you move from estimate to execution, the validity window you request (via `minValidUntil` on the intent) shapes the pricing you receive:
 
-| Validity request        | Availability                | Window                             | Best for                                                                 |
+| Validity request        | Who can use it              | Typical horizon                    | Suits                                                                    |
 | ----------------------- | --------------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
-| Standard (unset)        | All integrations            | ~60-75s typical (varies by chain)  | Most integrators - room to sign and submit without automation pressure   |
-| Tight (near-term `minValidUntil`) | Automated pipelines | As low as a few seconds            | Latency-sensitive solvers - tighter spreads for a smaller LP risk window |
+| Standard (unset)        | All integrations            | Around a minute, chain-dependent   | Flows with a human in the loop - no automation pressure on the sign-and-submit hop |
+| Tight (near-term `minValidUntil`) | Automated pipelines | Down to a few seconds              | Programmatic executors chasing the spread improvement a smaller LP risk window buys |
 
 Shorter windows price tighter because the LP holds risk for less time - but your sign-and-submit hop must complete inside the window, or the order refunds through the escrow.
 
