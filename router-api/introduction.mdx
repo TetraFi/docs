@@ -13,14 +13,14 @@ The Router API fans your request across every eligible execution source - direct
 
 ## Quick Reference
 
-|                    |                                                                     |
-| ------------------ | ------------------------------------------------------------------- |
-| **Transport**      | REST                                                                |
-| **Authentication** | API key (`X-API-Key` header)                                        |
-| **Signing**        | EIP-712 (`escrow-v0` order payload)                                 |
-| **On-chain tx**    | TetraFi submits (`apiSubmit`) or you broadcast (`walletBroadcast`)    |
-| **Guarantees**     | Stated per candidate: firmness, atomicity, settlement model, fees   |
-| **Complexity**     | Medium - quote selection plus preflight before signing              |
+| Facet           |                                                                     |
+| --------------- | -------------------------------------------------------------------- |
+| Protocol        | REST over HTTPS                                                     |
+| Credential      | API key (`X-API-Key` header)                                        |
+| Signature       | EIP-712 over the `escrow-v0` payload                                |
+| Landing the tx  | `apiSubmit` (TetraFi) or `walletBroadcast` (you), per candidate       |
+| Guarantee       | Printed on each candidate: firmness, atomicity, settlement, fees    |
+| Effort          | Moderate: pick a candidate, preflight it, sign                      |
 
 ## The Trade Flow
 
@@ -30,27 +30,27 @@ Each candidate carries an `executionMode` telling you who puts the transaction o
   <Tab title="apiSubmit (native settlement)">
     TetraFi submits the settlement transaction. Your user signs the order; TetraFi handles the rest.
 
-    | Step | Action              | You send                                              | You get back                                  |
-    | ---- | ------------------- | ----------------------------------------------------- | --------------------------------------------- |
-    | 1    | Request quotes      | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation            |
-    | 2    | Preflight           | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` execution plan                  |
-    | 3    | Sign the order      | EIP-712 `escrow-v0` payload → taker wallet            | Signature                                     |
-    | 4    | Submit to TetraFi     | Signed order → `POST /api/v1/router/orders`             | Order ID                                      |
-    | 5    | Track settlement    | Order ID → `GET /api/v1/router/orders/{id}` or WebSocket | Status: `settled`                             |
+    | # | Move               | Input                                                 | Output                                        |
+    | - | ------------------ | ----------------------------------------------------- | --------------------------------------------- |
+    | 1 | Collect candidates | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation            |
+    | 2 | Preflight the pick | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` execution plan                  |
+    | 3 | Authorize          | EIP-712 `escrow-v0` payload → taker wallet            | Signature                                     |
+    | 4 | Hand it over       | Signed order → `POST /api/v1/router/orders`             | Order ID                                      |
+    | 5 | Watch it land      | Order ID → `GET /api/v1/router/orders/{id}` or WebSocket | Status: `settled`                             |
   </Tab>
 
   <Tab title="walletBroadcast (self-execution)">
-    You broadcast the transaction yourself - used by candidates that settle through an external venue or bridge.
+    Candidates settling through an external venue or bridge hand the transaction to you instead.
 
-    | Step | Action             | You send                                              | You get back                       |
-    | ---- | ------------------ | ----------------------------------------------------- | ---------------------------------- |
-    | 1    | Request quotes     | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation |
-    | 2    | Preflight          | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` with the tx to send  |
-    | 3    | Broadcast on-chain | Prepared tx → your RPC                                | On-chain settlement                |
+    | # | Move               | Input                                                 | Output                             |
+    | - | ------------------ | ----------------------------------------------------- | ---------------------------------- |
+    | 1 | Collect candidates | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation |
+    | 2 | Preflight the pick | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` with the tx to send  |
+    | 3 | Send it yourself   | Prepared tx → your RPC                                | On-chain settlement                |
   </Tab>
 </Tabs>
 
-See [Execution Modes](/core-concepts/execution-modes) for a detailed comparison.
+Both modes are contrasted in depth under [Execution Modes](/core-concepts/execution-modes).
 
 ## Guarantees, Stated Per Candidate
 
@@ -82,10 +82,10 @@ A candidate filled by the RFQ venue keeps RFQ-grade firmness; a multi-leg bridge
 
 <CardGroup cols={2}>
   <Card title="Quickstart" icon="bolt" href="/router-api/quickstart">
-    Make your first trade in 10-15 minutes.
+    A first candidate selected, signed, and settled - in one sitting.
   </Card>
 
   <Card title="Token Approvals" icon="key" href="/core-concepts/token-approvals">
-    Set up ERC-20 approvals before trading.
+    The allowance groundwork that makes settlement possible.
   </Card>
 </CardGroup>
