@@ -3,13 +3,13 @@ title: "Partial Fills"
 description: "Let an order settle for the size that's actually available - and get the rest back."
 ---
 
-A partial fill lets your order settle for less than the full requested size when full liquidity isn't there at execution time. That's valuable when you're blending RFQ liquidity with other sources, or when conditions move and taking part of the size beats taking none of it.
+Sometimes the right outcome is most of the trade rather than none of it. With partial fills enabled, an order settles for whatever size is actually available at execution - the pattern of choice when firm liquidity is one ingredient in a larger route, or when a shrinking market makes a partial win better than a full miss.
 
 <Note>
   Partial fills are opt-in per intent: set `intent.partialFill: true` on the quote request. Orders without the flag are all-or-nothing - they settle in full or refund in full.
 </Note>
 
-## How It Works
+## The Mechanics
 
 Partial-fill behavior is declared, not engineered: the flag rides on your intent, LPs quote knowing partial settlement is acceptable, and the escrow enforces proportionality - whatever fraction of your input is consumed, you receive at least the matching fraction of the quoted output. The unconsumed remainder of your input is released back to you.
 
@@ -32,7 +32,7 @@ refunded input  :  350000000  (350 USDC released back)
 | Remainder         | Unconsumed input is released by the escrow, not left locked               |
 | Atomicity per leg | Each settled portion is delivery-versus-payment, same as a full fill      |
 
-## Step by Step
+## In Practice
 
 ### 1. Quote with the Flag
 
@@ -111,7 +111,7 @@ print("status:", o["status"])
 # and refunded remainder on the order record.
 ```
 
-## Full Example
+## End to End
 
 ```python theme={null}
 import time

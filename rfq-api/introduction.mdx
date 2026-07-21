@@ -13,14 +13,14 @@ The RFQ API puts your request in front of every eligible solver and LP in your w
 
 ## Quick Reference
 
-|                    |                                                                    |
-| ------------------ | ------------------------------------------------------------------ |
-| **Transport**      | REST                                                               |
-| **Authentication** | API key (`X-API-Key` header)                                       |
-| **Signing**        | EIP-712 (`escrow-v0` order payload)                                |
-| **On-chain tx**    | TetraFi submits (`apiSubmit`) or you broadcast (`walletBroadcast`)   |
-| **Guarantees**     | Firm quotes; escrow delivery-or-refund on every order              |
-| **Complexity**     | Medium - EIP-712 signing plus a preflight step                     |
+| Facet           |                                                                    |
+| --------------- | ------------------------------------------------------------------ |
+| Protocol        | REST over HTTPS                                                    |
+| Credential      | API key (`X-API-Key` header)                                       |
+| Signature       | EIP-712 over the `escrow-v0` payload                               |
+| Landing the tx  | `apiSubmit` (TetraFi) or `walletBroadcast` (you)                     |
+| Guarantee       | Every quote firm; every order escrow delivery-or-refund            |
+| Effort          | Moderate: one signature plus a preflight round-trip                |
 
 ## The Shape of a Trade
 
@@ -30,27 +30,27 @@ Quotes compete, you pick one, preflight tells you exactly what to do next. The e
   <Tab title="apiSubmit (native settlement)">
     TetraFi handles on-chain submission. Your user signs the order payload and never touches gas.
 
-    | Step | Action              | You send                                             | You get back                     |
-    | ---- | ------------------- | ---------------------------------------------------- | -------------------------------- |
-    | 1    | Request quotes      | Intent (inputs, outputs) → `POST /api/v1/rfq/quotes` | Competing firm quotes, ranked    |
-    | 2    | Preflight           | Chosen quote → `POST /api/v1/rfq/orders/preflight`   | `nextActions` plan               |
-    | 3    | Sign the order      | EIP-712 `escrow-v0` payload → taker wallet           | Signature                        |
-    | 4    | Submit              | Signed order → `POST /api/v1/rfq/orders`             | Order ID                         |
-    | 5    | Track settlement    | Order ID → `GET /api/v1/rfq/orders/{id}` or WebSocket | Status: `settled`               |
+    | # | Move               | Input                                                | Output                           |
+    | - | ------------------ | ---------------------------------------------------- | -------------------------------- |
+    | 1 | Collect quotes     | Intent (inputs, outputs) → `POST /api/v1/rfq/quotes` | Competing firm quotes, ranked    |
+    | 2 | Preflight the pick | Chosen quote → `POST /api/v1/rfq/orders/preflight`   | `nextActions` plan               |
+    | 3 | Authorize          | EIP-712 `escrow-v0` payload → taker wallet           | Signature                        |
+    | 4 | Hand it over       | Signed order → `POST /api/v1/rfq/orders`             | Order ID                         |
+    | 5 | Watch it land      | Order ID → `GET /api/v1/rfq/orders/{id}` or WebSocket | Status: `settled`               |
   </Tab>
 
   <Tab title="walletBroadcast (self-execution)">
     You put the settlement on-chain yourself, from your own RPC.
 
-    | Step | Action             | You send                                             | You get back                     |
-    | ---- | ------------------ | ---------------------------------------------------- | -------------------------------- |
-    | 1    | Request quotes     | Intent (inputs, outputs) → `POST /api/v1/rfq/quotes` | Competing firm quotes, ranked    |
-    | 2    | Preflight          | Chosen quote → `POST /api/v1/rfq/orders/preflight`   | `nextActions` with the tx        |
-    | 3    | Broadcast          | Prepared tx → your RPC                               | On-chain settlement              |
+    | # | Move               | Input                                                | Output                           |
+    | - | ------------------ | ---------------------------------------------------- | -------------------------------- |
+    | 1 | Collect quotes     | Intent (inputs, outputs) → `POST /api/v1/rfq/quotes` | Competing firm quotes, ranked    |
+    | 2 | Preflight the pick | Chosen quote → `POST /api/v1/rfq/orders/preflight`   | `nextActions` with the tx        |
+    | 3 | Send it yourself   | Prepared tx → your RPC                               | On-chain settlement              |
   </Tab>
 </Tabs>
 
-See [Execution Modes](/core-concepts/execution-modes) for the full comparison.
+The two modes are contrasted in depth under [Execution Modes](/core-concepts/execution-modes).
 
 ## Endpoint Map
 
@@ -73,6 +73,6 @@ See [Execution Modes](/core-concepts/execution-modes) for the full comparison.
   </Card>
 
   <Card title="Guides" icon="book-open" href="/rfq-api/guides/gasless-execution">
-    Order submission, partial fills, multi-token trades, and more.
+    From order submission to partial fills and multi-leg orders.
   </Card>
 </CardGroup>

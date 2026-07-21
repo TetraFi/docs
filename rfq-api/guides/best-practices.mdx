@@ -3,21 +3,21 @@ title: "Best Practices"
 description: "The operating rules that keep your RFQ integration on the full liquidity surface."
 ---
 
-Treat this page as the operational manual for the RFQ API. Each rule earned its place: real LPs have widened, de-prioritised, or denylisted integrators who broke it.
+Consider this the RFQ API's field handbook. None of these rules is theoretical - each one exists because some integrator broke it and watched an LP respond.
 
-The desks quoting on TetraFi run their own risk systems. They watch flow per source and push back on patterns that look adversarial. Follow these six rules and your access to the liquidity surface stays stable; ignore them and you'll see fill rates sag, sporadic no-liquidity answers, and eventually LP-level bans.
+Every desk quoting on TetraFi runs its own risk engine and profiles the flow it receives, source by source. Adversarial-looking patterns get priced against, then filtered out. Hold to the six rules below and the whole liquidity surface stays open to you; drift from them and the degradation is gradual, then total.
 
 ## 1. Filter before you quote
 
-Use the [price feed](/price-api/quickstart) for sizing and route estimation, and only call `/rfq/quotes` when the stream says the trade is worth pursuing.
+Let the [price feed](/price-api/quickstart) do your screening. `/rfq/quotes` should fire only after the stream has already told you the trade clears your bar.
 
-Streamed prices give you continuous depth at no cost to LPs, while firm quotes are rate-limited per key precisely *because* each one is a priced commitment someone has to stand behind.
+The stream costs LPs nothing and refreshes continuously; a firm quote is a commitment a desk must stand behind, which is exactly why it's metered per key.
 
 ```python theme={null}
-# Anti-pattern: firm-quote every candidate intent
-quotes = httpx.post(QUOTES_URL, json=...)  # burns rate limit even when there's no liquidity
+# Wasteful: a firm quote per candidate intent
+quotes = httpx.post(QUOTES_URL, json=...)  # spends metered quota on maybe-trades
 
-# Recommended: pre-filter on the stream
+# Better: let streamed depth gate the call
 if stream_depth_for(corridor) >= intent_size:
     quotes = httpx.post(QUOTES_URL, json=...)
 ```
@@ -26,34 +26,34 @@ See [Estimating VWAP](/price-api/guides/vwap-estimation) for the canonical patte
 
 ## 2. Execute what you quote
 
-A firm quote prices one moment in time. Holding a quote, watching the market, and submitting only when the stale price beats the live one is **toxic flow** - and it's visible.
+A quote captures the market at a single instant. Sitting on it, letting the market move, and firing only once the frozen price has drifted into your favour is **adverse selection by design** - and desks see it immediately.
 
-**The clean pattern:** request quotes at the moment you intend to execute, and drive everything earlier in your pipeline off the streamed prices.
+**Do it this way:** the streamed prices power every upstream decision; the firm quote is requested at the instant of execution, never before.
 
 ## 3. One intent, one quote
 
 Slicing - splitting a single fill intent into several smaller quote requests - comes in two flavours, and LPs detect both:
 
-* **Several quotes for one fill:** five `1M USDC → WETH` requests when you mean to fill `5M` once.
-* **Several quotes for one execution:** two simultaneous `10M USDC → WETH` quotes, both executed - bundled or across consecutive blocks. Each was priced against the LP's full inventory; the first draws it down and the second fails. Blocks arrive seconds apart, inventory doesn't refill in that window - simultaneous requests are slicing however you submit them.
+* **Fragmenting one fill:** asking four times for `2M USDC → WETH` when the real intent is a single `8M` fill.
+* **Doubling one execution:** pulling two `20M USDC → WETH` quotes at once and executing both, whether bundled or in back-to-back blocks. Both were priced against the same full inventory; only one can survive its draw-down. A few seconds between blocks replenishes nothing - the moment both quotes were requested together, it was slicing.
 
-Need size flexibility? That's what [partial fills](/rfq-api/guides/partial-fills) are for: a 5M quote with `partialFill: true` can settle at 4.5M on the same firm terms - supported, not adversarial.
+When the final size is genuinely uncertain, [partial fills](/rfq-api/guides/partial-fills) exist for exactly that: quote `8M` with `partialFill: true` and settle at `6.5M` on unchanged terms - a supported pattern, not a hostile one.
 
 Partial fills also solve the AMM top-up case: when part of a trade routes through an AMM, its true output isn't known until execution. Quote the maximum you might need, let the order partially fill down to what the AMM leg actually produced, and skip a second round trip on the critical path.
 
 ```python theme={null}
-# Anti-pattern: five small quotes for one intent
-for _ in range(5):
-    httpx.post(QUOTES_URL, json=intent_for("1000000"))
+# Hostile: fragmenting one intent into four requests
+for _ in range(4):
+    httpx.post(QUOTES_URL, json=intent_for("2000000"))
 
-# Recommended: one quote, partial fill enabled
-httpx.post(QUOTES_URL, json=intent_for("5000000", partial_fill=True))
-# Settles at any size up to the quote, on the firm terms.
+# Supported: a single quote with room to settle smaller
+httpx.post(QUOTES_URL, json=intent_for("8000000", partial_fill=True))
+# Any size up to the quoted amount settles on the same terms.
 ```
 
 ## 4. Quote only what's tradable
 
-Probing corridors that aren't supported costs LP compute and marks you as an unfiltered taker. Make the pair list your gate:
+Firing quotes at corridors nobody serves wastes desk compute and tells everyone your pipeline has no filter. Gate on the pair list instead:
 
 ```python theme={null}
 import httpx
@@ -70,7 +70,7 @@ if (10, usdc_op.lower(), 8453, usdc_base.lower()) in tradable:
     quotes = httpx.post(QUOTES_URL, json=..., headers=...)
 ```
 
-Any listed pair can be quoted against any other supported leg - the list is the canonical availability check.
+The pair list is the definitive answer to "can this be quoted?" - anything on it combines with any other supported leg.
 
 ## 5. Firm means firm
 
@@ -81,7 +81,7 @@ An RFQ quote is **executable at its stated terms until `validUntil`**, enforced 
 | TetraFi RFQ           | Firm, escrow-enforced | The quoted terms - or a refund       |
 | AMM (Uniswap, etc.) | Mid-price estimate | Estimate minus slippage and MEV cost    |
 
-Comparing a firm quote and a pool estimate as if they were the same kind of number systematically misroutes flow away from your best price.
+Treat those two numbers as the same kind of thing and your router will systematically send flow away from its genuinely best price.
 
 ## 6. Show us whose flow it is
 
@@ -101,19 +101,19 @@ Attribution fields tell TetraFi and the LPs who is really behind a request. They
 **Aggregated flows** - tag each upstream source consistently in `metadata`. Reputation then accrues per sub-source, so one bad downstream partner can't taint the rest of your flow.
 
 <Warning>
-  **Attribute honestly.** Wrong or missing attribution blinds screening and reputation at the same time - the result is worse pricing for all of your flow and, in persistent cases, de-prioritisation.
+  **Truthful attribution is self-interest.** Misattributed flow degrades both screening and reputation in one stroke, and the pricing consequences land on your whole integration - persistently wrong data ends in de-prioritisation.
 </Warning>
 
 ## Pre-launch checklist
 
 Before going live, confirm:
 
-* The price stream - not firm quotes - drives your pre-trade filtering
-* No quote is ever cached between issuance and execution
-* One quote per intended fill; `partialFill` covers flexible sizing
-* Only one quote per fill is ever executed
-* Every quoted pair appears in `/api/v1/pairs`
-* AMM comparisons are net of slippage; TetraFi quotes are not haircut
-* Attribution fields reflect the true origin of the flow
+* Streamed prices, not firm quotes, do the pre-trade screening
+* Quotes go straight from issuance to execution, never through a cache
+* Each intended fill maps to exactly one quote, with `partialFill` absorbing size uncertainty
+* No fill ever executes more than one quote
+* `/api/v1/pairs` vouches for every pair you quote
+* Pool estimates get their slippage haircut; firm quotes don't
+* Attribution fields name the flow's true origin
 
-An integration that holds all seven lines is the difference between stable access and one that quietly degrades over weeks.
+Hold all seven and your access compounds in your favour; let them slip and the decay is silent until it isn't.

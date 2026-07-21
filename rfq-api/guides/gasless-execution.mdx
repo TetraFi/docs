@@ -8,18 +8,18 @@ On an `apiSubmit` quote, your user signs the order payload and TetraFi puts the 
 There is no last-look trade-off here: every RFQ quote is already a firm, signed commitment, and settlement runs delivery-versus-payment through the escrow. What changes with `apiSubmit` is only *who* lands the transaction.
 
 <Info>
-  **When to use it:** consumer-facing products where users shouldn't think about gas. Solvers and aggregators running their own submission pipelines usually prefer `walletBroadcast` - see the [quickstart](/rfq-api/quickstart).
+  **Reach for this when** your users should never encounter gas at all - the wallet and super-app case. Teams operating their own submission infrastructure generally take `walletBroadcast` instead; the [quickstart](/rfq-api/quickstart) covers that route.
 </Info>
 
 ## The Two Paths Side by Side
 
-|                  | walletBroadcast                              | apiSubmit                                        |
-| ---------------- | -------------------------------------------- | ------------------------------------------------ |
-| Who submits tx   | You broadcast via your RPC                   | TetraFi submits on-chain                           |
-| Order endpoint   | Prepared tx comes from preflight             | POST the signed order to `/api/v1/rfq/orders`    |
-| Firmness         | Firm - signed escrow commitment              | Firm - identical guarantee, no last look         |
-| Gas              | Paid by taker                                | Abstracted from the user                         |
-| Funding          | Direct from wallet                           | Escrow lock: Permit2, EIP-3009, or resource lock |
+|                   | walletBroadcast                              | apiSubmit                                        |
+| ----------------- | -------------------------------------------- | ------------------------------------------------ |
+| Transaction path  | Your wallet and RPC carry it                 | TetraFi lands it on-chain                          |
+| Order endpoint    | Prepared tx arrives via preflight            | POST the signed order to `/api/v1/rfq/orders`    |
+| Firmness          | Firm - a signed escrow commitment            | Firm - the identical guarantee, no last look     |
+| Gas               | On the taker                                 | Invisible to the user                            |
+| Funding           | Straight from the wallet                     | Escrow lock: Permit2, EIP-3009, or resource lock |
 
 ## 1. Get a Quote You Can Submit
 

@@ -3,19 +3,19 @@ title: "Quickstart"
 description: "From your first firm quote to a settled trade on the RFQ API."
 ---
 
-This walkthrough takes you from zero to a settled RFQ trade: discover what you can trade, collect firm quotes, sign the winning one, and see it through settlement.
+By the end of this page an RFQ trade of yours will have settled on-chain. The route there: find a tradable corridor, put LPs in competition, authorize the winner, watch the escrow do its job.
 
 <Info>
-  **What you'll build:** A complete trade flow from quote collection to settlement.
+  **Outcome:** a working quote-to-settlement loop you can build on.
 
-  **Time required:** 10-15 minutes
+  **Time:** one coffee (10-15 minutes).
 
-  **Prerequisites:** Basic familiarity with EVM wallets and token approvals, plus an API key (`tfk_test_` for the sandbox).
+  **Bring:** EVM wallet basics, a grasp of token approvals, and an API key (`tfk_test_` targets the sandbox).
 </Info>
 
 ## Step 1 - Find What's Tradable
 
-Coverage grows as new corridors and LPs come online, so have your integration refresh this data on a schedule rather than pinning it.
+What's quotable is a moving target - LPs join, corridors open - so treat this data as a feed to poll, never a constant to pin.
 
 ### List Tradable Pairs
 
@@ -90,17 +90,17 @@ Key discovery fields:
 | Field                  | Description                                                                      |
 | ---------------------- | -------------------------------------------------------------------------------- |
 | `input` / `output`     | The tradable asset on each side - `chainId` plus contract `address`              |
-| `decimals`             | Converts human amounts to base units (1 USDC = 1 × 10⁶ base units)               |
+| `decimals`             | The exponent between human units and base units - six for USDC, so ×10⁶          |
 | `corridor`             | Directional route name; the cross-chain analog of a trading pair                 |
 | solver `id` / `status` | Who can quote, and whether they're currently active                              |
 
 <Tip>
-  **Refresh cadence:** re-pull pairs at least daily. Corridor coverage shifts with LP inventory and new listings.
+  **Keep it fresh:** a daily re-pull of the pair list is the floor - inventory shifts and new listings land continuously.
 </Tip>
 
 ## Step 2 - Collect Firm Quotes
 
-A quote is an executable commitment with an expiry, so ask for quotes when you're ready to act - typically they stay valid for about a minute.
+Every quote is a live commitment with a countdown attached (roughly a minute of validity) - collect them at decision time, not ahead of it.
 
 ### Authentication
 
@@ -127,7 +127,7 @@ The request body describes your intent:
 | `supportedTypes`     | Order payloads your signer can handle                                | `["escrow-v0"]`               |
 
 <Note>
-  **Swap and send:** the input's `user` signs and funds; each output's `receiver` collects. Point `receiver` at a different wallet to deliver elsewhere - it works in both execution modes.
+  **Delivery is addressable:** funding and signing belong to the input's `user`, but each output lands wherever its `receiver` says - a third-party wallet included, whichever execution mode runs.
 </Note>
 
 <Accordion title="ExactInput or ExactOutput?">
@@ -135,12 +135,12 @@ The request body describes your intent:
   * `ExactOutput` fixes what you get - "deliver exactly 20 USDC, charge what it takes"
 </Accordion>
 
-<Accordion title="Converting human amounts to base units">
+<Accordion title="From human units to base units">
   ```
   base_units = human_amount × 10^decimals
   ```
 
-  For example: 1.5 WETH (18 decimals) = 1.5 × 10¹⁸ = `1500000000000000000`
+  So 250 USDC (6 decimals) travels on the wire as 250 × 10⁶ = `250000000`
 </Accordion>
 
 Example - moving 25 USDC from Optimism to Base:
@@ -333,7 +333,7 @@ Ready for more? The guides go deeper:
   </Card>
 
   <Card title="Order Submission" icon="wand-magic-sparkles" href="/rfq-api/guides/gasless-execution">
-    Let TetraFi land the transaction - ideal for wallets and super-apps.
+    Gas-free UX for your users: TetraFi carries the transaction.
   </Card>
 
   <Card title="Partial Fills" icon="chart-pie" href="/rfq-api/guides/partial-fills">

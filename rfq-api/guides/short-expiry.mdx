@@ -59,7 +59,7 @@ Working the other direction - accepting *short* windows for better pricing - is 
 
 ## Pairing with the Price Feed
 
-If you use the [price feed](/price-api/introduction) for pre-trade estimates, keep your indicative and firm horizons consistent - an estimate built on a longer-horizon stream will drift from what short-window firm quotes actually offer. See [Quote Expiry](/price-api/reference#quote-expiry) for how expiry interacts with streamed pricing.
+One consistency rule when the [price feed](/price-api/introduction) feeds your estimates: match horizons. Numbers derived from patient streamed pricing won't line up with what tight-window firm quotes return - and the gap widens exactly when it matters. [Quote Expiry](/price-api/reference#quote-expiry) covers the interaction.
 
 <Warning>
   Comparing short-window firm quotes against long-horizon indicative prices will systematically misestimate your execution quality - align the two before drawing conclusions.
@@ -67,9 +67,9 @@ If you use the [price feed](/price-api/introduction) for pre-trade estimates, ke
 
 ## Trade-offs
 
-|                      | Shorter windows                                                            | Standard windows                          |
-| -------------------- | -------------------------------------------------------------------------- | ----------------------------------------- |
-| **Pricing**          | Tighter spreads                                                            | Slightly wider spreads                    |
-| **Execution window** | Settlement must land before `validUntil` - automate the sign-and-submit hop | Room for slower flows and user interaction |
-| **Failure mode**     | Up-front rejection or escrow refund - never a stale fill                   | Same guarantees, more slack               |
-| **Best for**         | Latency-sensitive programmatic integrations                                | Most integrators                          |
+|                    | Shorter windows                                                            | Standard windows                          |
+| ------------------ | -------------------------------------------------------------------------- | ----------------------------------------- |
+| **Spread**         | Compressed - you keep what the LP no longer risks                          | A little wider, priced for patience       |
+| **Clock pressure** | Settlement must beat `validUntil`; automate the sign-and-submit hop        | Slack enough for human-paced flows        |
+| **If you miss**    | Clean rejection up front, or an escrow refund - stale fills can't happen   | Identical guarantees, rarely tested       |
+| **Natural fit**    | Machine-speed pipelines chasing basis points                               | Nearly everyone else                      |
