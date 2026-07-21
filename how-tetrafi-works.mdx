@@ -1,15 +1,15 @@
 ---
 title: "How TetraFi Works"
-description: "Two products, one platform - understand how TetraFi works and choose the right integration."
+description: "What happens between your request and settlement - and which product to build on."
 ---
 
-## Two Products, One Platform
+## One Platform, Two Contracts to Buy
 
-TetraFi exposes two distinct trading products over one shared routing, settlement, and compliance engine, each optimized for different execution requirements:
+A single routing, settlement, and compliance engine underlies everything; on top of it, TetraFi sells you one of two distinct trading contracts, depending on what your execution needs:
 
 <AccordionGroup>
   <Accordion title="RFQ - firm liquidity">
-    Every eligible solver and LP in your workspace competes to fill your request with a cryptographically firm, executable quote. Settlement runs through an escrow with a delivery-or-refund guarantee - what you see is what you get, and a quote that can't deliver refunds instead of failing you.
+    Your request goes to every eligible solver and LP in the workspace, and each answers with a cryptographically firm, executable quote. Escrowed settlement enforces the terms exactly as quoted: deliver, or refund - a quote can disappoint you only by refunding, never by failing.
   </Accordion>
 
   <Accordion title="Router - aggregated execution">
@@ -17,7 +17,7 @@ TetraFi exposes two distinct trading products over one shared routing, settlemen
   </Accordion>
 </AccordionGroup>
 
-Both products share one platform and one flow: you request quotes, competing sources answer, you sign the winning quote, submit the order, and settlement happens on-chain without TetraFi taking custody.
+The flow underneath is identical either way - quotes requested, sources compete, a winner gets your signature, the order goes in - and on-chain settlement completes it with custody never leaving your side.
 
 The key difference is **the contract you buy**:
 
@@ -34,29 +34,29 @@ TetraFi is not built to replace banks, fintechs, asset managers, or exchanges. I
 
 ## Picking Your Product
 
-|                     | **RFQ API - Firm Escrow Liquidity**                                  | **Router API - Aggregated Multi-Source**                                                   |
-| ------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **Execution model** | Firm quotes only; escrow delivery-or-refund guarantee                | Ranked executable candidates; firmness and guarantees stated per candidate                 |
-| **Settlement**      | On-chain DvP via audited escrow contracts; TetraFi never holds custody | On-chain via audited smart contracts; TetraFi never holds custody                            |
-| **Optimal for**     | Corridors where firm pricing and delivery guarantees matter most     | Broad coverage, cross-chain routes, or when maximizing source diversity is priority        |
-| **Trade-off**       | Limited to assets where solvers/LPs actively quote                   | Guarantee strength varies by candidate; read each candidate's stated terms                 |
+|                    | **RFQ API - Firm Escrow Liquidity**                                  | **Router API - Aggregated Multi-Source**                                                   |
+| ------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **What you buy**   | Only firm quotes, each escrow-enforced to deliver or refund         | A ranked candidate list, each entry carrying its own stated guarantees                     |
+| **How it settles** | Delivery-versus-payment through escrow, custody never with TetraFi     | On-chain through the same contract stack, custody never with TetraFi                         |
+| **Reach**          | The corridors your workspace's solvers and LPs actively quote        | Everything eligible - DEX, bridges, issuers, fiat rails, cross-chain corridors             |
+| **The catch**      | Coverage follows the LP roster, not the whole token universe         | Guarantees differ candidate to candidate - always read the printed terms                   |
 
-**Use RFQ API when:**
+**RFQ is your product if:**
 
-* You need firm quotes backed by a delivery-or-refund escrow
-* You are trading supported corridors at size
-* Predictable settlement guarantees are critical
+* Escrow-enforced delivery-or-refund is the guarantee your users depend on
+* Your flow concentrates in quoted corridors, at real size
+* Settlement predictability outranks maximum coverage
 
-**Use Router API when:**
+**Router is your product if:**
 
-* You need broad coverage across DEX, bridge, issuer, and fiat sources
-* You want ranked candidates with an explicit recommendation
-* You prefer choosing per trade between speed, price, and trust profile
+* Coverage is king - DEX, bridge, issuer, and fiat sources all in play
+* You'd rather compare ranked candidates than accept a single answer
+* Speed, price, and trust are per-trade decisions in your pipeline
 
-**Use both when:**
+**Run both if:**
 
-* You want firm escrow execution for core corridors and routed coverage for everything else
-* One source being down should never keep a valid trade from executing
+* Core corridors deserve firm escrow while the long tail rides the router
+* No single source outage should ever block an executable trade
 
 <Note>
   Still unsure? [Get in touch with our team](/support).
