@@ -24,7 +24,7 @@ Your workspace router's address is deterministic and predicted before deployment
 
 ## Settlement Lifecycle
 
-When you request a quote, TetraFi returns an [EIP-712](/core-concepts/execution-modes) typed order payload (`escrow-v0`) representing the exact trade terms - assets, amounts, receiver, and expiry. You sign it; your router meters the input into escrow under those signed terms; and funds release to the counterparty only against proof that your output was delivered.
+Every quote arrives carrying its own [EIP-712](/core-concepts/execution-modes) `escrow-v0` payload - the trade's complete terms (which assets, how much, who receives, until when) in signable form. Your signature authorizes it; your router locks the input into escrow on exactly those terms; and only a delivery proof can move the funds onward to the counterparty.
 
 ```mermaid
 sequenceDiagram
@@ -42,7 +42,7 @@ sequenceDiagram
     Note over E,U: no proof before expiry → refund to you
 ```
 
-If delivery cannot be proven before the order expires, the escrow refunds you - and the refund path is **permissionless and cannot be paused**, by anyone. No partial state, no stuck funds, no custody.
+Should the expiry pass without a delivery proof, the escrow hands your input straight back - via a refund path that is **permissionless and unpausable by anyone**. There is never a half-settled state, never a stranded balance, never custody.
 
 ## Funding Locks
 
@@ -50,7 +50,7 @@ How your input funds enter escrow depends on the lock type available for the cor
 
 | Lock type     | Description                                                          | Requires            |
 | ------------- | -------------------------------------------------------------------- | ------------------- |
-| Permit2       | Escrow pull authorized inside the signed message (no separate tx)    | One-time Permit2 approval |
+| Permit2       | The signature itself carries the pull authorization - no extra transaction | One-time Permit2 approval |
 | EIP-3009      | `transferWithAuthorization` for tokens that support it (e.g. USDC)   | No prior approval   |
 | Resource lock | Pre-positioned balance drawn per order                               | Prior deposit       |
 

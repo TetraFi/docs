@@ -1,9 +1,9 @@
 ---
 title: "Authentication"
-description: "How to obtain and use an API key for TetraFi's trading and data APIs."
+description: "Credentials for the trading and data surface - what to get, where to send it."
 ---
 
-All production usage of TetraFi's APIs requires an API key. Without one, trading endpoints return `401 AUTH_REQUIRED` and streaming endpoints refuse the connection.
+Every production call carries a credential. Miss it and the trading endpoints answer `401 AUTH_REQUIRED` while the streaming endpoint declines the handshake outright.
 
 TetraFi uses three credential types, each with a distinct job:
 
@@ -19,7 +19,7 @@ Compliance-sensitive operations (such as order submission) may additionally requ
 
 Create a service account in your workspace and issue a key for it from the dashboard (**Workspace → Service Accounts → API Keys**). Keys are scoped — **Read**, **Trade**, or **Admin** — so a quoting integration only needs `Trade`. Use `tfk_test_` keys against the sandbox and `tfk_live_` keys in production.
 
-No workspace yet? Request access through the [TetraFi support page](/support) and the team will provision one for you.
+Not on a workspace yet? Reach the team [via support](/support) and they'll get one set up.
 
 ## Sending Credentials
 
@@ -58,19 +58,19 @@ No workspace yet? Request access through the [TetraFi support page](/support) an
 
 | API                   | Without key                                            | With key                                                     |
 | --------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
-| **Price feed (WS)**   | Cannot connect                                         | Full access to real-time price streams                       |
-| **RFQ API**           | `401 AUTH_REQUIRED` - no quotes are returned           | Firm, executable quotes ready for signing                    |
+| **Price feed (WS)**   | Handshake refused                                      | Every subscribed corridor streams live                       |
+| **RFQ API**           | `401 AUTH_REQUIRED` - nothing quoted                   | Signed-and-executable firm quotes                            |
 | **Router API**        | `401 AUTH_REQUIRED` - no quotes are returned           | Ranked executable candidates across all eligible sources     |
-| **Trade History**     | Not accessible                                         | Full access - all trades attributed to your workspace        |
+| **Trade History**     | Not accessible                                         | Your workspace's complete trade record                       |
 
-Use `tfk_test_` sandbox keys to exercise your integration flow end-to-end before going live.
+Wire the whole flow against the sandbox on a `tfk_test_` key first; flip to `tfk_live_` only when the loop is proven.
 
 ## Rate Limits
 
-Rate limits apply per API key and per workspace. If you have concerns about throughput for your use case, reach out via the [support page](/support).
+Throughput is metered at two levels - the individual key and the workspace it belongs to. If your use case needs more headroom, [talk to the team](/support).
 
 ## Handling Keys Safely
 
-Keep your API key secret. Do not expose it in client-side code, public repositories, or browser network requests. All TetraFi API calls should be made from your backend.
+A key is a secret: it belongs on your backend, never in client bundles, public repos, or anything a browser's network tab can see.
 
-If you suspect your key has been compromised, revoke it from the dashboard (or contact the TetraFi team via the [support page](/support)) and issue a replacement.
+Think a key leaked? Kill it in the dashboard and mint a fresh one - or [loop in the team](/support) if you need a hand.

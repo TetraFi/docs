@@ -7,45 +7,45 @@ Both the RFQ API and Router API expose two execution modes. The mode arrives on 
 
 ## Wallet Broadcast (`executionMode: walletBroadcast`)
 
-You broadcast the settlement transaction yourself. Preflight returns the prepared transaction in `nextActions` with `actor: userWallet`.
+The settlement transaction leaves from your own wallet: preflight hands you the prepared payload (`nextActions`, `actor: userWallet`) and your RPC does the rest.
 
-**Flow:** Quote → Preflight → Sign & Broadcast the prepared tx
+**The loop:** quote → preflight → sign and broadcast the prepared payload
 
-**Best for:** Solvers, aggregators, liquidators, and any integration that already manages its own transaction submission pipeline - and candidates that settle through an external venue or bridge.
+**Fits:** teams already running their own submission pipelines - solvers, aggregators, liquidators - plus any candidate settling through an external venue or bridge.
 
-**Key properties:**
+**What defines it:**
 
-* You pay gas
-* No further interaction with TetraFi's API is required to land the trade
-* The prepared transaction encodes the exact quoted terms - broadcast it as returned
+* Gas comes out of your wallet
+* Once broadcast, the trade lands with no further API interaction
+* The payload encodes the quoted terms exactly - send it untouched
 
 ## API Submit (`executionMode: apiSubmit`, native settlement)
 
-TetraFi submits the settlement transaction on your behalf. You sign the EIP-712 `escrow-v0` order payload from the quote and POST it to the orders endpoint. The user never broadcasts a transaction.
+Here TetraFi is the one putting settlement on-chain. Your side signs the quote's EIP-712 `escrow-v0` payload, POSTs it to the orders endpoint, and is done - no transaction ever leaves the user's wallet.
 
-**Flow:** Quote → Preflight → Sign EIP-712 order → POST `/orders` → Track via `GET /orders/{id}` or WebSocket
+**The loop:** quote → preflight → sign the EIP-712 order → POST `/orders` → follow via `GET /orders/{id}` or WebSocket
 
-**Best for:** Wallets, super-apps, and consumer-facing products where users shouldn't think about gas or RPC endpoints.
+**Fits:** consumer surfaces - wallets and super-apps - where gas and RPC endpoints have no place in the user experience.
 
-**Key properties:**
+**What defines it:**
 
-* TetraFi handles on-chain submission
-* Funds move only under the signed order's terms, through the escrow's delivery-or-refund path
-* Requires an EIP-712 signature and order submission (use an `Idempotency-Key` header on the POST)
+* On-chain submission is TetraFi's job
+* Funds can only ever move on the signed order's terms, along the escrow's delivery-or-refund path
+* Your side owes one EIP-712 signature plus the order POST (send an `Idempotency-Key` header)
 
 ## Side by Side
 
-|                  | Wallet broadcast                 | API submit                          |
-| ---------------- | -------------------------------- | ----------------------------------- |
-| `executionMode`  | `walletBroadcast`                | `apiSubmit`                         |
-| Who submits tx   | You broadcast via your RPC       | TetraFi submits on-chain              |
-| Gas cost         | Paid by taker                    | Abstracted away from the user       |
-| Funding          | Direct from your wallet          | Escrow lock (Permit2 / EIP-3009 / resource lock) |
-| Signing          | Standard transaction signing     | EIP-712 `escrow-v0` order signature |
+|                   | Wallet broadcast                 | API submit                          |
+| ----------------- | -------------------------------- | ----------------------------------- |
+| `executionMode`   | `walletBroadcast`                | `apiSubmit`                         |
+| Transaction path  | Your wallet, your RPC            | TetraFi lands it on-chain             |
+| Gas               | On the taker                     | Invisible to the user               |
+| Funding           | Straight from your wallet        | Escrow lock (Permit2 / EIP-3009 / resource lock) |
+| What you sign     | An ordinary transaction          | The EIP-712 `escrow-v0` order       |
 
 ## How Each Product Applies Them
 
-While both APIs share the same execution modes, there are differences in how the modes apply:
+The two modes exist on both products, but each product puts them to work differently:
 
 ### RFQ API
 
@@ -57,4 +57,4 @@ See the [RFQ Order Submission guide](/rfq-api/guides/gasless-execution) for the 
 
 Execution mode varies **per candidate**: native TetraFi settlement candidates use `apiSubmit`, while candidates settling through external venues or bridges use `walletBroadcast`. Always read `executionMode` and the preflight `nextActions` from the candidate you selected rather than assuming a mode.
 
-See the [Router API Quickstart](/router-api/quickstart) for both flows with complete code examples.
+The [Router API Quickstart](/router-api/quickstart) walks both paths in runnable code.

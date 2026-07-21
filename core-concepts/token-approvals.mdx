@@ -1,9 +1,9 @@
 ---
 title: "Token Approvals"
-description: "Set up ERC-20 token approvals so TetraFi's escrow settlers can execute your trades."
+description: "Grant the allowances that let settlement pull your input tokens - once, or per trade."
 ---
 
-Before TetraFi can settle a trade, the escrow needs permission to pull your input tokens. This is standard ERC-20 behavior - you call `approve()` on the token contract, authorizing the spender to transfer up to a specified amount.
+Settlement can only pull the tokens you've allowed it to. That permission is the ordinary ERC-20 allowance mechanism: an `approve()` call on the token itself, granting a named spender the right to move up to a chosen amount on your behalf.
 
 The same escrow settlement system serves both the RFQ API and the Router API, so the approval flow is identical across products.
 
@@ -12,14 +12,14 @@ The same escrow settlement system serves both the RFQ API and the Router API, so
 Run preflight on your selected quote - the returned `nextActions` include any approval step, with the exact spender address and amount. Always use those values rather than hardcoding.
 
 <Warning>
-  **Never hardcode the approval address.** Settler and Permit2 addresses vary by chain and lock type - the preflight `nextActions` for your selected candidate are authoritative.
+  **Approval addresses are not constants.** They shift with chain and lock type, so treat the preflight `nextActions` of your selected candidate as the only authority on where an approval goes.
 
   Some tokens need no approval at all: USDC-style tokens settle via EIP-3009 `transferWithAuthorization`, authorized entirely inside your signature.
 </Warning>
 
 ## Reading Current Allowance
 
-Before approving, check whether the token already has sufficient allowance. This avoids unnecessary gas spend on redundant approval transactions.
+Read the existing allowance first - if it already covers the trade, an extra approval transaction is pure wasted gas.
 
 ```python theme={null}
 from web3 import Web3
@@ -62,7 +62,7 @@ def check_allowance(owner: str, token_address: str, spender: str) -> int:
 
 ## Granting Allowance
 
-If the current allowance is less than the trade amount, submit an approval transaction. Most integrators approve the maximum amount (`2^256 - 1`) so they only need to do this once per token.
+When the allowance falls short, top it up with an approval transaction. The common pattern is a one-time maximum grant (`2^256 - 1`) per token, after which the question never comes up again.
 
 ```python theme={null}
 from eth_account import Account
@@ -126,9 +126,9 @@ for action in preflight["nextActions"]:
 
 ## Approval Strategies
 
-**Max approval (recommended for programmatic integrators):** Approve `2^256 - 1` once per token. Saves gas on subsequent trades since you never need to re-approve. This is the standard approach for solvers and aggregators.
+**Maximum grant** - the usual choice for programmatic flow: approve `2^256 - 1` per token once and never pay approval gas again. Solvers and aggregators default to this.
 
-**Exact approval:** Approve only the exact trade amount each time. More conservative, but costs gas on every trade. Some compliance-sensitive integrations prefer this.
+**Per-trade grant** - approve precisely what each trade needs. Tighter risk posture, at the cost of an approval transaction every time; favoured by some compliance-sensitive setups.
 
 ## Funding Locks Beyond `approve()`
 
