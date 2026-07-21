@@ -6,11 +6,11 @@ description: "Pull your workspace's trade history - from filtered lists to singl
 This guide covers the two core Trade History surfaces: listing your workspace's trades with filters, and drilling into one trade's full detail.
 
 <Info>
-  **What you'll build:** Scripts that fetch and display your workspace's trade history.
+  **Outcome:** two small scripts - one listing your trades, one dissecting a single trade.
 
-  **Time required:** 5 minutes
+  **Time:** about 5 minutes.
 
-  **Prerequisites:** An API key for your workspace - results are scoped to it automatically. See [Authentication](/core-concepts/authentication).
+  **Bring:** a workspace API key ([details](/core-concepts/authentication)); scoping happens on its own.
 </Info>
 
 ## 1. List your workspace's trades
@@ -59,7 +59,7 @@ GET /api/v1/workspaces/{id}/trades
   ```
 </CodeGroup>
 
-### Understanding the response
+### Reading What Comes Back
 
 ```json theme={null}
 {
@@ -112,18 +112,18 @@ GET /api/v1/workspaces/{id}/trades
 
 | Shape           | Description                                                        |
 | --------------- | ------------------------------------------------------------------ |
-| `one-to-one`    | Single swap - one input, one output                                |
+| `one-to-one`    | The plain case: a single input leg against a single output leg    |
 | `one-to-many`   | One input fanned into multiple outputs                             |
 | `many-to-one`   | Multiple inputs consolidated into one output                       |
 | `split-fill`    | One intent filled by multiple LPs, each committing a slice        |
 | `partial`       | A `partialFill` order that settled below full size, remainder refunded |
 
-### Filtering by time range
+### Slicing a time window
 
-Narrow results to a window with `from` and `to`:
+`from` and `to` bound the result set:
 
 <Warning>
-  Timestamps are **ISO-8601 strings** (e.g. `2026-06-20T00:00:00Z`), not epoch integers. An epoch value is rejected with a validation error rather than silently returning nothing.
+  Send times as **ISO-8601 strings** - `2026-06-20T00:00:00Z` style. Epoch integers don't silently no-op here; they bounce with a validation error, which is the kinder failure.
 </Warning>
 
 ```python theme={null}

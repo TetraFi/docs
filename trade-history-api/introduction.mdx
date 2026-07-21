@@ -3,30 +3,30 @@ title: "Introduction"
 description: "Query every trade your workspace has executed - detail, timelines, and exports across all supported chains."
 ---
 
-Trade History gives you read-only access to every trade that ran through your workspace. List and filter trades, drill into an individual trade's timeline and settlement evidence, and export the lot - one API surface covering every supported chain.
+Everything your workspace has ever traded is queryable here, read-only: filtered lists, single-trade timelines with settlement evidence, bulk exports - one surface, all chains.
 
 ## Where It Fits
 
-* You need **post-trade analytics** - reconciling fills, tracking volumes, or auditing flow attributed to your workspace
-* You want **one query surface for all chains** - no per-network indexing or explorer-hopping to reconstruct what happened
+* **After-the-fact answers** - fill reconciliation, volume tracking, flow audits, all scoped to your workspace
+* **No explorer archaeology** - a single query surface replaces per-network indexing when you need to reconstruct events
 
 ## Quick Reference
 
-|                    |                                                       |
-| ------------------ | ----------------------------------------------------- |
-| **Transport**      | REST                                                  |
-| **Authentication** | API key (results scoped to your workspace)            |
-| **Base URL**       | `https://api.tetrafi.io/api/v1/workspaces/{id}/`       |
-| **Complexity**     | Low - standard REST GET requests                      |
+| Facet        |                                                       |
+| ------------ | ----------------------------------------------------- |
+| Protocol     | REST over HTTPS                                       |
+| Credential   | API key - scoping to your workspace is automatic      |
+| Base URL     | `https://api.tetrafi.io/api/v1/workspaces/{id}/`       |
+| Effort       | Light: plain GET requests, nothing to sign            |
 
 ## The Flow
 
-| Step | Action                | You send                                            | You get back                                        |
-| ---- | --------------------- | --------------------------------------------------- | --------------------------------------------------- |
-| 1    | List trades           | Filters → `GET /workspaces/{id}/trades`             | Paginated trades with token + settlement detail     |
-| 2    | Drill into one        | Trade ID → `GET /workspaces/{id}/trades/{tradeId}`  | Full breakdown: legs, amounts, status, timeline     |
+| # | Move            | Input                                               | Output                                              |
+| - | --------------- | --------------------------------------------------- | --------------------------------------------------- |
+| 1 | Pull the list   | Filters → `GET /workspaces/{id}/trades`             | Pages of trades: legs, tokens, settlement facts     |
+| 2 | Zoom in         | Trade ID → `GET /workspaces/{id}/trades/{tradeId}`  | One trade in full: amounts, status, timeline        |
 
-Results are scoped by your credential automatically - [authenticate with your API key](/core-concepts/authentication) and you see exactly your workspace's flow.
+Your [API key](/core-concepts/authentication) does the scoping on its own: whatever it returns is your workspace's flow, nothing else's.
 
 ## Endpoint Map
 
@@ -40,6 +40,6 @@ Results are scoped by your credential automatically - [authenticate with your AP
 
 <CardGroup cols={1}>
   <Card title="Quickstart" icon="bolt" href="/trade-history-api/quickstart">
-    Pull your workspace's first trade history in a few minutes.
+    Your first history query, answered in minutes.
   </Card>
 </CardGroup>
