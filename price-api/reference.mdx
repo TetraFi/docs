@@ -20,6 +20,21 @@ Two topic families cover TetraFi's liquidity, both carried on the same WebSocket
   **Match your stream to your execution.** Estimate with the same corridor and tier you'll request firm quotes for - a `10k`-tier estimate tells you little about a seven-figure fill.
 </Tip>
 
+## Snapshot Payload
+
+Every event on a price topic carries a complete snapshot - never a delta. The essentials:
+
+| Field             | Meaning                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `seq`             | Monotonic per-stream sequence - use it for change detection                                    |
+| `levels`          | Per-solver best prices for the reference amount, ranked by output descending                   |
+| `solverCount`     | How many sources contributed to this snapshot                                                  |
+| `stale`           | `true` when no source responded within the staleness window - the numbers shown are aging      |
+| `vwap`            | Simple average across responding sources (absent for single-source snapshots)                  |
+| `bids` / `asks`   | Optional two-sided depth ladders: `{price, size, solverId}` entries, decimal-normalized as output-per-input, best-first (bids descending, asks ascending). Present when a depth-capable source contributes; each entry names its source so one dead feed never poisons the rest of the book |
+
+Amounts in `levels` are raw token units as strings; ladder prices and sizes are decimal-normalized numbers - the same numbers the [protobuf depth stream](/price-api/quickstart) carries, produced by the same aggregation pass.
+
 ## Quote Expiry
 
 Streamed prices are indicative and continuously refreshed; firm quotes carry a hard `validUntil`. When you move from estimate to execution, the validity window you request (via `minValidUntil` on the intent) shapes the pricing you receive:
