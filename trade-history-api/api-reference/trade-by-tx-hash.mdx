@@ -1,33 +1,37 @@
 ---
-title: "Trade Detail"
-description: "Fetch one trade's complete record: the list-schema fields plus a status timeline of every transition and references to settlement evidence, scoped to your workspace."
-openapi: "GET /workspaces/{id}/trades/{tradeId}"
+title: "Trade by ID"
+description: "Fetch one trade's complete dossier, keyed by its order id: trade details, on-chain settlement transactions, LP info, and admin-only compliance sections, scoped to your workspace."
+openapi: "GET /workspaces/{id}/trades/{orderId}"
 mode: "wide"
 ---
 
+Trades are keyed by **order id**, not transaction hash - the settlement transaction hashes appear within the trade detail's `settlement` section.
+
 ## OpenAPI
 
-````yaml /specs/trade-history-api.json get /workspaces/{id}/trades/{tradeId}
+````yaml /specs/trade-history-api.json get /workspaces/{id}/trades/{orderId}
 openapi: 3.1.0
 info:
   title: TetraFi Trade History API
   version: '1'
   description: >-
     Read-only, workspace-scoped access to every trade that ran through your workspace - filtered
-    lists with cursor pagination, plus single-trade detail with status timeline and settlement
-    evidence, across all supported chains.
+    lists with offset pagination, single-trade detail keyed by order id, and CSV export, across
+    all supported chains.
 servers:
   - url: https://api.tetrafi.io/api/v1
 security:
   - apiKeyAuth: []
+  - bearerAuth: []
 paths:
-  /workspaces/{id}/trades/{tradeId}:
+  /workspaces/{id}/trades/{orderId}:
     get:
-      summary: Trade Detail
+      summary: Trade by ID
       description: >-
-        Returns one trade's complete record: every field from the list schema plus the status
-        timeline (each transition with its timestamp) and references to settlement evidence.
-      operationId: getTradeById
+        Returns one trade's full dossier, keyed by its order id: trade details, on-chain
+        settlement (including the settlement transaction hashes), LP info, and - for
+        admin/owner callers - compliance, Travel Rule, proof, intent, and fee sections.
+      operationId: getTradeByOrderId
       parameters:
         - name: id
           in: path
@@ -38,22 +42,22 @@ paths:
             description: Workspace whose trades are returned - results are scoped to it
           description: Workspace whose trades are returned - results are scoped to it
           example: ws_123
-        - name: tradeId
+        - name: orderId
           in: path
           required: true
           schema:
             type: string
-            title: Trade Id
-            description: Trade identifier from the trades list
-          description: Trade identifier from the trades list
-          example: tr_01J4A...
+            title: Order Id
+            description: Order id from the trades list - trades are keyed by order id, not transaction hash
+          description: Order id from the trades list - trades are keyed by order id, not transaction hash
+          example: ord_01J49...
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TradeDetailResponse'
+                $ref: '#/components/schemas/TradeDetail'
         '401':
           description: 'Error Response: Authentication Required'
           content:
@@ -74,47 +78,138 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    TradeDetailResponse:
-      allOf:
-        - $ref: '#/components/schemas/TradeRecord'
-        - type: object
-          properties:
-            timeline:
-              items:
+    TradeDetail:
+      properties:
+        trade:
+          type: object
+          title: Trade
+          description: >-
+            Section A: trade details - the list-item fields plus fill time and slippage
+            tolerance
+        settlement:
+          type: object
+          title: Settlement
+          description: >-
+            Section B: on-chain settlement - per-stage transaction references
+            (submit/fill/proof/finalise and a generic transactions list), including the
+            settlement transaction hashes
+        orderKind:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Orderkind
+          description: Canonical route-aware order kind - omitted for non-route orders
+        substatus:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Substatus
+          description: Finer-grained state within the coarse status
+        substatusMessage:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Substatusmessage
+          description: Human-readable elaboration of substatus
+        legs:
+          anyOf:
+            - items:
                 type: object
-                properties:
-                  status:
-                    type: string
-                    title: Status
-                  at:
-                    type: string
-                    format: date-time
-                    title: At
-                required:
-                  - status
-                  - at
               type: array
-              title: Timeline
-              description: Status transitions in order, each with the time it occurred (ISO-8601)
-            settlementEvidence:
-              items:
-                type: object
-                properties:
-                  type:
-                    type: string
-                    title: Type
-                    description: Kind of evidence, e.g. settlement transaction
-                  ref:
-                    type: string
-                    title: Ref
-                    description: Reference to the evidence - a transaction hash or artifact
-                      URI
-              type: array
-              title: Settlementevidence
-              description: References to the artifacts that prove settlement
-      title: TradeDetailResponse
+            - type: 'null'
+          title: Legs
+          description: Per-leg execution for multi-leg route orders; omitted for single-leg orders
+        member:
+          anyOf:
+            - $ref: '#/components/schemas/MemberAttribution'
+            - type: 'null'
+          title: Member
+          description: Member who initiated the trade - admin/owner callers only
+        lp:
+          type: object
+          title: Lp
+          description: 'Section C: LP info'
+        compliance:
+          anyOf:
+            - type: object
+            - type: 'null'
+          title: Compliance
+          description: Compliance summary - admin/owner callers only
+        snapshotCompliance:
+          anyOf:
+            - type: object
+            - type: 'null'
+          title: Snapshotcompliance
+          description: Per-order compliance snapshot captured at creation - admin/owner callers only
+        travelRuleTransmission:
+          anyOf:
+            - type: object
+            - type: 'null'
+          title: Travelruletransmission
+          description: Latest Travel Rule transmission record - admin/owner callers only
+        complianceProofs:
+          anyOf:
+            - type: object
+            - type: 'null'
+          title: Complianceproofs
+          description: Cryptographic and provenance proofs - admin/owner callers only
+        intent:
+          anyOf:
+            - type: object
+            - type: 'null'
+          title: Intent
+          description: ERC-7683 intent envelope captured at submission - admin/owner callers only
+        fees:
+          type: object
+          title: Fees
+          description: >-
+            Fee breakdown: gas, protocol fee, solver fee, relayer tips - omitted when the
+            order predates fee capture
+      type: object
+      required:
+        - trade
+        - settlement
+        - lp
+      title: TradeDetail
       description: >-
-        The list-schema trade record extended with its timeline and settlement evidence references.
+        Full trade dossier keyed by order id. The settlement section carries the on-chain
+        transaction hashes.
+    MemberAttribution:
+      properties:
+        userId:
+          type: string
+          title: Userid
+        firstName:
+          type: string
+          title: Firstname
+        lastName:
+          type: string
+          title: Lastname
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+          description: Workspace role of the member
+        kycStatus:
+          type: string
+          title: Kycstatus
+        joinedAt:
+          type: string
+          format: date-time
+          title: Joinedat
+      type: object
+      required:
+        - userId
+        - firstName
+        - lastName
+        - email
+        - role
+        - kycStatus
+        - joinedAt
+      title: MemberAttribution
+      description: Member identity attached to a trade - present for admin/owner callers only.
     ErrorResponse:
       properties:
         error:
@@ -132,192 +227,6 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    TradeRecord:
-      properties:
-        tradeId:
-          type: string
-          title: Tradeid
-          description: Identifier for detail and timeline lookups
-        orderId:
-          type: string
-          title: Orderid
-          description: The order this trade settled under
-        status:
-          type: string
-          title: Status
-          description: Lifecycle state - settled, failed, or an in-flight state
-        product:
-          $ref: '#/components/schemas/Product'
-        shape:
-          $ref: '#/components/schemas/Shape'
-        corridor:
-          type: string
-          title: Corridor
-          description: Directional route the trade executed on
-        solverId:
-          type: string
-          title: Solverid
-          description: The solver or LP that filled the trade
-        preview:
-          type: object
-          properties:
-            inputs:
-              items:
-                $ref: '#/components/schemas/PreviewLeg'
-              type: array
-              title: Inputs
-            outputs:
-              items:
-                $ref: '#/components/schemas/PreviewLeg'
-              type: array
-              title: Outputs
-          title: Preview
-          description: Inputs and outputs with amounts, symbols, and USD values
-        volumeUsd:
-          anyOf:
-            - type: number
-            - type: 'null'
-          title: Volumeusd
-          description: Trade volume in USD
-        platformFeeBps:
-          type: integer
-          title: Platformfeebps
-          description: Fee applied to this trade, in basis points
-        txHash:
-          type: string
-          title: Txhash
-          description: Settlement transaction hash
-        settledAt:
-          type: string
-          format: date-time
-          title: Settledat
-          description: Settlement time (ISO-8601)
-      type: object
-      required:
-        - tradeId
-        - orderId
-        - status
-        - product
-        - shape
-        - corridor
-        - solverId
-        - preview
-        - txHash
-        - settledAt
-      title: TradeRecord
-      metadata:
-        results: 4
-        timestamp: '2024-01-24T10:51:08Z'
-        tokens:
-          eip155:137/erc20:0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270:
-            decimals: 18
-            icon: https://assets.tetrafi.io/tokens/wmatic.svg
-            name: Wrapped Matic
-            symbol: WMATIC
-          eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174:
-            decimals: 6
-            icon: https://assets.tetrafi.io/tokens/usdc.svg
-            name: USD Coin (PoS)
-            symbol: USDC
-          eip155:137/erc20:0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063:
-            decimals: 18
-            icon: https://assets.tetrafi.io/tokens/dai.svg
-            name: (PoS) Dai Stablecoin
-            symbol: DAI
-          eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE:
-            decimals: 18
-            icon: https://assets.tetrafi.io/tokens/matic.svg
-            name: Matic
-            symbol: MATIC
-      trades:
-        - tradeId: tr_01HMWXD...
-          orderId: ord_01HMWXD...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063
-                amount: '3000000000000000000'
-                symbol: DAI
-                amountUsd: 2.9995950000000002
-            outputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '2969969'
-                symbol: USDC
-                amountUsd: 2.9697647979999995
-          volumeUsd: 2.9697647979999995
-          platformFeeBps: 5
-          txHash: '0x50d72e9e73e6871057930df352c87587e7dd041e75680821449cbf1970d2870d'
-          settledAt: '2024-01-24T10:50:36Z'
-        - tradeId: tr_01HMWXC...
-          orderId: ord_01HMWXC...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '1000000'
-                symbol: USDC
-                amountUsd: 1.001
-            outputs:
-              - asset: eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-                amount: '1324757967403350565'
-                symbol: MATIC
-                amountUsd: 0.9707238483714452
-          volumeUsd: 0.9707238483714452
-          platformFeeBps: 5
-          txHash: '0xb7b8fddfcc7cd7275f2fe82f44bf1e9c618c538e76f0dd39e5fd67e17fe15572'
-          settledAt: '2024-01-24T10:50:25Z'
-        - tradeId: tr_01HMWXB...
-          orderId: ord_01HMWXB...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '1000000'
-                symbol: USDC
-                amountUsd: 1.001
-            outputs:
-              - asset: eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-                amount: '1321707791213987268'
-                symbol: MATIC
-                amountUsd: 0.9690523312530294
-          volumeUsd: 0.9690523312530294
-          platformFeeBps: 5
-          txHash: '0x91c8a994b33ae8d17eeaa9a757fa3338561402f204d05a5f59a70dc3389aa390'
-          settledAt: '2024-01-24T10:50:18Z'
-        - tradeId: tr_01HMWXA...
-          orderId: ord_01HMWXA...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
-                amount: '3000000000000000000'
-                symbol: WMATIC
-                amountUsd: 2.20989
-            outputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '2200006'
-                symbol: USDC
-                amountUsd: 2.197060866
-          volumeUsd: 2.197060866
-          platformFeeBps: 5
-          txHash: '0x22dd9e22528e904be9ba100828339f5a7699d2ea3cbf0dc678b90418d38b9d10'
-          settledAt: '2024-01-24T10:49:50Z'
     ApiError:
       properties:
         code:
@@ -354,48 +263,6 @@ components:
         - msg
         - type
       title: ValidationError
-    PreviewLeg:
-      properties:
-        asset:
-          type: string
-          title: Asset
-          description: Network-qualified asset identifier
-        amount:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Amount
-        symbol:
-          type: string
-          title: Symbol
-        amountUsd:
-          anyOf:
-            - type: number
-            - type: 'null'
-          title: Amountusd
-      type: object
-      title: PreviewLeg
-    Product:
-      type: string
-      enum:
-        - router
-        - rfq
-      title: Product
-      description: 'The customer contract the trade ran under: router or rfq.'
-    Shape:
-      type: string
-      enum:
-        - one-to-one
-        - one-to-many
-        - many-to-one
-        - split-fill
-        - partial
-      title: Shape
-      description: >-
-        Trade shape. one-to-one - single swap; one-to-many - one input fanned into multiple
-        outputs; many-to-one - multiple inputs consolidated into one output; split-fill -
-        one intent filled by multiple LPs, each committing a slice; partial - a partialFill
-        order that settled below full size, remainder refunded.
   securitySchemes:
     apiKeyAuth:
       type: apiKey
@@ -403,5 +270,11 @@ components:
       name: X-API-Key
       description: Workspace API key (tfk_test_/tfk_live_); results are scoped to the key's
         workspace.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Workspace-session JWT; results are scoped to the caller's workspace
+        membership.
 
 ````

@@ -12,29 +12,35 @@ Everything your workspace has ever traded is queryable here, read-only: filtered
 
 ## Quick Reference
 
-| Facet        |                                                       |
-| ------------ | ----------------------------------------------------- |
-| Protocol     | REST over HTTPS                                       |
-| Credential   | API key - scoping to your workspace is automatic      |
-| Base URL     | `https://api.tetrafi.io/api/v1/workspaces/{id}/`       |
-| Effort       | Light: plain GET requests, nothing to sign            |
+| Facet        |                                                            |
+| ------------ | ---------------------------------------------------------- |
+| Protocol     | REST over HTTPS                                            |
+| Credential   | API key or JWT bearer - workspace scoping is automatic     |
+| Base URL     | `https://api.tetrafi.io/api/v1/workspaces/{id}/`            |
+| Effort       | Light: plain GET requests, nothing to sign                 |
 
 ## The Flow
 
 | # | Move            | Input                                               | Output                                              |
 | - | --------------- | --------------------------------------------------- | --------------------------------------------------- |
-| 1 | Pull the list   | Filters → `GET /workspaces/{id}/trades`             | Pages of trades: legs, tokens, settlement facts     |
-| 2 | Zoom in         | Trade ID → `GET /workspaces/{id}/trades/{tradeId}`  | One trade in full: amounts, status, timeline        |
+| 1 | Pull the list   | Filters → `GET /workspaces/{id}/trades`             | Pages of trades: route legs, LP, settlement facts   |
+| 2 | Zoom in         | Order ID → `GET /workspaces/{id}/trades/{orderId}`  | One trade in full: amounts, status, settlement txs  |
 
 Your [API key](/core-concepts/authentication) does the scoping on its own: whatever it returns is your workspace's flow, nothing else's.
 
 ## Endpoint Map
 
-| Endpoint                                        | Purpose                                                 |
-| ----------------------------------------------- | ------------------------------------------------------- |
-| `GET /api/v1/workspaces/{id}/trades`            | List and filter trades with time range and pagination   |
-| `GET /api/v1/workspaces/{id}/trades/{tradeId}`  | A single trade's full detail and settlement timeline    |
-| `GET /api/v1/workspaces/{id}/trades/export`     | Bulk export for reconciliation and reporting            |
+| Endpoint                                        | Purpose                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| `GET /api/v1/workspaces/{id}/trades`            | List and filter trades with offset pagination                 |
+| `GET /api/v1/workspaces/{id}/trades/{orderId}`  | A single trade's full detail, keyed by order id               |
+| `GET /api/v1/workspaces/{id}/trades/export`     | Bulk CSV export for reconciliation and reporting              |
+
+Also under the same prefix:
+
+* `GET .../trades/mine`, `.../trades/mine/{orderId}`, `.../trades/mine/{orderId}/timeline` - member-scoped variants returning only the caller's own trades
+* `GET .../trades/{orderId}/timeline` - hash-chained lifecycle timeline
+* `GET .../trades/{orderId}/evidence` - compliance evidence bundle
 
 ## Keep Going
 

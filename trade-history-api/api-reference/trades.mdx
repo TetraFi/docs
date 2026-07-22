@@ -1,6 +1,6 @@
 ---
 title: "Trades"
-description: "List every trade your workspace has executed across all supported chains - filter by time range or wallet, and page through results with a continuation cursor. Records come back newest first with per-leg token detail."
+description: "List every trade your workspace has executed across all supported chains - filter by status, corridor, time range, LP, routing path, or USD amount, and page through results with limit and offset. Records come back newest first with per-leg asset detail."
 openapi: "GET /workspaces/{id}/trades"
 mode: "wide"
 ---
@@ -14,20 +14,21 @@ info:
   version: '1'
   description: >-
     Read-only, workspace-scoped access to every trade that ran through your workspace - filtered
-    lists with cursor pagination, plus single-trade detail with status timeline and settlement
-    evidence, across all supported chains.
+    lists with offset pagination, single-trade detail keyed by order id, and CSV export, across
+    all supported chains.
 servers:
   - url: https://api.tetrafi.io/api/v1
 security:
   - apiKeyAuth: []
+  - bearerAuth: []
 paths:
   /workspaces/{id}/trades:
     get:
       summary: Trades
       description: >-
         Lists trades executed under a workspace across every supported chain in one call.
-        Filter by ISO-8601 time range or wallet, page through results with a continuation
-        cursor, and get records back newest first with per-leg token detail.
+        Filter by status, corridor, RFC 3339 time range, LP, routing path, or USD amount
+        range; sort by a whitelisted column; page through results with limit and offset.
       operationId: getTrades
       parameters:
         - name: id
@@ -39,56 +40,139 @@ paths:
             description: Workspace whose trades are returned - results are scoped to it
           description: Workspace whose trades are returned - results are scoped to it
           example: ws_123
-        - name: from
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            title: Status
+            description: Filter by settlement status bucket; pass all (or omit) for every status
+          description: Filter by settlement status bucket; pass all (or omit) for every status
+          example: settled
+        - name: corridor
+          in: query
+          required: false
+          schema:
+            type: string
+            title: Corridor
+            description: Directional corridor as source-dest - matches the trade's source and destination chains
+          description: Directional corridor as source-dest - matches the trade's source and destination chains
+          example: 84532-11155420
+        - name: dateFrom
           in: query
           required: false
           schema:
             type: string
             format: date-time
-            title: From
-            description: Start of time range (ISO-8601)
-          description: Start of time range (ISO-8601)
+            title: Date From
+            description: Only trades created at or after this time (RFC 3339)
+          description: Only trades created at or after this time (RFC 3339)
           example: '2026-06-20T00:00:00Z'
-        - name: to
+        - name: dateTo
           in: query
           required: false
           schema:
             type: string
             format: date-time
-            title: To
-            description: End of time range (ISO-8601)
-          description: End of time range (ISO-8601)
+            title: Date To
+            description: Only trades created at or before this time (RFC 3339)
+          description: Only trades created at or before this time (RFC 3339)
           example: '2026-07-20T00:00:00Z'
+        - name: member
+          in: query
+          required: false
+          schema:
+            type: string
+            title: Member
+            description: Admin/Owner only - case-insensitive match on member name or email; ignored for other callers
+          description: Admin/Owner only - case-insensitive match on member name or email; ignored for other callers
+          example: ada@example.com
+        - name: lpName
+          in: query
+          required: false
+          schema:
+            type: string
+            title: LP Name
+            description: Case-insensitive match on LP display name or solver id
+          description: Case-insensitive match on LP display name or solver id
+          example: lp-atlas
+        - name: routingPath
+          in: query
+          required: false
+          schema:
+            type: string
+            title: Routing Path
+            description: Filter by routing path type - direct or via_broker; pass all (or omit) for every path
+          description: Filter by routing path type - direct or via_broker; pass all (or omit) for every path
+          example: direct
+        - name: amountMin
+          in: query
+          required: false
+          schema:
+            type: number
+            title: Amount Min
+            description: Minimum trade notional in USD (inclusive)
+          description: Minimum trade notional in USD (inclusive)
+          example: 100
+        - name: amountMax
+          in: query
+          required: false
+          schema:
+            type: number
+            title: Amount Max
+            description: Maximum trade notional in USD (inclusive)
+          description: Maximum trade notional in USD (inclusive)
+          example: 50000
         - name: limit
           in: query
           required: false
           schema:
             type: integer
             title: Limit
-            description: Maximum trades per page
-            default: 100
-          description: Maximum trades per page
-          example: 100
-        - name: cursor
+            description: Page size, clamped to [1, 100]
+            default: 25
+            minimum: 1
+            maximum: 100
+          description: Page size, clamped to [1, 100]
+          example: 25
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            title: Offset
+            description: Number of records to skip
+            default: 0
+          description: Number of records to skip
+          example: 0
+        - name: sortBy
           in: query
           required: false
           schema:
             type: string
-            title: Cursor
-            description: Continuation cursor from the previous page
-          description: Continuation cursor from the previous page
-          example: eyJvZmZzZXQi...
-        - name: wallet
+            title: Sort By
+            description: >-
+              Sort column: created_at (default), order_id, member, corridor, amount_usd,
+              lp_name, routing_path, settlement_status, settlement_speed_ms - unrecognized
+              values fall back to created_at
+          description: >-
+            Sort column: created_at (default), order_id, member, corridor, amount_usd,
+            lp_name, routing_path, settlement_status, settlement_speed_ms - unrecognized
+            values fall back to created_at
+          example: created_at
+        - name: sortDir
           in: query
           required: false
           schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            title: Wallet
-            description: Optional filter - only trades initiated by this wallet address
-          description: Optional filter - only trades initiated by this wallet address
-          example: '0x5Bad996643a924De21b6b2875c85C33F3c5bBcB6'
+            type: string
+            enum:
+              - asc
+              - desc
+            title: Sort Dir
+            description: Sort direction; defaults to desc
+            default: desc
+          description: Sort direction; defaults to desc
+          example: desc
       responses:
         '200':
           description: Successful Response
@@ -112,25 +196,412 @@ components:
   schemas:
     TradeListResponse:
       properties:
-        trades:
+        items:
           items:
-            $ref: '#/components/schemas/TradeRecord'
+            $ref: '#/components/schemas/TradeListItem'
           type: array
-          title: Trades
-          description: Trade records, newest first
-        nextCursor:
+          title: Items
+          description: Trades in this page
+        total:
+          type: integer
+          title: Total
+          description: Total number of trades matching the filters
+        offset:
+          type: integer
+          title: Offset
+          description: Offset this page starts at
+        limit:
+          type: integer
+          title: Limit
+          description: Effective page size
+      type: object
+      required:
+        - items
+        - total
+        - offset
+        - limit
+      title: TradeListResponse
+      description: Paginated trade list response.
+    TradeListItem:
+      properties:
+        orderId:
+          type: string
+          title: Orderid
+          description: Order id - the trade's key for detail, timeline, and evidence lookups
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+          description: When the order was created (RFC 3339)
+        member:
+          anyOf:
+            - $ref: '#/components/schemas/MemberAttribution'
+            - type: 'null'
+          title: Member
+          description: Member who initiated the trade - present for admin/owner callers, omitted otherwise
+        sourceChain:
+          type: string
+          title: Sourcechain
+        destChain:
+          type: string
+          title: Destchain
+        route:
+          $ref: '#/components/schemas/TradeRouteDisplay'
+        amountUsd:
+          type: number
+          title: Amountusd
+          description: Trade notional in USD
+        lpName:
+          type: string
+          title: Lpname
+          description: Display name of the LP or provider that filled the trade
+        lpSource:
+          type: string
+          title: Lpsource
+          description: How the LP reached this workspace, e.g. Direct, via <broker>, TetraFi Router
+        routingPathLabel:
+          type: string
+          title: Routingpathlabel
+          description: Human-readable routing label, e.g. Direct, ViaBroker(...), CCTP Bridge
+        routingPath:
+          anyOf:
+            - $ref: '#/components/schemas/RoutingPath'
+            - type: 'null'
+          title: Routingpath
+        orderKind:
           anyOf:
             - type: string
             - type: 'null'
-          title: Nextcursor
-          description: Continuation cursor - null once the final page has been returned
-        metadata:
-          $ref: '#/components/schemas/ResponseMetadata'
+          title: Orderkind
+          description: >-
+            Canonical route-aware order kind (cctp-v0 / composite-v0 / fx-v0 / ...) - omitted
+            for non-route orders
+        status:
+          type: string
+          title: Status
+          description: Canonical user-facing order lifecycle status
+        settlementStatus:
+          type: string
+          title: Settlementstatus
+          description: Coarse settlement bucket - the value the status filter matches against
+        lifecycleStatus:
+          $ref: '#/components/schemas/TradeLifecycleStatus'
+        deferredSettlement:
+          anyOf:
+            - $ref: '#/components/schemas/DeferredSettlementInfo'
+            - type: 'null'
+          title: Deferredsettlement
+        settlementSpeedMs:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Settlementspeedms
+          description: Milliseconds from order creation to settlement
+        executionPrice:
+          $ref: '#/components/schemas/ExecutionPriceDisplay'
+        slippageBps:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Slippagebps
+          description: Realized slippage in basis points
       type: object
       required:
-        - trades
-        - metadata
-      title: TradeListResponse
+        - orderId
+        - createdAt
+        - sourceChain
+        - destChain
+        - route
+        - amountUsd
+        - lpName
+        - lpSource
+        - routingPathLabel
+        - status
+        - settlementStatus
+        - lifecycleStatus
+        - executionPrice
+      title: TradeListItem
+      description: A single trade in the paginated list view.
+    MemberAttribution:
+      properties:
+        userId:
+          type: string
+          title: Userid
+        firstName:
+          type: string
+          title: Firstname
+        lastName:
+          type: string
+          title: Lastname
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+          description: Workspace role of the member
+        kycStatus:
+          type: string
+          title: Kycstatus
+        joinedAt:
+          type: string
+          format: date-time
+          title: Joinedat
+      type: object
+      required:
+        - userId
+        - firstName
+        - lastName
+        - email
+        - role
+        - kycStatus
+        - joinedAt
+      title: MemberAttribution
+      description: Member identity attached to a trade - present for admin/owner callers only.
+    TradeRouteDisplay:
+      properties:
+        input:
+          $ref: '#/components/schemas/AssetAmountDisplay'
+        output:
+          $ref: '#/components/schemas/AssetAmountDisplay'
+      type: object
+      required:
+        - input
+        - output
+      title: TradeRouteDisplay
+      description: Canonical input/output route for display.
+    AssetAmountDisplay:
+      properties:
+        asset:
+          $ref: '#/components/schemas/AssetDisplay'
+        rawAmount:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Rawamount
+          description: Base-unit amount as a string
+        decimalAmount:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Decimalamount
+          description: Human-readable decimal amount
+      type: object
+      required:
+        - asset
+      title: AssetAmountDisplay
+      description: Raw and normalized amount for one asset side.
+    AssetDisplay:
+      properties:
+        assetId:
+          type: string
+          title: Assetid
+          description: Network-qualified asset identifier
+        symbol:
+          type: string
+          title: Symbol
+        name:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Name
+        decimals:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Decimals
+        chainId:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Chainid
+        chainRef:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Chainref
+        address:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Address
+        resolutionStatus:
+          type: string
+          enum:
+            - resolved
+            - unknown
+          title: Resolutionstatus
+      type: object
+      required:
+        - assetId
+        - symbol
+        - resolutionStatus
+      title: AssetDisplay
+      description: Display identity for one token/asset.
+    RoutingPath:
+      properties:
+        type:
+          type: string
+          enum:
+            - direct
+            - via_broker
+          title: Type
+        brokerWorkspaceId:
+          type: string
+          title: Brokerworkspaceid
+          description: Present when type is via_broker
+        brokerName:
+          type: string
+          title: Brokername
+          description: Present when type is via_broker
+      type: object
+      required:
+        - type
+      title: RoutingPath
+      description: >-
+        How the LP reached this workspace: direct bilateral relationship, or via an
+        affiliated broker.
+    TradeLifecycleStep:
+      properties:
+        key:
+          type: string
+          title: Key
+        label:
+          type: string
+          title: Label
+        tone:
+          type: string
+          title: Tone
+      type: object
+      required:
+        - key
+        - label
+        - tone
+      title: TradeLifecycleStep
+      description: A compact backend-owned display status step.
+    TradeLifecycleStatus:
+      properties:
+        flowKind:
+          type: string
+          title: Flowkind
+          description: instant, deferred_auto_withdraw, or deferred_manual
+        primary:
+          $ref: '#/components/schemas/TradeLifecycleStep'
+        execution:
+          anyOf:
+            - $ref: '#/components/schemas/TradeLifecycleStep'
+            - type: 'null'
+          title: Execution
+        settlement:
+          anyOf:
+            - $ref: '#/components/schemas/TradeLifecycleStep'
+            - type: 'null'
+          title: Settlement
+        withdrawal:
+          anyOf:
+            - $ref: '#/components/schemas/TradeLifecycleStep'
+            - type: 'null'
+          title: Withdrawal
+        isTerminal:
+          type: boolean
+          title: Isterminal
+        rank:
+          type: integer
+          title: Rank
+        rawStatus:
+          type: string
+          title: Rawstatus
+        rawDeferredStatus:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Rawdeferredstatus
+      type: object
+      required:
+        - flowKind
+        - primary
+        - isTerminal
+        - rank
+        - rawStatus
+      title: TradeLifecycleStatus
+      description: Backend-owned display status for user-facing execution/settlement state.
+    DeferredSettlementInfo:
+      properties:
+        stage:
+          type: string
+          title: Stage
+        executedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Executedat
+        estimatedSettlementAvailableAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Estimatedsettlementavailableat
+        settlementWindowHours:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          title: Settlementwindowhours
+        autoWithdraw:
+          type: boolean
+          title: Autowithdraw
+        withdrawalStatus:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Withdrawalstatus
+        withdrawalTrackingId:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Withdrawaltrackingid
+        withdrawalTxHash:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Withdrawaltxhash
+      type: object
+      required:
+        - stage
+        - autoWithdraw
+      title: DeferredSettlementInfo
+      description: >-
+        Deferred LP settlement/withdrawal tracking, separate from the order's primary
+        execution status.
+    ExecutionPriceDisplay:
+      properties:
+        value:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Value
+        baseSymbol:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Basesymbol
+        quoteSymbol:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Quotesymbol
+        source:
+          type: string
+          enum:
+            - stored_quote_price
+            - derived_from_amounts
+            - unavailable
+          title: Source
+      type: object
+      required:
+        - source
+      title: ExecutionPriceDisplay
+      description: User-facing execution price.
     ErrorResponse:
       properties:
         error:
@@ -148,213 +619,6 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    TradeRecord:
-      properties:
-        tradeId:
-          type: string
-          title: Tradeid
-          description: Identifier for detail and timeline lookups
-        orderId:
-          type: string
-          title: Orderid
-          description: The order this trade settled under
-        status:
-          type: string
-          title: Status
-          description: Lifecycle state - settled, failed, or an in-flight state
-        product:
-          $ref: '#/components/schemas/Product'
-        shape:
-          $ref: '#/components/schemas/Shape'
-        corridor:
-          type: string
-          title: Corridor
-          description: Directional route the trade executed on
-        solverId:
-          type: string
-          title: Solverid
-          description: The solver or LP that filled the trade
-        preview:
-          type: object
-          properties:
-            inputs:
-              items:
-                $ref: '#/components/schemas/PreviewLeg'
-              type: array
-              title: Inputs
-            outputs:
-              items:
-                $ref: '#/components/schemas/PreviewLeg'
-              type: array
-              title: Outputs
-          title: Preview
-          description: Inputs and outputs with amounts, symbols, and USD values
-        volumeUsd:
-          anyOf:
-            - type: number
-            - type: 'null'
-          title: Volumeusd
-          description: Trade volume in USD
-        platformFeeBps:
-          type: integer
-          title: Platformfeebps
-          description: Fee applied to this trade, in basis points
-        txHash:
-          type: string
-          title: Txhash
-          description: Settlement transaction hash
-        settledAt:
-          type: string
-          format: date-time
-          title: Settledat
-          description: Settlement time (ISO-8601)
-      type: object
-      required:
-        - tradeId
-        - orderId
-        - status
-        - product
-        - shape
-        - corridor
-        - solverId
-        - preview
-        - txHash
-        - settledAt
-      title: TradeRecord
-      metadata:
-        results: 4
-        timestamp: '2024-01-24T10:51:08Z'
-        tokens:
-          eip155:137/erc20:0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270:
-            decimals: 18
-            icon: https://assets.tetrafi.io/tokens/wmatic.svg
-            name: Wrapped Matic
-            symbol: WMATIC
-          eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174:
-            decimals: 6
-            icon: https://assets.tetrafi.io/tokens/usdc.svg
-            name: USD Coin (PoS)
-            symbol: USDC
-          eip155:137/erc20:0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063:
-            decimals: 18
-            icon: https://assets.tetrafi.io/tokens/dai.svg
-            name: (PoS) Dai Stablecoin
-            symbol: DAI
-          eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE:
-            decimals: 18
-            icon: https://assets.tetrafi.io/tokens/matic.svg
-            name: Matic
-            symbol: MATIC
-      trades:
-        - tradeId: tr_01HMWXD...
-          orderId: ord_01HMWXD...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063
-                amount: '3000000000000000000'
-                symbol: DAI
-                amountUsd: 2.9995950000000002
-            outputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '2969969'
-                symbol: USDC
-                amountUsd: 2.9697647979999995
-          volumeUsd: 2.9697647979999995
-          platformFeeBps: 5
-          txHash: '0x50d72e9e73e6871057930df352c87587e7dd041e75680821449cbf1970d2870d'
-          settledAt: '2024-01-24T10:50:36Z'
-        - tradeId: tr_01HMWXC...
-          orderId: ord_01HMWXC...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '1000000'
-                symbol: USDC
-                amountUsd: 1.001
-            outputs:
-              - asset: eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-                amount: '1324757967403350565'
-                symbol: MATIC
-                amountUsd: 0.9707238483714452
-          volumeUsd: 0.9707238483714452
-          platformFeeBps: 5
-          txHash: '0xb7b8fddfcc7cd7275f2fe82f44bf1e9c618c538e76f0dd39e5fd67e17fe15572'
-          settledAt: '2024-01-24T10:50:25Z'
-        - tradeId: tr_01HMWXB...
-          orderId: ord_01HMWXB...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '1000000'
-                symbol: USDC
-                amountUsd: 1.001
-            outputs:
-              - asset: eip155:137/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-                amount: '1321707791213987268'
-                symbol: MATIC
-                amountUsd: 0.9690523312530294
-          volumeUsd: 0.9690523312530294
-          platformFeeBps: 5
-          txHash: '0x91c8a994b33ae8d17eeaa9a757fa3338561402f204d05a5f59a70dc3389aa390'
-          settledAt: '2024-01-24T10:50:18Z'
-        - tradeId: tr_01HMWXA...
-          orderId: ord_01HMWXA...
-          status: settled
-          product: router
-          shape: one-to-one
-          corridor: polygon-polygon
-          solverId: lp-atlas
-          preview:
-            inputs:
-              - asset: eip155:137/erc20:0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
-                amount: '3000000000000000000'
-                symbol: WMATIC
-                amountUsd: 2.20989
-            outputs:
-              - asset: eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-                amount: '2200006'
-                symbol: USDC
-                amountUsd: 2.197060866
-          volumeUsd: 2.197060866
-          platformFeeBps: 5
-          txHash: '0x22dd9e22528e904be9ba100828339f5a7699d2ea3cbf0dc678b90418d38b9d10'
-          settledAt: '2024-01-24T10:49:50Z'
-    ResponseMetadata:
-      properties:
-        timestamp:
-          type: string
-          title: Timestamp
-        results:
-          anyOf:
-            - type: integer
-            - type: 'null'
-          title: Results
-          description: Number of records in this page
-        tokens:
-          additionalProperties:
-            $ref: '#/components/schemas/TokenInfo'
-          type: object
-          title: Tokens
-          description: Metadata for each asset referenced in the page, keyed by asset identifier
-      type: object
-      required:
-        - timestamp
-      title: ResponseMetadata
     ApiError:
       properties:
         code:
@@ -391,75 +655,6 @@ components:
         - msg
         - type
       title: ValidationError
-    PreviewLeg:
-      properties:
-        asset:
-          type: string
-          title: Asset
-          description: Network-qualified asset identifier
-        amount:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Amount
-        symbol:
-          type: string
-          title: Symbol
-        amountUsd:
-          anyOf:
-            - type: number
-            - type: 'null'
-          title: Amountusd
-      type: object
-      title: PreviewLeg
-    Product:
-      type: string
-      enum:
-        - router
-        - rfq
-      title: Product
-      description: 'The customer contract the trade ran under: router or rfq.'
-    Shape:
-      type: string
-      enum:
-        - one-to-one
-        - one-to-many
-        - many-to-one
-        - split-fill
-        - partial
-      title: Shape
-      description: >-
-        Trade shape. one-to-one - single swap; one-to-many - one input fanned into multiple
-        outputs; many-to-one - multiple inputs consolidated into one output; split-fill -
-        one intent filled by multiple LPs, each committing a slice; partial - a partialFill
-        order that settled below full size, remainder refunded.
-    TokenInfo:
-      properties:
-        name:
-          type: string
-          title: Name
-        symbol:
-          type: string
-          title: Symbol
-        decimals:
-          type: integer
-          title: Decimals
-        displayDecimals:
-          anyOf:
-            - type: integer
-            - type: 'null'
-          title: Displaydecimals
-        icon:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Icon
-      type: object
-      required:
-        - name
-        - symbol
-        - decimals
-      title: TokenInfo
   securitySchemes:
     apiKeyAuth:
       type: apiKey
@@ -467,5 +662,11 @@ components:
       name: X-API-Key
       description: Workspace API key (tfk_test_/tfk_live_); results are scoped to the key's
         workspace.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Workspace-session JWT; results are scoped to the caller's workspace
+        membership.
 
 ````
