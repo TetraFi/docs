@@ -1,0 +1,131 @@
+---
+title: "How It Works"
+description: "Clearing cycles, the settlement choice, and where the residual goes."
+---
+
+<Note>
+  **Coming soon.** This page describes the planned mechanism at the architecture level. Parameters - cycle timing, discount schedules, fee splits - are design decisions that publish at launch, not promises made here.
+</Note>
+
+## Two Ways to Settle
+
+The platform's settlement modes are a choice, per leg:
+
+|  | **Instant Settlement** | **Multilateral Netting** |
+| --- | --- | --- |
+| **What happens** | The settlement moves now, in full, exactly as quoted | The settlement joins the next clearing cycle and nets against the network; only the difference moves |
+| **Who picks it** | The default - available to any participant | Any participant who opts in - users, market makers, and desks alike |
+| **What it costs** | The full settlement toll on that leg | Bookkeeping cost on the matched fraction, a priced backstop on the rest - for the price of a short wait |
+
+Every settlement makes the same choice, whoever created the trade behind it. Leave it instant and it moves now, in full, exactly as quoted. Opt it into clearing and it joins the next cycle instead of settling alone - netted multilaterally against the whole network, so only the net difference ever moves. The saving is real for whoever opts in: a market maker quotes tighter, a desk settles a day of flow in one figure, a treasury moves the difference instead of the gross.
+
+<Info icon="anchor">
+  **Hold, don't move.** Because your obligations net against the network's opposing flow, you settle by adjusting net positions - your inventory stays where it already sits. No bridging a position across chains to cover an obligation, no rebalancing round-trips; only the net difference ever moves. Netting replaces the moving.
+</Info>
+
+## The Clearing Cycle
+
+<Steps>
+  <Step title="Obligations accumulate" icon="layer-group">
+    Participants opt settlements from executed trades into the clearing ledger - by asset and <Tooltip tip="A direction of flow between two points - an asset moving from one chain or venue to another, e.g. USDC from Base to Arbitrum.">corridor</Tooltip>, gated by compliance policy and per-participant exposure caps.
+  </Step>
+
+  <Step title="The network offsets" icon="arrows-left-right">
+    Each cycle, obligations net multilaterally: what flows one way cancels against what flows the other. The matched portion settles as ledger entries - no bridge, no rebalance, no conversion.
+  </Step>
+
+  <Step title="The residual clears through a backstop layer" icon="shield-halved">
+    Whatever doesn't match takes the first priced exit in a configurable waterfall: T+0 Vault liquidity buys it, the wholesale conversion desk consolidates it into one lot, a discount auction offers it to external fillers, or it rebalances externally at market cost. A residual is never left waiting indefinitely.
+  </Step>
+
+  <Step title="Net amounts settle" icon="circle-check">
+    Only the net movements touch the settlement rails. Participants receive a cycle report: what matched, what the residual cost, what the cycle saved.
+  </Step>
+</Steps>
+
+```mermaid
+sequenceDiagram
+    participant M as Participants (users / MMs / desks)
+    participant C as Clearing ledger
+    participant B as Backstop layer
+    participant R as Settlement rails
+
+    M->>C: settlement obligations from executed trades
+    Note over C: cycle - offset per asset and corridor
+    C->>C: matched flow cancels at bookkeeping cost
+    C->>B: residual takes the first priced exit
+    C->>R: net movements only
+    R-->>M: net balances settle
+```
+
+## The Netting Premium
+
+Settlement cost scales with the value that settles, not the value that trades - and by collapsing gross flow to its residual, netting cuts that cost by an order of magnitude, tightening every spread priced against it.
+
+## The Architecture
+
+The clearing layer is hub-and-spoke: trades keep settling on the per-chain rails they already use, while a clearing hub sees only the legs participants opt in and nets them across the whole network.
+
+```mermaid
+flowchart LR
+    subgraph rails["Per-chain spokes"]
+        S["Settlement endpoints"]
+    end
+    T(["Messaging layer"])
+    subgraph hub["Clearing hub"]
+        L["Clearing ledger"]
+        C["Cycle engine"]
+        B["Backstop layer"]
+        L --> C
+        C -- residual --> B
+    end
+    S -- obligations --> T --> L
+    C -- net settlements --> T
+    B -- net settlements --> T
+    T -- "any configured domain" --> S
+```
+
+Three records move through the clearing layer:
+
+<CardGroup cols={3}>
+  <Card title="Obligation" icon="file-signature">
+    Posted when a participant opts an executed settlement into clearing - the record of what is owed: asset, amount, corridor, counterparty.
+  </Card>
+
+  <Card title="Net position" icon="scale-balanced">
+    What the cycle reduces each participant's obligations to - one signed figure per asset and corridor, netted against the whole set at once.
+  </Card>
+
+  <Card title="Settlement" icon="money-bill-transfer">
+    The only record that moves value - each participant's net figure, dispatched to a settlement domain it has configured.
+  </Card>
+</CardGroup>
+
+### Flow of Funds
+
+A settlement left instant moves now, in full, through the normal escrow path. A settlement opted into clearing posts an obligation to the hub instead of settling alone; between cycles it sits as a balance on the clearing ledger.
+
+Each cycle, the engine nets every participant's obligations multilaterally - against the whole set at once, not pair by pair - so matched flow cancels on the ledger with nothing moving on-chain. Only the residual, and each participant's final net figure, ever reach the rails.
+
+Settlement isn't tied to where the trades executed: a participant's net figure can settle on any domain it has configured, so settlement is decoupled from routing - one settlement footprint across every chain the participant operates on.
+
+### Components
+
+- **Clearing ledger.** Holds each participant's obligations and net balances, by asset and corridor.
+- **Cycle engine.** Runs each cycle: nets obligations multilaterally, prices the residual, and emits net settlements.
+- **Backstop layer.** The priced exits for the residual - vault liquidity, wholesale desk conversion, discount auction, external rebalancing.
+- **Compliance gates.** KYB, sanctions, and jurisdiction checks at membership and at every cycle entry.
+- **Spokes.** The per-chain settlement endpoints where trades fill and net movements land.
+- **Messaging layer.** Carries obligations in and net settlements out across chains.
+
+## Keep Going
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="scale-balanced" href="/netting">
+    The settlement-cost case and who this is for.
+  </Card>
+
+  <Card title="T+0 Vaults" icon="vault" href="/vaults">
+    The instant-liquidity primitive that doubles as a clearing backstop.
+  </Card>
+</CardGroup>

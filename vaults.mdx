@@ -1,48 +1,61 @@
 ---
-title: "TetraFi Vaults"
-description: "Instant liquidity for assets that settle slowly - coming soon."
+title: "TetraFi T+0 Vaults"
+description: "One primitive that turns delayed settlement into instant settlement - coming soon."
 ---
 
 <Note>
-  **Coming soon.** TetraFi Vaults are on the roadmap, not yet live. This page sketches the planned product so issuers, LPs, and market makers can evaluate it early - details will deepen as launch approaches.
+  **Coming soon.** T+0 Vaults are in design, not yet live. These pages describe the planned protocol so issuers, capital providers, and market makers can evaluate it early - specifics such as parameters and contract addresses publish at launch.
 </Note>
 
 ## The Settlement-Time Gap
 
-A token burns in seconds; the value behind it often doesn't. Underlyings liquidate on T+1 cycles or worse - redemption windows, withdrawal queues, out-of-hours cutoffs - so "instant redemption" promises break precisely when they're tested. The emerging market answer is an **instant-liquidity sleeve**: committed capital that fronts the fast leg while the slow leg completes. TetraFi Vaults are that sleeve, built as network infrastructure rather than a per-product patch.
+A token burns in seconds; the value behind it often doesn't. Underlyings liquidate on T+1 cycles or worse - redemption windows, withdrawal queues, out-of-hours cutoffs - so "instant redemption" promises break precisely when they're tested. Today every product spanning that gap patches it privately: idle buffers, solver balance sheets, perpetual incentive spend.
 
-## Two Vault Products
+T+0 Vaults are the shared answer - **one primitive that bridges TradFi's asynchronous, delayed settlement cycles with on-chain instant settlement**, built as open network infrastructure rather than a per-product fix.
 
-### Instant settlement fronting
+## What a T+0 Vault Is
 
-Vaults acting as short-term credit lines against T+1 OTC, RWA, and stablecoin **settlement obligations**. TetraFi originates the obligations from integrated LPs, venues, and issuers; solvers draw vault liquidity to settle the trade T+0.
+A compliance-gated pool of committed capital connecting passive institutional deposits to high-frequency settlement demand. The vault fronts the fast leg of a trade - the instant redemption, the T+0 settlement, the cross-chain fill - and recycles its capital when the slow leg completes.
 
-* Trades settle instantly even when the counterparty leg runs on a delayed cycle
-* Vault depositors earn the duration spread on short-dated, obligation-backed exposure
-* Solvers stop warehousing settlement risk on their own balance sheets
+The mechanism is deliberately **not lending**. Vault capital moves only inside a transaction where an obligation worth more at oracle price arrives in exchange: a tokenised asset awaiting redemption, a T+1 settlement receivable, a claim on escrowed funds. There is no borrower who can run off with the money - only an asset the vault bought at a discount, and that discount is the depositor's yield.
 
-### RWA redemption vaults
+## Key Facts
 
-Curator-managed vaults whose collateral market makers may use **solely to quote and fill redemptions** through the RFQ flow - turning episodic primary liquidity into continuous secondary liquidity.
-
-* Holders exit tokenised assets instantly, even mid-queue or between redemption windows
-* Market makers price duration - bidding for discounted assets against vault capital
-* Issuers get dependable secondary liquidity without idle buffers or perpetual incentive spend
+| | |
+| --- | --- |
+| **Status** | In design - register interest below |
+| **Model** | Atomic obligation exchange: cash out only when an obligation of greater oracle value comes in, same transaction |
+| **Lanes** | RWA & stablecoin instant redemptions · T+1 OTC settlement fronting · solver working capital |
+| **Compliance** | KYB'd participants, jurisdiction filtering, policy-checked draws - configured per vault |
+| **Deployment** | Curated vaults at launch, opening to independent curators over time |
+| **First customer** | TetraFi itself - its settlement rails originate the first obligations the vaults buy |
 
 ## Built for Three Sides
 
-|                     | What Vaults change for you                                                          |
+|                     | What T+0 Vaults change for you                                                          |
 | ------------------- | ----------------------------------------------------------------------------------- |
 | **Asset issuers**   | Distribution plus credible instant redemptions - no expensive liquidity programs    |
-| **Capital providers** | Yield sourced from real redemption-liquidity demand, in curated risk envelopes    |
-| **Market makers**   | A new book: service redemptions and liquidations with vault capital, pricing the wait |
+| **Capital providers** | Yield sourced from real settlement demand, in curated and compliance-gated risk envelopes |
+| **Market makers & solvers** | A new book: service redemptions, settlements, and fills with vault capital, pricing the wait |
+
+The full role-by-role picture - including curators, who deploy and parameterise vaults - is on the [Participants](/vaults/participants) page.
+
+## Go Deeper
 
 <CardGroup cols={2}>
-  <Card title="Trade today" icon="bolt" href="/rfq-api/introduction">
-    Firm escrow-backed execution is live now through the RFQ API.
+  <Card title="How It Works" icon="gears" href="/vaults/how-it-works">
+    The atomic exchange, the draw lifecycle, and why zero-collateral is safe here.
   </Card>
 
-  <Card title="Register interest" icon="sparkles" href="/support">
-    Issuing, providing capital, or making markets? Get on the early list.
+  <Card title="Participants" icon="users" href="/vaults/participants">
+    Curators, depositors, executors, and asset issuers - what each does and earns.
+  </Card>
+
+  <Card title="Use Cases" icon="layer-group" href="/vaults/use-cases">
+    Stablecoins, RWA redemptions, OTC settlement, and solver liquidity.
+  </Card>
+
+  <Card title="Register Interest" icon="sparkles" href="/support">
+    Issuing, providing capital, curating, or making markets? Get on the early list.
   </Card>
 </CardGroup>
