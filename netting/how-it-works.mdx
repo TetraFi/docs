@@ -43,20 +43,9 @@ Every settlement makes the same choice, whoever created the trade behind it. Lea
   </Step>
 </Steps>
 
-```mermaid
-sequenceDiagram
-    participant M as Participants (users / MMs / desks)
-    participant C as Clearing ledger
-    participant B as Backstop layer
-    participant R as Settlement rails
-
-    M->>C: settlement obligations from executed trades
-    Note over C: cycle - offset per asset and corridor
-    C->>C: matched flow cancels at bookkeeping cost
-    C->>B: residual takes the first priced exit
-    C->>R: net movements only
-    R-->>M: net balances settle
-```
+<Frame caption="One cycle: obligations net multilaterally, the matched portion cancels on the ledger, and only the residual and the final net figure ever reach the rails.">
+  <img src="/images/netting-cycle.svg" alt="The clearing cycle: obligations enter the cycle engine, which nets them multilaterally per asset and corridor. Matched flow cancels on the ledger at bookkeeping cost with no bridge or rebalance. The residual takes the first priced exit in the backstop waterfall - vault liquidity, wholesale desk, discount auction, external rebalancing. Both paths converge on a net settlement that reaches the rails." />
+</Frame>
 
 ## The Netting Premium
 
@@ -66,24 +55,9 @@ Settlement cost scales with the value that settles, not the value that trades - 
 
 The clearing layer is hub-and-spoke: trades keep settling on the per-chain rails they already use, while a clearing hub sees only the legs participants opt in and nets them across the whole network.
 
-```mermaid
-flowchart LR
-    subgraph rails["Per-chain spokes"]
-        S["Settlement endpoints"]
-    end
-    T(["Messaging layer"])
-    subgraph hub["Clearing hub"]
-        L["Clearing ledger"]
-        C["Cycle engine"]
-        B["Backstop layer"]
-        L --> C
-        C -- residual --> B
-    end
-    S -- obligations --> T --> L
-    C -- net settlements --> T
-    B -- net settlements --> T
-    T -- "any configured domain" --> S
-```
+<Frame caption="Hub and spoke: trades keep settling on the per-chain rails they already use, while the clearing hub sees only the legs participants opt in - and the net figure can land on any domain the participant has configured.">
+  <img src="/images/netting-architecture.svg" alt="Hub-and-spoke clearing architecture across three domains. In the origin domain, participants opt an executed trade's settlement leg into clearing at a per-chain spoke, which sends an obligation via the messaging layer to the clearing hub. Inside the hub, the clearing ledger feeds the cycle engine, which nets multilaterally and passes the residual to the backstop layer. Both the cycle engine and the backstop emit net settlements back across the messaging layer to a spoke in the settlement domain, where the participant receives one net figure." />
+</Frame>
 
 Three records move through the clearing layer:
 
