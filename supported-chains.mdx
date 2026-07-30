@@ -1,12 +1,58 @@
 ---
-title: "Network Coverage"
-description: "Blockchains supported by TetraFi's cross-chain settlement."
+title: "Coverage"
+description: "The assets, flows, and networks TetraFi's settlement rails reach."
 mode: "wide"
 ---
 
+Coverage has two halves: **which assets** TetraFi is built to trade deep, and **which networks** its settlement rails reach. Both are listed below.
+
+## Asset Classes
+
+TetraFi concentrates on a narrow asset set traded at institutional size - the reasoning is on [Why TetraFi](/why-tetrafi).
+
+### Regulated stablecoins
+
+Where the depth is greatest. Firm LP inventory quotes these directly, at ticket sizes that would move an on-chain pool.
+
+| Group                | Assets                                                     |
+| -------------------- | ---------------------------------------------------------- |
+| USD                  | USDC, USDT, PYUSD, RLUSD, USDG, AUSD, USDS                 |
+| EUR                  | EURC, EURCV                                                |
+| Regional currencies  | BRL, MXN, JPY, KRW, CAD, AUD, ZAR, PHP                     |
+
+Issuer mint and burn rails - CCTP, USDT0 and equivalents - compose as legs alongside the quoted liquidity, so a corridor can cross issuers as well as chains.
+
+### Tokenized real-world assets
+
+Quoted the same way, with the issuer's own primary rails available in the same route: subscription, redemption, and secondary trading rather than secondary alone.
+
+{/* TODO(tetrafi): confirm this asset-class list and whether any issuer names can be cited publicly before this page ships. */}
+
+* Tokenized treasuries and money-market funds
+* Private credit
+* Commodities
+* Tokenized deposits and e-money
+
+Investor eligibility and compliance policy attach to the issuer's capability itself, so an asset that may only be held by qualifying investors stays gated wherever it is routed.
+
+### Everything else
+
+Any ERC-20 an LP is willing to quote is tradeable through the [RFQ API](/rfq-api/introduction), and the [Router API](/router-api/introduction) reaches the wider token universe through DEX, bridge, and fiat sources. The depth claim above applies to the two classes named - reach beyond them is the Router's job.
+
+## Flows
+
+| Flow                    | What it is                                                    | The rail                                            |
+| ----------------------- | ------------------------------------------------------------- | --------------------------------------------------- |
+| Secondary trading       | Buying or selling an issued token at size                     | RFQ firm quotes, escrow-settled                     |
+| Primary issuance        | Cash into a newly minted token                                | Issuer mint capability, composed as a route leg     |
+| Redemption              | Token back to cash or stables                                 | Issuer redemption rail; [T+0 Vaults](/vaults) front the wait for instant exits |
+| Cross-chain corridor    | The same asset, or a paired one, moved between networks       | One intent, one signature, escrowed settlement      |
+
+## Networks
+
 These are the networks TetraFi's settlement rails reach today - and the ones arriving next.
 
-## Mainnet
+### Mainnet
 
 | VM  | Chain    | Chain ID | Status  |
 | --- | -------- | -------- | ------- |
@@ -15,7 +61,7 @@ These are the networks TetraFi's settlement rails reach today - and the ones arr
 | EVM | Ethereum | 1        | Planned |
 | EVM | Arc      | 5042     | Planned |
 
-## Testnet
+### Testnet
 
 | VM  | Chain            | Chain ID   |
 | --- | ---------------- | ---------- |
@@ -28,7 +74,7 @@ These are the networks TetraFi's settlement rails reach today - and the ones arr
 | TVM | Tron Shasta      | 2494104990 |
 
 <Info>
-  Chain support changes over time; the deployment registry is the source of truth.
+  Asset and chain support both change over time; the deployment registry is the source of truth for networks, and your workspace's LP roster determines which assets actually quote for you.
 
   {/* TODO(tetrafi): TetraFi's API is currently internal — confirm the public endpoint (if any) for listing supported chains programmatically before documenting a curl example here. */}
 </Info>
