@@ -4,29 +4,67 @@ description: "Offset obligations across the network before they move - coming so
 ---
 
 <Note>
-  **Coming soon.** Multilateral Netting is in design, not yet live. These pages describe the planned primitive so anyone settling on the network - users, market makers, and desks alike - can evaluate it early; cycle timing, fee schedules, and membership criteria publish at launch.
+  **Coming soon.** Multilateral Netting is in design, not yet live. These pages describe the planned primitive so anyone settling on the network - users, market makers, and desks alike - can evaluate it early; run timing, fee schedules, and membership criteria publish at launch.
 </Note>
 
 ## The Cost of Gross Settlement
 
 Every trade on the network settles alone today. Each fill pays the full toll - the bridge, the rebalance, the conversion - even when an equal and opposite flow crosses the network minutes later. Opposing flows cancel on paper; in fees, they don't. That toll is the floor under every spread you're quoted.
 
-**Multilateral Netting makes the cancellation real.** Settlement obligations accumulate on a clearing ledger, offset against each other each cycle, and only the residual moves through priced liquidity. The matched portion - the majority, in balanced flow - settles at bookkeeping cost. Industry analysis of cross-chain flows found roughly 80% of rebalancing activity nettable, putting an order-of-magnitude cost reduction on the table for the flows that match.
+**Multilateral Netting makes the cancellation real.** Every cleared trade leaves an obligation on one shared graph - who pays whom, how much, by when. Each run, the network's debts offset against each other: loops cancel outright, chains clear with a single unit of routed liquidity, and only each participant's net residual moves, on rails you already use. The matched portion is **extinguished by set-off, not transferred** - no clearing house steps in, nothing is novated, and you keep your original counterparties throughout.
+
+**Measured, not projected.** Real netting systems run from about 10% of debt cleared (cancelling closed loops alone) to 96-98% (funded residuals and carried positions in dense networks - the CLS and NSCC class). We plan on **40 to 55% of gross** netting out at the start, rising as the network gets denser; every figure we publish carries the basis it was measured on.
+
+## Two Firm Quotes
+
+Netting arrives in the product as a second quote. Settle instantly at today's price - or clear at a deadline you pick, at a tighter one. Both quotes are firm; the choice is per settlement, and it is the only thing you do differently.
+
+The cleared quote is tighter for a reason: a liquidity provider's rebalancing cost is the floor under every spread, and netting removes it. Until your deadline, your capital stays yours and keeps working - nothing locked, nothing pre-funded, your wallet untouched until the pull window opens. Need out before the deadline? The [T+0 Vault](/vaults) buys your position at its published discount.
+
+## What Stays Yours
+
+<CardGroup cols={3}>
+  <Card title="Zero Locked Capital" icon="wallet">
+    No margin, no pre-funding. One signature records the debt and pre-approves its collection; nothing leaves your wallet until the window opens.
+  </Card>
+
+  <Card title="Your Counterparty Never Changes" icon="handshake">
+    Debts cancel by set-off on one shared graph. No clearing house steps in, nothing is novated, and netting never expands your counterparty perimeter.
+  </Card>
+
+  <Card title="Proven, Not Trusted" icon="badge-check">
+    Every run ships a validity proof checked on-chain. The chain checks the proof, not the operator - a wrong answer cannot execute.
+  </Card>
+
+  <Card title="Nobody Sees Your Book" icon="lock">
+    Positions are readable only inside a sealed engine that can prove which program it runs. You see your own slice; nobody sees the graph.
+  </Card>
+
+  <Card title="Every Exit Is Priced" icon="shield-halved">
+    A remainder unpaid at its deadline leaves through a priced ladder - vault, desk, auction, then settling gross as today. The worst case is what you already pay.
+  </Card>
+
+  <Card title="The Fee Follows the Saving" icon="scale-balanced">
+    A small flat rate plus a share of what you saved, measured against your own instant quote. Never a toll on gross.
+  </Card>
+</CardGroup>
 
 ## Key Facts
 
 | | |
 | --- | --- |
 | **Status** | In design - register interest below |
-| **Model** | Multilateral netting: opt in per settlement, and only the net difference moves |
-| **The choice** | Per settlement, pick instant (direct, the default) or Multilateral Netting (delayed, cheaper) - the same choice for users, market makers, and desks |
+| **Model** | Multilateral set-off on one shared graph: opt in per settlement, and only the net difference moves |
+| **The choice** | Per settlement, pick instant (direct, the default) or cleared (delayed, tighter) - both quotes firm, the same choice for users, market makers, and desks |
+| **Deadline tiers** | You pick the wait: an hours-class tier or T+1 / T+2 - a menu, not one clock, and a tier is no lock-in |
 | **Hold, don't move** | Net-clear against inventory you already hold - no bridging, no rebalancing; only the net difference ever settles |
-| **The residual** | Cleared through a layered backstop - vault liquidity, wholesale desk conversion, discount auction, external rebalancing - never left waiting |
+| **The residual** | Cleared through a layered backstop - vault liquidity, wholesale desk conversion, discount auction, external settlement - never left waiting |
+| **Early exit** | The T+0 Vault buys your position at its published discount, any time before the deadline |
 | **Membership** | Compliance-gated: KYB'd participants, jurisdiction-aware, per-policy |
 
 ## A Clearing Module For Institutions
 
-Like everything TetraFi ships, clearing is a primitive, not a venue. Plug into the shared clearing network as a participant - or run your own version of the module: your membership rules, your cycle cadence, your backstop order, your asset scope, under your compliance policy, the same way every workspace owns its router.
+Like everything TetraFi ships, clearing is a primitive, not a venue. Plug into the shared clearing network as a participant - or run your own version of the module: your membership rules, your run cadence, your backstop order, your asset scope, under your compliance policy, the same way every workspace owns its router.
 
 The same module bends to very different books: a [payment network](/use-cases/payment-networks) netting corridor flows across chains, an [issuer](/use-cases/rwa-issuers) netting mints against redemptions, an OTC circle netting bilateral T+1 obligations down to one wire a day. And it composes with the rest of the stack - [RFQ](/rfq-api/introduction) firm quotes, [Router](/router-api/introduction) execution, [T+0 Vaults](/vaults) liquidity - or stands alone as the cost layer under whatever you already run.
 
@@ -34,7 +72,15 @@ The same module bends to very different books: a [payment network](/use-cases/pa
 
 <CardGroup cols={2}>
   <Card title="How It Works" icon="gears" href="/netting/how-it-works">
-    The clearing cycle, the settlement choice, and where the residual goes.
+    The clearing run step by step, the settlement choice, funding, and where the residual goes.
+  </Card>
+
+  <Card title="Where It Applies" icon="diagram-project" href="/netting/where-it-applies">
+    One clearing layer, many kinds of debt: stablecoin flows, tokenized assets, payment networks, and more.
+  </Card>
+
+  <Card title="Privacy & Control" icon="lock" href="/netting/privacy-and-control">
+    Who sees what, who you end up facing, and the lines the protocol never crosses.
   </Card>
 
   <Card title="Register Interest" icon="sparkles" href="/support">
