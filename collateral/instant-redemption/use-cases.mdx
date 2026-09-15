@@ -1,10 +1,10 @@
 ---
 title: "Use Cases"
-description: "Four settlement gaps, one primitive - where T+0 Vaults go to work first."
+description: "Where instant redemption goes to work first - RWA exits and stablecoin settlement windows."
 ---
 
 <Note>
-  **Coming soon.** The lanes below are the design targets for the first vaults. TetraFi's own settlement rails originate two of them natively - the protocol's first customer is the platform itself.
+  **Coming soon.** The lanes below are the design targets for the first vaults. TetraFi's own settlement rails originate the network's first obligations - the first customer is the platform itself.
 </Note>
 
 ## RWA Instant Redemptions
@@ -17,31 +17,21 @@ Holders exit instantly, even mid-queue. Issuers get credible "instant redemption
 
 Stablecoins with banked reserves inherit banking hours: mint and redemption pause overnight, over weekends, across cutoffs. A vault lane against issuer redemption claims keeps the instant path open when the primary window is shut - the same mechanism as the RWA lane, tuned to shorter, calendar-driven durations.
 
-## OTC Settlement Fronting
-
-TetraFi's deferred rail lets OTC desks and institutional LPs settle on T+1 cycles while trades execute now. Each deferred trade creates a receivable - a native obligation with first-party provenance, originated and tracked by the platform's own settlement rail. A vault buys that receivable at a discount and the trade settles T+0 for everyone else; when the desk's cycle completes, the rail pays the vault.
-
-This is the lane where TetraFi is literally its own first customer: today the gap rides on broker and LP credit lines; the vault lets deposited capital carry it instead.
-
-## Programmable Solver Liquidity
-
-Cross-chain intents need destination-chain capital for seconds to minutes - the time it takes a fill proof to release the escrowed source funds. A vault lane against escrow claims gives solvers working capital with defined terms and automatic repayment: the draw funds the fill, the escrow releases to the vault, no solver balance sheet required.
-
-The obligations here are the strongest the platform can originate - claims on TetraFi's own escrow settlement, where the user's funds are locked before the solver ever draws.
-
 ## The Pattern
 
 | Lane | The wait | The obligation the vault buys |
 | --- | --- | --- |
 | RWA redemptions | NAV cycles, queues | The tokenised asset, awaiting issuer redemption |
 | Stablecoin windows | Banking-hours cutoffs | An issuer redemption claim |
-| OTC fronting | T+1 desk cycles | A settlement receivable on TetraFi's deferred rail |
-| Solver liquidity | Fill-proof latency | A claim on escrowed source funds |
 
 Different durations, one mechanism: someone holds value that settles slowly, someone needs it settled now, and the vault is paid the spread between the two. New lanes are added as vetted obligation types, not as new protocols.
 
+## The Sibling Products
+
+Two gaps this product used to describe now stand as products of their own on the same vault capital: fronting T+1 OTC and RWA settlement legs is [Instant Settlement](/collateral/instant-settlement), and destination-chain working capital for cross-chain fills is [Solver Credit](/collateral/solver-credit).
+
 <CardGroup cols={2}>
-  <Card title="How It Works" icon="gears" href="/vaults/how-it-works">
+  <Card title="How It Works" icon="gears" href="/collateral/instant-redemption/how-it-works">
     The exchange mechanism every lane shares.
   </Card>
 

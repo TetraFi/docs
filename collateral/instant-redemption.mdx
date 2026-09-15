@@ -1,0 +1,61 @@
+---
+title: "Instant Redemption"
+description: "T+0 exits from tokenized assets and stablecoins - the vault buys the wait, the holder leaves instantly. Coming soon."
+---
+
+<Note>
+  **Coming soon.** Instant Redemption is in design, not yet live. These pages describe the planned product so issuers, capital providers, and market makers can evaluate it early - specifics such as parameters and contract addresses publish at launch.
+</Note>
+
+## The Settlement-Time Gap
+
+A token burns in seconds; the value behind it often doesn't. Underlyings liquidate on T+1 cycles or worse - redemption windows, withdrawal queues, out-of-hours cutoffs - so "instant redemption" promises break precisely when they're tested. Today every product spanning that gap patches it privately: idle buffers, solver balance sheets, perpetual incentive spend.
+
+Instant Redemption is the [Shared Collateral Network](/collateral)'s founding product for that gap - T+0 exits served from shared, committed capital instead of a private buffer per product. It is also rung one of what makes an asset collateral-grade on the network: an asset that can be exchanged now can be liquidated now, and only then can it back anything else.
+
+## How the Exit Works
+
+A [programmable vault](/collateral/vaults) fronts the fast leg of the exit - the instant redemption, the off-hours stablecoin conversion - and recycles its capital when the slow leg completes.
+
+The mechanism is deliberately an exchange, not a loan. Vault capital moves only inside a transaction where an obligation worth more at oracle price arrives in return: the tokenized asset awaiting redemption, an issuer redemption claim. There is no borrower who can default - only an asset the vault bought at a discount, and that discount is the depositor's yield.
+
+## Key Facts
+
+| | |
+| --- | --- |
+| **Status** | In design - register interest below |
+| **Model** | Atomic obligation exchange: cash out only when an obligation of greater oracle value comes in, same transaction |
+| **Lanes** | [RWA & stablecoin](/supported-chains) instant redemptions · settlement-window coverage when primary rails are shut |
+| **Compliance** | KYB'd participants, jurisdiction filtering, policy-checked draws - configured per vault |
+| **Deployment** | Curated vaults at launch, opening to independent curators over time |
+| **First customer** | TetraFi itself - its settlement rails originate the first obligations the vaults buy |
+
+## Built for Three Sides
+
+|                     | What Instant Redemption changes for you                                              |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| **Asset issuers**   | Integrate a redemption facility once: credible instant exits with no idle buffer and no incentive spend, and distribution into TetraFi's institutional network with it |
+| **Capital providers** | Yield sourced from real redemption demand, in curated and compliance-gated risk envelopes |
+| **Market makers & solvers** | A new book: service redemptions with vault capital, pricing the wait as a revenue line |
+
+The vault-level roles - curators, who deploy and parameterise vaults, and depositors - are network-wide and live on [Programmable Vaults](/collateral/vaults).
+
+## Go Deeper
+
+<CardGroup cols={2}>
+  <Card title="How It Works" icon="gears" href="/collateral/instant-redemption/how-it-works">
+    The atomic exchange, the draw lifecycle, and why zero-collateral is safe here.
+  </Card>
+
+  <Card title="Use Cases" icon="layer-group" href="/collateral/instant-redemption/use-cases">
+    RWA redemptions and stablecoin settlement windows - and the sibling products beyond them.
+  </Card>
+
+  <Card title="Programmable Vaults" icon="vault" href="/collateral/vaults">
+    The shared primitive this product draws on - curators, depositors, compliance gating.
+  </Card>
+
+  <Card title="Register Interest" icon="sparkles" href="/support">
+    Issuing, providing capital, curating, or making markets? Get on the early list.
+  </Card>
+</CardGroup>

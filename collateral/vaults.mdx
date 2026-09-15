@@ -1,0 +1,46 @@
+---
+title: "Programmable Vaults"
+description: "The shared primitive under every product in the collateral network - permissioned, compliance-gated, curator-run."
+---
+
+<Note>
+  **Coming soon.** The roles below describe the planned protocol. At launch, vaults are TetraFi-curated with a whitelisted participant set; independent curation opens after.
+</Note>
+
+## The Primitive
+
+Every product in the [Shared Collateral Network](/collateral) runs on the same kind of vault: a permissioned pool of committed capital with identifiable counterparties. What makes it programmable is the adapter - each use case reaches the capital through code that encodes what the money may do and the proof of how it comes back, verified when the draw happens. Add a product, and it arrives as a new adapter over the standing pool, never as a new pool to fund.
+
+## Curators
+
+Curators deploy vaults and own their risk envelope: which products and adapters are enabled, which assets qualify, the minimum discount or yield every draw must clear, per-drawer and per-asset caps, the withdrawal delay, and the compliance policy that gates everyone else. They earn a share of the realised spread.
+
+Curation is where vaults compete. Two curators can serve the same flow with different envelopes - one strict, single-jurisdiction, and short-duration; the other broader and higher-yielding - and depositors pick the envelope, not just the asset.
+
+## Depositors
+
+Depositors supply the vault's asset and hold vault shares against it. Yield comes from real settlement demand across every product the curator enables, not emissions:
+
+* **The discount spread** - obligations are bought below oracle value and mature at face
+* **Intrinsic obligation yield** - where the obligation itself accrues, priced with duration
+* **Idle-capital base yield** - potentially, as a curator-optional strategy; an open design decision, since it adds external protocol risk
+
+Exits go through a withdrawal delay - the same window that caps how long any obligation may live, so a requested exit can always be honoured from maturing obligations. If an obligation ever impairs, the loss marks all shares down pro-rata immediately: nobody wins by racing the exit.
+
+## The Demand Side
+
+Each product brings its own drawers to the same capital: market makers and solvers filling [redemptions](/collateral/instant-redemption), desks and issuers being fronted a [deferred leg](/collateral/instant-settlement), PSPs executing across [venues](/collateral/venue-prefunding), solvers funding [cross-chain fills](/collateral/solver-credit). Drawers instruct draws; the vault performs every movement itself, so a drawer never custodies vault capital.
+
+## Who Gates Whom
+
+Every role passes compliance checks appropriate to it - KYB, sanctions, jurisdiction - against the vault's own policy, and draws re-check standing at execution time. Compliance is configuration, per vault: the same primitive can run a tightly-scoped regulated vault and a broader one side by side. Every vault names its own regulated operator facing depositors and drawers - TetraFi stays infrastructure.
+
+<CardGroup cols={2}>
+  <Card title="The Network" icon="circle-nodes" href="/collateral">
+    Why one shared capital base beats a buffer per product.
+  </Card>
+
+  <Card title="Register Interest" icon="sparkles" href="/support">
+    Tell us which side you're on - depositor, curator, issuer, or drawer.
+  </Card>
+</CardGroup>

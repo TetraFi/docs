@@ -9,7 +9,7 @@ description: "An exchange, not a loan - the mechanism behind T+0 liquidity."
 
 ## An Exchange, Not a Loan
 
-Most instant-liquidity designs lend capital and hope repayment arrives. A T+0 Vault never does: its cash leaves **only inside a transaction where an obligation valued higher at oracle price arrives in exchange** - a tokenised asset already queued for redemption, a settlement receivable on TetraFi's T+1 rail, a claim on funds an escrow already holds.
+Most instant-liquidity designs lend capital and hope repayment arrives. A [vault](/collateral/vaults) on the Shared Collateral Network never does: in this product its cash leaves **only inside a transaction where an obligation valued higher at oracle price arrives in exchange** - a tokenised asset already queued for redemption, an issuer redemption claim.
 
 That inversion carries the whole risk story. The vault's net asset value doesn't dip when capital deploys - one asset (cash) is swapped for another (an obligation bought at a discount). When the obligation matures at face value, the discount is realised as depositor yield. Fronting a multi-day redemption means *holding that obligation to maturity* - not trusting a borrower.
 
@@ -17,7 +17,7 @@ That inversion carries the whole risk story. The vault's net asset value doesn't
 
 <Steps>
   <Step title="A settlement gap appears">
-    A holder wants out of a tokenised asset mid-queue, an OTC trade needs T+0 settlement against a T+1 counterparty, a solver needs destination-chain liquidity for a cross-chain fill.
+    A holder wants out of a tokenised asset mid-queue, or a stablecoin needs converting while the issuer's banking rails are shut.
   </Step>
 
   <Step title="An executor quotes the wait">
@@ -29,15 +29,15 @@ That inversion carries the whole risk story. The vault's net asset value doesn't
   </Step>
 
   <Step title="The slow leg completes, capital recycles">
-    The redemption pays out, the receivable settles, the escrow releases - proceeds land in the vault at face value, the obligation retires, and the capital is immediately available for the next draw. Recycling is what makes a modest vault serve deep flow.
+    The issuer's redemption pays out - proceeds land in the vault at face value, the obligation retires, and the capital is immediately available for the next draw. Recycling is what makes a modest vault serve deep flow.
   </Step>
 </Steps>
 
 ```mermaid
 sequenceDiagram
     participant E as Executor
-    participant V as T+0 Vault
-    participant S as Slow leg (issuer / rail / escrow)
+    participant V as Vault
+    participant S as Slow leg (issuer redemption)
 
     E->>V: request authorization (price, size, duration)
     Note over V: compliance + caps + duration + exit-queue checks
@@ -45,7 +45,7 @@ sequenceDiagram
     E->>V: execute
     activate V
     S->>V: obligation in (worth more at oracle price)
-    V->>S: cash out - redemption / settlement / fill completes
+    V->>S: cash out - the holder exits instantly
     deactivate V
     S->>V: proceeds at face value when the slow leg settles
     Note over V: discount realised as yield - capital recycles
@@ -64,6 +64,16 @@ No executor posts collateral, yet depositors are not extending unsecured credit.
 7. **Everyone is gated.** Curators, depositors, and executors pass KYB, sanctions, and jurisdiction checks per the vault's policy - and every draw re-checks it.
 8. **Caps and circuit breakers.** Per-executor and per-asset limits bound any single exposure; irregular settlement behaviour halts a lane automatically while existing obligations run to maturity.
 
+## Executors
+
+Market makers and solvers are this product's demand side. They spot the settlement gap, price the wait, and instruct draws - but the vault performs every exchange itself, so an executor never holds vault capital and cannot misdirect it.
+
+* Participation is whitelisted and KYB'd, with per-executor caps that follow demonstrated settlement behaviour
+* Vault capital is usable **solely to quote and fill redemptions** through the RFQ flow - not as a general trading line
+* What executors gain is a book they couldn't run before: servicing redemptions at size without warehousing the duration on their own balance sheet
+
+Curators and depositors are network-level roles shared by every product - see [Programmable Vaults](/collateral/vaults).
+
 <Note>
   **What's deliberately not stated yet:** fee splits, specific oracle providers, and idle-capital yield strategies are open design decisions - they'll be published as parameters, not promises.
 </Note>
@@ -71,11 +81,11 @@ No executor posts collateral, yet depositors are not extending unsecured credit.
 ## Keep Going
 
 <CardGroup cols={2}>
-  <Card title="Participants" icon="users" href="/vaults/participants">
-    Who curates, who deposits, who executes - and what each earns.
+  <Card title="Programmable Vaults" icon="vault" href="/collateral/vaults">
+    Who curates, who deposits - the roles every network product shares.
   </Card>
 
-  <Card title="Use Cases" icon="layer-group" href="/vaults/use-cases">
-    The four settlement gaps the first vaults are built to close.
+  <Card title="Use Cases" icon="layer-group" href="/collateral/instant-redemption/use-cases">
+    The redemption lanes the first vaults are built to serve.
   </Card>
 </CardGroup>
