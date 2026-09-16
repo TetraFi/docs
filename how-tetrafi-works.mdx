@@ -1,11 +1,47 @@
 ---
 title: "How TetraFi Works"
-description: "What happens between your request and settlement - and which product to build on."
+description: "How one trade moves through the network - rails execute it, netting shrinks what settles, shared collateral funds the wait."
 ---
 
-## One Platform, Two Contracts to Buy
+## Three Costs, Three Layers
 
-A single routing, settlement, and compliance engine underlies everything, built around [regulated stablecoins and tokenized real-world assets at institutional size](/why-tetrafi). On top of it, TetraFi sells you one of two distinct trading contracts, depending on what your execution needs:
+Every institutional settlement carries three costs: the **counterparty risk** of moving value across parties and chains, the **gross toll** of settling full amounts when only the net is owed, and the **dead capital** parked to cover the wait. TetraFi runs one layer against each - composable, and gated by one compliance policy.
+
+| Layer | The cost it removes | Status |
+| --- | --- | --- |
+| **Settlement rails** | Counterparty risk - atomic delivery-versus-payment from any chain, asset, or venue to any other | Live |
+| **[Multilateral Netting](/netting)** | The gross toll - obligations clear by set-off, and only the net residual settles | Soon |
+| **[Shared Collateral Network](/collateral)** | Dead capital - committed once, cross-collateralised across every settlement gap | Next |
+
+The rails are the pipes. Netting and shared collateral are where the capital efficiency comes from - and each layer makes the others cheaper to run.
+
+## Life of a Trade
+
+<Steps>
+  <Step title="Quote" icon="comments-dollar">
+    Your request fans out to every eligible solver, LP, and venue. On RFQ, each answer is a firm, escrow-enforced quote; on the Router, a ranked candidate with its guarantees stated.
+  </Step>
+
+  <Step title="Sign" icon="signature">
+    One signature on one intent. Compliance policy gates the request before it reaches a desk, and custody never leaves your side.
+  </Step>
+
+  <Step title="Settle or clear" icon="scale-balanced">
+    Settle instantly - in full, delivery-versus-payment, at today's price. Or opt the leg into netting at a deadline you pick, at a tighter quote: it joins the next run, offsets against the whole network's opposing flow, and only your net residual moves.
+  </Step>
+
+  <Step title="Fund the wait" icon="vault">
+    Wherever value waits on a slower leg - a T+1 desk cycle, a redemption queue, a residual at its deadline, an early exit from a netting position - a vault fronts it from committed capital and is repaid when the slow leg completes. You're paid now; the wait becomes a depositor's yield.
+  </Step>
+</Steps>
+
+<Note>
+  Steps three and four describe Multilateral Netting and the Shared Collateral Network, both in design - parameters publish at launch.
+</Note>
+
+## The Rails - Live
+
+A single routing, settlement, and compliance engine underlies everything, built around [regulated stablecoins and tokenized real-world assets at institutional size](/why-tetrafi). Spreads compress through solver competition, with depth aggregated from OTC desks, CEXs, DEXs, and regulated LPs. On top of it, TetraFi sells you one of two distinct trading contracts, depending on what your execution needs:
 
 <AccordionGroup>
   <Accordion title="RFQ - firm liquidity">
@@ -17,31 +53,56 @@ A single routing, settlement, and compliance engine underlies everything, built 
   </Accordion>
 </AccordionGroup>
 
-The flow underneath is identical either way - quotes requested, sources compete, a winner gets your signature, the order goes in - and on-chain settlement completes it with custody never leaving your side.
-
-The key difference is **the contract you buy**:
+The flow underneath is identical either way - quotes requested, sources compete, a winner gets your signature, the order goes in - and on-chain settlement completes it with custody never leaving your side. The key difference is **the contract you buy**:
 
 * **RFQ:** Only firm solver/LP escrow quotes - a closed source set with a delivery-or-refund guarantee
 * **Router:** Best execution across heterogeneous sources - guarantees stated per candidate, never assumed
 
-A Router trade may well be *filled* by RFQ liquidity - but the product you called is still Router. Product and execution source are independent: the product defines your guarantees, the source records how it executed.
+A Router trade may well be *filled* by RFQ liquidity - but the product you called is still Router. Product and execution source are independent: the product defines your guarantees, the source records how it executed. Choosing between them is covered in [Build](/build).
 
-## Infrastructure You Own
+## Multilateral Netting - Soon
 
-Both products run on contracts your institution owns: your workspace gets its own immutable on-chain router - no custody key, no upgrade key, capability upgrades only ever *add* to an allowlist - while plugging into the shared liquidity and settlement network.
+Every trade on the rails settles alone and pays the full toll - bridge, rebalance, conversion - even when an equal and opposite flow crosses minutes later. Netting collapses that gross flow to its **net residual** by atomic multilateral set-off.
 
-Ownership is also configurability. You decide which venues your router may touch, which LPs and jurisdictions your RFQ requests reach, and how your compliance pipeline is composed - checks added, removed, or layered to fit your regulatory perimeter, per workspace. Why that model is the whole point is the story of [Why TetraFi](/why-tetrafi).
+* **Two firm quotes.** Settle instantly at today's price, or clear at a deadline you pick - hours-class, T+1, or T+2 - at a tighter one. The choice is per settlement, and a tier is no lock-in.
+* **Hold, don't move.** You settle by adjusting net positions: no pre-funding, no margin, no bridging inventory to cover a debt. Your capital keeps working until the pull window opens.
+* **Proven and private.** Every run ships a **validity proof** checked on-chain before anything executes, and positions are readable only inside a sealed engine - nobody sees your book.
+* **Every residual has an exit.** A remainder unpaid at its deadline takes a priced backstop ladder - vault liquidity, wholesale desk, discount auction, then gross settlement - so the worst case is what you pay today.
 
-## More Than a Settlement Engine
+See [how a clearing run works](/netting/how-it-works).
 
-Execution is one pillar of the platform; institutions adopt the pieces their flows need:
+## Shared Collateral Network - Next
 
-| Pillar                  | What it electrifies                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------------------- |
-| **Settlement engine**   | Atomic cross-chain execution; spread compression through solver competition - with [Multilateral Netting](/netting) coming to compress it further; depth aggregated from OTC desks, CEXs, DEXs, and regulated LPs |
-| **Compliance engine**   | Automated on-chain and off-chain checks with one policy enforcement and audit trail shared across parties - instead of every party repeating the same manual reviews |
-| **Onboarding engine**   | Verify your entity once into a reusable onboarding pack that streamlines KYB across every counterparty on the network |
-| **Unified operations**  | Flow monitoring, statistics, and a full audit trail - one place to run and evidence your activity |
+Netting shrinks what has to settle; the Shared Collateral Network funds what still has to wait. Capital is committed once into permissioned programmable vaults and **cross-collateralised** across every settlement gap - encumbered only while a draw is live, and only to that one obligation.
+
+| Product | The gap today | What changes |
+| --- | --- | --- |
+| [Instant Redemption](/collateral/instant-redemption) | A token burns in seconds; the underlying liquidates T+1 | Holders exit T+0, issuers run fully invested |
+| [Instant Settlement](/collateral/instant-settlement) | OTC and RWA legs settle on cycle, riding on credit lines | The counterparty is paid today; credit lines come off the balance sheet |
+| [Venue Prefunding](/collateral/venue-prefunding) | A balance parked at every venue, sized for its worst day | Execute at flow size, fund at net size |
+| [Solver Credit](/collateral/solver-credit) | Inventory copied onto every chain a solver serves | Fill anywhere, warehouse nowhere |
+
+Every draw is an exchange, not a loan: capital moves only against a verified obligation, with the proof of repayment checked in the same transaction. The same vaults are netting's backstop and early exit - and, longer term, any programmable collateral use case joins as one more adapter over the same pool: one deep, **fungible pool** instead of a buffer per product.
+
+## One Gate Across Every Layer
+
+Compliance isn't a pillar beside the others - it's the gate every layer passes through.
+
+* **Onboard once.** Verify your entity once into a reusable onboarding pack that streamlines KYB across every counterparty on the network.
+* **One policy, everywhere.** Automated on-chain and off-chain checks under one policy - gating a quote request, netting membership and every run entry, and every vault draw.
+* **One audit trail.** Policy enforcement and an audit trail shared across parties - instead of every party repeating the same manual reviews - with flow monitoring and statistics in one place to run and evidence your activity.
+
+## What You Control
+
+Every layer runs on infrastructure your institution owns and configures, while plugging into the shared liquidity and settlement network:
+
+| Layer | Your controls |
+| --- | --- |
+| **Rails** | Your workspace's own immutable on-chain router - no custody key, no upgrade key, capability upgrades only ever *add* to an allowlist - plus which venues it may touch, which LPs and jurisdictions your RFQ requests reach, and how your compliance pipeline is composed: checks added, removed, or layered to fit your regulatory perimeter |
+| **Netting** | Join the shared clearing network, or run your own module: membership rules, run cadence, backstop order, and asset scope |
+| **Shared Collateral Network** | Pick the vault envelope that fits your mandate - or, as independent curation opens, deploy your own: products, qualifying assets, caps, and policy |
+
+Why that model is the whole point is the story of [Why TetraFi](/why-tetrafi).
 
 ## Which Flow, Which Product
 
@@ -57,32 +118,22 @@ Stablecoins and tokenized assets generate more than one kind of flow, and the tr
 
 That last row is deliberate. The long tail belongs to the Router, served through external sources; depth at size is what the RFQ venue exists for. Which assets fall on which side is set out in [Coverage](/supported-chains).
 
-## Picking Your Product
+## Go Deeper
 
-|                    | **RFQ API - Firm Escrow Liquidity**                                  | **Router API - Aggregated Multi-Source**                                                   |
-| ------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **What you buy**   | Only firm quotes, each escrow-enforced to deliver or refund         | A ranked candidate list, each entry carrying its own stated guarantees                     |
-| **How it settles** | Delivery-versus-payment through escrow, custody never with TetraFi     | On-chain through the same contract stack, custody never with TetraFi                         |
-| **Reach**          | The corridors your workspace's solvers and LPs actively quote        | Everything eligible - DEX, bridges, issuers, fiat rails, cross-chain corridors             |
-| **The catch**      | Coverage follows the LP roster, not the whole token universe         | Guarantees differ candidate to candidate - always read the printed terms                   |
+<CardGroup cols={2}>
+  <Card title="Multilateral Netting" icon="scale-balanced" href="/netting">
+    The clearing run, the settlement choice, and where the residual goes.
+  </Card>
 
-**RFQ is your product if:**
+  <Card title="Shared Collateral Network" icon="circle-nodes" href="/collateral">
+    Why one shared capital base beats a buffer per product.
+  </Card>
 
-* Escrow-enforced delivery-or-refund is the guarantee your users depend on
-* Your flow concentrates in quoted corridors, at real size
-* Settlement predictability outranks maximum coverage
+  <Card title="Build" icon="code" href="/build">
+    Pick RFQ or Router, and start integrating.
+  </Card>
 
-**Router is your product if:**
-
-* Coverage is king - DEX, bridge, issuer, and fiat sources all in play
-* You'd rather compare ranked candidates than accept a single answer
-* Speed, price, and trust are per-trade decisions in your pipeline
-
-**Run both if:**
-
-* Core corridors deserve firm escrow while the long tail rides the router
-* No single source outage should ever block an executable trade
-
-<Note>
-  Still unsure? [Get in touch with our team](/support).
-</Note>
+  <Card title="Talk to us" icon="envelope" href="/support">
+    Still unsure which layers your flow needs? Get in touch with our team.
+  </Card>
+</CardGroup>
