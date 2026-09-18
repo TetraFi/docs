@@ -3,28 +3,26 @@ title: "Settlement & Smart Contracts"
 description: "TetraFi's on-chain architecture - your own immutable router, shared venue modules, and escrow settlement."
 ---
 
-Every workspace on TetraFi gets its **own on-chain router** - an immutable contract deployed for you, owned by you. Trades enter through your router, flow through shared immutable venue modules, and settle delivery-versus-payment through a compliance-gated escrow: the counterparty delivers, or your funds are refunded. TetraFi holds no custody key and no upgrade key - anywhere in the stack.
+Every workspace gets its **own on-chain router**: an immutable contract deployed for you, owned by you. Trades enter through it, flow through shared immutable venue modules, and settle delivery-versus-payment through a compliance-gated escrow: the counterparty delivers, or you are refunded. TetraFi holds no custody key and no upgrade key anywhere in the stack.
 
 ## The Contract Stack
 
 |                        | Role                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------- |
-| **Workspace router**   | Your institution's entry point - one immutable contract per workspace, deployed automatically at provisioning. Pulls trade inputs transiently, meters them into modules, and forwards fills to the end recipient. |
-| **Venue modules**      | Shared immutable modules the router dispatches to - escrow opening, swaps, bridge legs, FX continuations. New capabilities are *added* to the allowlist; existing modules can never be swapped out from under you. |
-| **Compliance escrow**  | The settlement entry (`ComplianceSettlerEscrow`). Locks inputs under the signed order, enforces the compliance policy at deposit time, releases on proof of delivery, refunds on expiry. Its output-side twin gates fills on the destination chain. |
-| **Settlement oracle**  | Attests destination-chain delivery back to the origin escrow so funds release only against proof. |
+| **Workspace router**   | One immutable contract per workspace. Pulls inputs transiently, meters them into modules, forwards fills to the recipient. |
+| **Venue modules**      | Shared immutable modules: escrow opening, swaps, bridge legs, FX continuations. Capabilities are *added* to the allowlist, never swapped out. |
+| **Compliance escrow**  | `ComplianceSettlerEscrow`. Locks inputs under the signed order, enforces the policy at deposit, releases on proof of delivery, refunds on expiry. Its output-side twin gates fills on the destination chain. |
+| **Settlement oracle**  | Attests destination-chain delivery back to the origin escrow, so funds release only against proof. |
 
 <Danger>
-  Never send funds directly to a settlement address. Value moves only through a signed order's flow - the quote response and preflight `nextActions` tell you exactly what to sign and where funds travel.
+  Never send funds directly to a settlement address. Value moves only through a signed order's flow; preflight `nextActions` say what to sign and where funds travel.
 </Danger>
 
-### Your Deployment, Your Addresses
-
-Your workspace router's address is deterministic and predicted before deployment - it is provisioned automatically when your workspace is created, and it belongs to your workspace permanently. Module and escrow addresses vary by chain and version. Never hardcode any of them: the addresses carried in quote responses and preflight plans are authoritative for every trade. See [Supported Chains](/supported-chains) for network coverage.
+Your router's address is deterministic, predicted before deployment, and yours permanently. Module and escrow addresses vary by chain and version. Never hardcode any of them: the addresses in quote responses and preflight plans are authoritative.
 
 ## Settlement Lifecycle
 
-Every quote arrives carrying its own [EIP-712](/core-concepts/execution-modes) `escrow-v0` payload - the trade's complete terms (which assets, how much, who receives, until when) in signable form. Your signature authorizes it; your router locks the input into escrow on exactly those terms; and only a delivery proof can move the funds onward to the counterparty.
+Every quote carries its own [EIP-712](/core-concepts/execution-modes) `escrow-v0` payload. Your signature authorizes it, your router locks the input into escrow on those terms, and only a delivery proof moves the funds onward.
 
 ```mermaid
 sequenceDiagram
@@ -42,44 +40,34 @@ sequenceDiagram
     Note over E,U: no proof before expiry → refund to you
 ```
 
-Should the expiry pass without a delivery proof, the escrow hands your input straight back - via a refund path that is **permissionless and unpausable by anyone**. There is never a half-settled state, never a stranded balance, never custody.
+If the expiry passes without a delivery proof, the escrow refunds your input through a path that is **permissionless and unpausable**. There is never a half-settled state.
 
 ## Where the Next Layers Plug In
 
 <Note>
-  **Coming soon.** [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design. This section describes how they attach to the stack above.
+  **Coming soon.** [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design.
 </Note>
 
-Neither primitive replaces the contract stack; both plug into it. A settlement opted into clearing posts an **obligation** to the clearing record instead of settling alone, and only the net residual later takes the escrow path you already use - same router, same modules, same delivery-versus-payment. A vault **draw** funds a fill or a settlement leg through the same opener and escrow, and the escrow's release is what repays the vault, verified in the same transaction. Both run under the policy `ComplianceSettlerEscrow` already enforces, so nothing new stands between you and your funds. See the planned integration shapes for [netting](/netting-api/introduction) and [shared collateral](/collateral-api/introduction).
+A settlement opted into clearing posts an **obligation**, and only the net residual later takes the escrow path above. A vault **draw** funds a fill or settlement leg through the same opener and escrow, whose release repays the vault. Integration shapes: [netting](/netting-api/introduction), [shared collateral](/collateral-api/introduction).
 
 ## Rolling Out on the Rails
 
-* **Bonded firm quotes** - a maker's firm commitment is bonded. A proven no-show refunds you, and the bond is slashed only on positive evidence, never on the absence of it.
-* **A governed compliance plane** - policy changes move through a delayed main lane and an instant emergency lane, with governance separated from the engine.
-* **Per-corridor settlement oracles** - the fill-proof oracle is a fact of the corridor, not of the platform.
-* **An add-only module catalogue** - audited settlement modules are versioned, and a refund is bound to the version that opened the trade.
-* **The same escrow model on Solana and Tron.**
+* **Bonded firm quotes** - a proven no-show refunds you; the bond is slashed only on positive evidence
+* **A governed compliance plane** - a delayed main lane and an instant emergency lane
+* **Per-corridor settlement oracles**
+* **An add-only module catalogue** - a refund is bound to the version that opened the trade
+* **The same escrow model on Solana and Tron**
 
 ## Funding Locks
 
-How your input funds enter escrow depends on the lock type available for the corridor and token:
+Preflight selects the lock for the corridor and token; [Token Approvals](/core-concepts/token-approvals) covers the check-and-approve flow.
 
 | Lock type     | Description                                                          | Requires            |
 | ------------- | -------------------------------------------------------------------- | ------------------- |
-| Permit2       | The signature itself carries the pull authorization - no extra transaction | One-time Permit2 approval |
+| Permit2       | The signature carries the pull authorization; no extra transaction   | One-time Permit2 approval |
 | EIP-3009      | `transferWithAuthorization` for tokens that support it (e.g. USDC)   | No prior approval   |
 | Resource lock | Pre-positioned balance drawn per order                               | Prior deposit       |
 
-The preflight `nextActions` select the lock for you - see [Token Approvals](/core-concepts/token-approvals) for the check-and-approve flow.
-
 ## Signed Payloads
 
-Each quote carries its complete typed payload - domain, types, and message - in the `order` field:
-
-| Order type  | What you sign                                                        |
-| ----------- | -------------------------------------------------------------------- |
-| `escrow-v0` | The `StandardOrder` typed data returned verbatim in `quote.order`    |
-
-Sign exactly what the quote returns. The `integrityChecksum` binds your submission to the quote you were shown, so any mutation of the payload is rejected at submission.
-
-See the [RFQ Order Submission guide](/rfq-api/guides/gasless-execution) and the [Router API quickstart](/router-api/quickstart) for the full signing flows.
+Each quote carries its complete typed payload in `quote.order`: for `escrow-v0`, the `StandardOrder` typed data. Sign exactly what the quote returns; the `integrityChecksum` binds your submission to the quote shown, so any mutation is rejected. Signing flows: [RFQ Order Submission guide](/rfq-api/guides/gasless-execution), [Router API quickstart](/router-api/quickstart).

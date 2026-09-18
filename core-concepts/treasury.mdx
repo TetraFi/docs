@@ -3,42 +3,24 @@ title: "Treasury & Custody"
 description: "The workspace's money desk - custody connections, vaults, transfers, and the policy that governs them."
 ---
 
-The workspace's money desk: custody connections, vault accounts, wallets, transfers, and the written policy every transfer must clear. All of it is readable, and the transfer is drivable, with an API key.
+Custody connections, vault accounts, wallets, transfers, and the written policy every transfer must clear. All readable, and the transfer drivable, with an API key.
 
 ## What It Holds
 
-Custody provider connections are registered in the dashboard only, because they carry secret material. Under them sit vault accounts with per-asset balances and history, registered and embedded wallets, and an address book of saved counterparties.
+Custody provider connections, registered in the dashboard only because they carry secret material. Under them: vault accounts with per-asset balances and history, registered and embedded wallets, an address book.
 
 ## Moving Funds
 
-One transfer resource. The source is a vault account or a registered wallet. The destination is a one-time address, a linked wallet, a workspace wallet, a custodian-whitelisted wallet, or an OTC desk's deposit address. Send an idempotency key.
+One transfer resource. Source: a vault account or a registered wallet. Destination: a one-time address, a linked, workspace, or custodian-whitelisted wallet, or an OTC desk's deposit address. Send an idempotency key.
 
-The policy is written, versioned, and can run in **shadow** before it enforces: a whitelist board, an approval quorum with an approvals inbox, a velocity budget per principal, an approval window, and every failure as data - retry, or replace a stuck transfer. The custodian's own approval is separate from the workspace's, and both are shown. (Policy, statements: rolling out.)
+The policy is written, versioned, and can run in **shadow** before it enforces: a whitelist board, an approval quorum with an inbox, a velocity budget per principal, an approval window, every failure as data with retry or replace. The custodian's own approval is separate from the workspace's; both are shown. (Policy and statements rolling out.)
 
 ## Programmatic Access
 
-Two scopes - read everything, write the transfer - and two gates. A request must carry the scope, and the acting identity's live workspace permission must allow it; both are re-derived on every request, and a refusal names which gate refused.
+Two scopes, read everything and write the transfer, behind two gates re-derived per request: the scope and the acting identity's live workspace permission. A refusal names which gate refused.
 
 ## Desks and Corridors
 
-Exchange and OTC desks are settlement lanes: deposit intents, T+1 balances, credit utilisation, and an exception queue grouped by cause. Fiat corridors run through bank accounts, personal or company, per ramp provider (rolling out).
+Exchange and OTC desks are settlement lanes: deposit intents, T+1 balances, credit utilisation, an exception queue. Fiat corridors run through bank accounts per ramp provider (rolling out). A custodian ledger reconciles each statement window against your records within a fee tolerance you set.
 
-## Statements
-
-A custodian ledger reconciles each statement window against your records, within a fee tolerance you set.
-
-## Keep Going
-
-<CardGroup cols={3}>
-  <Card title="Agents" icon="robot" href="/core-concepts/agents">
-    Delegate transfers and rebalancing inside a bounded envelope.
-  </Card>
-
-  <Card title="Wallets & Signing" icon="wallet" href="/core-concepts/wallets-and-signing">
-    Who may sign from which wallet.
-  </Card>
-
-  <Card title="Authentication" icon="key" href="/core-concepts/authentication">
-    Scopes and the two gates.
-  </Card>
-</CardGroup>
+Who may sign from which wallet is on [Wallets & Signing](/core-concepts/wallets-and-signing); delegating transfers inside a bounded envelope is on [Agents](/core-concepts/agents).

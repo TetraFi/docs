@@ -3,39 +3,31 @@ title: "Authentication"
 description: "Credentials for the trading and data surface - what to get, where to send it."
 ---
 
-Every production call carries a credential. Miss it and the trading endpoints answer `401 AUTH_REQUIRED` while the streaming endpoint declines the handshake outright.
-
-TetraFi uses three credential types, each with a distinct job:
+Every production call carries a credential. Without one, trading endpoints answer `401 AUTH_REQUIRED` and the streaming endpoint declines the handshake.
 
 | Credential | Header / transport | Used for |
 | --- | --- | --- |
-| **API key** (`tfk_test_...` / `tfk_live_...`) | `X-API-Key` header | The programmatic trading path: quotes, order preflight, order submission, order status |
+| **API key** (`tfk_test_...` / `tfk_live_...`) | `X-API-Key` header | The programmatic trading path: quotes, preflight, orders, status |
 | **JWT Bearer** | `Authorization: Bearer <jwt>` | Workspace administration: service accounts, key management, dashboards |
 | **SIWE signature** | `POST /api/v1/auth/challenge` → `/verify` | Linking and authenticating wallets |
 
-Compliance-sensitive operations (such as order submission) may additionally require the `X-TetraFi-Attestation` header.
+Compliance-sensitive operations such as order submission may also require the `X-TetraFi-Attestation` header.
 
 ## Getting a Key
 
-Create a service account in your workspace and issue a key for it from the dashboard (**Workspace → Service Accounts → API Keys**). Keys carry fine-grained **scopes** - quotes, orders, trades, settlements, treasury, compliance, and more - so a quoting integration holds only what it needs. Use `tfk_test_` keys against the sandbox and `tfk_live_` keys in production.
+Create a service account and issue a key from the dashboard (**Workspace → Service Accounts → API Keys**). Keys carry fine-grained **scopes** - quotes, orders, trades, settlements, treasury, compliance, and more - so a quoting integration holds only what it needs. `tfk_test_` keys hit the sandbox, `tfk_live_` production.
 
-Every request passes **two gates**: the key's scope, and the key owner's live workspace permission, re-derived each time. Demote the owner and the key narrows immediately. Minting keys, and every other identity surface, is a session-only operation - a credential cannot create a credential.
+Every request passes **two gates**: the key's scope and the owner's live workspace permission, re-derived each time. Demote the owner and the key narrows immediately. Minting keys is session-only: a credential cannot create a credential.
 
-Not on a workspace yet? Reach the team [via support](/support) and they'll get one set up.
+Prove the loop on a `tfk_test_` key before flipping to `tfk_live_`. No workspace yet? [Reach the team](/support).
 
 ## Sending Credentials
 
 <Tabs>
   <Tab title="REST APIs">
-    For HTTP requests (RFQ, Router, Trade History), authenticate with the `X-API-Key` header:
-
     ```python theme={null}
-    YOUR_API_KEY = "tfk_live_..."
-
-    headers = {"X-API-Key": YOUR_API_KEY}
+    headers = {"X-API-Key": "tfk_live_..."}
     ```
-
-    With curl:
 
     ```bash theme={null}
     curl -H "X-API-Key: tfk_live_..." ...
@@ -43,48 +35,29 @@ Not on a workspace yet? Reach the team [via support](/support) and they'll get o
   </Tab>
 
   <Tab title="WebSocket">
-    For WebSocket connections (price feed and order events), pass your credential as a `token` query parameter on the connection URL — browsers cannot set custom headers on a WebSocket handshake:
+    Browsers cannot set headers on a WebSocket handshake, so pass the key as a `token` query parameter:
 
     ```python theme={null}
     import websockets
 
-    ws_url = "wss://api.tetrafi.io/api/v1/ws?token=tfk_live_..."
-
-    async with websockets.connect(ws_url) as ws:
+    async with websockets.connect("wss://api.tetrafi.io/api/v1/ws?token=tfk_live_...") as ws:
         ...
     ```
   </Tab>
 </Tabs>
 
-## Access With and Without a Key
-
-| API                   | Without key                                            | With key                                                     |
-| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
-| **Price feed (WS)**   | Handshake refused                                      | Every subscribed corridor streams live                       |
-| **RFQ API**           | `401 AUTH_REQUIRED` - nothing quoted                   | Signed-and-executable firm quotes                            |
-| **Router API**        | `401 AUTH_REQUIRED` - no quotes are returned           | Ranked executable candidates across all eligible sources     |
-| **Trade History**     | Not accessible                                         | Your workspace's complete trade record                       |
-
-Wire the whole flow against the sandbox on a `tfk_test_` key first; flip to `tfk_live_` only when the loop is proven.
-
 ## Beyond the Key
 
 | | What it adds |
 | --- | --- |
-| **Request signing** | Opt-in HMAC per key: a timestamp and a signature header on every request, a five-minute window, replays refused. |
-| **OAuth2 client credentials** | A service account exchanges its key for a short-lived bearer token carrying the same effective scopes. |
-| **MFA** | Authenticator apps, passkeys, recovery codes; an org-wide MFA policy per role. |
+| **Request signing** | Opt-in HMAC per key: timestamp and signature headers, a five-minute window, replays refused. |
+| **OAuth2 client credentials** | A service account exchanges its key for a short-lived bearer token with the same scopes. |
+| **MFA** | Authenticator apps, passkeys, recovery codes; an org-wide policy per role. |
 | **Sessions** | List active sessions, revoke the others, review login activity. |
 | **Workspace selection** | `X-Workspace-Id` scopes every call to one workspace. |
 
-None of this is wallet authority. Signing from a wallet is a separate, owner-approved grant - see [Wallets & Signing](/core-concepts/wallets-and-signing).
+None of this is wallet authority; signing from a wallet is a separate, owner-approved grant ([Wallets & Signing](/core-concepts/wallets-and-signing)).
 
-## Rate Limits
+## Rate Limits and Key Safety
 
-Throughput is metered at two levels - the individual key and the workspace it belongs to. If your use case needs more headroom, [talk to the team](/support).
-
-## Handling Keys Safely
-
-A key is a secret: it belongs on your backend, never in client bundles, public repos, or anything a browser's network tab can see.
-
-Think a key leaked? Kill it in the dashboard and mint a fresh one - or [loop in the team](/support) if you need a hand.
+Throughput is metered per key and per workspace; [ask](/support) for more headroom. A key belongs on your backend, never in client bundles, public repos, or a browser's network tab. Leaked? Kill it in the dashboard and mint a fresh one.

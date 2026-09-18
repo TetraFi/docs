@@ -3,23 +3,19 @@ title: "Token Approvals"
 description: "Grant the allowances that let settlement pull your input tokens - once, or per trade."
 ---
 
-Settlement can only pull the tokens you've allowed it to. That permission is the ordinary ERC-20 allowance mechanism: an `approve()` call on the token itself, granting a named spender the right to move up to a chosen amount on your behalf.
-
-The same escrow settlement system serves both the RFQ API and the Router API, so the approval flow is identical across products.
+Settlement can only pull the tokens you have allowed it to, through the ordinary ERC-20 allowance: `approve()` on the token, granting a named spender the right to move up to a chosen amount. The RFQ and Router APIs share one escrow, so the flow is identical.
 
 ## Finding the Right Spender
 
-Run preflight on your selected quote - the returned `nextActions` include any approval step, with the exact spender address and amount. Always use those values rather than hardcoding.
+Run preflight on your selected quote; `nextActions` include any approval step with the exact spender and amount.
 
 <Warning>
-  **Approval addresses are not constants.** They shift with chain and lock type, so treat the preflight `nextActions` of your selected candidate as the only authority on where an approval goes.
-
-  Some tokens need no approval at all: USDC-style tokens settle via EIP-3009 `transferWithAuthorization`, authorized entirely inside your signature.
+  **Approval addresses are not constants.** They shift with chain and lock type; preflight is the only authority. Some tokens need none: USDC-style tokens settle via EIP-3009 `transferWithAuthorization`, authorized inside your signature.
 </Warning>
 
 ## Reading Current Allowance
 
-Read the existing allowance first - if it already covers the trade, an extra approval transaction is pure wasted gas.
+If the existing allowance already covers the trade, an extra approval is wasted gas.
 
 ```python theme={null}
 from web3 import Web3
@@ -62,7 +58,7 @@ def check_allowance(owner: str, token_address: str, spender: str) -> int:
 
 ## Granting Allowance
 
-When the allowance falls short, top it up with an approval transaction. The common pattern is a one-time maximum grant (`2^256 - 1`) per token, after which the question never comes up again.
+Two strategies: a **maximum grant** (`2^256 - 1`) per token, once, which solvers and aggregators default to; or a **per-trade grant** of exactly what each trade needs, tighter but paying approval gas every time.
 
 ```python theme={null}
 from eth_account import Account
@@ -95,7 +91,7 @@ def ensure_allowance(account, token_address: str, spender: str, required: int):
 
 ## Wiring It into the Trade Flow
 
-After selecting a quote, run preflight and execute any approval action it returns before signing. Approval actions arrive as ready-to-broadcast transactions - `type: "evmTransaction"` with `purpose: "tokenApproval"` and the prepared calldata in `tx`:
+Run preflight and execute any approval action before signing. Approval actions are ready-to-broadcast transactions, `type: "evmTransaction"` with `purpose: "tokenApproval"` and the calldata in `tx`:
 
 ```python theme={null}
 import httpx
@@ -118,26 +114,9 @@ for action in preflight["nextActions"]:
         w3.eth.wait_for_transaction_receipt(
             w3.eth.send_raw_transaction(signed.raw_transaction), timeout=120
         )
-
-# Actions with frequency "reusableSetup" (e.g. a bounded Permit2 approval)
-# persist across trades - you won't see them again until they're spent.
-# Now proceed to sign and submit...
+# Actions with frequency "reusableSetup" persist across trades.
 ```
-
-## Approval Strategies
-
-**Maximum grant** - the usual choice for programmatic flow: approve `2^256 - 1` per token once and never pay approval gas again. Solvers and aggregators default to this.
-
-**Per-trade grant** - approve precisely what each trade needs. Tighter risk posture, at the cost of an approval transaction every time; favoured by some compliance-sensitive setups.
 
 ## Funding Locks Beyond `approve()`
 
-The escrow supports three ways of funding an order; preflight selects the one available for your corridor and token:
-
-* **Permit2:** Approve the [Permit2 contract](https://github.com/Uniswap/permit2) once per token; each order's escrow pull is then authorized by an off-chain EIP-712 signature - no per-settler approvals. See the [Router API quickstart](/router-api/quickstart).
-* **EIP-3009:** Tokens like USDC support `transferWithAuthorization` - the escrow pull is authorized entirely inside your signed message, with no prior approval transaction. See the [RFQ Order Submission guide](/rfq-api/guides/gasless-execution).
-* **Resource lock:** Pre-deposit into the compact settler and trade against that balance - suited to high-frequency integrators.
-
-<Note>
-  The lock type is a property of the corridor and token, not something you choose per request - read it from the preflight `nextActions` for your selected candidate.
-</Note>
+Preflight selects the lock for your corridor and token: **Permit2** (one approval of the [Permit2 contract](https://github.com/Uniswap/permit2) per token, then each pull is authorized by an EIP-712 signature), **EIP-3009**, or a **resource lock**. It is not a per-request choice. Details under [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts#funding-locks).

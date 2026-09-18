@@ -3,33 +3,28 @@ title: "Monetization"
 description: "Wire fee revenue into your integration - configuration, disclosure fields, and tracking."
 ---
 
-This is the technical side of partner fees: where they attach and how to read them back. Each product surfaces fees slightly differently. Commercial framing - models, terms, rate guidance - lives in [Monetize](/monetize).
+Where partner fees attach and how to read them back. Commercial framing lives in [Monetize](/monetize).
 
 <Note>
-  Your fee lives in **workspace configuration**, agreed as part of onboarding. From that point it attaches itself to every quote - requests carry no fee field.
+  Your fee lives in **workspace configuration**, agreed at onboarding, and attaches to every quote. Requests carry no fee field.
 </Note>
 
 ## Fee mechanics
 
-Fees are denominated in basis points (25 bps = 0.25%). Quotes arrive with the fee already baked into the receive side, and itemise their components so nothing is hidden:
+Fees are in basis points (25 bps = 0.25%), already in the receive side of every quote, and itemised:
 
 | Response field   | Type    | Description                                                        |
 | ---------------- | ------- | ------------------------------------------------------------------ |
 | `platformFeeBps` | integer | Platform/partner fee applied to this quote, in basis points        |
 | `lpSpreadBps`    | integer | The liquidity provider's spread component, disclosed per quote     |
 
-Product-by-product, the surface looks like this:
-
-|                    | Router API              | RFQ API                                              |
-| ------------------ | ----------------------- | ---------------------------------------------------- |
-| **Where it lands** | Inside each candidate's settlement terms | Inside the firm quote                 |
-| **How you see it** | `platformFeeBps` per candidate | `platformFeeBps` per quote                     |
-| **How you're paid**| Per your workspace agreement | Per your workspace agreement                    |
+|                    | Router API                                   | RFQ API                    |
+| ------------------ | -------------------------------------------- | -------------------------- |
+| **Where it lands** | Inside each candidate's settlement terms     | Inside the firm quote      |
+| **How you see it** | `platformFeeBps` per candidate               | `platformFeeBps` per quote |
 | **Where to audit** | [Trade History](/trade-history-api/introduction) + order receipts | [Trade History](/trade-history-api/introduction) |
 
 ## Reading the fee on a quote
-
-Request quotes as usual - the fee your workspace has configured is already reflected:
 
 ```python theme={null}
 import httpx
@@ -61,19 +56,15 @@ for quote in resp.json()["quotes"]:
     print(quote["quoteId"], quote.get("platformFeeBps"), quote.get("lpSpreadBps"))
 ```
 
-### Tracking your revenue
-
-Fee-bearing volume is auditable whenever you like through [Trade History](/trade-history-api/quickstart) - your API key scopes everything to your own workspace automatically ([credential details here](/core-concepts/authentication)). The [quickstart](/trade-history-api/quickstart) covers filters and pagination end to end.
-
 ## Per-request fee overrides
 
-A per-request `fee` / `feeRecipient` override on the Router namespace - for integrators running multiple fee tiers over one workspace - is part of the Router API target surface and will be documented here when it ships. Until then, fee changes go through your workspace configuration.
+A per-request `fee` / `feeRecipient` override on the Router namespace, for several fee tiers over one workspace, will be documented when it ships.
 
 ## Fees on the Next Layers
 
 <Note>
-  **Coming soon.** [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design; their schedules publish at launch. The shape is settled, the numbers are not.
+  **Coming soon.** [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design; schedules publish at launch.
 </Note>
 
-* **Netting: the fee follows the saving.** A small flat rate on everything cleared plus a share of what you saved, measured against your own instant quote - never a toll on gross. Your partner fee attaches to the instant quote exactly as it does today.
-* **Shared collateral: a priced exchange.** A draw earns the vault a commitment spread priced by duration, disclosed on the draw the way `lpSpreadBps` is disclosed on a quote; the network's discount and fee schedules publish per product.
+* **Netting: the fee follows the saving.** A small flat rate on everything cleared plus a share of what you saved against your own instant quote, never a toll on gross. Your partner fee attaches to the instant quote as today.
+* **Shared collateral: a priced exchange.** A draw earns the vault a commitment spread priced by duration, disclosed on the draw.
