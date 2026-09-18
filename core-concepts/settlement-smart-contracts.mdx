@@ -52,6 +52,14 @@ Should the expiry pass without a delivery proof, the escrow hands your input str
 
 Neither primitive replaces the contract stack; both plug into it. A settlement opted into clearing posts an **obligation** to the clearing record instead of settling alone, and only the net residual later takes the escrow path you already use - same router, same modules, same delivery-versus-payment. A vault **draw** funds a fill or a settlement leg through the same opener and escrow, and the escrow's release is what repays the vault, verified in the same transaction. Both run under the policy `ComplianceSettlerEscrow` already enforces, so nothing new stands between you and your funds. See the planned integration shapes for [netting](/netting-api/introduction) and [shared collateral](/collateral-api/introduction).
 
+## Rolling Out on the Rails
+
+* **Bonded firm quotes** - a maker's firm commitment is bonded. A proven no-show refunds you, and the bond is slashed only on positive evidence, never on the absence of it.
+* **A governed compliance plane** - policy changes move through a delayed main lane and an instant emergency lane, with governance separated from the engine.
+* **Per-corridor settlement oracles** - the fill-proof oracle is a fact of the corridor, not of the platform.
+* **An add-only module catalogue** - audited settlement modules are versioned, and a refund is bound to the version that opened the trade.
+* **The same escrow model on Solana and Tron.**
+
 ## Funding Locks
 
 How your input funds enter escrow depends on the lock type available for the corridor and token:
