@@ -1,0 +1,54 @@
+---
+title: "Compliance Policy"
+description: "One policy, composed per deployment and controlled by your institution - enforced on-chain at the escrow, and the same gate on every layer."
+---
+
+Every TetraFi deployment runs under one **compliance policy**: composed per deployment, controlled by your institution, and enforced **on-chain** at the escrow against attested credentials. It is not a review step beside the trade. The check runs inside the settlement path, so every compliance decision is cryptographically verifiable and the audit trail *is* the settlement record.
+
+## Where It Is Enforced
+
+| Point | What happens |
+| --- | --- |
+| **The request** | Your RFQ requests reach workspace-approved LPs only, with jurisdiction filtering applied before a request ever reaches a desk. If no eligible LP can quote, you get a typed product-unavailable answer, never a silent fallback to another source. |
+| **The credential** | Attested credentials travel with the caller (the `X-TetraFi-Attestation` header, see [Authentication](/core-concepts/authentication)), so the policy has something verifiable to check, not a self-declared flag. |
+| **The deposit** | `ComplianceSettlerEscrow` enforces the policy at deposit time, when your router locks the input under the signed order. Its output-side twin gates fills on the destination chain. See [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts). |
+
+A trade that fails the policy is refused before any value moves. There is no post-trade unwind, because there is no state in which non-compliant funds sit in escrow.
+
+## What You Compose
+
+The policy is yours to shape, and it attaches to your deployment rather than to the app calling it:
+
+* **Your compliance pipeline** - checks added, removed, or layered to fit your regulatory perimeter, automated on-chain and off-chain under one policy
+* **Your counterparty perimeter** - which LPs and jurisdictions your requests reach, and which venues your router may touch
+* **Onboard once** - one verified onboarding pack, reused for KYB with every counterparty on the network
+* **One audit trail** - enforcement evidence shared across parties instead of every party repeating the same manual reviews
+
+Because policy attaches to the capability, an asset that may only be held by qualifying investors, or only in certain jurisdictions, stays gated wherever it is routed.
+
+## The Same Gate on the Next Layers
+
+<Note>
+  **Coming soon.** [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design. The enforcement points below describe the planned model.
+</Note>
+
+The policy you compose for the rails is the one the next two primitives run under, not a second one:
+
+* **Netting** - membership is compliance-gated (KYB'd participants, jurisdiction-aware, per policy domain), checks run at membership and at every run entry, and compliance can only ever exclude a pairing, never redirect money somewhere new
+* **Shared collateral** - every vault draw re-runs the policy: KYB'd counterparties, jurisdiction filters, and machine-checkable policy on every draw, the same enforcement that gates trading, not a bolt-on
+
+## Keep Going
+
+<CardGroup cols={3}>
+  <Card title="Authentication" icon="key" href="/core-concepts/authentication">
+    Keys, sessions, and the attestation header the policy checks.
+  </Card>
+
+  <Card title="Settlement & Smart Contracts" icon="file-contract" href="/core-concepts/settlement-smart-contracts">
+    Your router, the venue modules, and the escrow that enforces the policy.
+  </Card>
+
+  <Card title="How TetraFi Works" icon="diagram-project" href="/how-tetrafi-works">
+    One gate across every layer, in the product story.
+  </Card>
+</CardGroup>
