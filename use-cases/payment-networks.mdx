@@ -3,25 +3,29 @@ title: "Payment Networks & PSPs"
 description: "Stablecoin corridors at settlement size - stop prefunding every venue, net the gross toll away, and keep the rails you run."
 ---
 
-A payment network doesn't swap tokens. It moves value between currencies and chains, at settlement size, under rules someone will ask you about later - and the awkward part is that the pricing, the counterparty, and the compliance evidence all have to hold at once. Broad multi-chain aggregators deliver reach across the long tail; TetraFi is purpose-built for the narrower segment your flow actually lives in - [stablecoin corridors, institutional ticket sizes, identified counterparties](/why-tetrafi).
-
-## The Two Costs That Define a Corridor
+A payment network's corridor economics are set by **capital**, not by the last basis point of price. Two costs define every corridor: the balances parked at **pre-funded venues** so you can execute, and the gross toll on flow that is largely opposing - most stablecoin corridor flow is **nettable**. TetraFi goes at both.
 
 <Note>
   **Coming soon.** [Venue Prefunding](/collateral/venue-prefunding) and [Multilateral Netting](/netting) are in design - parameters publish at launch.
 </Note>
 
-Corridor economics are set by capital and toll, not by the last basis point of price. Two products go at each directly:
+## Stop Prefunding Every Venue
 
-* **Stop prefunding every venue.** Today a balance sits at every CEX and OTC venue, sized for its worst day, so capital scales with venue count rather than with flow. [Venue Prefunding](/collateral/venue-prefunding) collapses them into a single committed credit layer: **execute at flow size, fund at net size**.
-* **Stop paying the gross toll.** Every corridor leg settles alone and pays the full toll - bridge, rebalance, conversion - even when the opposite flow crosses minutes later. Balanced north-south flow is exactly the shape that [nets well](/netting/where-it-applies): with [Multilateral Netting](/netting), opposing flows offset each run and **only the residual pays a toll**. It is a primitive you point at the book you already settle - it does not ask you to move flow onto our rails first.
+Prefunding scales with venue count, not with flow, and most of it sits idle. [Venue Prefunding](/collateral/venue-prefunding) collapses one balance per CEX and OTC venue into a single credit layer: **execute at flow size, fund at net size**, repaid from your own float as collections arrive - T+1, T+7, whatever your cycle is. Custody-aware by design, so it fits the off-exchange settlement you already run.
 
-## Firm Corridors, Live Today
+## Put the Float to Work
 
-* **Corridors at size** - competing LP inventory outprices on-chain routing precisely where pools give out
-* **Stablecoin-native coverage** - the USD, EUR, and regional-currency set, with issuer mint and burn rails composing as legs in the same route ([full list](/supported-chains))
-* **Counterparties you can actually KYB** - jurisdiction filtering and approved LP rosters apply before a request ever reaches a counterparty; a pool is not a legal entity, so every fill traces to a known, policy-enforced operator with a shared audit trail
-* **One signature, any chain** - your user expresses an intent and signs once; routing, bridging, and settlement stop being your integration's problem, and each quote is firm and escrow-settled before you commit
+The float you already hold is the capital this network needs. Committed to a permissioned [programmable vault](/collateral/vaults), it backs prefunding, settlement, and redemptions across the network at once - one unit of capital, many uses - earning the discount spread on every draw plus the yield inside the obligations it funds. Nothing idles. Every vault names its own regulated operator; TetraFi stays infrastructure.
+
+## Net Before You Settle
+
+Balanced north-south flow is exactly the shape that [nets well](/netting/where-it-applies). Opposing obligations cancel by **atomic multilateral set-off**, and only the residual pays a toll. That is **capital efficiency** in its plainest form: less capital clears more debt, most of all in the volatile events where prefunded balances run thinnest. Point it at the book you already settle - none of your flow has to move onto our rails first.
+
+## The Rails Underneath, Live Today
+
+* **Firm and escrow-settled** - competing LP inventory across [the stablecoin and regional-currency set](/supported-chains), at the ticket a corridor actually moves
+* **One signature, any chain** - routing, bridging, and settlement stop being your integration's problem
+* **Counterparties you can KYB** - jurisdiction filtering and approved rosters apply before a request reaches a desk; a pool is not a legal entity
 
 ## Adopt What You Need
 
@@ -29,7 +33,7 @@ Corridor economics are set by capital and toll, not by the last basis point of p
 | --- | --- | --- |
 | **Firm liquidity** (live) | corridor pricing at settlement size, where pools give out | the aggregated routing you already integrate |
 | **[Multilateral Netting](/netting)** (coming soon) | opposing flows offset each run; only the residual pays a toll | your settlement rails |
-| **[Shared Collateral Network](/collateral)** (coming soon) | [parked venue balances](/collateral/venue-prefunding) become one credit layer; [T+N legs](/collateral/instant-settlement) paid T+0; stablecoin redemption [stays open](/collateral/instant-redemption) when banking rails are shut | your cycles, your credit lines |
+| **[Shared Collateral Network](/collateral)** (coming soon) | [venue balances](/collateral/venue-prefunding) become one credit layer, [T+N legs](/collateral/instant-settlement) are paid T+0, and idle float earns | your cycles, your credit lines |
 
 ## APIs to Use
 
