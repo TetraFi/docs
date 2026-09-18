@@ -4,7 +4,41 @@ description: "Common questions about TetraFi, answered."
 mode: "wide"
 ---
 
-Looking for an answer? The docs cover the questions we hear most - trading mechanics, integration setup, and network coverage - and the team is a message away for anything they don't.
+The questions we hear most from teams arriving straight at the Build tab. The team is a message away for anything the docs don't cover.
+
+<AccordionGroup>
+  <Accordion title="What is live today, and what is coming?">
+    The settlement rails are live: the [RFQ API](/rfq-api/introduction), [Router API](/router-api/introduction), [Price API](/price-api/introduction), and [Trade History API](/trade-history-api/introduction), settling delivery-versus-payment through escrow on the [networks listed here](/supported-chains). [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design; their pages describe the planned primitives, and their integration shapes are sketched under [netting](/netting-api/introduction) and [shared collateral](/collateral-api/introduction) so you can design against them early. [propAMM](/propamm/introduction) is also coming soon.
+  </Accordion>
+
+  <Accordion title="What are the three primitives?">
+    Every institutional settlement carries three costs, and TetraFi runs one primitive against each: **settlement rails** retire principal risk with atomic delivery-versus-payment from any chain, asset, or venue to any other; **Multilateral Netting** retires the gross settlement toll by clearing obligations through atomic multilateral set-off, so only each participant's net residual settles; the **Shared Collateral Network** retires trapped liquidity with capital committed once and cross-collateralised across every settlement gap. The rails are the pipes; netting and shared collateral are where the capital efficiency comes from. [How TetraFi Works](/how-tetrafi-works) tells the whole story.
+  </Accordion>
+
+  <Accordion title="Do I have to adopt all three?">
+    No. The primitives are composable: use one or all three, and each plugs into the same shared liquidity and settlement network. A workspace can run firm RFQ liquidity and never touch netting; a book that settles gross today can adopt netting without running any of TetraFi's other rails; a solver can use Solver Credit and nothing else. Own the deployment, share the network.
+  </Accordion>
+
+  <Accordion title="Who holds custody?">
+    Nobody in the middle. Every workspace gets its own immutable on-chain router, owned by the workspace, and trades settle delivery-versus-payment through a compliance-gated escrow: the counterparty delivers, or your funds are refunded through a path that is permissionless and cannot be paused. TetraFi holds no custody key and no upgrade key anywhere in the stack. See [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts).
+  </Accordion>
+
+  <Accordion title="What does the compliance policy mean for my integration?">
+    One policy, composed per deployment and controlled by your institution, enforced on-chain at the escrow against attested credentials. Your RFQ requests reach only workspace-approved LPs, with jurisdiction filtering applied before a request ever reaches a desk, and the same policy re-runs on every clearing run entry and every vault draw when those layers ship. [Compliance Policy](/core-concepts/compliance-policy) covers where each check runs.
+  </Accordion>
+
+  <Accordion title="Where does my workspace's router come from, and can it be upgraded?">
+    It is provisioned automatically when your workspace is created, at a deterministic address predicted before deployment, and it belongs to your workspace permanently. It is immutable: capability upgrades only ever add venue modules to an allowlist, and an existing module can never be swapped out from under you. Never hardcode addresses - the ones carried in quote responses and preflight plans are authoritative for every trade.
+  </Accordion>
+
+  <Accordion title="I already run a solver. What does Solver Credit change?">
+    Nothing about your engine. Today a cross-chain fill needs your balance sheet copied onto every chain you serve; with [Solver Credit](/collateral/solver-credit) (coming soon) the draw funds the fill transaction itself, never your wallet, repayment is verified in the same transaction, and the escrow releases to the vault when the fill is proven. You fill TetraFi intents on the chains you already stock and on the ones you never did, and adopt nothing else of ours if you don't want to. If you would rather not run a solver at all, the [engine is also offered as a service](/use-cases/market-makers), leaving your desk with price construction only.
+  </Accordion>
+
+  <Accordion title="How do I register interest in netting or the collateral network?">
+    Use the routes on the [support page](/support): there is one for netting adopters and one for depositors and curators, and issuers and solvers have their own. Tell us who owes whom and how often, or what capital you would commit and under what mandate, and the team opens a channel to work in.
+  </Accordion>
+</AccordionGroup>
 
 <Card title="Ask the team" icon="arrow-up-right-from-square" href="/support">
   Reach us by email or Telegram via the support page.
