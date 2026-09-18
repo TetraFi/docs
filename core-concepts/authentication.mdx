@@ -17,7 +17,9 @@ Compliance-sensitive operations (such as order submission) may additionally requ
 
 ## Getting a Key
 
-Create a service account in your workspace and issue a key for it from the dashboard (**Workspace → Service Accounts → API Keys**). Keys are scoped — **Read**, **Trade**, or **Admin** — so a quoting integration only needs `Trade`. Use `tfk_test_` keys against the sandbox and `tfk_live_` keys in production.
+Create a service account in your workspace and issue a key for it from the dashboard (**Workspace → Service Accounts → API Keys**). Keys carry fine-grained **scopes** - quotes, orders, trades, settlements, treasury, compliance, and more - so a quoting integration holds only what it needs. Use `tfk_test_` keys against the sandbox and `tfk_live_` keys in production.
+
+Every request passes **two gates**: the key's scope, and the key owner's live workspace permission, re-derived each time. Demote the owner and the key narrows immediately. Minting keys, and every other identity surface, is a session-only operation - a credential cannot create a credential.
 
 Not on a workspace yet? Reach the team [via support](/support) and they'll get one set up.
 
@@ -64,6 +66,18 @@ Not on a workspace yet? Reach the team [via support](/support) and they'll get o
 | **Trade History**     | Not accessible                                         | Your workspace's complete trade record                       |
 
 Wire the whole flow against the sandbox on a `tfk_test_` key first; flip to `tfk_live_` only when the loop is proven.
+
+## Beyond the Key
+
+| | What it adds |
+| --- | --- |
+| **Request signing** | Opt-in HMAC per key: a timestamp and a signature header on every request, a five-minute window, replays refused. |
+| **OAuth2 client credentials** | A service account exchanges its key for a short-lived bearer token carrying the same effective scopes. |
+| **MFA** | Authenticator apps, passkeys, recovery codes; an org-wide MFA policy per role. |
+| **Sessions** | List active sessions, revoke the others, review login activity. |
+| **Workspace selection** | `X-Workspace-Id` scopes every call to one workspace. |
+
+None of this is wallet authority. Signing from a wallet is a separate, owner-approved grant - see [Wallets & Signing](/core-concepts/wallets-and-signing).
 
 ## Rate Limits
 
