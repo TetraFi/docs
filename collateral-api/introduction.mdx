@@ -1,0 +1,47 @@
+---
+title: "Introduction"
+description: "The integration shape of the Shared Collateral Network - draw, deposit, or curate on one committed capital base, under the same compliance policy. Coming soon."
+---
+
+<Note>
+  **Coming soon.** The [Shared Collateral Network](/collateral) is in design, not yet live. This page describes the planned integration shape so depositors, curators, issuers, desks, and solvers can design against it early; surfaces, parameters, and contract addresses publish at launch.
+</Note>
+
+## Three Ways In
+
+Capital is committed once, into permissioned [programmable vaults](/collateral/vaults) with identifiable counterparties, and becomes the balance sheet the whole network settles against. Every integration is one of three roles:
+
+* **Draw.** A solver funding a fill ([Solver Credit](/collateral/solver-credit)), a desk settling a T+N leg today ([Instant Settlement](/collateral/instant-settlement)), an issuer's redemption path paying holders before the underlying settles ([Instant Redemption](/collateral/instant-redemption)), a payment network replacing one balance per venue with a single credit layer ([Venue Prefunding](/collateral/venue-prefunding)). Each product reaches the vaults through an adapter, never through another buffer.
+* **Deposit.** Commit capital into a vault whose envelope fits your mandate - its products, qualifying assets, caps, and policy - and earn the commitment spread on every draw plus the yield inside the obligations it funds.
+* **Curate.** As independent curation opens, deploy your own vault: choose products and parameters, and compete on underwriting. One primitive, many envelopes.
+
+## The Draw Is Code
+
+Every draw is a priced exchange, not a balance moved on trust. An **adapter** encodes what the capital may do and the proof of how it returns, and that proof is checked on-chain in the very transaction that draws it. Capital moves only against a verified obligation and is encumbered only while a draw is live, and only to that one obligation. Custody, routing, and obligation stay three separate contracts: the vault holds the money, the delegation says where it may go and in what order it comes back, the adapter says what promise is being made.
+
+## Solver Credit for an Existing Solver
+
+This is the surface most rails integrators will touch first, and it plugs into the fill path you already run. Keep your engine. A cross-chain fill needs destination-chain capital for the seconds to minutes a fill proof takes to release the escrowed source funds; today that capital is your balance sheet copied onto every chain you serve. With Solver Credit the draw funds the fill transaction itself, never your wallet, repayment is verified in the same transaction, and the escrow releases to the vault when the fill is proven.
+
+The planned integration, in words: quote against the network's headroom on the destination chain, draw at award with the fill's target and calldata bound into the signed draw, and submit the funded fill as one transaction. Fill TetraFi intents on the chains you already stock and on the ones you never did, backed by your own bond rather than inventory on every chain - and adopt nothing else of ours if you don't want to. The credit is a product by itself.
+
+## Under the Same Policy
+
+Every draw re-runs your deployment's [compliance policy](/core-concepts/compliance-policy): KYB'd counterparties, jurisdiction filters, machine-checkable policy on every draw. An instant redemption inherits the issuer's investor-eligibility rules and never routes around them. Every vault names its own regulated operator facing depositors and drawers; TetraFi runs the rails and is the network's first customer.
+
+## What Publishes at Launch
+
+* The draw, quote, and headroom surfaces, with schemas and the signed draw format
+* Vault and adapter contract addresses per chain
+* Depositor and curator tooling, and the envelope parameters a curator sets
+* Discount and fee schedules per product, and the commitment-spread pricing by duration
+
+<CardGroup cols={2}>
+  <Card title="Programmable Vaults" icon="vault" href="/collateral/vaults">
+    Curators, depositors, drawers, and the compliance gate on every draw.
+  </Card>
+
+  <Card title="Register Interest" icon="sparkles" href="/support">
+    Depositing, issuing, curating, or drawing? Get on the early list.
+  </Card>
+</CardGroup>
