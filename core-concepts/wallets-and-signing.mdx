@@ -1,0 +1,47 @@
+---
+title: "Wallets & Signing"
+description: "Sign without holding keys in your backend - owner-authorized, bounded, revocable."
+---
+
+An external wallet signature is the baseline and always works. Everything below removes the need to hold keys in your backend, without TetraFi ever holding the owner's factor.
+
+## Ownership Scopes
+
+A **personal** wallet belongs to a person; a **workspace** wallet belongs to the institution and is shared by its authorised operators. An owner can hold several wallets and several provider connections. Per-chain defaults are preferences, never authority: a prepared order cannot be redirected by changing a default, and a directory entry is not proof of signing rights - ownership is re-verified before every dispatch.
+
+## Four Ways to Sign
+
+| Way | How it works | Status |
+| --- | --- | --- |
+| **External wallet** | You sign the EIP-712 order, or broadcast the prepared transaction yourself. | Live |
+| **Owner-authorized embedded signing** | Preflight prepares the exact authorization for the selected wallet, with typed data you can inspect. The owner's own tooling approves it, TetraFi asks the provider to sign, then submits. No root key or provider login token ever reaches TetraFi. | Rolling out |
+| **Session-signer grants** | A durable, bounded, owner-approved permission with an expiry. Revocation refuses new dispatch while an operation already in flight stays recoverable. | Rolling out |
+| **Organisation wallets** | The co-signer model. A manager prepares the setup, every proposed member accepts with their own factor, and the quorum is customer-defined - 1-of-1 included. Native creation happens once, after all consent. A later policy change needs the current quorum, never the proposed one. | Rolling out |
+
+## The Rule That Holds Everywhere
+
+An API key, an admin session, a provider connection, or a gas sponsor never creates wallet authority. Delegated authority is enforced by the wallet provider itself, with TetraFi's compliance and treasury controls layered on top. A policy clause the provider cannot enforce fails closed, with the reason.
+
+## Built for Lost Responses
+
+Every wallet or grant request carries a request ID you generate. Replaying it returns the retained record; an uncertain provider result is reconciled under the original ID, never retried under a new one. Nothing is created twice because a response was lost.
+
+## Gas
+
+API-submitted escrow orders and delegated-source legs already land with no gas from the user's wallet. Modular gas sponsorship - the payer selected per order and reported by preflight - is coming soon.
+
+## Keep Going
+
+<CardGroup cols={3}>
+  <Card title="Execution Modes" icon="route" href="/core-concepts/execution-modes">
+    Where delegated signing enters the quote, preflight, order loop.
+  </Card>
+
+  <Card title="Authentication" icon="key" href="/core-concepts/authentication">
+    What a credential does authorize.
+  </Card>
+
+  <Card title="Treasury & Custody" icon="building-columns" href="/core-concepts/treasury">
+    The same wallets, moving funds under policy.
+  </Card>
+</CardGroup>
