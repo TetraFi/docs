@@ -5,7 +5,7 @@ description: "What you're building on, what is live today, and which API takes y
 
 ## What You're Building On
 
-Every institutional settlement carries three costs: the **principal risk** of releasing one leg before the other lands, the **gross settlement** toll of moving full notional when only the net is owed, and the **trapped liquidity** parked to cover the wait. TetraFi runs one **primitive** against each. The three are **composable** - use one or all three, and each plugs into the same shared liquidity and settlement network - and every deployment is **modular**, under **full institutional control**: your own immutable on-chain router with no custody key and no upgrade key, the venues it may touch, which LPs and jurisdictions your requests reach, and how your compliance pipeline is composed. One **compliance policy** gates every layer. Own the deployment, share the network.
+Every institutional settlement carries three costs: **principal risk**, the **gross settlement** toll, and **trapped liquidity**. TetraFi runs one **primitive** against each. The three are **composable** - use one or all, each on the same shared liquidity and settlement network - and every deployment is **modular**, under **full institutional control**: your own immutable on-chain router, the venues, LPs, and jurisdictions it reaches, and how your compliance pipeline is composed. One **compliance policy** gates every layer. Own the deployment, share the network.
 
 | Primitive | The cost it removes | Status | Where you integrate |
 | --- | --- | --- | --- |
@@ -19,25 +19,25 @@ Every institutional settlement carries three costs: the **principal risk** of re
 
 * **The invariant:** funds move only on a signed order's terms, through your own immutable router, into an escrow that releases against proof of delivery or refunds through a path nobody can pause.
 * **What you integrate:** quote, preflight, sign, submit. The preflight plan is the whole contract.
-* **What never changes:** custody never leaves your side; a capability upgrade only ever adds a venue module.
+* **What never changes:** custody stays on your side; an upgrade only ever adds a venue module.
 
 **Multilateral Netting** (coming soon)
 
-* **The invariant:** your trade price is never touched. A run only decides who pays whom how much, by atomic multilateral set-off, and a validity proof is checked on-chain before anything executes.
-* **What you integrate:** one extra choice per settlement - instant, or clear at a deadline you pick, at a tighter price - plus a member surface for your own obligations, positions, runs, and notices.
-* **What never changes:** the residual settles on the rails above, in your own policy domain, readable only inside your own slice.
+* **The invariant:** your trade price is never touched. A run only decides who pays whom how much, by atomic multilateral set-off, with a validity proof checked on-chain first.
+* **What you integrate:** one extra choice per settlement - instant, or clear at a deadline you pick at a tighter price - plus a member surface for obligations, positions, runs, and notices.
+* **What never changes:** the residual settles on the rails, in your own policy domain, readable only inside your own slice.
 
 **Shared Collateral Network** (coming soon)
 
-* **The invariant:** a draw is a priced exchange verified in the transaction that makes it, funding the fill or the settlement leg itself, never a wallet. Capital is encumbered only while a draw is live, and only to that one obligation.
+* **The invariant:** a draw is a priced exchange verified in the transaction that makes it, funding the fill or settlement leg itself, never a wallet, and encumbered only while live, only to that obligation.
 * **What you integrate:** draw, deposit, or curate.
 * **What never changes:** every draw re-runs your compliance policy; custody, routing, and obligation stay separate.
 
-The rails are the pipes. Netting and shared collateral are where the **capital efficiency** comes from, and every layer plugs into the same escrow and the same policy: see [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts) and [Compliance Policy](/core-concepts/compliance-policy). The rest of this page is the live surface.
+The rails are the pipes; netting and shared collateral are where the **capital efficiency** comes from. Every layer plugs into the same [escrow](/core-concepts/settlement-smart-contracts) and [policy](/core-concepts/compliance-policy).
 
 ## What the Platform Handles for You
 
-The other cost of integrating is everything around the rails: who may sign, from which wallet, under whose approval, with what budget. TetraFi runs that inside the same workspace, under the same compliance policy. An **API key authorizes API access, never wallet spending**; signing authority is owner-approved and provider-enforced; treasury moves under a written policy; agents act inside a bounded envelope. The full list, with status, is on [Platform Capabilities](/platform).
+Who may sign, from which wallet, under whose approval, with what budget: the workspace runs all of it under the same compliance policy, and an **API key authorizes API access, never wallet spending**. Full list and status: [Platform Capabilities](/platform).
 
 <CardGroup cols={4}>
   <Card icon="wallet" href="/core-concepts/wallets-and-signing" title="Wallets & Signing">
@@ -45,7 +45,7 @@ The other cost of integrating is everything around the rails: who may sign, from
   </Card>
 
   <Card icon="building-columns" href="/core-concepts/treasury" title="Treasury & Custody">
-    Vaults, transfers, whitelists, quorum approvals, and statements - drivable by API key.
+    Vaults, transfers, whitelists, quorum approvals, statements - by API key.
   </Card>
 
   <Card icon="robot" href="/core-concepts/agents" title="Agents">
@@ -59,76 +59,33 @@ The other cost of integrating is everything around the rails: who may sign, from
 
 ## Trade Execution
 
-Put your users' swaps on-chain.
-
 <CardGroup cols={4}>
   <Card icon="bolt" href="/rfq-api/introduction" title="RFQ API">
-    Firm quotes from competing solvers and LPs, settled through an escrow with a delivery-or-refund guarantee. Single and multi-token trades.
+    Firm quotes from competing solvers and LPs, escrow-settled.
   </Card>
 
   <Card icon="sparkles" href="/propamm/introduction" title="propAMM">
-    Request-for-stream execution: makers stream prices, you execute the freshest one. Coming soon.
+    Makers stream prices, you execute the freshest. Coming soon.
   </Card>
 
   <Card icon="shuffle" href="/router-api/introduction" title="Router API">
-    One request, ranked executable routes spanning DEX, RFQ, bridge, issuer, and fiat sources - the widest coverage, with guarantees stated per candidate.
+    Ranked executable routes across every eligible source.
   </Card>
 
   <Card icon="coins" href="/core-concepts/monetization" title="Monetization">
-    Attach a partner fee to your workspace and generate revenue from every settled trade.
+    A partner fee on every settled trade.
   </Card>
 </CardGroup>
 
 ### Picking Your Product
 
-|                    | **RFQ API - Firm Escrow Liquidity**                                  | **Router API - Aggregated Multi-Source**                                                   |
-| ------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **What you buy**   | Only firm quotes, each escrow-enforced to deliver or refund         | A ranked candidate list, each entry carrying its own stated guarantees                     |
-| **How it settles** | Delivery-versus-payment through escrow, custody never with TetraFi     | On-chain through the same contract stack, custody never with TetraFi                         |
-| **Reach**          | The corridors your workspace's solvers and LPs actively quote        | Everything eligible - DEX, bridges, issuers, fiat rails, cross-chain corridors             |
-| **The catch**      | Coverage follows the LP roster, not the whole token universe         | Guarantees differ candidate to candidate - always read the printed terms                   |
+|                    | **RFQ API - Firm Escrow Liquidity**                          | **Router API - Aggregated Multi-Source**                             |
+| ------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **What you buy**   | Only firm quotes, each escrow-enforced to deliver or refund  | A ranked candidate list, each entry carrying its own guarantees      |
+| **How it settles** | Delivery-versus-payment through escrow, custody never with TetraFi | The same contract stack, custody never with TetraFi            |
+| **Reach**          | The corridors your workspace's solvers and LPs quote         | Everything eligible - DEX, bridges, issuers, fiat rails, cross-chain |
+| **The catch**      | Coverage follows the LP roster, not the whole token universe | Guarantees differ per candidate - always read the printed terms      |
 
-**RFQ is your product if:**
+Run both when core corridors deserve firm escrow and the long tail rides the router. Still unsure? [Get in touch](/support).
 
-* Escrow-enforced delivery-or-refund is the guarantee your users depend on
-* Your flow concentrates in quoted corridors, at real size
-* Settlement predictability outranks maximum coverage
-
-**Router is your product if:**
-
-* Coverage is king - DEX, bridge, issuer, and fiat sources all in play
-* You'd rather compare ranked candidates than accept a single answer
-* Speed, price, and trust are per-trade decisions in your pipeline
-
-**Run both if:**
-
-* Core corridors deserve firm escrow while the long tail rides the router
-* No single source outage should ever block an executable trade
-
-<Note>
-  Still unsure? [Get in touch with our team](/support).
-</Note>
-
-## Live Market Data
-
-<Card icon="chart-line" href="/price-api/introduction" title="Price Feed">
-  A continuous WebSocket price picture - screen trades, steer routing, or fill your UI with live numbers.
-</Card>
-
-## Historical Records
-
-<Card icon="clock-rotate-left" href="/trade-history-api/introduction" title="Trade History">
-  Your workspace's settled history - filterable, exportable, chain-agnostic.
-</Card>
-
-## Coming to the Build Tab
-
-<CardGroup cols={2}>
-  <Card icon="scale-balanced" href="/netting-api/introduction" title="Multilateral Netting">
-    Opt a settlement into a clearing run instead of settling it alone, and read your own obligations, positions, and run notices. Coming soon.
-  </Card>
-
-  <Card icon="vault" href="/collateral-api/introduction" title="Shared Collateral Network">
-    Draw network liquidity into a fill or a settlement leg, repaid by the settlement it funds - or deposit into, or curate, a vault. Coming soon.
-  </Card>
-</CardGroup>
+Around the trade: the [Price API](/price-api/introduction) streams a continuous WebSocket price picture, and the [Trade History API](/trade-history-api/introduction) returns your workspace's settled history, filterable and exportable.
