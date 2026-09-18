@@ -3,13 +3,13 @@ title: "Introduction"
 description: "Query every trade your workspace has executed - detail, timelines, and exports across all supported chains."
 ---
 
-Everything your workspace has ever traded is queryable here, read-only: filtered lists, single-trade timelines with settlement evidence, bulk exports - one surface, all chains.
+Everything your workspace has traded, read-only: filtered lists, single-trade timelines with settlement evidence, bulk exports, one surface across all chains.
 
 ## Where It Fits
 
-* **After-the-fact answers** - fill reconciliation, volume tracking, flow audits, all scoped to your workspace
-* **No explorer archaeology** - a single query surface replaces per-network indexing when you need to reconstruct events
-* **One record across the layers** (coming soon) - a settlement opted into [Multilateral Netting](/netting) keeps its trade record here and gains a per-run statement; see the [integration shape](/netting-api/introduction)
+* **After-the-fact answers** - fill reconciliation, volume tracking, flow audits
+* **No explorer archaeology** - one query surface replaces per-network indexing
+* **One record across the layers** (coming soon) - a settlement opted into [Multilateral Netting](/netting) keeps its trade record here and gains a per-run statement ([integration shape](/netting-api/introduction))
 
 ## Quick Reference
 
@@ -20,33 +20,16 @@ Everything your workspace has ever traded is queryable here, read-only: filtered
 | Base URL     | `https://api.tetrafi.io/api/v1/workspaces/{id}/`            |
 | Effort       | Light: plain GET requests, nothing to sign                 |
 
-## The Flow
-
-| # | Move            | Input                                               | Output                                              |
-| - | --------------- | --------------------------------------------------- | --------------------------------------------------- |
-| 1 | Pull the list   | Filters → `GET /workspaces/{id}/trades`             | Pages of trades: route legs, LP, settlement facts   |
-| 2 | Zoom in         | Order ID → `GET /workspaces/{id}/trades/{orderId}`  | One trade in full: amounts, status, settlement txs  |
-
-Your [API key](/core-concepts/authentication) does the scoping on its own: whatever it returns is your workspace's flow, nothing else's.
-
 ## Endpoint Map
 
 | Endpoint                                        | Purpose                                                       |
 | ----------------------------------------------- | ------------------------------------------------------------- |
-| `GET /api/v1/workspaces/{id}/trades`            | List and filter trades with offset pagination                 |
-| `GET /api/v1/workspaces/{id}/trades/{orderId}`  | A single trade's full detail, keyed by order id               |
+| `GET /api/v1/workspaces/{id}/trades`            | List and filter trades: route legs, LP, settlement facts, offset pagination |
+| `GET /api/v1/workspaces/{id}/trades/{orderId}`  | One trade in full: amounts, status, settlement txs            |
 | `GET /api/v1/workspaces/{id}/trades/export`     | Bulk CSV export for reconciliation and reporting              |
 
-Also under the same prefix:
+Under the same prefix: `.../trades/{orderId}/timeline` (hash-chained lifecycle), `.../trades/{orderId}/evidence` (compliance evidence bundle), and `.../trades/mine`, `.../trades/mine/{orderId}`, `.../trades/mine/{orderId}/timeline` for the caller's own trades only. Your [API key](/core-concepts/authentication) scopes every answer to your workspace.
 
-* `GET .../trades/mine`, `.../trades/mine/{orderId}`, `.../trades/mine/{orderId}/timeline` - member-scoped variants returning only the caller's own trades
-* `GET .../trades/{orderId}/timeline` - hash-chained lifecycle timeline
-* `GET .../trades/{orderId}/evidence` - compliance evidence bundle
-
-## Keep Going
-
-<CardGroup cols={1}>
-  <Card title="Quickstart" icon="bolt" href="/trade-history-api/quickstart">
-    Your first history query, answered in minutes.
-  </Card>
-</CardGroup>
+<Card title="Quickstart" icon="bolt" href="/trade-history-api/quickstart">
+  Your first history query.
+</Card>

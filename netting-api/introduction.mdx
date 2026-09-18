@@ -4,52 +4,44 @@ description: "The integration shape of Multilateral Netting - a second firm quot
 ---
 
 <Note>
-  **Coming soon.** [Multilateral Netting](/netting) is in design, not yet live. This page describes the planned integration shape so you can design against it early; endpoint paths, schemas, run timing, fee schedules, and membership criteria publish at launch.
+  **Coming soon.** [Multilateral Netting](/netting) is in design, not yet live. This is the planned integration shape; paths, schemas, run timing, fee schedules, and membership criteria publish at launch.
 </Note>
 
 ## What Changes in Your Integration
 
-Nothing in the rails flow. Quote, sign, settle stays exactly as the [RFQ API](/rfq-api/introduction) documents it today. Netting arrives as a **second firm quote**: settle instantly at today's price, or clear at a deadline you pick, at a tighter one. Both quotes are firm, the choice is per settlement, and it is the only thing you do differently - whoever created the trade behind it.
+Nothing in the rails flow. Netting arrives as a **second firm quote**: settle instantly at today's price, or clear at a deadline you pick, at a tighter one. Both are firm; the choice is per settlement.
 
-On the quote request that means two planned inputs: the settlement mode (instant or cleared) and, for a cleared settlement, the deadline tier - an hours-class tier or T+1 / T+2, a menu rather than one clock. Leave the mode instant and the order moves now, in full, exactly as quoted. Opt it into clearing and one signature records the debt and pre-approves its future collection; nothing leaves your wallet until the pull window opens.
+Two planned quote-request inputs: the settlement mode (instant or cleared) and the deadline tier (an hours-class tier or T+1 / T+2). Instant moves the order now, in full, as quoted. Cleared records the debt with one signature and pre-approves its collection; nothing leaves your wallet until the pull window opens.
 
 ## What a Member Reads and Writes
 
-Everything below is scoped to your own slice. Positions are readable only inside a [sealed engine](/netting/privacy-and-control); you see your own obligations and your own net, never the graph.
+Inside a [sealed engine](/netting/privacy-and-control) you see your own obligations and net, never the graph.
 
 | Surface | What it carries |
 | --- | --- |
-| **Obligations** (read) | Each debt you signed - asset, amount, corridor, counterparty, deadline - with its three numbers: signed, set off, remaining |
-| **Net positions** (read) | One signed figure per asset and corridor after each run, the amount you hold balance for |
-| **Runs and statements** (read) | Run stage, timing, proof and commit references, and a per-run statement listing every touched obligation, its set-off, and its fee lines |
+| **Obligations** (read) | Each debt you signed - asset, amount, corridor, counterparty, deadline - as signed, set off, remaining |
+| **Net positions** (read) | One signed figure per asset and corridor after each run |
+| **Runs and statements** (read) | Run stage, timing, proof and commit references; a per-run statement of every touched obligation and its fee lines |
 | **Notices** (read, plus push) | The hold-don't-pay notice per run: keep enough balance for your net; silence accepts |
 | **Objections** (write) | A signed objection naming obligation ids, inside the notice window |
 | **Resolutions** (write) | Your election when a counterpart is late on a paired leg |
 
 ## Funding the Net
 
-After a run, one amount is due at your deadline per asset and corridor. You rank the sources once - wallet balance, a yield position redeemed at collection, an exchange balance withdrawn into the window, a bank rail last - and one atomic pull takes the net from the first source that can pay. Or settle a debt entirely your own way and prove it: both signatures, a custody balance change, or a receipt proven cryptographically closes the obligation on the graph.
+One amount is due per asset and corridor at your deadline. Rank the sources once - wallet, a yield position, an exchange balance, a bank rail last - and one atomic pull takes the net from the first that can pay. Or settle a debt your own way and prove it: both signatures, a custody balance change, or a cryptographically proven receipt closes it.
 
 ## Your Own Policy Domain
 
 There is one clearing network, and **modularity** means configuring your participation in it, not running the engine: your own **policy domain**, with your counterparty sets, deadline-tier menu, backstop configuration, funding mode, perimeter policy, and visibility slice. The clearing service is packaged to run on your institution's own infrastructure, or alongside a backend you already operate.
 
-The engine is domain-blind. TetraFi's own rails are the first obligation source, not the only one: a book that settles gross today - loans on a lending market, receivables, trade finance, payment obligations - enters through an **intake lane** with no engine changes, under the same [compliance policy](/core-concepts/compliance-policy) as everything else. See [Where It Applies](/netting/where-it-applies) for the lanes.
-
-## What Publishes at Launch
-
-* The member surfaces above, with paths, schemas, and the push channel for notices
-* The quote-request fields for settlement mode and deadline tier
-* Run cadence, deadline tiers, and the backstop ladder's published discounts
-* The fee schedule - a small flat rate plus a share of what you saved, measured against your own instant quote
-* Membership criteria and the clearing contract addresses
+The engine is domain-blind: a book that settles gross today - loans on a lending market, receivables, trade finance, payment obligations - enters through an **intake lane** under the same [compliance policy](/core-concepts/compliance-policy). Lanes: [Where It Applies](/netting/where-it-applies). Fees: [Monetization](/core-concepts/monetization#fees-on-the-next-layers).
 
 <CardGroup cols={2}>
   <Card title="How It Works" icon="gears" href="/netting/how-it-works">
-    The clearing run step by step, and where the residual goes.
+    The clearing run step by step.
   </Card>
 
   <Card title="Register Interest" icon="sparkles" href="/support">
-    Designing an integration against this shape? Get on the early list.
+    Get on the early list.
   </Card>
 </CardGroup>

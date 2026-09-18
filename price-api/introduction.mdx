@@ -3,13 +3,13 @@ title: "Introduction"
 description: "Live indicative pricing, streamed continuously from TetraFi's liquidity network."
 ---
 
-Instead of asking for prices one at a time, subscribe once: the price feed carries continuous indicative updates from TetraFi's solvers and LPs over a single WebSocket. Pick the corridors and size tiers you care about - and, for full-depth consumers, take per-network snapshot streams of the aggregated book.
+Subscribe once: continuous indicative updates from TetraFi's solvers and LPs over one WebSocket, per corridor and size tier, or per-network snapshots of the aggregated book.
 
 ## Where It Fits
 
-* **Pre-trade sizing** - screen a trade against live prices first, and spend a firm [RFQ](/rfq-api/introduction) quote only once it clears your bar
-* **Continuous evaluation** - solvers and aggregators watching TetraFi liquidity around the clock, with zero draw on quote rate limits
-* **A standing depth picture** - aggregated LP liquidity across your routed pairs, always current
+* **Pre-trade sizing** - screen against live prices, spend a firm [RFQ](/rfq-api/introduction) quote only once it clears your bar
+* **Continuous evaluation** - watch liquidity around the clock with zero draw on quote rate limits
+* **A standing depth picture** across your routed pairs
 
 ## Quick Reference
 
@@ -17,7 +17,7 @@ Instead of asking for prices one at a time, subscribe once: the price feed carri
 | ------------------ | -------------------------------------------------- |
 | **Transport**      | WebSocket                                          |
 | **Authentication** | API key or JWT via the `token` query parameter     |
-| **Complexity**     | Moderate - you manage subscriptions and decode the stream |
+| **Complexity**     | Moderate - subscriptions and stream decoding are yours |
 
 ## From Connect to First Price
 
@@ -27,9 +27,7 @@ Instead of asking for prices one at a time, subscribe once: the price feed carri
 | 2     | Subscribe: `prices:{srcChain}:{input}:{dstChain}:{output}:{tier}` | Confirmation per topic            |
 | 3     | Listen                                             | Price events for your corridors, best level first |
 
-Size tiers (`1k`, `10k`, `100k`, `1m`) let you subscribe at the notional you actually trade - a `100k` subscription prices a hundred-thousand-unit clip, not a spot midpoint. Up to 50 concurrent subscriptions per connection.
-
-See the [Reference](/price-api/reference) for pricing modes and expiry behavior.
+Size tiers (`1k`, `10k`, `100k`, `1m`) price the clip you trade, not a spot midpoint. Up to 50 subscriptions per connection. Pricing modes and expiry: [Reference](/price-api/reference).
 
 ## Endpoint Map
 
@@ -38,14 +36,4 @@ See the [Reference](/price-api/reference) for pricing modes and expiry behavior.
 | `wss://api.tetrafi.io/api/v1/ws`            | The streaming connection - price and order event topics     |
 | `GET /api/v1/pairs`                        | Resolve tradable pairs and asset addresses for subscriptions |
 
-## Keep Going
-
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="bolt" href="/price-api/quickstart">
-    Connect, subscribe, and process the price stream in 10-15 minutes.
-  </Card>
-
-  <Card title="Estimating VWAP" icon="chart-line" href="/price-api/guides/vwap-estimation">
-    Work out what your size would really cost - without burning a firm quote.
-  </Card>
-</CardGroup>
+Next: the [Quickstart](/price-api/quickstart), then [Estimating VWAP](/price-api/guides/vwap-estimation) for what your size would really cost.

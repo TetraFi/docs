@@ -3,14 +3,13 @@ title: "Introduction"
 description: "Firm, escrow-backed quotes from competing solvers and LPs - delivery or refund, never limbo."
 ---
 
-The RFQ API puts your request in front of every eligible solver and LP in your workspace. Each one answers with a cryptographically firm, executable quote priced from its own inventory - and every quote settles through an escrow that either delivers your output or refunds your input.
+The RFQ API puts your request in front of every eligible solver and LP in your workspace. Each answers with a cryptographically firm, executable quote from its own inventory, settled through an escrow that delivers your output or refunds your input.
 
 ## When RFQ Is the Right Tool
 
-* You want **firm commitments** - each returned quote is signed and executable as-is, with no re-pricing and no last look
-* You trade **stablecoins or tokenized real-world assets** - the asset set this venue's LP inventory is deepest in ([coverage](/supported-chains))
-* You trade **supported corridors at size**, where competing LP inventory beats on-chain routing
-* You need **settlement certainty** - the delivery-or-refund escrow means a trade either completes or your funds come back
+* **Firm commitments** - each quote is signed and executable as-is, no re-pricing, no last look
+* **Stablecoins and tokenized real-world assets**, where LP inventory is deepest ([coverage](/supported-chains))
+* **Supported corridors at size**, where competing LP inventory beats on-chain routing
 
 ## Quick Reference
 
@@ -19,39 +18,23 @@ The RFQ API puts your request in front of every eligible solver and LP in your w
 | Protocol        | REST over HTTPS                                                    |
 | Credential      | API key (`X-API-Key` header)                                       |
 | Signature       | EIP-712 over the `escrow-v0` payload                               |
-| Landing the tx  | `apiSubmit` (TetraFi) or `walletBroadcast` (you)                     |
+| Landing the tx  | `apiSubmit` (TetraFi) or `walletBroadcast` (you)                   |
 | Guarantee       | Every quote firm; every order escrow delivery-or-refund            |
 | Effort          | Moderate: one signature plus a preflight round-trip                |
 
 ## The Shape of a Trade
 
-Quotes compete, you pick one, preflight tells you exactly what to do next. The execution mode on your chosen quote determines who lands the transaction.
+Quotes compete, you pick one, preflight tells you what to do next; the quote's `executionMode` says who lands the transaction ([Execution Modes](/core-concepts/execution-modes)).
 
-<Tabs>
-  <Tab title="apiSubmit (native settlement)">
-    TetraFi handles on-chain submission. Your user signs the order payload and never touches gas.
+| # | Move               | Input                                                | Output                           |
+| - | ------------------ | ---------------------------------------------------- | -------------------------------- |
+| 1 | Collect quotes     | Intent (inputs, outputs) → `POST /api/v1/rfq/quotes` | Competing firm quotes, ranked    |
+| 2 | Preflight the pick | Chosen quote → `POST /api/v1/rfq/orders/preflight`   | `nextActions` plan               |
+| 3 | Authorize          | EIP-712 `escrow-v0` payload → taker wallet           | Signature                        |
+| 4 | Hand it over       | Signed order → `POST /api/v1/rfq/orders`             | Order ID                         |
+| 5 | Watch it land      | Order ID → `GET /api/v1/rfq/orders/{id}` or WebSocket | Status: `settled`               |
 
-    | # | Move               | Input                                                | Output                           |
-    | - | ------------------ | ---------------------------------------------------- | -------------------------------- |
-    | 1 | Collect quotes     | Intent (inputs, outputs) → `POST /api/v1/rfq/quotes` | Competing firm quotes, ranked    |
-    | 2 | Preflight the pick | Chosen quote → `POST /api/v1/rfq/orders/preflight`   | `nextActions` plan               |
-    | 3 | Authorize          | EIP-712 `escrow-v0` payload → taker wallet           | Signature                        |
-    | 4 | Hand it over       | Signed order → `POST /api/v1/rfq/orders`             | Order ID                         |
-    | 5 | Watch it land      | Order ID → `GET /api/v1/rfq/orders/{id}` or WebSocket | Status: `settled`               |
-  </Tab>
-
-  <Tab title="walletBroadcast (self-execution)">
-    You put the settlement on-chain yourself, from your own RPC.
-
-    | # | Move               | Input                                                | Output                           |
-    | - | ------------------ | ---------------------------------------------------- | -------------------------------- |
-    | 1 | Collect quotes     | Intent (inputs, outputs) → `POST /api/v1/rfq/quotes` | Competing firm quotes, ranked    |
-    | 2 | Preflight the pick | Chosen quote → `POST /api/v1/rfq/orders/preflight`   | `nextActions` with the tx        |
-    | 3 | Send it yourself   | Prepared tx → your RPC                               | On-chain settlement              |
-  </Tab>
-</Tabs>
-
-The two modes are contrasted in depth under [Execution Modes](/core-concepts/execution-modes).
+Under `walletBroadcast`, step 2 returns the prepared transaction and you send it from your own RPC.
 
 ## Endpoint Map
 
@@ -63,19 +46,7 @@ The two modes are contrasted in depth under [Execution Modes](/core-concepts/exe
 | `GET /api/v1/rfq/orders/{id}`        | Follow the order through to delivery or refund       |
 
 <Note>
-  RFQ responses contain **only** firm solver/LP escrow quotes - never DEX, bridge, issuer, or indicative candidates. The roster itself is yours to shape: workspace-approved LPs only, with jurisdiction filtering applied before a request ever reaches a desk. If no eligible LP can quote, you get a typed product-unavailable answer rather than a silent fallback to another source. For multi-source routing, use the [Router API](/router-api/introduction).
-
-  Planned (coming soon): a second firm quote per settlement - clear at a deadline you pick, at a tighter price - selected on the quote request. See the [Multilateral Netting integration shape](/netting-api/introduction).
+  RFQ responses contain **only** firm solver/LP escrow quotes from workspace-approved LPs, never DEX, bridge, issuer, or indicative candidates; if none can quote, the answer is a typed product-unavailable, never a silent fallback ([Compliance Policy](/core-concepts/compliance-policy)). Multi-source routing is the [Router API](/router-api/introduction). Coming soon: a second firm quote per settlement, cleared at a deadline you pick at a tighter price ([integration shape](/netting-api/introduction)).
 </Note>
 
-## Keep Going
-
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="bolt" href="/rfq-api/quickstart">
-    First firm quote to settled trade, in about 15 minutes.
-  </Card>
-
-  <Card title="Guides" icon="book-open" href="/rfq-api/guides/gasless-execution">
-    From order submission to partial fills and multi-leg orders.
-  </Card>
-</CardGroup>
+Next: the [Quickstart](/rfq-api/quickstart), then the [guides](/rfq-api/guides/gasless-execution) on order submission, partial fills, and multi-leg orders.

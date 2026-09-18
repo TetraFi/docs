@@ -3,21 +3,20 @@ title: "Introduction"
 description: "Route trades across every eligible liquidity source and choose from ranked executable candidates."
 ---
 
-The Router API fans your request across every eligible execution source - direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails - and returns ranked executable candidates with an explicit recommendation. "Eligible" is your call: venues are enabled or disabled per workspace, and a source you've switched off can never appear as executable.
+The Router API fans your request across every eligible source - direct DEX liquidity, the RFQ venue, bridges, issuers, fiat rails - and returns ranked executable candidates with a recommendation. "Eligible" is your call: venues are enabled per workspace, and a source you switched off never appears.
 
 ## Where It Fits
 
-* You need **the broadest coverage** - assets, chains, and corridors beyond what any single liquidity source quotes, including the long tail the [RFQ venue](/rfq-api/introduction) deliberately doesn't chase
-* You want **ranked candidates with a recommendation** rather than a single take-it-or-leave-it price
-* You value **failure isolation** - one source being down, slow, or empty never suppresses valid candidates from the others
-* You want **one-signature cross-chain UX** - the user expresses an intent and signs once; route selection, bridging, and settlement become the candidate's problem, not the user's
+* **The broadest coverage** - the long tail the [RFQ venue](/rfq-api/introduction) deliberately doesn't chase
+* **Ranked candidates with a recommendation**, and one source down never suppresses the others
+* **One-signature cross-chain UX** - route selection, bridging, and settlement are the candidate's problem
 
 ## Sources Behind the Ranking
 
-* **Direct DEX liquidity**, priced from on-chain market state
-* **Programmable liquidity** - a maker quote and a DEX leg composed into one executable candidate (rolling out)
-* **Composite routes** - multi-leg, with continuation and recovery when a leg parks
-* **Tokenized-asset venues and fiat corridors** as legs (rolling out)
+* **Direct DEX liquidity**, priced from on-chain state
+* **Programmable liquidity** - a maker quote and a DEX leg in one candidate (rolling out)
+* **Composite routes** - multi-leg, with recovery when a leg parks
+* **Tokenized-asset venues and fiat corridors** (rolling out)
 
 ## Quick Reference
 
@@ -26,52 +25,36 @@ The Router API fans your request across every eligible execution source - direct
 | Protocol        | REST over HTTPS                                                     |
 | Credential      | API key (`X-API-Key` header)                                        |
 | Signature       | EIP-712 over the `escrow-v0` payload                                |
-| Landing the tx  | `apiSubmit` (TetraFi) or `walletBroadcast` (you), per candidate       |
+| Landing the tx  | `apiSubmit` (TetraFi) or `walletBroadcast` (you), per candidate     |
 | Guarantee       | Printed on each candidate: firmness, atomicity, settlement, fees    |
 | Effort          | Moderate: pick a candidate, preflight it, sign                      |
 
 ## The Trade Flow
 
-Each candidate carries an `executionMode` telling you who puts the transaction on-chain. Preflight returns the exact `nextActions` for the candidate you selected.
+Each candidate's `executionMode` says who lands the transaction; preflight returns its `nextActions` ([Execution Modes](/core-concepts/execution-modes)).
 
-<Tabs>
-  <Tab title="apiSubmit (native settlement)">
-    TetraFi submits the settlement transaction. Your user signs the order; TetraFi handles the rest.
+| # | Move               | Input                                                   | Output                             |
+| - | ------------------ | ------------------------------------------------------- | ---------------------------------- |
+| 1 | Collect candidates | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation |
+| 2 | Preflight the pick | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` execution plan       |
+| 3 | Authorize          | EIP-712 `escrow-v0` payload → taker wallet              | Signature                          |
+| 4 | Hand it over       | Signed order → `POST /api/v1/router/orders`             | Order ID                           |
+| 5 | Watch it land      | Order ID → `GET /api/v1/router/orders/{id}` or WebSocket | Status: `settled`                 |
 
-    | # | Move               | Input                                                 | Output                                        |
-    | - | ------------------ | ----------------------------------------------------- | --------------------------------------------- |
-    | 1 | Collect candidates | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation            |
-    | 2 | Preflight the pick | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` execution plan                  |
-    | 3 | Authorize          | EIP-712 `escrow-v0` payload → taker wallet            | Signature                                     |
-    | 4 | Hand it over       | Signed order → `POST /api/v1/router/orders`             | Order ID                                      |
-    | 5 | Watch it land      | Order ID → `GET /api/v1/router/orders/{id}` or WebSocket | Status: `settled`                             |
-  </Tab>
-
-  <Tab title="walletBroadcast (self-execution)">
-    Candidates settling through an external venue or bridge hand the transaction to you instead.
-
-    | # | Move               | Input                                                 | Output                             |
-    | - | ------------------ | ----------------------------------------------------- | ---------------------------------- |
-    | 1 | Collect candidates | Intent (inputs, outputs) → `POST /api/v1/router/quotes` | Ranked candidates + recommendation |
-    | 2 | Preflight the pick | Selected quote → `POST /api/v1/router/orders/preflight` | `nextActions` with the tx to send  |
-    | 3 | Send it yourself   | Prepared tx → your RPC                                | On-chain settlement                |
-  </Tab>
-</Tabs>
-
-Both modes are contrasted in depth under [Execution Modes](/core-concepts/execution-modes).
+Candidates settling through an external venue or bridge are `walletBroadcast`: step 2 returns the transaction and you send it from your own RPC.
 
 ## Guarantees, Stated Per Candidate
 
-The Router API never averages guarantees across sources. Every candidate in the response states its own terms, and the ranking compares them net of gas and explicit fees:
+Every candidate states its own terms, and the ranking compares them net of gas and explicit fees:
 
 | Field                | Description                                                                        |
 | -------------------- | ---------------------------------------------------------------------------------- |
 | `preview.outputs`    | What you receive if this candidate executes as quoted                              |
-| `validUntil`         | Firmness window - the candidate is executable until this timestamp                 |
-| `composite`          | Present when the candidate is a multi-leg planner route rather than a direct quote |
-| `integrityChecksum`  | Tamper-evidence binding the quote you sign to the quote you were shown             |
+| `validUntil`         | The candidate is executable until this timestamp                                   |
+| `composite`          | Present when the candidate is a multi-leg planner route                            |
+| `integrityChecksum`  | Binds the quote you sign to the quote you were shown                               |
 
-A candidate filled by the RFQ venue keeps RFQ-grade firmness; a multi-leg bridge route states its own settlement model. The product you called is still Router - the guarantees you rely on are the ones printed on the candidate, never implied by a source label.
+A candidate filled by the RFQ venue keeps RFQ-grade firmness; a multi-leg bridge route states its own settlement model. Rely on what is printed, never on a source label.
 
 ## Endpoint Map
 
@@ -83,17 +66,7 @@ A candidate filled by the RFQ venue keeps RFQ-grade firmness; a multi-leg bridge
 | `GET /api/v1/router/orders/{id}`      | Track order and settlement status                  |
 
 <Note>
-  `POST /api/v1/quotes` and `/api/v1/orders/*` remain available as documented temporary aliases for the Router namespace and emit deprecation metadata. New integrations should target `/api/v1/router/*`.
+  `POST /api/v1/quotes` and `/api/v1/orders/*` remain as temporary aliases and emit deprecation metadata. New integrations target `/api/v1/router/*`.
 </Note>
 
-## Keep Going
-
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="bolt" href="/router-api/quickstart">
-    A first candidate selected, signed, and settled - in one sitting.
-  </Card>
-
-  <Card title="Token Approvals" icon="key" href="/core-concepts/token-approvals">
-    The allowance groundwork that makes settlement possible.
-  </Card>
-</CardGroup>
+Next: the [Quickstart](/router-api/quickstart), and the allowance groundwork under [Token Approvals](/core-concepts/token-approvals).
