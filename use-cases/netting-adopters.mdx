@@ -1,7 +1,7 @@
 ---
 title: "Lending, Receivables, Trade Finance..."
 sidebarTitle: "Lending, Receivables..."
-description: "Netting is a primitive, not a venue - point it at whatever book you already settle."
+description: "Netting is a primitive, not a venue - point it at whatever book you already settle, and settle less of it."
 ---
 
 The clearing engine is **domain-blind by construction**: it clears who owes whom and by when, so a new kind of obligation enters through an intake lane and needs no engine changes at all.
@@ -12,6 +12,14 @@ Netting is not a venue you have to bring flow to, and it is not waiting on Tetra
   **Coming soon.** [Multilateral Netting](/netting) is in design. The lanes below describe the shape the primitive is built for; third-party policy domains arrive as the network opens, and parameters publish at launch.
 </Note>
 
+## What Your Book Gets
+
+Whatever the book - a loan book, a receivables ledger, a payment schedule - the outcome is the same three things:
+
+* **Less to settle.** Obligations between the same participants collapse by **atomic multilateral set-off** to one net residual per party, so a day's gross flow stops paying gross tolls - and every other book that joins the graph compresses yours further
+* **Capital that stays working.** Hold, don't move: no pre-funding, no margin, no inventory bridged to cover a debt - your capital keeps working until the pull window opens, and a deadline you pick earns a tighter quote
+* **The residual, handled.** Whatever doesn't net takes a priced backstop from the [Shared Collateral Network](/collateral), with an early exit any time before the deadline - so the worst case is what you pay today, and the remainder stops being your problem
+
 ## Adopt It On What You Already Run
 
 You configure your participation, not the engine. There is one clearing network - the way there is one Ethereum - and what you own is your slice of it:
@@ -19,8 +27,6 @@ You configure your participation, not the engine. There is one clearing network 
 * **Your own policy domain** - your counterparty sets, deadline-tier menu, backstop configuration, funding mode, perimeter policy, and visibility slice
 * **Your own backend, or ours** - the clearing service is packaged to run on your institution's own infrastructure, or alongside a backend you already operate
 * **Your existing settlement, untouched** - set-off sits on top of the rails you run today; what changes is how much has to move at the end of a run, not who moves it
-* **The shared graph is upside, not a precondition** - your book nets against itself from day one, and every other book that joins deepens the same graph
-* **Your residual has an exit** (coming soon) - the [Shared Collateral Network](/collateral) backstops whatever doesn't net and prices an early exit before the deadline, so the worst case is what you pay today
 
 It is the shape Morpho gave lending: nobody forks the protocol - you run your own market on one shared, immutable core, and that shared core is where the network effect lives.
 
@@ -28,23 +34,23 @@ It is the shape Morpho gave lending: nobody forks the protocol - you run your ow
 
 <CardGroup cols={2}>
   <Card title="Lending markets" icon="landmark">
-    A loan book is a netting set. Obligations between the same participants clear on one graph, and only the residual has to move. And a tokenized asset that can be [redeemed T+0](/collateral/instant-redemption) is one you can list as collateral.
+    A loan book is a netting set. Obligations between the same participants clear on one graph, and only the residual has to move - and a tokenized asset that can be [redeemed T+0](/collateral/instant-redemption) is one you can list as collateral.
   </Card>
 
-  <Card title="Receivables & invoices" icon="file-invoice">
-    Trade finance runs on chains of obligations that mostly cancel. Set-off clears the circle instead of wiring every leg in it.
+  <Card title="Receivables & trade finance" icon="file-invoice">
+    Chains of dated obligations - 30, 60, 90 days out - mostly cancel. Set-off clears the circle by settlement date instead of wiring every leg in it, and the working capital parked against invoices that would have cancelled comes back.
   </Card>
 
   <Card title="Real-world payment obligations" icon="building-columns">
-    Recurring obligations between the same parties settle gross today. On one graph, a day's flow nets down to a single residual.
+    Recurring obligations between the same parties settle gross today. On one graph, a day's flow nets down to a single residual - one wire instead of a schedule of them.
   </Card>
 
   <Card title="Equities & tokenized assets" icon="arrow-right-arrow-left">
-    Delivery-versus-payment at scale: offsetting legs cancel outright, so only the net position is ever delivered.
+    Delivery-versus-payment at scale: offsetting legs cancel outright, so only the net position is ever delivered - and never one leg without the other.
   </Card>
 
   <Card title="Energy & circular debt" icon="bolt">
-    Imbalance settlements and circular debt are loops by nature - and a loop is exactly what **atomic multilateral set-off** cancels.
+    Imbalance settlements and circular debt are loops by nature - and a loop is exactly what **atomic multilateral set-off** cancels, with zero money moved.
   </Card>
 
   <Card title="Where each lane stands" icon="diagram-project" href="/netting/where-it-applies">
