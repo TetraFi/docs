@@ -10,10 +10,52 @@ Every institutional settlement carries three costs: the **principal risk** of re
 | Primitive | The cost it removes | Status | Where you integrate |
 | --- | --- | --- | --- |
 | **Settlement rails** | Principal risk - atomic delivery-versus-payment from any chain, asset, or venue to any other | Live | [RFQ API](/rfq-api/introduction), [Router API](/router-api/introduction), [Price API](/price-api/introduction), [Trade History API](/trade-history-api/introduction) |
-| **[Multilateral Netting](/netting)** | Gross settlement - obligations clear by **atomic multilateral set-off**, and only the net residual settles | Coming soon | A settlement choice on the quote, plus a member surface for your obligations, positions, runs, and notices - [integration shape](/netting-api/introduction) |
-| **[Shared Collateral Network](/collateral)** | Trapped liquidity - committed once, cross-collateralised across every settlement gap | Coming soon | Draws funded into the fill or settlement transaction itself, plus depositor and curator surfaces - [integration shape](/collateral-api/introduction) |
+| **[Multilateral Netting](/netting)** | Gross settlement - obligations clear by **atomic multilateral set-off**, and only the net residual settles | Coming soon | [Integration shape](/netting-api/introduction) |
+| **[Shared Collateral Network](/collateral)** | Trapped liquidity - committed once, cross-collateralised across every settlement gap | Coming soon | [Integration shape](/collateral-api/introduction) |
+
+## Each Primitive, One Level Deeper
+
+**Settlement rails**
+
+* **The invariant:** funds move only on a signed order's terms, through your own immutable router, into an escrow that releases against proof of delivery or refunds through a path nobody can pause.
+* **What you integrate:** quote, preflight, sign, submit. The preflight plan is the whole contract.
+* **What never changes:** custody never leaves your side; a capability upgrade only ever adds a venue module.
+
+**Multilateral Netting** (coming soon)
+
+* **The invariant:** your trade price is never touched. A run only decides who pays whom how much, by atomic multilateral set-off, and a validity proof is checked on-chain before anything executes.
+* **What you integrate:** one extra choice per settlement - instant, or clear at a deadline you pick, at a tighter price - plus a member surface for your own obligations, positions, runs, and notices.
+* **What never changes:** the residual settles on the rails above, in your own policy domain, readable only inside your own slice.
+
+**Shared Collateral Network** (coming soon)
+
+* **The invariant:** a draw is a priced exchange verified in the transaction that makes it, funding the fill or the settlement leg itself, never a wallet. Capital is encumbered only while a draw is live, and only to that one obligation.
+* **What you integrate:** draw, deposit, or curate.
+* **What never changes:** every draw re-runs your compliance policy; custody, routing, and obligation stay separate.
 
 The rails are the pipes. Netting and shared collateral are where the **capital efficiency** comes from, and every layer plugs into the same escrow and the same policy: see [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts) and [Compliance Policy](/core-concepts/compliance-policy). The rest of this page is the live surface.
+
+## What the Platform Handles for You
+
+The other cost of integrating is everything around the rails: who may sign, from which wallet, under whose approval, with what budget. TetraFi runs that inside the same workspace, under the same compliance policy. An **API key authorizes API access, never wallet spending**; signing authority is owner-approved and provider-enforced; treasury moves under a written policy; agents act inside a bounded envelope. The full list, with status, is on [Platform Capabilities](/platform).
+
+<CardGroup cols={4}>
+  <Card icon="wallet" href="/core-concepts/wallets-and-signing" title="Wallets & Signing">
+    Sign without holding keys in your backend: owner-authorized, bounded, revocable.
+  </Card>
+
+  <Card icon="building-columns" href="/core-concepts/treasury" title="Treasury & Custody">
+    Vaults, transfers, whitelists, quorum approvals, and statements - drivable by API key.
+  </Card>
+
+  <Card icon="robot" href="/core-concepts/agents" title="Agents">
+    A sponsored service account inside a spending envelope, with a kill switch.
+  </Card>
+
+  <Card icon="key" href="/core-concepts/authentication" title="Access & Identity">
+    Scoped keys checked against live permissions, request signing, MFA.
+  </Card>
+</CardGroup>
 
 ## Trade Execution
 
