@@ -33,6 +33,14 @@ Here TetraFi is the one putting settlement on-chain. Your side signs the quote's
 * Funds can only ever move on the signed order's terms, along the escrow's delivery-or-refund path
 * Your side owes one EIP-712 signature plus the order POST (send an `Idempotency-Key` header)
 
+## Delegated Signing (rolling out)
+
+With an embedded wallet, a session-signer grant, or an organisation wallet, the signature no longer has to come from a browser. Call preflight with a **delegated** execution mode naming the wallet; it returns the exact authorization to approve, with typed data to inspect. Submit the order with that authorization and TetraFi coordinates the signing and the submission.
+
+**The loop:** quote → preflight → approve the prepared authorization → POST `/orders`
+
+A blocked or stale preflight never authorizes execution, and the API key alone never signs. See [Wallets & Signing](/core-concepts/wallets-and-signing).
+
 ## Side by Side
 
 |                   | Wallet broadcast                 | API submit                          |
