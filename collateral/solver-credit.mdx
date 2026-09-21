@@ -1,25 +1,54 @@
 ---
 title: "Solver Credit"
-description: "Working capital drawn into the fill itself, repaid by the settlement it funds - coming soon."
+description: "Fill on every chain with inventory on none - a solver credit vault that fronts your fills, hedges and rebalances itself, and is repaid by the escrow the fill unlocks. Coming soon."
 ---
 
 <Note>
-  **Coming soon.** Solver Credit is in design as a product of the [Shared Collateral Network](/collateral). Mechanics below describe the planned shape; parameters publish at launch.
+  **Coming soon.** Solver Credit is in design as the first product of the [Shared Collateral Network](/collateral). Mechanics below describe the planned shape; parameters publish at launch.
 </Note>
 
 ## The Inventory Tax
 
-Cross-chain intents need destination-chain capital for seconds to minutes - the time it takes a fill proof to release the escrowed source funds. Today that capital is the solver's own balance sheet, copied onto every chain the solver serves, each copy sized for that chain's peak and idle the rest of the time, with rebalancing between them as a permanent operational drag.
+A cross-chain fill needs destination capital for seconds to minutes - until the fill proof releases the user's escrowed source funds. It is the most expensive money in solving: needed on every chain, used for moments. Today it is your balance sheet, copied onto every chain and asset you serve, sized for the peak, idle the rest of the time, hedged and rebalanced by hand. Every dollar parked there is a corridor you cannot quote and a spread you cannot tighten.
 
-## Drawn Into the Action
+## The Vault Fills, You Price
 
-Solver Credit replaces the inventory with shared liquidity that is already on every chain. The draw funds the fill transaction itself - never the solver's wallet - and the repayment condition is verified in that same transaction. When the escrow releases, it releases to the [vault](/collateral/vaults).
+Solver Credit is a **solver credit vault**: a pooled, one-sided liquidity layer that fronts your fills on any chain, hedges the two-sided trade underneath, and rebalances itself when settlement lands. Automated market makers made market making a passive, tokenised strategy; this vault does the same for the inventory desk behind cross-chain filling. You keep the part of solving that is actually yours: pricing, and the margin on it.
 
-* **Fill anywhere, warehouse nowhere** - standing network liquidity on every chain replaces manually prefunded, manually rebalanced inventory; solvers price flow, not float
-* **The strongest obligations the platform originates** - claims on TetraFi's own escrow settlement, where the user's funds are locked before the solver ever draws
-* **Compliant by construction** - KYC'd solvers, policy-gated draws, defined terms and automatic repayment, on the same compliance rails that gate everything else on TetraFi
+| You | The vault |
+|---|---|
+| Quote against one line, on any chain and asset | Pays the fill from pooled capital, in one transaction |
+| Win the award | Hedges the fill leg against its deposits |
+| Keep the spread | Claims the escrow the fill unlocks, and repays itself |
+| | Rebalances across chains; earns money-market yield while idle |
 
-Solver Credit is the first dollar through the network: TetraFi's own solver flow proves the mechanism before it opens wider.
+* **Price flow, not float.** Inventory, hedging and per-chain positioning leave your balance sheet.
+* **One line, every chain, every asset.** One number, cut into per-chain sub-limits. A new chain is a limit, not a warehouse - quote it on day one.
+* **A facility, not a venue feature.** Draw it wherever you fill - TetraFi flow, or any intent venue you already serve.
+* **Deeper than your own book.** The whole pool stands behind any single surge - take the large fill on the thin chain.
+* **Nothing to post.** No collateral, no bond, no per-chain setup. The vault fills, so the vault holds the claim on the escrow.
+
+## How It Works
+
+1. **The vault fills.** On award, the credit engine signs the exact fill action; the vault pays the settlement contract and executes it in one transaction. The money never touches your wallet, and a reverted fill is no draw.
+2. **The vault hedges.** The fill asset is sourced against the pool's deposits - borrowed on a money market or swapped, under on-chain health and exposure caps. No directional risk between fill and settlement.
+3. **The escrow repays.** The user's source funds were locked with the vault as claimant. When the fill proof lands, the escrow releases to the vault: debt cleared, hedge unwound, fee to depositors.
+4. **The vault rebalances.** Counterflow first, then netting against the next repayment due elsewhere, and only for an aged residual an allow-listed bridge with hard finality and a slippage floor. No draw or settlement ever waits on it, and none of it is your transaction to send.
+
+## Why the Credit Is Safe
+
+* **A claim, not a promise.** The vault performed the fill, so the vault is the escrow's claimant - the moment you fill, it can claim. Every draw is a per-solver ledger entry with a deadline.
+* **Delta-neutral and capped on-chain.** Every hedge sits under a health factor; every solver under per-chain sub-limits and a per-draw cap; irregular repayment trips a circuit breaker.
+* **One share, every chain.** Depositors hold a single share across the network, so where a fill was paid or repaid never changes their claim.
+
+## Terms
+
+* **Fee** - a small, fixed charge per use; it scales with the number of trades you put through, nothing else.
+* **Line** - sized on settlement track record, chain and term, and re-cut as your volume grows. Terms up to 4h for atomic fills.
+* **Shared liquidity** is just-in-time and may decline - a declined draw never touches your own inventory path. **Dedicated facilities** add a committed cap and per-draw limit.
+* **Compliant by construction** - KYB'd solvers and policy-gated draws, on the rails that gate everything else on TetraFi.
+
+Solver Credit is the first dollar through the network: TetraFi's own solver flow proves the mechanism before it opens to every solver, on every venue.
 
 <CardGroup cols={2}>
   <Card title="The Network" icon="circle-nodes" href="/collateral">
