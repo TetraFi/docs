@@ -20,7 +20,7 @@ Only one state nets:
 | Authorized, not yet used | No - a signature alone is not a debt |
 | **Served, not yet paid** | **Yes - the only netting candidate** |
 | Already paid | No - it reconciles, never nets twice |
-| Owed onward, as a payout | Enters as its own obligation |
+| Owed onward, as a payout | No - a payout instruction pays it |
 
 A cumulative voucher counts only its new delta: a revision replaces the previous frontier, it is not a second debt. Duplicates drop by the payment's own identity - channel and frontier, or authorization nonce - not only by your request key.
 
@@ -77,12 +77,15 @@ Start with `mode: analyze`: send real batches, get back what would have netted, 
   "transferLegs": [
     { "debtorRef": "member-A", "creditorRef": "member-B", "amountAtomic": "20000000" }
   ],
-  "requiredBeforeExecution": ["nettingConsent", "residualFundingAuthority", "grossRedemptionFence"]
+  "requiredBeforeExecution": [
+    "nettingConsent", "intakeEligibility", "grossRedemptionFence",
+    "residualFundingAuthority", "agreedDischargeVerifier"
+  ]
 }
 ```
 </CodeGroup>
 
-Moving from analysis to execution adds exactly what the result lists: each counterparty's consent to settle by set-off, authority to fund the residual, and a fence so the original payment can't also be redeemed.
+Moving from analysis to execution adds what the result lists: each counterparty's consent to settle by set-off, eligibility for the signed-obligation lane, a fence so the original payment can't also be redeemed, authority to fund the residual, and an agreed way to prove a debt settled outside.
 
 ## Payouts on Any Chain
 
@@ -98,7 +101,7 @@ Your platform is the member and the counterparty of record; your agents and end 
 
 ## No Facilitator Yet?
 
-Run on TetraFi as your x402 facilitator: standard verify and settle for every payment, with netting built in for the ones you opt into.
+Run on TetraFi as your x402 facilitator: standard verify and settle for every payment, and netting for payments made under a deferred scheme your payers authorized.
 
 <CardGroup cols={2}>
   <Card title="Integration" icon="plug" href="/netting-api/integration">

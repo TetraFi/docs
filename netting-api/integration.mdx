@@ -7,7 +7,7 @@ description: "Five touchpoints, the same for every book: onboard, submit obligat
   **Coming soon.** Multilateral Netting opens to design partners first. Paths, field names, and schemas below are the planned shape; final versions publish at launch.
 </Note>
 
-You integrate five touchpoints, the same for every book - agent usage, loans, invoices, trades. **You never call a clearing contract**: you sign once, and the protocol can use that signature only inside your window and only for your net. How a run works inside: [How It Works](/netting/how-it-works).
+You integrate five touchpoints, the same for every book - agent usage, loans, invoices, trades. **You never call a clearing contract to submit or settle**: you sign once, and the protocol can use that signature only inside your window and only for your net. How a run works inside: [How It Works](/netting/how-it-works).
 
 ## Onboard
 
@@ -31,7 +31,7 @@ Trade-born obligations have no edit path: a correction is a signed offsetting en
 
 ## Sign Once
 
-One EIP-712 signature per obligation carries everything: the debt itself, where its funding comes from, the window it may be locked in, a lock limit bound to the run, and the compliance policy it was accepted under. It travels as a Permit2 witness or inside an ERC-3009 authorization, so the token contract itself enforces the window, and any custody stack that signs EIP-712 typed data can produce it. A one-time [Permit2 approval](/core-concepts/token-approvals) per token is your only on-chain step.
+One EIP-712 signature per obligation carries everything: the debt itself, where its funding comes from, the window it may be locked in, a lock limit bound to the run, and the compliance policy it was accepted under. It travels as a Permit2 witness or inside an ERC-3009 authorization, so the window is enforced on-chain at lock time, and any custody stack that signs EIP-712 typed data can produce it. Signing is off-chain: beyond a one-time [Permit2 approval](/core-concepts/token-approvals) per token, you never call a clearing contract to submit or settle.
 
 **Key fields:** obligation, funding sources, window (`notBefore`, `notAfter`), lock limit, compliance policy hash.
 
@@ -42,9 +42,9 @@ Runs follow your deadlines. For each one:
 1. **Notice.** A `notice.published` event brings your net per asset and chain - arithmetic over debts you already signed.
 2. **Object or stay silent.** `POST /clearing/objections` names obligation ids inside the notice window; silence accepts.
 3. **Lock.** When the lock window opens, your signature locks your net - never more - into your own escrow position for that run. Until then your capital stays in your wallet.
-4. **Commit and release.** Once every side is locked, the run commits and pays out only along obligations you signed. A side that didn't lock is removed and refunded; the run is never recomputed around it.
+4. **Commit and release.** When the lock window closes, the run commits over everything that locked and balances, and pays out only along obligations you signed. A side that didn't lock drops out with whatever depended on it; those locks are refunded and the debts carry to the next run - nothing is recomputed.
 
-If the other side of a paired trade is late, `POST /clearing/resolutions` records your choice: take a standby bid, wait, or declare.
+If the other side of a paired trade is late, `POST /clearing/resolutions` records your choice: accept a buy-in bid from the auction or the vault, wait, or declare.
 
 **Key fields:** run id, net per asset and chain, notice window, lock window.
 
@@ -86,7 +86,7 @@ Events, pushed to the webhook you register: `batch.analyzed`, `notice.published`
 * **Run escrow** - one position per payer per run; it pays only along obligations that payer signed and refunds to the payer after a timeout, which anyone can trigger - no key of ours can send funds anywhere else
 * **Settlement endpoints** - one per chain, where net movements land
 
-You touch none of them directly beyond the Permit2 approval.
+You never call them to submit or settle; the protocol exercises your signature inside your window.
 
 <CardGroup cols={2}>
   <Card title="Agentic Netting" icon="robot" href="/netting-api/agentic-netting">

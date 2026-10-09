@@ -15,7 +15,7 @@ The platform's settlement modes are a choice, per leg:
 | --- | --- | --- |
 | **The quote** | Firm, locked - today's price | Firm too, and tighter - less rebalancing, less capital, fewer transactions to price in |
 | **When funds move** | Now, in full, exactly as quoted | At a deadline you pick - only the net difference moves |
-| **Your capital until then** | Spent | Yours, still working - nothing locked, nothing pre-funded |
+| **Your capital until then** | Spent | Yours, still working - nothing pre-funded; only your net locks, and only in the lock window |
 | **Debts cancel against** | Nothing - each leg settles alone | The whole network's opposing flow, not just this counterparty's |
 | **What it costs** | The full settlement toll on that leg | One settlement on the net; the matched portion cancels at bookkeeping cost |
 | **Across ten trades** | Ten settlements, ten tolls | Most cancel inside the run; one net amount moves - one toll |
@@ -30,7 +30,7 @@ You also pick the deadline - an hours-class tier or T+1 / T+2 - and a tier is no
 
 ## The Clearing Run
 
-Obligations accumulate first: participants opt settlements from executed trades onto one shared graph - by asset and <Tooltip tip="A direction of flow between two points - an asset moving from one chain or venue to another, e.g. USDC from Base to Arbitrum.">corridor</Tooltip>, gated by compliance policy and per-participant exposure caps. One signature records each debt and pre-approves its future collection; nothing leaves any wallet yet. Then a run takes five steps:
+Obligations accumulate first: participants opt settlements from executed trades onto one shared graph - by asset and <Tooltip tip="A direction of flow between two points - an asset moving from one chain or venue to another, e.g. USDC from Base to Arbitrum.">corridor</Tooltip>, gated by compliance policy and per-participant exposure caps. One signature records each debt and pre-approves locking only its net later; nothing leaves any wallet yet. Then a run takes five steps:
 
 <Steps>
   <Step title="Freeze" icon="snowflake">
@@ -50,12 +50,12 @@ Obligations accumulate first: participants opt settlements from executed trades 
   </Step>
 
   <Step title="Lock and Commit" icon="circle-check">
-    When the lock window opens, each net payer's own signature locks its net - never more - in its own escrow position for the run. Once every side is locked, one transaction commits: matched debt is extinguished by set-off - cancelled, not transferred - and releases pay out only along the obligations each payer signed. Nothing pays out before the commit; a side that didn't lock is removed and refunded, and any remainder takes the first priced exit in the backstop waterfall: standby funding, a discount auction, vault liquidity, the wholesale desk, or external settlement at market cost - never left waiting.
+    When the lock window opens, each net payer's own signature locks its net - never more - in its own escrow position for the run. When it closes, one transaction commits over everything that locked and balances: matched debt is extinguished by set-off - cancelled, not transferred - and releases pay out only along the obligations each payer signed. Nothing pays out before the commit. A side that didn't lock drops out with whatever depended on it, those locks are refunded, and the debts carry to the next run - nothing is recomputed. A remainder unpaid at its deadline takes the resolution ladder: standby funding, a discount auction, vault liquidity, the wholesale desk, then external settlement at market cost.
   </Step>
 </Steps>
 
 <Frame caption="One run: obligations net multilaterally, the matched portion is extinguished on the record, and only the residual and the final net figure ever reach the rails.">
-  <img src="/images/netting-cycle.svg" alt="The clearing run: obligations enter the clearing engine, which nets them multilaterally per asset and corridor. Matched flow cancels on the record at bookkeeping cost with no bridge or rebalance. The residual takes the first priced exit in the backstop waterfall - vault liquidity, wholesale desk, discount auction, external settlement. Both paths converge on a net settlement that reaches the rails." />
+  <img src="/images/netting-cycle.svg" alt="The clearing run: obligations enter the clearing engine, which nets them multilaterally per asset and corridor. Matched flow cancels on the record at bookkeeping cost with no bridge or rebalance. The residual takes the first priced exit in the resolution ladder - standby funding, discount auction, vault liquidity, wholesale desk, external settlement. Both paths converge on a net settlement that reaches the rails." />
 </Frame>
 
 ## Untouched Until the End
@@ -72,7 +72,7 @@ Nothing is final before the cash it depends on is locked: locks come first, the 
 
 ## Fund It From Anywhere
 
-After the run, one amount is due at your deadline - one number per asset and corridor, not five separate settlements. You rank the sources once, in the app - wallet balance, a yield position redeemed at collection, an exchange balance withdrawn into the window, a bank rail last - ordered by when the money becomes available. One lock takes the net from the first source that can pay; a lock that fails is loss-free for the protocol - that side is removed and refunded, and the resolution ladder prices what remains. No margin calls, no cascade.
+After the run, one amount is due at your deadline - one number per asset and corridor, not five separate settlements. At launch your net locks from your wallet. Ranked sources - a yield position, an exchange balance, a bank rail last - plug in later, ordered by when the money becomes available, and each still locks only your net. A lock that fails is loss-free for the protocol: that side drops out and is refunded, and the resolution ladder prices what remains. No margin calls, no cascade.
 
 Or settle a debt entirely your own way - a bank transfer off-protocol, an exchange ledger move - and prove it: both signatures, a custody balance change, or a receipt proven cryptographically. The record is checked and the obligation closes on the graph; the protocol only needs evidence that the debt was paid.
 
@@ -84,7 +84,7 @@ Two rules never bend: nobody cancels a debt alone, and a default hits the pair, 
 
 ## The Netting Premium
 
-Settlement cost scales with the value that settles, not the value that trades - and by collapsing gross flow to its residual, netting cuts that cost by an order of magnitude, tightening every spread priced against it. Capital efficiency scales with it: clearing the residual ties up a fraction of what gross settlement needs, and capital nobody has to hold is spread nobody has to pay.
+Settlement cost scales with the value that settles, not the value that trades - and by collapsing gross flow to its residual, netting cuts that cost by whatever nets - we plan on 40 to 55% of gross at the start, rising as the network densifies - tightening every spread priced against it. Capital efficiency scales with it: clearing the residual ties up a fraction of what gross settlement needs, and capital nobody has to hold is spread nobody has to pay.
 
 ## The Architecture
 
@@ -124,7 +124,7 @@ Settlement isn't tied to where the trades executed: a participant's net figure c
 - **Clearing engine.** Runs each run inside sealed hardware: nets obligations multilaterally, prices the residual, and emits net settlements - the only place the graph is ever readable.
 - **Verifier.** Checks each run's validity proof on-chain before anything executes. The chain checks the proof, not the operator.
 - **Run escrow.** One position per payer per run, holding only that payer's locked net; it pays only along obligations the payer signed, or refunds the payer - no key of ours can send funds anywhere else.
-- **Backstop layer.** The priced exits for the residual - vault liquidity, wholesale desk conversion, discount auction, external settlement.
+- **Backstop layer.** The priced exits for the residual - standby funding, discount auction, vault liquidity, wholesale desk conversion, external settlement.
 - **Compliance gates.** KYB, sanctions, and jurisdiction checks at membership and at every run entry - and compliance can only ever exclude a pairing, never redirect money somewhere new.
 - **Spokes.** The per-chain settlement endpoints where trades fill and net movements land.
 - **Messaging layer.** Carries obligations in and net settlements out across chains.
