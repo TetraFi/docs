@@ -1,47 +1,50 @@
 ---
 title: "Introduction"
-description: "The integration shape of Multilateral Netting - a second firm quote per settlement, a member surface for your own slice of the graph, and your own policy domain. Coming soon."
+description: "Join the clearing network: bring your obligations, sign once, and fund only your net. Coming soon."
 ---
 
 <Note>
-  **Coming soon.** [Multilateral Netting](/netting) is in design, not yet live. This is the planned integration shape; paths, schemas, run timing, fee schedules, and membership criteria publish at launch.
+  **Coming soon.** [Multilateral Netting](/netting) opens to design partners first. This is the planned integration shape; paths, schemas, run timing, fee schedules, and membership criteria publish at launch.
 </Note>
 
-## What Changes in Your Integration
+[Multilateral Netting](/netting) clears debts by **atomic multilateral set-off** across one network. Integrating means bringing your obligations, signing once, and funding only your net when a run asks.
 
-Nothing in the rails flow. Netting arrives as a **second firm quote**: settle instantly at today's price, or clear at a deadline you pick, at a tighter one. Both are firm; the choice is per settlement.
+## Quick Reference
 
-Two planned quote-request inputs: the settlement mode (instant or cleared) and the deadline tier (an hours-class tier or T+1 / T+2). Instant moves the order now, in full, as quoted. Cleared records the debt with one signature and pre-approves its collection; nothing leaves your wallet until the pull window opens.
-
-## What a Member Reads and Writes
-
-Inside a [sealed engine](/netting/privacy-and-control) you see your own obligations and net, never the graph.
-
-| Surface | What it carries |
+| Facet | |
 | --- | --- |
-| **Obligations** (read) | Each debt you signed - asset, amount, corridor, counterparty, deadline - as signed, set off, remaining |
-| **Net positions** (read) | One signed figure per asset and corridor after each run |
-| **Runs and statements** (read) | Run stage, timing, proof and commit references; a per-run statement of every touched obligation and its fee lines |
-| **Notices** (read, plus push) | The hold-don't-pay notice per run: keep enough balance for your net; silence accepts |
-| **Objections** (write) | A signed objection naming obligation ids, inside the notice window |
-| **Resolutions** (write) | Your election when a counterpart is late on a paired leg |
+| Protocol | REST over HTTPS, plus push events to your webhook |
+| Credential | Workspace API key (`X-API-Key`); `Idempotency-Key` on every write |
+| Signature | One EIP-712 envelope per obligation, carried by Permit2 or ERC-3009 |
+| On-chain steps | One Permit2 approval per token - you never call a clearing contract |
+| Settlement | Lock your net, commit, release only along debts you signed |
+| Guarantee | A debt only ever gets smaller; nothing pays out before the run commits |
+| Effort | Five touchpoints, the same for every book |
 
-## Funding the Net
+## The Shape of an Integration
 
-One amount is due per asset and corridor at your deadline. Rank the sources once - wallet, a yield position, an exchange balance, a bank rail last - and one atomic pull takes the net from the first that can pay. Or settle a debt your own way and prove it: both signatures, a custody balance change, or a cryptographically proven receipt closes it.
+| # | Touchpoint | What you do | Surface |
+| - | --- | --- | --- |
+| 1 | [Onboard](/netting-api/integration#onboard) | Hold the membership credentials, set your policy domain | Console |
+| 2 | [Submit obligations](/netting-api/integration#submit-obligations) | Bring debts in: cleared quotes, signed debts, or batches | RFQ `mode: cleared`, `POST /clearing/obligations`, `POST /clearing/batches` |
+| 3 | [Sign once](/netting-api/integration#sign-once) | One envelope authorizes a lock of your net, inside a window | Permit2 or ERC-3009 |
+| 4 | [Each run](/netting-api/integration#each-run) | Read your notice, object or stay silent, your net locks | `notice.published`, `POST /clearing/objections` |
+| 5 | [Reconcile](/netting-api/integration#reconcile) | Map your gross book to what moved | `GET /clearing/runs/{id}/statement` |
 
 ## Your Own Policy Domain
 
-There is one clearing network, and **modularity** means configuring your participation in it, not running the engine: your own **policy domain**, with your counterparty sets, deadline-tier menu, backstop configuration, funding mode, perimeter policy, and visibility slice. The clearing service is packaged to run on your institution's own infrastructure, or alongside a backend you already operate.
+There is one clearing network, and **modularity** means configuring your participation in it, not running the engine: your own **policy domain**, with your counterparty sets, deadline-tier menu, backstop configuration, funding mode, perimeter policy, and visibility slice. The clearing service is packaged to run on your institution's own infrastructure, or alongside a backend you already operate. Fees: [Monetization](/core-concepts/monetization#fees-on-the-next-layers).
 
-The engine is domain-blind: a book that settles gross today - loans on a lending market, receivables, trade finance, payment obligations - enters through an **intake lane** under the same [compliance policy](/core-concepts/compliance-policy). Lanes: [Where It Applies](/netting/where-it-applies). Fees: [Monetization](/core-concepts/monetization#fees-on-the-next-layers).
-
-<CardGroup cols={2}>
-  <Card title="How It Works" icon="gears" href="/netting/how-it-works">
-    The clearing run step by step.
+<CardGroup cols={3}>
+  <Card title="Integration" icon="plug" href="/netting-api/integration">
+    The five touchpoints in full.
   </Card>
 
-  <Card title="Register Interest" icon="sparkles" href="/support">
-    Get on the early list.
+  <Card title="Agentic Netting" icon="robot" href="/netting-api/agentic-netting">
+    What an agent platform adds.
+  </Card>
+
+  <Card title="Use Cases" icon="diagram-project" href="/netting/where-it-applies">
+    Which books net, and where each lane stands.
   </Card>
 </CardGroup>

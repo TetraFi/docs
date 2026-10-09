@@ -1,0 +1,44 @@
+---
+title: "Borrowing & Lending"
+description: "Repayments, interest, and margin calls between the same institutions settle net - with the most liquidity freed exactly when markets turn. Coming soon."
+---
+
+<Note>
+  **Coming soon.** Borrowing & Lending opens to design partners first. Lane: **Future**. Paths, schemas, and parameters publish at launch.
+</Note>
+
+A loan book is payments running both ways between the same institutions: repayments one way, new draws and interest the other, margin calls whenever prices move. Each one settles gross, so each needs liquidity in place on the day it falls due - and the days the most falls due are the volatile ones, when liquidity is scarcest.
+
+## What Changes for You
+
+* **Settle the book net.** A loan book is a netting set: repayments, draws, interest, and margin calls between the same participants clear on [one graph](/netting), and only each institution's residual is funded.
+* **Liquidity freed when it is scarcest.** The gap between gross and net is widest in a high-volatility event, when gross settlement demands the most liquidity just as it is scarcest.
+* **Your terms, unchanged.** Each obligation keeps its own due date as its deadline and clears in the run before it; nothing is novated, and every loan stays between the two parties who signed it.
+* **The residual, handled.** Whatever doesn't net takes a priced backstop from [programmable collateral vaults](/collateral/vaults), with an early exit any time before the deadline - so the worst case is what you pay today.
+* **Collateral you can actually liquidate.** A tokenized asset that can be [redeemed T+0](/collateral/instant-redemption) is one you can list as collateral.
+
+## A Day of Flow
+
+Three institutions, one settlement date, USDC:
+
+* The Fund owes the Bank **100** - a loan repayment
+* The Bank owes the Desk **70** - a margin call on a hedge
+* The Desk owes the Fund **50** - interest and a new draw
+
+Gross, that is 220 USDC across three payments. Netted, the loop of 50 cancels, and the rest settles along the original debts: the Fund pays the Bank 50, the Bank pays the Desk 20. **70 moves instead of 220.**
+
+## How It Enters
+
+Each repayment, draw, or margin call enters as a **signed debt** from the institution that owes it, or straight from the lending market that originated it; from there it is the standard [integration](/netting-api/integration#submit-obligations).
+
+<CardGroup cols={2}>
+  <Card title="Integrate" icon="code" href="/netting-api/integration">
+    Onboard, submit obligations, sign once, fund only your net.
+  </Card>
+
+  <Card title="Receivables & Trade Finance" icon="file-invoice" href="/netting/receivables-and-trade-finance">
+    Dated obligation chains that mostly cancel.
+  </Card>
+</CardGroup>
+
+Run a lending book that settles gross today? [Start the conversation](/support).
