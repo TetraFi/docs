@@ -11,7 +11,9 @@ Why it pays: [Agentic Netting](/netting/agentic-netting). Everything not on this
 
 ## Batches From Your Stack
 
-Your facilitator or channel store already holds the book: who used what, against which signed authorization. You export it as batches to `POST /clearing/batches`, wrapping the native records - x402 payments and batch-settlement channels, payment-channel vouchers, and similar batched agent payments - without changing how they are signed. Your facilitator, wallets, signers, and custody stay where they are.
+* **Your stack already holds the book** - who used what, against which signed authorization.
+* **Export it as batches** to `POST /clearing/batches`, wrapping the native records - x402 payments and batch-settlement channels, payment-channel vouchers, and similar batched agent payments - without changing how they are signed.
+* **Nothing moves out of your stack** - your facilitator, wallets, signers, and custody stay where they are.
 
 Only one state nets:
 
@@ -22,7 +24,8 @@ Only one state nets:
 | Already paid | No - it reconciles, never nets twice |
 | Owed onward, as a payout | No - a payout instruction pays it |
 
-A cumulative voucher counts only its new delta: a revision replaces the previous frontier, it is not a second debt. Duplicates drop by the payment's own identity - channel and frontier, or authorization nonce - not only by your request key.
+* **Cumulative vouchers count only their new delta** - a revision replaces the previous frontier, it is not a second debt.
+* **Duplicates drop by the payment's own identity** - channel and frontier, or authorization nonce - not only by your request key.
 
 ## The Flow
 
@@ -85,19 +88,26 @@ Start with `mode: analyze`: send real batches, get back what would have netted, 
 ```
 </CodeGroup>
 
-Moving from analysis to execution adds what the result lists: each counterparty's consent to settle by set-off, eligibility for the signed-obligation lane, a fence so the original payment can't also be redeemed, authority to fund the residual, and an agreed way to prove a debt settled outside.
+**From analysis to execution** adds what the result lists:
+
+* each counterparty's **consent** to settle by set-off;
+* **eligibility** for the signed-obligation lane;
+* a **fence** so the original payment can't also be redeemed;
+* **authority to fund** the residual;
+* an agreed way to **prove a debt settled outside**.
 
 ## Payouts on Any Chain
 
-Agents earn on whichever chain the payer used. A payout instruction sends the residual, or any funded receipt, to the asset and chain you choose over any [supported corridor](/supported-chains): `POST /clearing/payout-instructions`.
+* **Any asset, any chain** - a payout instruction sends the residual, or any funded receipt, to the asset and chain you choose over any [supported corridor](/supported-chains): `POST /clearing/payout-instructions`.
+* **Agents stay inside their envelope** - when one of your agents calls it, every [envelope](/core-concepts/agents) check still applies: sponsor, expiry, kill switch, asset, chain, and destination limits.
 
 **Key fields:** source receipts, destination asset and chain, minimum output, fee ceiling, deadline, refund address, callback.
 
-When one of your agents calls it, every [envelope](/core-concepts/agents) check still applies: sponsor, expiry, kill switch, asset, chain, and destination limits.
-
 ## You Stay the Member
 
-Your platform is the member and the counterparty of record; your agents and end users never become nodes on the graph. Agents are delegates acting inside sponsored envelopes, never parties to a debt. Net positions always come with permitted transfer legs - money moves only along obligations that already exist - and importing a payment signature never creates a new counterparty.
+* **Your platform is the counterparty of record** - your agents and end users never become nodes on the graph.
+* **Agents are delegates** acting inside sponsored envelopes, never parties to a debt.
+* **Money moves only along existing obligations** - net positions always come with permitted transfer legs, and importing a payment signature never creates a new counterparty.
 
 ## No Facilitator Yet?
 
