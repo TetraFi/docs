@@ -1,0 +1,45 @@
+---
+title: "Receivables & Trade Finance"
+description: "Invoice chains that mostly cancel clear by settlement date, and the working capital parked against them comes back. Coming soon."
+---
+
+<Note>
+  **Coming soon.** Receivables & Trade Finance opens to design partners first. Lane: **Future**. Paths, schemas, and parameters publish at launch.
+</Note>
+
+* **Money owed in circles** - 30, 60, 90 days out: a supplier waits on a manufacturer, who waits on a distributor, who is owed by the supplier for logistics.
+* **Working capital parked** - each invoice is paid in full on its own date, against invoices that would largely cancel.
+* **Double financing** - the same invoice can be financed twice by lenders who never see each other.
+
+## What Changes for You
+
+* **The circle clears by settlement date.** Dated obligations clear together in the run before they fall due instead of wiring every leg, and the working capital parked against invoices that would have cancelled comes back.
+* **Nothing enters without the debtor.** A claim joins the graph only once its debtor approves it, line by line; an unapproved claim simply expires. No book is ever loaded with debts nobody agreed to.
+* **One invoice, one obligation.** An obligation can anchor the hash of its originating document, so the same invoice can't back two live obligations in the same asset and chain.
+* **Your counterparties, unchanged.** Nothing is novated: each invoice stays between the two parties who signed it, on its own terms and its own date.
+
+## A Day of Flow
+
+Three companies, invoices due the same week, USDC on Base:
+
+* The Manufacturer owes the Supplier **90** - components, 60 days
+* The Distributor owes the Manufacturer **120** - finished goods, 30 days
+* The Supplier owes the Distributor **40** - logistics, 90 days
+
+Gross, that is 250 USDC across three invoices. Netted, the loop of 40 cancels, and the rest settles along the original invoices: the Distributor pays the Manufacturer 80, the Manufacturer pays the Supplier 50. **130 moves instead of 250.**
+
+## How It Enters
+
+Invoices enter as **claims the debtor approves**: you submit a batch, each debtor approves its own lines; from there it is the standard [integration](/netting-api/integration#submit-obligations).
+
+<CardGroup cols={2}>
+  <Card title="Integrate" icon="code" href="/netting-api/integration">
+    Onboard, submit obligations, sign once, fund only your net.
+  </Card>
+
+  <Card title="Borrowing & Lending" icon="hand-holding-dollar" href="/netting/borrowing-and-lending">
+    Repayments, interest, and margin calls, settled net.
+  </Card>
+</CardGroup>
+
+Have a receivables book that settles gross today? [Start the conversation](/support) - tell us who owes whom, and how often.
