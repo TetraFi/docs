@@ -21,19 +21,14 @@ description: "Join the clearing network: bring your obligations, sign once, and 
 | Guarantee | A debt only ever gets smaller; nothing pays out before the run commits |
 | Effort | Five touchpoints, the same for every book |
 
-## The Shape of an Integration
-
-| # | Touchpoint | What you do | Surface |
-| - | --- | --- | --- |
-| 1 | [Onboard](/netting-api/integration#onboard) | Hold the membership credentials, set your policy domain | Console |
-| 2 | [Submit obligations](/netting-api/integration#submit-obligations) | Bring debts in: cleared quotes, signed debts, or batches | RFQ `mode: cleared`, `POST /clearing/obligations`, `POST /clearing/batches` |
-| 3 | [Sign once](/netting-api/integration#sign-once) | One envelope authorizes a lock of your net, inside a window | Permit2 or ERC-3009 |
-| 4 | [Each run](/netting-api/integration#each-run) | Read your notice, object or stay silent, your net locks | `notice.published`, `POST /clearing/objections` |
-| 5 | [Reconcile](/netting-api/integration#reconcile) | Map your gross book to what moved | `GET /clearing/runs/{id}/statement` |
+**The shape:** [five touchpoints](/netting-api/integration) - onboard, submit obligations, sign once, act on each run, reconcile.
 
 ## Your Own Policy Domain
 
-There is one clearing network, and **modularity** means configuring your participation in it, not running the engine: your own **policy domain**, with your counterparty sets, deadline-tier menu, backstop configuration, funding mode, perimeter policy, and visibility slice. The clearing service is packaged to run on your institution's own infrastructure, or alongside a backend you already operate. Fees: [Monetization](/core-concepts/monetization#fees-on-the-next-layers).
+* **One network, configured - not run.** Modularity means configuring your participation, not running the engine.
+* **Your policy domain** - counterparty sets, deadline-tier menu, backstop configuration, funding mode, perimeter policy, and visibility slice.
+* **Your infrastructure or ours** - the clearing service is packaged to run on your institution's own infrastructure, or alongside a backend you already operate.
+* **Fees:** [Monetization](/core-concepts/monetization#fees-on-the-next-layers).
 
 <CardGroup cols={3}>
   <Card title="Integration" icon="plug" href="/netting-api/integration">

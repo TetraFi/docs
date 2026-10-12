@@ -7,17 +7,29 @@ description: "Five touchpoints, the same for every book: onboard, submit obligat
   **Coming soon.** Multilateral Netting opens to design partners first. Paths, field names, and schemas below are the planned shape; final versions publish at launch.
 </Note>
 
-You integrate five touchpoints, the same for every book - agent usage, loans, invoices, trades. **You never call a clearing contract to submit or settle**: you sign once, and the protocol can use that signature only inside your window and only for your net. How a run works inside: [How It Works](/netting/how-it-works).
+* **Five touchpoints, the same for every book** - agent usage, loans, invoices, trades.
+* **You never call a clearing contract to submit or settle** - you sign once, and the protocol can use that signature only inside your window and only for your net.
+* **The run itself:** [How It Works](/netting/how-it-works).
+
+| # | Touchpoint | What you do | Surface |
+| - | --- | --- | --- |
+| 1 | [Onboard](#onboard) | Hold the membership credentials, set your policy domain | Console or service-account API |
+| 2 | [Submit obligations](#submit-obligations) | Bring debts in: cleared quotes, signed debts, or batches | RFQ `mode: cleared`, `POST /clearing/obligations`, `POST /clearing/batches` |
+| 3 | [Sign once](#sign-once) | One envelope authorizes a lock of your net, inside a window | Permit2 or ERC-3009 |
+| 4 | [Each run](#each-run) | Read your notice, object or stay silent, your net locks | `notice.published`, `POST /clearing/objections` |
+| 5 | [Reconcile](#reconcile) | Map your gross book to what moved | `GET /clearing/runs/{id}/statement` |
 
 ## Onboard
 
-Create a workspace and an API key as for any TetraFi API ([Authentication](/core-concepts/authentication)). Membership is credential-based: a verified legal entity, sanctions-clear standing, rulebook adherence, and one completed test run admit you - nobody hand-picks applicants. Then set your **policy domain**: who you net with (each pair approves the other), your deadline-tier menu, and your visibility slice.
+* **Workspace and API key** - as for any TetraFi API ([Authentication](/core-concepts/authentication)).
+* **Credentials admit you** - a verified legal entity, sanctions-clear standing, rulebook adherence, and one completed test run. Nobody hand-picks applicants.
+* **Set your policy domain** - who you net with (each pair approves the other), your deadline-tier menu, and your visibility slice.
 
-**Surface:** the console, or API onboarding for service accounts. **Key fields:** legal entity, credentials held, counterparty sets, deadline tiers.
+**Key fields:** legal entity, credentials held, counterparty sets, deadline tiers.
 
 ## Submit Obligations
 
-An obligation is one debt: who owes whom, how much, in which asset on which chain, by when. There are three ways in, set by who asserts the debt:
+An obligation is **one debt**: who owes whom, how much, in which asset on which chain, by when. Three ways in, set by who asserts the debt:
 
 | Route | Use it for | How |
 | --- | --- | --- |
@@ -25,13 +37,16 @@ An obligation is one debt: who owes whom, how much, in which asset on which chai
 | **Signed debt** | A debt you owe - a repayment, a payout, a corridor payment | `POST /clearing/obligations`, signed by you; your creditor sees it inside a notice window |
 | **Batch of claims** | Debts owed to you, or usage your platform records | `POST /clearing/batches`; each debtor approves its own lines, and unapproved lines expire |
 
-Trade-born obligations have no edit path: a correction is a signed offsetting entry, never an amendment.
+**No edit path** for trade-born obligations: a correction is a signed offsetting entry, never an amendment.
 
 **Key fields:** counterparty, asset and chain, amount, deadline, and an `Idempotency-Key` header on every write.
 
 ## Sign Once
 
-One EIP-712 signature per obligation carries everything: the debt itself, where its funding comes from, the window it may be locked in, a lock limit bound to the run, and the compliance policy it was accepted under. It travels as a Permit2 witness or inside an ERC-3009 authorization, so the window is enforced on-chain at lock time, and any custody stack that signs EIP-712 typed data can produce it. Signing is off-chain: beyond a one-time [Permit2 approval](/core-concepts/token-approvals) per token, you never call a clearing contract to submit or settle.
+* **One EIP-712 signature per obligation carries everything** - the debt, where its funding comes from, the window it may be locked in, a lock limit bound to the run, and the compliance policy it was accepted under.
+* **Enforced on-chain** - it travels as a Permit2 witness or inside an ERC-3009 authorization, so the window is enforced at lock time.
+* **Any custody stack** that signs EIP-712 typed data can produce it.
+* **Signing is off-chain** - beyond a one-time [Permit2 approval](/core-concepts/token-approvals) per token, you never call a clearing contract to submit or settle.
 
 **Key fields:** obligation, funding sources, window (`notBefore`, `notAfter`), lock limit, compliance policy hash.
 
@@ -39,18 +54,33 @@ One EIP-712 signature per obligation carries everything: the debt itself, where 
 
 Runs follow your deadlines. For each one:
 
-1. **Notice.** A `notice.published` event brings your net per asset and chain - arithmetic over debts you already signed.
-2. **Object or stay silent.** `POST /clearing/objections` names obligation ids inside the notice window; silence accepts.
-3. **Lock.** When the lock window opens, your signature locks your net - never more - into your own escrow position for that run. Until then your capital stays in your wallet.
-4. **Commit and release.** When the lock window closes, the run commits over everything that locked and balances, and pays out only along obligations you signed. A side that didn't lock drops out with whatever depended on it; those locks are refunded and the debts carry to the next run - nothing is recomputed.
+<Steps>
+  <Step title="Notice">
+    A `notice.published` event brings **your net per asset and chain** - arithmetic over debts you already signed.
+  </Step>
 
-If the other side of a paired trade is late, `POST /clearing/resolutions` records your choice: accept a buy-in bid from the auction or the vault, wait, or declare.
+  <Step title="Object or stay silent">
+    `POST /clearing/objections` names obligation ids inside the notice window. **Silence accepts.**
+  </Step>
+
+  <Step title="Lock">
+    When the lock window opens, your signature locks **your net - never more** - into your own escrow position for that run. Until then your capital stays in your wallet.
+  </Step>
+
+  <Step title="Commit and release">
+    When the lock window closes, the run commits over everything that locked and balances, and **pays out only along obligations you signed**. A side that didn't lock drops out with whatever depended on it, is refunded, and carries to the next run - nothing is recomputed.
+  </Step>
+</Steps>
+
+**Late counterparty on a paired trade?** `POST /clearing/resolutions` records your choice: accept a buy-in bid from the auction or the vault, wait, or declare.
 
 **Key fields:** run id, net per asset and chain, notice window, lock window.
 
 ## Reconcile
 
-Every run ends with a statement: each obligation it touched - signed, set off, remaining - with its lock, release, refund, and fee lines, mapping your gross book to the net that moved. It exports as ISO 20022 (camt.053 for the statement, pacs.009 for each released net), and its hash is committed on-chain, so your copy is provably the one the protocol agreed.
+* **One statement per run** - every obligation it touched (signed, set off, remaining) with its lock, release, refund, and fee lines: your gross book mapped to the net that moved.
+* **ISO 20022 exports** - camt.053 for the statement, pacs.009 for each released net.
+* **Provably the agreed copy** - the statement's hash is committed on-chain.
 
 **Surface:** `GET /clearing/runs/{id}/statement` and `settlement.released` events.
 
