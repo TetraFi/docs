@@ -24,6 +24,10 @@ const SOURCES = [
   },
 ];
 
+// Without the map no SDK region is published; removing it changes every paired snippet, which
+// --check reports as drift.
+const sdkMapFile = path.join(root, 'samples', 'sdk-regions.json');
+const sdkMap = existsSync(sdkMapFile) ? JSON.parse(readFileSync(sdkMapFile, 'utf8')).regions : null;
 function dedent(lines) {
   const indents = lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length);
   const cut = indents.length ? Math.min(...indents) : 0;
@@ -31,8 +35,11 @@ function dedent(lines) {
 }
 
 function regions(source) {
-  // A missing source would silently drop that language from every snippet: refuse instead.
-  if (!existsSync(source.dir)) throw new Error(`SAMPLE_SOURCE_MISSING ${source.dir}`);
+  // A source this repo publishes from must exist; a missing one would silently drop its language.
+  if (!existsSync(source.dir)) {
+    if (source.lang === 'typescript' && !sdkMap) return [];
+    throw new Error(`SAMPLE_SOURCE_MISSING ${source.dir}`);
+  }
   const found = [];
   for (const file of readdirSync(source.dir).filter((f) => f.endsWith(source.ext)).sort()) {
     const lines = readFileSync(path.join(source.dir, file), 'utf8').split('\n');
@@ -60,8 +67,8 @@ function regions(source) {
 
 // The SDK publishes only the regions samples/sdk-regions.json names, renamed to the docs snippet
 // they pair with; a listed region the examples no longer define is drift, never a silent gap.
-const sdkMap = JSON.parse(readFileSync(path.join(root, 'samples', 'sdk-regions.json'), 'utf8')).regions;
 function published(source) {
+  if (source.lang === 'typescript' && !sdkMap) return [];
   const found = regions(source);
   if (source.lang !== 'typescript') return found;
   const missing = Object.keys(sdkMap).filter((name) => !found.some((r) => r.name === name));
