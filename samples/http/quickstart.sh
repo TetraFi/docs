@@ -9,6 +9,7 @@
 # Optional:
 #   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 10 USDC for USDT)
 #   TETRAFI_VENUES          comma-separated venue ids to ask, instead of every venue
+#   TETRAFI_SLIPPAGE_BPS    how far below a quote that is not firm you accept, in basis points (default 50)
 #   TETRAFI_PLACE_ORDER=1 places the order; without it the script stops before ordering
 #
 # The last line printed is one JSON summary. An API error prints its error body and exits 1.
@@ -114,10 +115,23 @@ if [[ $needs_wallet == true || ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_
 fi
 
 # region quickstart-order
+order_body=$(jq -c '{quoteId: .id}' <<<"$quote")
+if [[ $(jq -r '.commitment.firm' <<<"$quote") != true ]]; then
+  # minReceive is the quoted receive less slippage (default 50 bps), rounded down.
+  # Without a receive chain, use the lowest precision listed for the native asset.
+  decimals=$(jq -er --arg a "$(jq -r '.receive.asset' <<<"$quote")" \
+    --arg c "$(jq -r '.receive.chain // empty' <<<"$quote")" '[.assets[] | select(.assetId == $a)
+      | .variants[] | select(.kind == "native") | .deployments[]
+      | select($c == "" or .chain == $c) | .decimals]
+      | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets")
+  order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id,
+    minReceive: ((.receive.amount | tonumber) * (10000 - $bps) / 10000
+      | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)}' <<<"$quote")
+fi
 # One Idempotency-Key per order. Keep it: retrying with the same key and body
 # returns the first answer instead of placing a second order.
 idempotency_key=$(openssl rand -hex 16)
-placed=$(tetrafi POST /api/v1/orders "{\"quoteId\":\"$quote_id\"}" "Idempotency-Key: $idempotency_key")
+placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
 jq -c '{kind, quoteId}' <<<"$placed" >&2
 # endregion
 
