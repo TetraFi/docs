@@ -113,7 +113,7 @@ Prices tell you what venues are showing. Request a quote when you want to trade:
 
 - Each response carries an `ETag`. Send it back in `If-None-Match` to get `304 Not Modified` when nothing changed.
 - Prices have their own rate limit, separate from quotes: `429 PRICES_RATE_LIMIT` with `Retry-After` in seconds.
-- To follow prices over time with an API key, poll `GET /api/v1/prices` with `If-None-Match`: an unchanged picture answers `304` and costs nothing. A streaming read is not yet available to API keys.
+- `GET /api/v1/prices/stream` watches up to 25 pairs at once (`pairs=USDC:ETH,USDC:EURC` instead of `pay` and `receive`, the other parameters as above) and sends a pair's snapshot as a `snapshot` server-sent event when it changes. Each caller may hold up to 4 streams at once; another is refused with `429 PRICES_STREAM_LIMIT`.
 
 ## Refusals
 
