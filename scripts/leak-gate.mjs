@@ -1,15 +1,17 @@
 #!/usr/bin/env node
-// Leak gate: this repository is public, so every push publishes. Scans every file a push would
-// carry (tracked plus untracked-not-ignored) for internal ids, internal hosts, retired API
-// surfaces and credential-shaped strings. Exits 1 with one line per hit.
+// Leak gate: this repository is public, so every push publishes everything it carries. Two scans:
+//   1. the tree a push would publish (tracked plus untracked-not-ignored files): every rule;
+//   2. every blob added or changed in the commits the push would carry (<base>..HEAD, base
+//      default origin/main): the hard rules (ids, hosts, credentials). A leak committed and then
+//      removed is still published by the push, so history counts.
 //
-//   node scripts/leak-gate.mjs [--json <report.json>] [--root <dir>]
+//   node scripts/leak-gate.mjs [--json <report.json>] [--root <dir>] [--base <ref>] [--no-history]
 //
-// Internal field names are allowed only while the public spec still contains them, so a
-// renamed contract field turns the gate red until the pages follow.
+// The pre-push hook (.githooks/pre-push) runs it with the remote's ref as base.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { allowedInternalNames, defaultPublicSpec, rulesFor, scanText } from './leak-rules.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -18,52 +20,44 @@ const flag = (name) => {
 };
 const root = path.resolve(flag('--root') ?? path.join(import.meta.dirname, '..'));
 const jsonOut = flag('--json');
-const publicSpec = process.env.TETRAFI_PUBLIC_SPEC
-  ?? path.join(root, '..', 'tetrafi-rfq', 'docs', 'api', 'integrator', 'openapi.json');
+const publicSpec = defaultPublicSpec(root);
+const git = (...a) => execFileSync('git', ['-C', root, ...a], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+const list = (...a) => git(...a).split('\0').filter(Boolean);
 
-const RULES = [
-  { rule: 'ticket-id', re: /\b(?:KO|AQ|FD|CEX)-\d+\b/g },
-  { rule: 'ticket-id', re: /\bR0-[A-Z0-9]/g },
-  { rule: 'internal-programme', re: /\bURE\b|\bADR[ -]?\d{3,4}\b/g },
-  { rule: 'internal-host', re: /[a-z0-9-]+\.ts\.net\b|\btailscale\b|\btetrafi-builder\b|\bdevbox\b|\bgpu-a\b/gi },
-  { rule: 'credential', re: /\btfk_[A-Za-z0-9]{12,}\b|-----BEGIN [A-Z ]*PRIVATE KEY-----/g },
-  { rule: 'retired-surface', re: /\/api\/v1\/(?:rfq|router|pairs|solvers)\b|\/router\/(?:quotes|orders)|quotes\/indicative/g },
-  { rule: 'retired-term', re: /\bquoteResponse\b|\bintegrityChecksum\b|\bdirectUserId\b|\bminValidUntil\b|\bcards\[|"intent"\s*:/g },
-];
-const INTERNAL_NAMES = ['firmOnRequote', 'budgetExhausted', 'routingOptions', 'stepUpProof', 'continuationOf', 'operationId'];
+// The rule files describe what to look for; binary assets carry no text worth scanning.
+const SKIP = [/^scripts\/leak-(?:gate|rules)\.mjs$/, /^scripts\/.*\.test\.mjs$/, /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|otf|mp4|webm)$/i, /^package-lock\.json$/];
+const skipped = (file) => SKIP.some((re) => re.test(file));
 
-// Files that describe the gate itself, and binary assets, are not content.
-const SKIP = [/^scripts\/leak-gate\.mjs$/, /^scripts\/.*\.test\.mjs$/, /\.(png|jpe?g|gif|webp|ico|svg|woff2?|ttf|mp4|pdf)$/i, /^package-lock\.json$/];
-
-function publishableFiles() {
-  const git = (...a) => execFileSync('git', ['-C', root, ...a], { encoding: 'utf8' }).split('\n').filter(Boolean);
-  return [...new Set([...git('ls-files'), ...git('ls-files', '--others', '--exclude-standard')])]
-    .filter((f) => !SKIP.some((re) => re.test(f)) && existsSync(path.join(root, f)));
-}
-
-function allowedInternalNames() {
-  if (!existsSync(publicSpec)) return new Set();
-  const spec = readFileSync(publicSpec, 'utf8');
-  return new Set(INTERNAL_NAMES.filter((name) => spec.includes(`"${name}"`)));
-}
-
-const allowed = allowedInternalNames();
-const internalRe = INTERNAL_NAMES.filter((n) => !allowed.has(n));
-const rules = internalRe.length ? [...RULES, { rule: 'internal-name', re: new RegExp(`\\b(?:${internalRe.join('|')})\\b`, 'g') }] : RULES;
-
+const allowed = allowedInternalNames(publicSpec);
+const rules = rulesFor(root, allowed);
+const hardRules = rules.filter((r) => r.severity === 'hard');
 const hits = [];
-const files = publishableFiles();
+
+const files = [...new Set([...list('ls-files', '-z'), ...list('ls-files', '-z', '--others', '--exclude-standard')])]
+  .filter((f) => !skipped(f) && existsSync(path.join(root, f)));
 for (const file of files) {
-  const lines = readFileSync(path.join(root, file), 'utf8').split('\n');
-  lines.forEach((text, index) => {
-    for (const { rule, re } of rules) {
-      for (const match of text.matchAll(re)) hits.push({ file, line: index + 1, rule, match: match[0] });
-    }
-  });
+  for (const h of scanText(readFileSync(path.join(root, file), 'utf8'), rules)) hits.push({ scope: 'tree', file, ...h });
 }
 
-const report = { root, publicSpec: existsSync(publicSpec) ? publicSpec : null, allowedInternalNames: [...allowed], filesScanned: files.length, hits };
+let history = null;
+if (!args.includes('--no-history')) {
+  const base = flag('--base') ?? 'origin/main';
+  // A base that cannot be resolved is a gate that cannot say what the push carries: refuse.
+  git('rev-parse', '--verify', `${base}^{commit}`);
+  const commits = git('rev-list', `${base}..HEAD`).split('\n').filter(Boolean);
+  history = { base, commits: commits.length, blobs: 0 };
+  for (const commit of commits) {
+    const changed = list('diff-tree', '-r', '-z', '--no-commit-id', '--name-only', '--diff-filter=AM', '--root', commit);
+    for (const file of changed.filter((f) => !skipped(f))) {
+      const text = git('show', `${commit}:${file}`);
+      history.blobs += 1;
+      for (const h of scanText(text, hardRules)) hits.push({ scope: 'history', commit: commit.slice(0, 7), file, ...h });
+    }
+  }
+}
+
+const report = { root, publicSpec: existsSync(publicSpec) ? publicSpec : null, allowedInternalNames: [...allowed], filesScanned: files.length, history, hits };
 if (jsonOut) writeFileSync(jsonOut, `${JSON.stringify(report, null, 2)}\n`);
-for (const h of hits) console.log(`LEAK ${h.rule} ${h.file}:${h.line} ${h.match}`);
-console.log(`leak-gate: ${files.length} files, ${hits.length} hits`);
+for (const h of hits) console.log(`LEAK ${h.rule} ${h.scope === 'history' ? `${h.commit}:` : ''}${h.file}:${h.line} ${h.match}`);
+console.log(`leak-gate: ${files.length} files${history ? `, ${history.commits} commits / ${history.blobs} blobs since ${history.base}` : ''}, ${hits.length} hits`);
 process.exit(hits.length ? 1 : 0);

@@ -31,7 +31,8 @@ function dedent(lines) {
 }
 
 function regions(source) {
-  if (!existsSync(source.dir)) return [];
+  // A missing source would silently drop that language from every snippet: refuse instead.
+  if (!existsSync(source.dir)) throw new Error(`SAMPLE_SOURCE_MISSING ${source.dir}`);
   const found = [];
   for (const file of readdirSync(source.dir).filter((f) => f.endsWith(source.ext)).sort()) {
     const lines = readFileSync(path.join(source.dir, file), 'utf8').split('\n');

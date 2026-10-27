@@ -13,11 +13,15 @@ The public developer site for TetraFi, built with [Mintlify](https://mintlify.co
 
 ```
 npm run leaks     # internal ids, internal hosts, retired API surfaces, credential-shaped strings
-npm run check     # snippets match their runnable sources, then mint validate and broken links
+npm run check     # leaks, snippets and contract pages match their sources, mint validate, broken links
+npm test          # the leak gate's own tests
 ```
 
-- `npm run leaks` (`scripts/leak-gate.mjs`) scans every file a push would carry. A hit is a line to fix, never a line to allow.
-- Field names that are internal today are allowed only while the public API spec still contains them.
+- `npm run leaks` (`scripts/leak-gate.mjs`) scans the tree a push would publish and every commit the push carries since `origin/main`. A leak that was committed and then removed is still published by the push. A hit is a line to fix, never a line to allow.
+- A pre-push hook in `.githooks/` runs the gate against the remote's tip. Enable it once per clone with `git config core.hooksPath .githooks`.
+- The internal host and tooling names it refuses are kept outside this repository, in the private `tetrafi-docs` repository (`public-site/leak-terms.json`). The gate refuses to run without that file.
+- Field names that are internal today are allowed only while the public API spec names them as fields.
+- The API reference is copied from the API's integrator spec only when that spec passes the same rules. Until then `npm run sync` withholds it.
 
 ## Code samples
 

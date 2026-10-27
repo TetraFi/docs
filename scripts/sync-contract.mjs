@@ -8,6 +8,7 @@
 //   node scripts/sync-contract.mjs --check   exit 1 on drift (CONTRACT_DRIFT <file>)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const source = process.env.TETRAFI_RFQ_API_DOCS ?? path.join(root, '..', 'tetrafi-rfq', 'docs', 'api');
@@ -21,7 +22,7 @@ function compatibilityPage() {
   const body = lines.slice(1).join('\n').replace(/^\n+/, '')
     // Links that point inside the RFQ repository become site links.
     // The reference section exists only once the integrator spec is published.
-    .replace(/\[`?integrator\/openapi\.json`?\]\(integrator\/openapi\.json\)/g, existsSync(path.join(source, 'integrator', 'openapi.json')) ? '[API reference](/reference/introduction)' : '[API overview](/overview)')
+    .replace(/\[`?integrator\/openapi\.json`?\]\(integrator\/openapi\.json\)/g, reference.spec ? '[API reference](/reference/introduction)' : '[API overview](/overview)')
     .replace(/\]\(CHANGELOG\.md\)/g, '](/changelog)');
   const unmapped = body.match(/\]\((?!https?:|\/|#)[^)]+\)/g);
   if (unmapped) throw new Error(`${from}: relative links with no site page: ${unmapped.join(', ')}`);
@@ -38,25 +39,37 @@ function compatibilityPage() {
   ].join('\n');
 }
 
+// The reference is published only when the spec passes the same leak rules as every page; until
+// then it is withheld (never partly scrubbed here: the generator owns its text).
 function referenceSpec() {
   const from = path.join(source, 'integrator', 'openapi.json');
-  if (!existsSync(from)) return null;
-  return `${JSON.stringify(JSON.parse(readFileSync(from, 'utf8')), null, 2)}\n`;
+  if (!existsSync(from)) return { spec: null, withheld: 'not published yet' };
+  const text = `${JSON.stringify(JSON.parse(readFileSync(from, 'utf8')), null, 2)}\n`;
+  const hits = scanText(text, rulesFor(root, allowedInternalNames(from)));
+  if (hits.length) return { spec: null, withheld: `${hits.length} leak hits (${[...new Set(hits.map((h) => h.match))].slice(0, 5).join(', ')}, …)` };
+  return { spec: text, withheld: null };
 }
+const reference = referenceSpec();
 
 const outputs = [['compatibility.mdx', compatibilityPage()]];
-const spec = referenceSpec();
-if (spec) outputs.push([path.join('api-reference', 'openapi.json'), spec]);
+if (reference.spec) outputs.push([path.join('api-reference', 'openapi.json'), reference.spec]);
 
+const staleReference = !reference.spec && existsSync(path.join(root, 'api-reference', 'openapi.json'));
 const drift = outputs.filter(([file, content]) => !existsSync(path.join(root, file)) || readFileSync(path.join(root, file), 'utf8') !== content);
 if (check) {
   for (const [file] of drift) console.log(`CONTRACT_DRIFT ${file}`);
-  if (!spec) console.log('sync-contract --check: integrator spec not published yet; reference not checked');
+  if (staleReference) console.log('CONTRACT_DRIFT api-reference/openapi.json (present while the reference is withheld)');
+  if (reference.withheld) console.log(`REFERENCE_WITHHELD ${reference.withheld}`);
   console.log(`sync-contract --check: ${outputs.length} files, ${drift.length} drifted`);
-  process.exit(drift.length ? 1 : 0);
+  process.exit(drift.length || staleReference ? 1 : 0);
 }
 for (const [file, content] of outputs) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
   writeFileSync(path.join(root, file), content);
+}
+if (reference.withheld) console.log(`REFERENCE_WITHHELD ${reference.withheld}`);
+if (staleReference) {
+  console.log('api-reference/openapi.json is present while the reference is withheld; archive it: mv api-reference/openapi.json .archive/api-reference/');
+  process.exitCode = 1;
 }
 console.log(`sync-contract: wrote ${outputs.map(([f]) => f).join(', ')}`);
