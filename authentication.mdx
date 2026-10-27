@@ -1,0 +1,96 @@
+---
+title: "Authentication"
+description: "Create an API key, choose its permissions, send it with every request and sign requests when the key trades on your venue accounts."
+---
+
+Your backend authenticates with an API key. A key belongs to you and to one workspace, and it can never do more than you can do in that workspace.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Create an API key
+
+1. In the app, open **Settings**.
+2. Under **Your account**, find **Personal API keys** and select **Open API keys**.
+3. Select **Create key**.
+4. In **Create API key**, give the key a **Name**. **Description**, **Expiration** and **IP allowlist** are optional, unless your workspace requires keys to expire.
+5. Under **Permissions**, tick what the key may do (see below), then select **Create key**.
+
+The key is shown once. Store it in your secret manager, never in source code or a tracked file.
+
+## Permissions
+
+You choose permissions when you create the key. A key can only receive permissions you hold yourself in that workspace, and TetraFi checks your current permissions on every request: if your own permissions shrink later, the key shrinks with them.
+
+| Permission in the app | What the key can do |
+| --- | --- |
+| **Read quotes** | List the assets your workspace can trade and read prices. Together with **Submit orders**, request quotes. |
+| **Submit orders** | Preflight and place orders. Needed, with **Read quotes**, to request quotes. |
+| **Read orders** | Read an order's status. |
+| **Read trades** | Read your workspace's trade history. |
+
+For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read orders**.
+
+### Trading on your venue accounts
+
+Quotes from your exchange and OTC venue accounts, and Basic trades through your organisation wallets, need more than the permissions above. Without it, those venues are listed in the quote response as `restricted` with the reason `venueTradeScopeRequired`. A key that trades on venue accounts needs three things:
+
+- **The venue trading scope.** It is granted only when the key is created, by you while signed in with your second factor, with the trading permissions above. You add it through the API (`POST /api/v1/workspaces/{workspaceId}/users/me/api-keys` with `workspace_venue_trade` among its `scopes`); the key dialog in the app does not offer it yet.
+- **Request signing.** Creating such a key turns signing on and returns its signing secret once, as hexadecimal. Every request with the key must then be signed (see below).
+- **Venue trading switched on for the key.** A workspace owner or admin who manages credentials, signed in with a second factor, switches it on. To trade through organisation wallets, they also choose which organisation wallets the key may use.
+
+## Send the key
+
+Send two headers with every request:
+
+```http
+X-API-Key: <your API key>
+X-Workspace-Id: <the workspace the key belongs to>
+```
+
+The key is bound to its workspace when it is created. `X-Workspace-Id` must name that same workspace; another workspace answers `403 WORKSPACE_SCOPE_MISMATCH`.
+
+To check a key, call `GET /api/v1/me`. It has no side effects and returns the key's workspace, its current permissions and scopes, its rate limits and its expiry.
+
+## Sign requests
+
+When signing is on for a key, every request carries two more headers:
+
+| Header | Value |
+| --- | --- |
+| `X-Timestamp` | The current time in Unix seconds. It must be within 300 seconds of TetraFi's clock. |
+| `X-Signature` | Lower-case hexadecimal HMAC-SHA256 of the string below, keyed with the hex-decoded signing secret. |
+
+The signed string is four lines joined by a newline, with no newline at the end:
+
+```text
+<X-Timestamp>
+<HTTP method in upper case>
+<path with its query string, exactly as sent>
+<lower-case hexadecimal SHA-256 of the exact body bytes>
+```
+
+A request without a body signs the SHA-256 of zero bytes. Each signature is accepted once.
+
+| Refusal | Meaning |
+| --- | --- |
+| `SIGNATURE_REQUIRED` | The key needs signing and a header is missing. |
+| `SIGNATURE_INVALID` | The signature is malformed or does not match. |
+| `TIMESTAMP_OUT_OF_RANGE` | `X-Timestamp` is more than 300 seconds from TetraFi's clock. |
+| `SIGNATURE_REPLAYED` | This exact signature was already used. |
+
+The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.
+
+## Rotate and revoke
+
+- **Rotate.** Choose **Rotate key** on the key. A new secret is issued, and the old one keeps working for a short grace period so you can deploy the new one. The rotated key keeps its permissions and its signing secret.
+- **Revoke.** Choose **Revoke key** on the key. Revoking is permanent and immediate: applications using the key lose access at once, and the key then answers `401 INVALID_API_KEY`.
+
+A key past its **Expiration** answers `401 API_KEY_EXPIRED`.
+
+## Rate limits
+
+You can send one live quote request every 3 seconds per key. A faster request answers `429 QUOTE_RATE_LIMITED` with a `Retry-After` header: wait that many seconds before asking again. A quote request answered entirely from cache does not count.
+
+When a key has its own request budget, responses carry `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. For any `429`, honour `Retry-After`.
