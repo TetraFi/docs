@@ -76,14 +76,16 @@ export TETRAFI_VENUE=...    # optional: the venue id of your exchange account
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and store before you send it. A Basic quote takes no preflight and no signature.
 
-    Some desks' quotes are indicative and execute within your limit: for those, the order carries `minReceive`, the least you accept. The script sets it to the quoted amount less 50 basis points. An executable quote, like the one above, takes no `minReceive`, so the script sends only the quote id. A refused order names its code, such as `409 FUNDING_SHORTFALL`, and nothing was traded ([Orders](/trade/orders#refusals)).
+    Some desks execute within your limit: an order on their quote that is not firm must carry `minReceive`, the least you accept ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). Their quotes are usually indicative, and on an indicative quote the script sets `minReceive` to the quoted amount less 50 basis points. On an executable quote, like the one above from an order book, `minReceive` is optional, and the script sends only the quote id. A refused order names its code, such as `409 FUNDING_SHORTFALL`, and nothing was traded ([Orders](/trade/orders#refusals)).
 
-    The script places the order only when you set `TETRAFI_PLACE_ORDER=yes`.
+    The script places the order only when you set `TETRAFI_PLACE_ORDER=1`.
 
     <ExchangeOrder />
 
-    ```json Response (shortened)
-    {"kind":"basicTrade","quoteId":"q_01M5XSRC…","operationId":"0b23326f-…"}
+    The script prints the order response's `kind`, `quoteId` and `operation`:
+
+    ```json Output (shortened)
+    {"kind":"basicTrade","quoteId":"q_01M5XSRC…","operation":{"connectionId":"15862432-…","operationId":"0b23326f-…"}}
     ```
   </Step>
 
@@ -122,7 +124,7 @@ export TETRAFI_VENUE=...    # optional: the venue id of your exchange account
 ## Run the whole script
 
 ```bash
-TETRAFI_PLACE_ORDER=yes bash samples/http/recipe-exchange-order.sh
+TETRAFI_PLACE_ORDER=1 bash samples/http/recipe-exchange-order.sh
 ```
 
 Progress goes to stderr and the summary to stdout:
@@ -131,7 +133,7 @@ Progress goes to stderr and the summary to stdout:
 {"venue":"binance-orderbook","quoteId":"q_01M5XSRC…","kind":"basicTrade","id":"0b23326f-…","status":"filled","idempotencyKey":"33c6…"}
 ```
 
-Without `TETRAFI_PLACE_ORDER=yes`, the summary reads `"ordered": false`.
+Without `TETRAFI_PLACE_ORDER=1`, the summary reads `"ordered": false`.
 
 ## In the app
 

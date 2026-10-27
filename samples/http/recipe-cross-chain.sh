@@ -14,7 +14,7 @@
 #   TETRAFI_TO_CHAIN        CAIP-2 chain you receive on (default: the next chain GET /assets lists)
 #   TETRAFI_AMOUNT          the amount you pay (default 1)
 #   TETRAFI_SLIPPAGE_BPS    how far below an indicative quote you accept, in basis points (default 50)
-#   TETRAFI_PLACE_ORDER=yes places the order; without it the script stops before ordering
+#   TETRAFI_PLACE_ORDER=1   places the order (yes also works); without it the script stops before ordering
 #
 # Progress goes to stderr; the last line printed is one JSON summary. A search with no quote you
 # can order is an answer, not an error: the summary says why. Any other API error prints its
@@ -121,7 +121,7 @@ if [[ -z $quote ]]; then
 fi
 quote_id=$(jq -r '.id' <<<"$quote")
 
-if [[ ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
+if [[ ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
   jq -c --arg f "$from_chain" --arg t "$to_chain" \
     '{from: $f, to: $t, orderable: true, quoteId: .id, venue: .legs[0].venue.id, ordered: false}' <<<"$quote"
   exit 0
@@ -139,7 +139,9 @@ order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$dec
 # returns the first answer instead of moving the funds twice.
 idempotency_key=$(openssl rand -hex 16)
 placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
-jq -c '{kind, quoteId, operationId: .operation.operationId, orderId: .order.orderId}' <<<"$placed" >&2
+# A basicTrade names its venue trade in operation; an advancedTrade names its order in order.
+jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
+  else {order: (.order | {orderId})} end' <<<"$placed" >&2
 # endregion
 
 # region recipe-cross-chain-status

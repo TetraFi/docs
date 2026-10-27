@@ -10,7 +10,7 @@
 # Optional:
 #   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 5 USDC for USDT)
 #   TETRAFI_VENUES          comma-separated venue ids to ask, instead of every venue
-#   TETRAFI_PLACE_ORDER=yes places one order, replays it and recovers it by quote
+#   TETRAFI_PLACE_ORDER=1   places one order, replays it and recovers it by quote (yes also works)
 #   TETRAFI_EXPIRED=yes     waits for the first quote to expire, tries to order it, then requotes it
 #   TETRAFI_ORDER_ID        an Advanced order id to read the status of
 #
@@ -107,13 +107,15 @@ jq -c '.quotes[0] | {quoteId: .id, requoteOf, receive: .receive.amount, minOut}'
 # Quotes expire within seconds, so the order below uses the newest quote.
 order_quote=$(jq -r '.quotes[0].id' <<<"$protected")
 
-if [[ ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
+if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   # region order-place
   # Generate one Idempotency-Key per order and store it with the order before you send it.
   idempotency_key=$(openssl rand -hex 16)
   order_body="{\"quoteId\":\"$order_quote\"}"
   placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
-  jq -c '{kind, quoteId, operationId: .operation.operationId, orderId: .order.orderId}' <<<"$placed" >&2
+  # A basicTrade names its venue trade in operation; an advancedTrade names its order in order.
+  jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
+    else {order: (.order | {orderId})} end' <<<"$placed" >&2
   # endregion
 
   # region order-idempotent-replay

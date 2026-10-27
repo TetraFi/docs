@@ -11,7 +11,7 @@ order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" '{quoteId: .id}
 # Store the Idempotency-Key with your record of the order before you send it.
 idempotency_key=$(openssl rand -hex 16)
 if placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key"); then
-  jq -c '{kind, quoteId, operationId: .operation.operationId}' <<<"$placed" >&2
+  jq -c '{kind, quoteId, operation: (.operation | {connectionId, operationId})}' <<<"$placed" >&2
 elif [[ -n $(jq -r '.error // empty' <<<"$placed" 2>/dev/null) ]]; then
   # A refusal names its code, for example FUNDING_SHORTFALL, and nothing was placed.
   exit 1

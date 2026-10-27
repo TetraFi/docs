@@ -21,7 +21,7 @@ You need `bash`, `curl`, `jq` and `openssl`, and an API key with **Read quotes**
 
 The key also needs:
 
-- **Venue trading and request signing.** Moves executed from an organisation wallet are Basic trades, so the key needs the venue trading scope, its signing secret and venue trading switched on ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
+- **Venue trading and request signing.** A move TetraFi executes for you from an organisation wallet granted to the key is a Basic trade, so the key needs the venue trading scope, its signing secret and venue trading switched on ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
 - **An organisation wallet granted to it.** A workspace owner, or an admin who manages credentials, grants the key the organisation wallets it may use, signed in with a second factor ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)).
 - **Funds on the chain you pay from.** The organisation wallet that pays must hold the USDC you move and gas on that chain: it sends the transactions itself.
 
@@ -42,9 +42,11 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
 
     <CrossChainChains />
 
-    ```json Output (shortened)
+    ```json Output on test networks (shortened)
     {"asset":"USDC","chains":["eip155:11155111","eip155:11155420","eip155:84532","solana:EtWTRABZ…"]}
     ```
+
+    The outputs on this page come from a run on test networks: Ethereum Sepolia (`eip155:11155111`), Optimism Sepolia (`eip155:11155420`), Base Sepolia (`eip155:84532`) and Solana devnet. In production you see main networks, such as Base (`eip155:8453`).
 
     Without `TETRAFI_FROM_CHAIN` and `TETRAFI_TO_CHAIN`, the script takes the first two chains listed, which may not be where your wallet holds USDC.
   </Step>
@@ -56,7 +58,7 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
 
     <CrossChainQuote />
 
-    ```json Output (shortened)
+    ```json Output on test networks (shortened)
     {"venue":"across","status":"answered","reason":null}
     {"venue":"cctp","status":"unavailable","reason":"amountBelowMinimum"}
     {"quoteId":"q_01M5XS49…","venue":"across","next":"order","pay":"1 on eip155:84532","receive":"0.999501 on eip155:11155111","eta":"PT166S","paysFrom":"4d4670ab-…","receivesAt":"bb0c6ab1-…"}
@@ -70,14 +72,16 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id and an `Idempotency-Key` header you generate and keep. A retry with the same key and body returns the first answer instead of moving the funds twice ([Idempotency](/trade/idempotency)).
 
-    A cross-chain quote can be indicative (`commitment.kind` is `indicative`): it executes within your limit, so the order must carry `minReceive`, the least you accept to receive. Without it, the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent. The script sets `minReceive` to the quoted amount less 50 basis points; change that with `TETRAFI_SLIPPAGE_BPS`.
+    A bridge that TetraFi trades from your organisation wallet executes within your limit: an order on a quote that is not firm must carry `minReceive`, the least you accept to receive ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). Without it, the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent. Cross-chain quotes from such a venue are usually indicative (`commitment.kind` is `indicative`), and the script sends `minReceive` on an indicative quote: the quoted amount less 50 basis points. Change that with `TETRAFI_SLIPPAGE_BPS`.
 
-    The script places the order only when you set `TETRAFI_PLACE_ORDER=yes`.
+    The script places the order only when you set `TETRAFI_PLACE_ORDER=1`.
 
     <CrossChainOrder />
 
-    ```json Response (shortened)
-    {"kind":"basicTrade","quoteId":"q_01M5XS49…","operationId":"f1103a3a-…","orderId":null}
+    The script prints the order response's `kind`, `quoteId` and `operation`. A Basic trade's `operation` holds the `connectionId` and `operationId` you read its status with:
+
+    ```json Output (shortened)
+    {"kind":"basicTrade","quoteId":"q_01M5XS49…","operation":{"connectionId":"…","operationId":"f1103a3a-…"}}
     ```
   </Step>
 
@@ -94,7 +98,7 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
     {"executionStatus":"filled"}
     ```
 
-    In this run, the move from Base Sepolia to Ethereum Sepolia read `filled` about two and a half minutes after the order.
+    In this run on test networks, the move from Base Sepolia to Ethereum Sepolia read `filled` about two and a half minutes after the order.
   </Step>
 
   <Step title="Confirm it arrived">
@@ -121,7 +125,7 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
 ## Run the whole script
 
 ```bash
-TETRAFI_PLACE_ORDER=yes bash samples/http/recipe-cross-chain.sh
+TETRAFI_PLACE_ORDER=1 bash samples/http/recipe-cross-chain.sh
 ```
 
 Progress goes to stderr and the summary to stdout:

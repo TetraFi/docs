@@ -13,7 +13,7 @@
 #                           off-chain quote a plain search returns)
 #   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 5 USDC for USDT)
 #   TETRAFI_SLIPPAGE_BPS    how far below an indicative quote you accept, in basis points (default 50)
-#   TETRAFI_PLACE_ORDER=yes places the order; without it the script stops before ordering
+#   TETRAFI_PLACE_ORDER=1   places the order (yes also works); without it the script stops before ordering
 #
 # Progress goes to stderr; the last line printed is one JSON summary. A search with no quote you
 # can order is an answer, not an error: the summary says why. Any other API error prints its
@@ -119,7 +119,7 @@ if [[ $(jq -r '.next.kind' <<<"$quote") != order ]]; then
 fi
 # endregion
 
-if [[ ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
+if [[ ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
   jq -c '{quoteId: .id, venue: .legs[0].venue.id, orderable: true, ordered: false}' <<<"$quote"
   exit 0
 fi
@@ -133,7 +133,7 @@ order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" '{quoteId: .id}
 # Store the Idempotency-Key with your record of the order before you send it.
 idempotency_key=$(openssl rand -hex 16)
 if placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key"); then
-  jq -c '{kind, quoteId, operationId: .operation.operationId}' <<<"$placed" >&2
+  jq -c '{kind, quoteId, operation: (.operation | {connectionId, operationId})}' <<<"$placed" >&2
 elif [[ -n $(jq -r '.error // empty' <<<"$placed" 2>/dev/null) ]]; then
   # A refusal names its code, for example FUNDING_SHORTFALL, and nothing was placed.
   exit 1
