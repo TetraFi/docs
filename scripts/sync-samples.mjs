@@ -17,10 +17,10 @@ const outDir = path.join(root, 'snippets', 'samples');
 const check = process.argv.includes('--check');
 
 const SOURCES = [
-  { dir: path.join(root, 'samples', 'http'), ext: '.sh', lang: 'bash', title: 'cURL', open: /^\s*# region (\S+)\s*$/, close: /^\s*# endregion\s*$/ },
+  { dir: path.join(root, 'samples', 'http'), ext: '.sh', lang: 'bash', title: 'cURL', open: /^\s*# region (\S+)\s*$/, close: /^\s*# endregion(?:\s+(\S+))?\s*$/ },
   {
     dir: process.env.TETRAFI_SDK_EXAMPLES ?? path.join(root, '..', 'tetrafi-ui', 'packages', 'sdk', 'examples'),
-    ext: '.ts', lang: 'typescript', title: 'TypeScript SDK', open: /^\s*\/\/ #region (\S+)\s*$/, close: /^\s*\/\/ #endregion\s*$/,
+    ext: '.ts', lang: 'typescript', title: 'TypeScript SDK', open: /^\s*\/\/ #region (\S+)\s*$/, close: /^\s*\/\/ #endregion(?:\s+(\S+))?\s*$/,
   },
 ];
 
@@ -44,6 +44,8 @@ function regions(source) {
         [name, body] = [opened[1], []];
       } else if (source.close.test(line)) {
         if (!name) throw new Error(`${file}:${i + 1} endregion without region`);
+        const closes = line.match(source.close)[1];
+        if (closes && closes !== name) throw new Error(`${file}:${i + 1} endregion ${closes} closes region ${name}`);
         found.push({ name, file, code: dedent(body) });
         name = null;
       } else if (name) {
