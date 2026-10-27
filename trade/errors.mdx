@@ -108,7 +108,7 @@ New codes can be added at any time. Act on the codes you know, and treat any oth
 
 ## A missing workspace
 
-Every request names the workspace its key belongs to in `X-Workspace-Id`. Without it, any request answers `400 MISSING_WORKSPACE`. An empty value answers `400 INVALID_WORKSPACE_ID`.
+Every request names the workspace its key belongs to in `X-Workspace-Id`. Without it, or with an empty value, any request answers `400 MISSING_WORKSPACE`. A value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`.
 
 <ErrorsMissingWorkspace />
 
@@ -126,8 +126,8 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
-| 400 `MISSING_WORKSPACE` | `X-Workspace-Id` is missing. | Send the id of the workspace the key belongs to. |
-| 400 `INVALID_WORKSPACE_ID` | `X-Workspace-Id` is empty, is not a workspace id, or is sent more than once. | Send it once, as the workspace id. |
+| 400 `MISSING_WORKSPACE` | `X-Workspace-Id` is missing or empty. | Send the id of the workspace the key belongs to. |
+| 400 `INVALID_WORKSPACE_ID` | `X-Workspace-Id` is not a workspace id, or is sent more than once. | Send it once, as the workspace id. |
 | 401 `MISSING_CREDENTIALS` | No API key was sent. | Send `X-API-Key`. |
 | 401 `INVALID_API_KEY` | The key is unknown, or it was revoked. | Use a current key. |
 | 401 `API_KEY_EXPIRED` | The key is past its expiration. | Create a new key. |
