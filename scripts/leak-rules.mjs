@@ -13,9 +13,9 @@ const SHAPES = [
   { rule: 'credential', severity: 'hard', re: /\btfk_[A-Za-z0-9_]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}|\bgh[pousr]_[A-Za-z0-9]{20,}|\bop:\/\/[^\s"')]+/g },
   { rule: 'private-key-shape', severity: 'hard', re: /(?<![0-9a-fA-F])0x[0-9a-fA-F]{64}(?![0-9a-fA-F])/g },
   { rule: 'retired-surface', severity: 'content', re: /\/api\/v1\/(?:rfq|router|pairs|solvers)\b|\/router\/(?:quotes|orders)|quotes\/indicative/g },
-  { rule: 'retired-term', severity: 'content', re: /\bquoteResponse\b|\bintegrityChecksum\b|\bdirectUserId\b|\bminValidUntil\b|\bcards\[|"intent"\s*:/g },
+  { rule: 'retired-term', severity: 'content', re: /\bquoteResponse\b|\bintegrityChecksum\b|\bminValidUntil\b|\bcards\[|"intent"\s*:/g },
 ];
-export const INTERNAL_NAMES = ['firmOnRequote', 'budgetExhausted', 'routingOptions', 'stepUpProof', 'continuationOf', 'operationId'];
+export const INTERNAL_NAMES = ['firmOnRequote', 'budgetExhausted', 'routingOptions', 'stepUpProof', 'continuationOf', 'operationId', 'directUserId'];
 
 export function defaultPublicSpec(root) {
   return process.env.TETRAFI_PUBLIC_SPEC ?? path.join(root, '..', 'tetrafi-rfq', 'docs', 'api', 'integrator', 'openapi.json');
