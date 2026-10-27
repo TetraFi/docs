@@ -29,15 +29,15 @@ Every quote request fixes one side of the trade with `side`. `amount` is that si
 
 <SearchReceiveExact />
 
-Not every venue can quote a fixed receive amount. A venue that only prices the amount you pay is listed in `sources` as `unsupported` with reason `exact_output_unsupported`, and is not asked:
+Not every venue can quote a fixed receive amount. A venue that only prices the amount you pay is listed in `sources` as `unsupported` with reason `receiveExactUnsupported`, and is not asked:
 
 ```json
-{ "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "exact_output_unsupported", "detail": null }
+{ "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "receiveExactUnsupported", "detail": null }
 ```
 
 In practice, on-chain protocols, bridges and some exchanges quote only the amount you pay, so a receive-exact search usually returns fewer quotes. When no venue can quote it, you get an empty `quotes` list and every venue's reason in `sources`. Switch to `payExact` and size the amount from a [price](/search/prices) instead.
 
-On [`GET /api/v1/prices`](/search/prices), the same limit shows as a row with `status: "unsupported"` and reason `receiveExactUnsupported`.
+On [`GET /api/v1/prices`](/search/prices), the same limit uses the same `receiveExactUnsupported` reason on an `unsupported` row.
 
 ## What filters do to venues
 
