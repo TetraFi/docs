@@ -43,6 +43,14 @@ New types can appear. Treat a `modality` you do not recognise as "other".
 
 Venue ids are not a fixed list: take them from `sources[].venue.id` in an earlier quote set, or from `rows[].venue.id` on [`GET /api/v1/prices`](/search/prices). The sample runs a plain search first and uses the first venue that answered.
 
+`filters.venues` matches `venue.id`, the id of the route that executes, such as `binance-orderbook`. It does not match `venue.venueId`, the named venue that route belongs to, such as `binance`: one named venue can have several routes, each with its own `id`. In this `sources` entry, send `binance-orderbook`:
+
+```json
+{ "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": true }
+```
+
+A `venueId` that is not also a route id matches no route: the request is refused with `400 UNKNOWN_VENUE`, or every venue reads `filteredOut`. To keep or drop every route of one named venue, list each route's `id`.
+
 Ask one venue only:
 
 <SearchVenueInclude />
@@ -69,7 +77,7 @@ A venue that passes your filters can still give no quote: it reads `unsupported`
 
 | Code | Why | What to do |
 | --- | --- | --- |
-| `UNKNOWN_VENUE` | A venue id in `include` or `exclude` is not one TetraFi knows. `details.value` is the id. | Use an id from `sources[].venue.id` or a price row. |
+| `UNKNOWN_VENUE` | A venue id in `include` or `exclude` is not one TetraFi knows. `details.value` is the id. | Use an id from `sources[].venue.id` or a price row's `venue.id`. |
 | `INVALID_REQUEST` | A `modalities` value is not one of the types above, or `venues` has a field other than `include` and `exclude`. `message` names it. | Fix that value. |
 
 ## In the app

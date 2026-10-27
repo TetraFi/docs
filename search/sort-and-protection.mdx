@@ -38,8 +38,8 @@ A non-firm executable quote may deliver a little less than it quotes. `priceProt
 
 | Quote | Field | Value |
 | --- | --- | --- |
-| `executable` with `firm: false` | `minOut` | The least you receive: the quoted amount less the protection, rounded down to the precision of the receive amount. |
-| `receiveExact`, from one of your venue accounts | `maxPay` | The most you pay. On a quote the venue has firmly priced, its debit grown by the protection, rounded up. Until then, the same as `pay.amount`. |
+| `executable` with `firm: false`, Basic or Advanced | `minOut` | The least you receive: the quoted amount less the protection, rounded down to the precision of the receive amount. |
+| `receiveExact`, from one of your venue accounts | `maxPay` | The most you pay. On a quote the venue has firmly priced, the amount it would take from your account, raised by the protection percentage and rounded up. Until then, the same as `pay.amount`. |
 | `firm: true` or `indicative` | `minOut` | `null`. A firm quote delivers exactly its amount; an indicative quote commits to nothing. |
 
 If you omit `priceProtectionBps`, 30 (0.3%) is used.
@@ -56,8 +56,9 @@ Rounding is to the receive amount's own precision, so on a small amount quoted w
 
 ### Protection on a requote and an order
 
-- A [requote](/trade/requotes-and-expiry) can send its own `priceProtectionBps` for the new quote's `minOut`. Without it, the new quote keeps the original's protection.
-- When you [order](/trade/orders), you can tighten the protection held on the quote, but never loosen it. To loosen it, requote.
+- A [requote](/trade/requotes-and-expiry) can send its own `priceProtectionBps`, 0 to 1000, for the new quote's `minOut`. Without it, the new quote keeps the original's protection.
+- When you [preflight or order](/trade/orders#price-protection-and-minimum-receive) an Advanced quote, `priceProtectionBps` is 1 to 1000 and can only tighten the protection held on the quote, never loosen it. To loosen it, requote.
+- A Basic quote takes no `priceProtectionBps` when you order it: sending one is refused with `400 INVALID_REQUEST`. Set your floor with `minReceive` instead, which a venue that executes within your limit requires on a quote that is not firm.
 
 ## Refusals
 

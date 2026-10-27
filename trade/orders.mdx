@@ -17,8 +17,12 @@ Every quote names how it executes in `legs[].venue.integrationMode`:
 
 | Mode | Where it executes | What you do before ordering |
 | --- | --- | --- |
-| `basic` | TetraFi executes it through your workspace's venue account, such as an exchange or OTC account. | Nothing. No preflight and no wallet signature. |
-| `advanced` | On-chain, from your wallet, settled through escrow. | Preflight it, then sign or send what your wallet must, then order. |
+| `basic` | TetraFi executes it for you, from one of your workspace's exchange or OTC venue accounts or from an organisation wallet granted to your API key. | Nothing. No preflight and no wallet signature. |
+| `advanced` | Your own wallet signs and settles on-chain, through escrow. | Preflight it, then sign or send what your wallet must, then order. |
+
+<Note>
+Advanced execution is not open yet: an order on an Advanced quote answers `403 ADVANCED_MODE_DISABLED`, and Advanced venues are listed in `sources` as `unavailable` with that reason. The samples on this site place Basic orders only. The Advanced steps below describe the path for when it opens.
+</Note>
 
 The quote's `next` tells you the next call: `order` means place the order now; `preflight`, `sign` or `transact` mean your wallet has work to do first; `fund` means the paying account is short; `requote` means ask the venue again ([Requotes and expiry](/trade/requotes-and-expiry)).
 
@@ -30,7 +34,7 @@ The quote's `next` tells you the next call: `order` means place the order now; `
 | --- | --- | --- |
 | `quoteId` | Yes | The quote id (`q_…`) from `POST /api/v1/quotes`. |
 | `signature` | Advanced, when asked | Your wallet's signature over the quote's EIP-712 document. Refused on a Basic quote. |
-| `minReceive` | Basic, when asked | The least you accept to receive, in receive-Asset units, such as `"4.99"`. Refused on an Advanced quote. |
+| `minReceive` | Basic: when the venue executes within your limit and the quote is not firm. Optional on other Basic quotes. | The least you accept to receive, in receive-Asset units, such as `"4.99"`. Refused on an Advanced quote. |
 | `priceProtectionBps` | No, Advanced only | 1 to 1000. Tightens the quote's price protection. Refused on a Basic quote. |
 
 An API key must send an `Idempotency-Key` header with every order. A retry with the same key and body returns the first answer instead of placing a second order ([Idempotency](/trade/idempotency)).
@@ -64,15 +68,20 @@ Each quote can be ordered once. Follow the order with [Order status](/trade/orde
 
 ## Basic orders
 
-A Basic order trades on your venue account with that account's balance. You need an API key with venue trading and request signing ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)), and the account must hold what you pay. If it holds less, the order is refused with `409 FUNDING_SHORTFALL` and `next.kind: "fund"`: fund the account, then get a new price.
+A Basic order is executed for you, on your venue account with that account's balance, or from an organisation wallet granted to your key. You need an API key with venue trading and request signing ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)), and the account or wallet must hold what you pay. If a venue account holds less, the order is refused with `409 FUNDING_SHORTFALL` and `next.kind: "fund"`: fund the account, then get a new price.
 
 Preflight does not apply: `POST /api/v1/orders/preflight` answers `409 PREFLIGHT_NOT_APPLICABLE`. A `signature` is refused with `400 SIGNATURE_NOT_ACCEPTED`.
 
 ### Venue quotes that execute within your limit
 
-Some desks' firm prices last only a few seconds, too short to confirm. Their quote is indicative with `next.kind: "order"`. You order it with `minReceive`: the order asks the desk for its firm price and trades only if that delivers at least your minimum. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED`.
+Some venues execute within your limit: you name the least you accept, and the venue is asked for its price when you order. They are:
 
-You can also send `minReceive` on other venue quotes to set your own floor. If the venue's held firm price delivers less than it, the order is refused with `409 VENUE_QUOTE_OUTSIDE_BOUNDS` and nothing is sent.
+- desks whose firm prices last only a few seconds, too short to confirm;
+- on-chain venues, such as bridges, that TetraFi trades for you from an organisation wallet.
+
+Their quotes are often indicative with `next.kind: "order"`. On such a venue, any quote that is not firm (`commitment.firm` is not `true`) must be ordered with `minReceive`: the order trades only if the venue delivers at least that. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent.
+
+You can also send `minReceive` on any other Basic quote to set your own floor, and the order then trades only at or above it. If the venue's held firm price already delivers less, the order is refused with `409 VENUE_QUOTE_OUTSIDE_BOUNDS` and nothing is sent.
 
 ## Advanced orders
 
@@ -111,8 +120,13 @@ An API key cannot sign with your wallet. The [samples](https://github.com/tetraf
 
 ## Price protection and minimum receive
 
-- **`priceProtectionBps`** applies to Advanced quotes. It bounds how far delivery may fall below the quoted amount, and it is 30 basis points unless the quote was requested with another value. On the order or preflight you may tighten it, never loosen it: a wider value is refused with `409 PRICE_PROTECTION_CHANGED`. To loosen it, requote with the new `priceProtectionBps` ([Requotes and expiry](/trade/requotes-and-expiry#change-the-price-protection)).
-- **`minReceive`** applies to Basic quotes. It is the least you accept, in receive-Asset units, and the order trades only at or above it.
+Which field applies where:
+
+| Where | Field | Range | Applies to |
+| --- | --- | --- | --- |
+| Quote request or requote | `priceProtectionBps` | 0 to 1000, 30 when omitted | Every non-firm executable quote, Basic or Advanced. It sets the quote's `minOut`, and `maxPay` on a `receiveExact` quote from a venue account ([Sort and price protection](/search/sort-and-protection#price-protection)). |
+| Preflight or order | `priceProtectionBps` | 1 to 1000 | Advanced quotes only. It may tighten the quote's protection, never loosen it: a wider value is refused with `409 PRICE_PROTECTION_CHANGED`. To loosen it, requote with the new value ([Requotes and expiry](/trade/requotes-and-expiry#change-the-price-protection)). On a Basic quote it is refused with `400 INVALID_REQUEST`. |
+| Order | `minReceive` | A positive amount | Basic quotes only. Required on a quote that is not firm from a venue that executes within your limit ([above](#venue-quotes-that-execute-within-your-limit)), optional on any other Basic quote. On an Advanced quote it is refused with `400 MIN_RECEIVE_NOT_ACCEPTED`. |
 
 If an Advanced quote's price has moved beyond your protection when you order, the order is refused with `409 PRICE_MOVED_BEYOND_PROTECTION` and nothing is sent. Request the price again.
 
@@ -122,12 +136,13 @@ A refused order answers the standard error body: `error`, `message`, and `next` 
 
 | Code | Status | Why | What to do |
 | --- | --- | --- | --- |
-| `INVALID_REQUEST` | 400 | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads was sent on a Basic quote. `message` names it. | Fix that field. |
+| `INVALID_REQUEST` | 400 | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads, such as `priceProtectionBps`, was sent on a Basic quote. `message` names it. | Fix that field. |
 | `SIGNATURE_REQUIRED` | 400 | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
 | `SIGNATURE_NOT_ACCEPTED` | 400 | A signature was sent on a quote that takes none. | Leave out `signature`. |
-| `MIN_RECEIVE_REQUIRED` | 400 | This venue executes within your limit. | Send `minReceive`. |
+| `MIN_RECEIVE_REQUIRED` | 400 | This venue executes within your limit and the quote is not firm. | Send `minReceive`. |
 | `MIN_RECEIVE_INVALID` | 400 | `minReceive` is not a positive amount. | Send it as a positive decimal string. |
-| `MIN_RECEIVE_NOT_ACCEPTED` | 400 | The quote executes at the price shown and takes no minimum. | Leave out `minReceive`. |
+| `MIN_RECEIVE_NOT_ACCEPTED` | 400 | The quote is Advanced: its price protection bounds delivery, so it takes no minimum receive. | Leave out `minReceive`. |
+| `ADVANCED_MODE_DISABLED` | 403 | The quote is Advanced, which is not open yet. | Order a Basic quote instead. |
 | `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_KEY_INVALID` | 400 | The `Idempotency-Key` header is missing or malformed. | See [Idempotency](/trade/idempotency). |
 | `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you. | Check the id. |
 | `QUOTE_NOT_EXECUTABLE` | 409 | The quote is a price for comparison, not executable. `next` is `requote`. | Requote it to get an executable price. |

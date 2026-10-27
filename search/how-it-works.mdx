@@ -22,13 +22,13 @@ You search by sending one quote request: the asset you pay, the asset you receiv
 | `amount` | Yes | A positive decimal string in Asset units, such as `"10"` or `"0.001"`. Never base units. |
 | `side` | Yes | `payExact` or `receiveExact`. See [Pay or receive exact](/search/pay-or-receive-exact). |
 | `filters` | No | Narrows the search. Omit a filter to keep everything. |
-| `filters.locations` | No | Any of `singleChain`, `crossChain`, `offChain`. |
+| `filters.locations` | No | Any of `singleChain`, `crossChain`, `offChain`. `mixed` is not a filter value. |
 | `filters.modalities` | No | Any of `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat`. |
-| `filters.venues` | No | `{"include": [...], "exclude": [...]}` with venue ids. |
+| `filters.venues` | No | `{"include": [...], "exclude": [...]}` with venue ids from `sources[].venue.id`. See [Venue types and venues](/search/venues#specific-venues). |
 | `filters.variants` | No | `{"pay": "any" or "nativeOnly", "receive": "any" or "nativeOnly"}`. |
 | `filters.commitment` | No | `any` or `executableOnly`. |
 | `sort` | No | `netReceived` (default) or `eta`. |
-| `priceProtectionBps` | No | 0 to 1000. How far a non-firm quote's delivery may fall below its quoted amount. |
+| `priceProtectionBps` | No | 0 to 1000, 30 when omitted. How far a non-firm executable quote's delivery may fall below its quoted amount, Basic or Advanced. See [Sort and price protection](/search/sort-and-protection#price-protection). |
 
 <SearchPayExact />
 
@@ -62,7 +62,7 @@ Quotes are trimmed here: each one also carries its `legs`, `fees`, `netReceived`
 
 Each quote tells you:
 
-- **where it executes**, in `location.kind`: `singleChain`, `crossChain` or `offChain`, or `mixed` for a route whose legs differ;
+- **where it executes**, in `location.kind`: `singleChain`, `crossChain` or `offChain`, or `mixed` for a route whose legs differ. `mixed` describes a quote only: you cannot filter on it, and `filters.locations: ["mixed"]` is refused with `400 INVALID_REQUEST`;
 - **how committed the venue is**, in `commitment`;
 - **what you do next**, in `next.kind`: `order`, `preflight`, `sign`, `transact`, `fund` or `requote`.
 
@@ -78,7 +78,7 @@ Each quote tells you:
 
 `expiresAt` is when an executable quote stops being orderable. Order before then, or requote it: see [Requotes and expiry](/trade/requotes-and-expiry). An indicative quote has no expiry; `staleAfter` says when its price is old.
 
-You can still act on an indicative quote when its `next` is `order`: the venue is asked when you order, and the trade happens only within your minimum receive. When its `next` is `requote`, ask the venue again first.
+An indicative quote has no `minOut`, because it commits to nothing. You can still order one when its `next` is `order`: you send `minReceive`, the least you accept, the venue is asked for its price when you order, and the trade happens only if it delivers at least that ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). When its `next` is `requote`, ask the venue again first.
 
 ## Sources: why a venue did or did not quote
 
@@ -89,16 +89,17 @@ Every venue considered appears once in `sources`, whether or not it was asked (`
 | `answered` | The venue quoted. Its quotes are in `quotes`. |
 | `filteredOut` | Your filters excluded it. It was not asked. |
 | `unsupported` | It does not serve this request, for example this pair (`pair_unsupported`) or a receive-exact amount (`exact_output_unsupported`). |
-| `unavailable` | It could not quote now. `reason` and `detail` say why, for example a wallet this key may not use. |
+| `unavailable` | It could not quote now. `reason` and `detail` say why, for example `notConnected` (no account at that venue), `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` (no organisation wallet is granted to the key) or `ADVANCED_MODE_DISABLED` (Advanced execution is not open yet). |
 | `restricted` | A permission keeps it from you. `reason` names it, for example `venueTradeScopeRequired`. |
 | `needsWallet` | It quotes only for a wallet you have not bound. |
+| `walletRefused` | The wallet it would use cannot trade there, for example because it was revoked. `wallet` names it ([When a quote needs a wallet](/trade/wallets-and-accounts#when-a-quote-needs-a-wallet)). |
 | `timedOut` | It did not answer before the collection deadline. |
 | `refused` | The venue declined. |
 
 More statuses exist and new ones can appear. Treat any status you do not recognise as "other" and show its `detail`.
 
 <Note>
-What an API key sees depends on what it may do. Quotes from your connected venue accounts need a key with venue trading enabled that signs its requests; any other key gets those venues as `restricted` with reason `venueTradeScopeRequired`. On-chain venues that trade through an organisation wallet need the key to be allowed to use that wallet; otherwise they read `unavailable`. See [Authentication](/authentication).
+What an API key sees depends on what it may do. Quotes from your connected venue accounts need a key with venue trading enabled that signs its requests; any other key gets those venues as `restricted` with reason `venueTradeScopeRequired`. On-chain venues that TetraFi trades for you from an organisation wallet need that wallet granted to the key; otherwise they read `unavailable` with the reason `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED`. See [Authentication](/authentication#trading-on-your-venue-accounts).
 </Note>
 
 ## JSON or a stream
@@ -147,7 +148,7 @@ Never hardcode Asset ids, chains or venue lists. `GET /api/v1/assets` returns wh
 }
 ```
 
-Use `assetId` in `pay.asset` and `receive.asset`, and a deployment's `chain` when you pin a side. `offChainVenues` lists the venue accounts that hold that variant. When `eligibility.complete` is `false`, `reason` says which part of the list could not be read. An API key needs the `prices_read` scope to read it.
+Use `assetId` in `pay.asset` and `receive.asset`, and a deployment's `chain` when you pin a side. `offChainVenues` lists the venue accounts that hold that variant. When `eligibility.complete` is `false`, `reason` says which part of the list could not be read. An API key needs the `prices_read` scope to read it, which the **Read quotes** permission grants ([Permissions](/authentication#permissions)).
 
 ## Refusals
 

@@ -189,7 +189,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | 400 `BINDING_NOT_ON_CHAIN` | The wallet you bound cannot pay on that chain. | Bind a wallet on the quote's chain. |
 | 403 `BINDING_NOT_OWNED` | The wallet or account in `bind` is not one you can use. | Bind one of your workspace's wallets or accounts. |
 | 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. | Leave out `bind.account`, or search again. |
-| 403 `DESK_NOT_AVAILABLE_TO_CREDENTIAL` | This key cannot ask a desk for a firm quote. | Use a key or a member session with desk access. |
+| 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | This key cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. Requote only quotes your own key requested. |
 | 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Bind a workspace wallet. |
 | 409 `REQUOTE_REFUSED` | The venue declined. `details.reason` carries a token, such as `venueNotListed`. | Show `message`. The original quote holds until its expiry. Treat a reason you do not recognise as "other". |
@@ -213,10 +213,10 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | 400 `ORDER_BODY_RETIRED` | The body sends a copy of the quote instead of its id. | Send `{"quoteId": "q_…"}`. |
 | 400 `SIGNATURE_REQUIRED` | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
 | 400 `SIGNATURE_NOT_ACCEPTED` | A signature was sent on a quote that takes none. | Leave out `signature`. |
-| 400 `MIN_RECEIVE_REQUIRED` | This venue executes within your limit. | Send `minReceive`. |
+| 400 `MIN_RECEIVE_REQUIRED` | This venue executes within your limit and the quote is not firm. | Send `minReceive` ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). |
 | 400 `MIN_RECEIVE_INVALID` | `minReceive` is not a positive amount. | Send it as a positive decimal string. |
-| 400 `MIN_RECEIVE_NOT_ACCEPTED` | The quote executes at the price shown and takes no minimum. | Leave out `minReceive`. |
-| 403 `ADVANCED_MODE_DISABLED` | The quote executes on-chain (Advanced), which is not enabled yet. | Order a Basic quote instead. |
+| 400 `MIN_RECEIVE_NOT_ACCEPTED` | The quote is Advanced: its price protection bounds delivery, so it takes no minimum receive. | Leave out `minReceive`. |
+| 403 `ADVANCED_MODE_DISABLED` | The quote executes on-chain from your own wallet (Advanced), which is not open yet. | Order a Basic quote instead. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. |
 | 404 `ORDER_NOT_FOUND` | No order with this id is readable by you. | Check the id, or [read it by its quote](/trade/idempotency#recover-an-order-by-its-quote). |
 | 409 `PREFLIGHT_NOT_APPLICABLE` | Preflight on a Basic quote. | Place the order directly. |
@@ -276,7 +276,7 @@ A quote request that succeeds lists every venue it considered in `sources`, each
 | `answered` | The venue quoted. Its quotes are in `quotes`. |
 | `filteredOut` | Your filters left it out. It was not asked. |
 | `unsupported` | It does not serve this request, such as this pair or a receive-exact amount. |
-| `unavailable` | It could not quote now. `reason` and `detail` say why. |
+| `unavailable` | It could not quote now. `reason` and `detail` say why, such as `ADVANCED_MODE_DISABLED` for an Advanced venue while Advanced execution is not open. |
 | `restricted` | A permission keeps it from you. `reason` names it. |
 | `needsWallet` | It quotes only once you bind a wallet. |
 | `walletRefused` | The wallet it would use cannot trade there. |
@@ -287,7 +287,7 @@ Some reasons you may see:
 
 | `reason` | What to do |
 | --- | --- |
-| `pair_unsupported`, `exact_output_unsupported` | The venue does not trade this pair, or this side. Nothing to do. |
+| `pair_unsupported`, `exact_output_unsupported` | The venue does not trade this pair, or cannot quote a fixed receive amount. Nothing to do. On `GET /api/v1/prices`, the second reads `receiveExactUnsupported`. |
 | `venueTradeScopeRequired` | Use a key with venue trading ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
 | `notConnected` | Connect your account at that venue ([Wallets and accounts](/trade/wallets-and-accounts#connect-a-venue-account)). |
 | `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` | Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |
