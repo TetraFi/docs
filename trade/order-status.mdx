@@ -48,7 +48,7 @@ Poll every 10 seconds until it is `filled` or `unfilled`. If it reads `needs_rev
 
 <OrderStatusAdvanced />
 
-`GET /api/v1/orders/{orderId}` requires authentication before TetraFi looks up the order. Without credentials, you get `401 MISSING_CREDENTIALS`, even when the id does not exist. Send your key and workspace headers, with **Read orders** permission.
+`GET /api/v1/orders/{orderId}` requires authentication. Send your key and workspace headers, with **Read orders** permission. A read without credentials never returns the order: it answers `401 MISSING_CREDENTIALS` before TetraFi looks up the id, or `404 ORDER_NOT_FOUND` on a deployment that does not have this change yet. Treat both as "send credentials".
 
 The response returns the order. `status` is always a string, including `"failed"`; read the separate `failure` object for failure details. The fields to follow:
 

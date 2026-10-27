@@ -270,9 +270,9 @@ A quote request that succeeds lists every venue it considered in `sources`, each
 | `status` | What happened |
 | --- | --- |
 | `answered` | The venue quoted. Its quotes are in `quotes`. |
-| `filteredOut` | Your filters left it out. It was not asked. |
+| `filteredOut` | Your filters left it out, or the venue cannot serve this request. It was not asked. `detail` names the token. |
 | `unsupported` | It does not serve this request, such as this pair or a receive-exact amount. |
-| `unavailable` | It could not quote now. `reason` and `detail` say why, such as `ADVANCED_MODE_DISABLED` for an Advanced venue while Advanced execution is not open. |
+| `unavailable` | It could not quote now. `reason` and `detail` say why, such as `advancedModeDisabled` for an Advanced venue while Advanced execution is not open. |
 | `restricted` | A permission keeps it from you. `reason` names it. |
 | `needsWallet` | It quotes only once you bind a wallet. |
 | `walletRefused` | The wallet it would use cannot trade there. |
@@ -283,11 +283,11 @@ Some reasons you may see:
 
 | `reason` | What to do |
 | --- | --- |
-| `pair_unsupported`, `receiveExactUnsupported` | The venue does not trade this pair, or cannot quote a fixed receive amount. Choose another pair or switch to `payExact`. Quotes and prices use the same `receiveExactUnsupported` token. |
+| `pairNotServed`, `receiveExactUnsupported` | The venue does not trade this pair, or cannot quote a fixed receive amount. Choose another pair or switch to `payExact`. Quotes and prices use the same tokens. A venue you trade through your own account can show `receiveExactUnsupported` on a `filteredOut` row, in `detail`. |
 | `venueTradeScopeRequired` | Use a key with venue trading ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
 | `notConnected` | Connect your account at that venue ([Wallets and accounts](/trade/wallets-and-accounts#connect-a-venue-account)). |
-| `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` | Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |
-| `ONCHAIN_ASSET_VARIANT_FILTERED` | Your `nativeOnly` filter left out the only variant it trades ([Native only](/search/native-only)). |
-| `ONCHAIN_ACCOUNT_DEFAULT_WALLET_REQUIRED`, `ONCHAIN_WALLET_NOT_USABLE` | No usable wallet was found for that venue. Bind one with `bind.wallets`, or ask an owner to set a default organisation wallet. |
+| `apiKeyOrganisationWalletScopeRequired` | Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |
+| `onchainAssetVariantFiltered` | Your `nativeOnly` filter left out the only variant it trades ([Native only](/search/native-only)). |
+| `onchainAccountDefaultWalletRequired`, `onchainWalletNotUsable` | No usable wallet was found for that venue. Bind one with `bind.wallets`, or ask an owner to set a default organisation wallet. |
 
-Both lists are open. New statuses and reasons appear without notice, and reasons are spelled in more than one style. Treat a status or reason you do not know as a source you cannot use: show its `detail` if you show anything, and carry on with the quotes you have.
+Both lists are open. New statuses and reasons appear without notice. Reasons are camelCase tokens. Treat a status or reason you do not know as a source you cannot use: show its `detail` if you show anything, and carry on with the quotes you have.
