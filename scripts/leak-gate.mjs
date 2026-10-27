@@ -5,7 +5,7 @@
 //      default origin/main): the hard rules (ids, hosts, credentials). A leak committed and then
 //      removed is still published by the push, so history counts.
 //
-//   node scripts/leak-gate.mjs [--json <report.json>] [--root <dir>] [--base <ref>] [--no-history]
+//   node scripts/leak-gate.mjs [--json <report.json>] [--root <dir>] [--base <ref>] [--head <ref>] [--no-history]
 //
 // The pre-push hook (.githooks/pre-push) runs it with the remote's ref as base.
 import { execFileSync } from 'node:child_process';
@@ -44,8 +44,10 @@ if (!args.includes('--no-history')) {
   const base = flag('--base') ?? 'origin/main';
   // A base that cannot be resolved is a gate that cannot say what the push carries: refuse.
   git('rev-parse', '--verify', `${base}^{commit}`);
-  const commits = git('rev-list', `${base}..HEAD`).split('\n').filter(Boolean);
-  history = { base, commits: commits.length, blobs: 0 };
+  const head = flag('--head') ?? 'HEAD';
+  git('rev-parse', '--verify', `${head}^{commit}`);
+  const commits = git('rev-list', `${base}..${head}`).split('\n').filter(Boolean);
+  history = { base, head, commits: commits.length, blobs: 0 };
   for (const commit of commits) {
     const changed = list('diff-tree', '-r', '-z', '--no-commit-id', '--name-only', '--diff-filter=AM', '--root', commit);
     for (const file of changed.filter((f) => !skipped(f))) {
