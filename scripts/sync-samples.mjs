@@ -58,9 +58,20 @@ function regions(source) {
   return found;
 }
 
+// The SDK publishes only the regions samples/sdk-regions.json names, renamed to the docs snippet
+// they pair with; a listed region the examples no longer define is drift, never a silent gap.
+const sdkMap = JSON.parse(readFileSync(path.join(root, 'samples', 'sdk-regions.json'), 'utf8')).regions;
+function published(source) {
+  const found = regions(source);
+  if (source.lang !== 'typescript') return found;
+  const missing = Object.keys(sdkMap).filter((name) => !found.some((r) => r.name === name));
+  if (missing.length) throw new Error(`SDK_REGION_MISSING ${missing.join(', ')} (listed in samples/sdk-regions.json)`);
+  return found.filter((r) => sdkMap[r.name]).map((r) => ({ ...r, name: sdkMap[r.name] }));
+}
+
 const byName = new Map();
 for (const source of SOURCES) {
-  for (const region of regions(source)) {
+  for (const region of published(source)) {
     const entry = byName.get(region.name) ?? [];
     if (entry.some((e) => e.lang === source.lang)) throw new Error(`region ${region.name} is defined twice in ${source.lang}`);
     entry.push({ ...region, lang: source.lang, title: source.title, dir: source.dir });
