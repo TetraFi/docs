@@ -34,11 +34,16 @@ For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read 
 
 ### Trading on your venue accounts
 
-Quotes from your exchange and OTC venue accounts, and Basic trades through your organisation wallets, need more than the permissions above. Without it, those venues are listed in the quote response as `restricted` with the reason `venueTradeScopeRequired`. A key that trades on venue accounts needs three things:
+Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC venue accounts or from an organisation wallet, need more than the permissions above. A key without the setup below gets those venues in the quote response as `restricted` with the reason `venueTradeScopeRequired`. A key that trades Basic quotes needs:
 
-- **The venue trading scope.** It is granted only when the key is created, by you while signed in with your second factor, with the trading permissions above. You add it through the API (`POST /api/v1/workspaces/{workspaceId}/users/me/api-keys` with `workspace_venue_trade` among its `scopes`); the key dialog in the app does not offer it yet.
-- **Request signing.** Creating such a key turns signing on and returns its signing secret once, as hexadecimal. Every request with the key must then be signed (see below).
-- **Venue trading switched on for the key.** A workspace owner or admin who manages credentials, signed in with a second factor, switches it on. To trade through organisation wallets, they also choose which organisation wallets the key may use.
+- **The venue trading scope.** It can only be given when the key is created, together with **Read quotes** and **Submit orders**, by the key's owner signed in with a second factor. It cannot be added to an existing key.
+- **Request signing.** A key created with venue trading always signs its requests. Its signing secret, in hexadecimal, is shown once when the key is created. Every request with the key must then be signed (see below).
+- **Venue trading switched on for the key.** A workspace owner, or an admin who manages credentials, switches it on while signed in with a second factor.
+- **Organisation wallets, to trade from them.** The same people choose which organisation wallets the key may use ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). Trades on exchange and OTC venue accounts do not need this.
+
+<Warning>
+The app cannot set this up yet. **Create key** has no venue trading option and does not show a signing secret, and the app has no switch for venue trading on a key or for its organisation wallets. Until it does, [contact TetraFi](/support) with your workspace owner, and we will help you set up a key with venue trading. Store the key and its signing secret in your secret manager.
+</Warning>
 
 ## Send the key
 
@@ -51,7 +56,7 @@ Send two headers with every request:
 
 The key is bound to its workspace when it is created. `X-Workspace-Id` must name that same workspace: another workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, a missing or empty header answers `400 MISSING_WORKSPACE`, and a malformed one answers `400 INVALID_WORKSPACE_ID`.
 
-To check a key, call `GET /api/v1/me`. It has no side effects and returns the key's workspace, its current permissions and scopes, its rate limits and its expiry.
+To check a key, call `GET /api/v1/me`. It has no side effects and returns the key's workspace in `workspaceId`, its current permissions and scopes, its rate limits and its expiry. It also answers without `X-Workspace-Id`, so you can use it to find the workspace id of a new key. A key with request signing must still sign it.
 
 ## Sign requests
 

@@ -78,11 +78,11 @@ Send only the parts you want to change. The ids to use come from the quote itsel
 | --- | --- | --- | --- |
 | EVM | `eip155:<chain id>` | `eip155:8453` | `wallet:evm` |
 | Solana | `solana:<genesis hash>` | `solana:5eykt4Us…` | `wallet:solana` |
-| Tron | `tron:<network>` | `tron:shasta` | `wallet:tron` |
+| Tron | `tron:<network>` | `tron:shasta` (the Shasta test network) | `wallet:tron` |
 
 Each value is a wallet id, as `bindingOptions` and `binding-defaults/me` return it, or an address. The wallet must be able to pay on that chain: a custody vault or a registered address pays only on the chains it is registered on.
 
-An API key uses your workspace's wallets and the organisation wallets an owner has granted to that key ([below](#give-a-key-organisation-wallets)). It cannot use a personal wallet, and it cannot link one: linking a personal wallet is done by a signed-in member. In the app, a personal wallet is a per-request choice in the trade page's Advanced options.
+An API key uses your workspace's wallets and the organisation wallets an owner has granted to that key ([below](#give-a-key-organisation-wallets)). It cannot use a personal wallet, and it cannot link one: linking a personal wallet is done by a signed-in member. In the app, a member can choose a personal wallet for a single request on the trade page while **Advanced filters** is open. Despite its name, **Advanced filters** only opens more search filters: it is not Advanced execution.
 
 ### Venue accounts and bank accounts
 
@@ -137,13 +137,13 @@ Each quote's `bindingOptions` lists what that quote can be requoted with. Each e
 | `bankAccount` | Bank accounts for a fiat pay-in. |
 | `deliverTo` | Where the output can go: approved destination wallets and the venue account itself. |
 
-A candidate's `id` is what `bind` names. It also carries `kind` (`organizationWallet`, `workspaceWallet`, `linkedWallet`, `venueAccount` or `destination`), `label`, `address`, `chains`, `ownership`, `balance` and, for a delivery destination, the `destinationTag` it was approved with. When `balance` is present, it is the pay asset held there (`"kind": "known"`) or `"kind": "unavailable"` with a reason, never a made-up 0. It is `null` where a balance does not apply.
+A candidate's `id` is what `bind` names. It also carries `kind` (`organizationWallet`, `workspaceWallet`, `linkedWallet`, `venueAccount` or `destination`, spelled exactly so), `label`, `address`, `chains`, `ownership`, `balance` and, for a delivery destination, the `destinationTag` it was approved with. When `balance` is present, it is the pay asset held there (`"kind": "known"`) or `"kind": "unavailable"` with a reason, never a made-up 0. It is `null` where a balance does not apply.
 
 Only wallets that can pay on the quote's pay chain are listed. An empty `bindingOptions` means there is nothing else to choose for that quote.
 
 <WalletsBindingOptions />
 
-```json Output (shortened)
+```json Output on test networks (shortened)
 {
   "quoteId": "q_01M5…",
   "venue": "across",
@@ -154,8 +154,8 @@ Only wallets that can pay on the quote's pay chain are listed. An empty `binding
       "chain": "eip155:84532",
       "family": "evm",
       "candidates": [
-        { "id": "4d46…", "kind": "organizationWallet", "label": "Bridges A (Base Sepolia)", "chains": ["eip155:84532"] },
-        { "id": "61c3…", "kind": "organizationWallet", "label": "Basic Base", "chains": ["eip155:84532"] }
+        { "id": "4d46…", "kind": "organizationWallet", "label": "Treasury (Base Sepolia)", "chains": ["eip155:84532"] },
+        { "id": "61c3…", "kind": "organizationWallet", "label": "Payments (Base Sepolia)", "chains": ["eip155:84532"] }
       ]
     }
   ]
@@ -170,7 +170,7 @@ The script picks a candidate from the quote's own `bindingOptions`, never a hard
 
 <WalletsRequoteBind />
 
-```json Output (shortened)
+```json Output on test networks (shortened)
 {"requote":"q_01M5…","bind":{"wallets":{"eip155:84532":"61c3…"}}}
 {"quoteId":"q_01M5…","requoteOf":"q_01M5…","next":"order","wallets":["eip155:11155111","eip155:84532"],"account":true}
 ```
@@ -193,7 +193,9 @@ With an API key, on-chain venues may also read `unavailable` with the reason `AP
 
 An API key trades through organisation wallets only when a workspace owner, or an admin who manages credentials, grants them to that key. The key must already be able to trade on venue accounts ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
 
-The grant is made while signed in with a second factor, with `PUT /api/v1/workspaces/{workspaceId}/api-keys/{keyId}/organisation-wallets` and a body of `organisationWalletIds`. The list replaces the key's previous grants, and an empty list revokes them all. Every id must be an active organisation wallet of the workspace. The key itself cannot call this route, and the app does not offer it yet.
+The grant is made by that owner or admin, signed in with a second factor. It names the key's complete list of organisation wallets: a new list replaces the previous one, and an empty list revokes them all. Every wallet must be an active organisation wallet of the workspace. The key itself cannot make or change its grant.
+
+The app does not offer the grant yet. Until it does, [contact TetraFi](/support) with your workspace owner to grant a key organisation wallets.
 
 At trade time the key also needs venue trading switched on and a valid request signature, and you, the key's owner, still need trading rights on the wallet.
 
