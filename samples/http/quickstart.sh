@@ -14,7 +14,7 @@
 # The last line printed is one JSON summary. An API error prints its error body and exits 1.
 set -euo pipefail
 
-# region quickstart-setup
+# region quickstart-client
 : "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
 : "${TETRAFI_API_KEY:?Set TETRAFI_API_KEY}"
 : "${TETRAFI_WORKSPACE_ID:?Set TETRAFI_WORKSPACE_ID}"
