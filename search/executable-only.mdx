@@ -1,0 +1,58 @@
+---
+title: "Executable only"
+description: "Keep only quotes a venue has committed to, and leave out indicative prices."
+---
+
+import SearchExecutableOnly from '/snippets/samples/search-executable-only.mdx';
+
+Each quote says how committed its venue is, in `commitment`. A search returns every kind unless you ask for executable quotes only.
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `filters.commitment` | `any` (default) or `executableOnly` | With `executableOnly`, indicative quotes are left out of `quotes`. |
+
+## Executable and indicative
+
+| `commitment` | What it means | What you can rely on |
+| --- | --- | --- |
+| `{"kind": "executable", "firm": true}` | The venue delivers exactly this amount until `expiresAt`. | The quoted amount. |
+| `{"kind": "executable", "firm": false}` | The venue will trade until `expiresAt`, and delivery may move a little. | At least `minOut`, set by your [price protection](/search/sort-and-protection#price-protection). |
+| `{"kind": "indicative"}` | The venue's current price, not a commitment. No `expiresAt`; `staleAfter` says when the price is old. | Nothing yet. |
+
+Ask for executable quotes only when you are about to trade and want to compare only what you can act on now, with a known expiry and a known worst case. Keep `any` when you are comparing prices, or when a desk that publishes only indicative prices may give you the best one.
+
+To turn an indicative quote into an executable one, requote it: see [Requotes and expiry](/trade/requotes-and-expiry).
+
+<SearchExecutableOnly />
+
+## What you see for the quotes you leave out
+
+Indicative quotes are dropped after venues answer, so this filter does not keep any venue from being asked. A venue whose only quote was indicative still reads `answered` in `sources`, but has no quote in `quotes`:
+
+```json
+{
+  "quotes": [
+    { "id": "q_...", "commitment": { "kind": "executable", "firm": false }, "minOut": "0.0042", "expiresAt": "2026-10-27T02:39:35.040Z" }
+  ],
+  "sources": [
+    { "status": "answered", "venue": { "id": "...", "modality": "orderBook" }, "asked": true, "detail": null },
+    { "status": "answered", "venue": { "id": "...", "modality": "rfq" }, "asked": true, "detail": null }
+  ]
+}
+```
+
+Here two venues answered and one quote is left: the `rfq` desk's quote was indicative. The sample prints those venues: an `answered` source with no quote.
+
+Because the same venues are asked, a search with `executableOnly` counts against the [quote limit](/search/how-it-works#rate-limit) exactly as it would without the filter.
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `INVALID_REQUEST` | The value is not `any` or `executableOnly`. `message` names it. | Send `any` or `executableOnly`. |
+
+## In the app
+
+The trade page has no control for this filter. A shared link can carry it in its `executable` parameter, and it then shows as an **Executable only** chip you can remove; it is then sent with the request.
+
+The results list also has a commitment toggle and an **All types** select. They only filter the quotes already returned, so nothing is sent and no venue is asked again.
