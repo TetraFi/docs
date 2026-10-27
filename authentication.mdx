@@ -15,9 +15,11 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 2. Under **Your account**, find **Personal API keys** and select **Open API keys**.
 3. Select **Create key**.
 4. In **Create API key**, give the key a **Name**. **Description**, **Expiration** and **IP allowlist** are optional, unless your workspace requires keys to expire.
-5. Under **Permissions**, tick what the key may do (see below), then select **Create key**.
+5. Under **Permissions**, tick what the key may do (see below). For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read orders**.
+6. To trade through your venue accounts, switch **Venue trading** on, then select **Create key**. You must be a workspace owner or admin with permission to manage credentials, signed in with a second factor.
+7. Copy **API Key** and, if you switched venue trading on, **Request-signing secret**. Store them in your secret manager, keeping the signing secret separate from the key. Tick **I have saved both credentials securely** (or **I have saved this key securely** for a key without venue trading), then select **Done**.
 
-The key is shown once. Store it in your secret manager, never in source code or a tracked file.
+These credentials are shown once and cannot be recovered. Never put them in source code or a tracked file.
 
 ## Permissions
 
@@ -38,12 +40,12 @@ Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC
 
 - **The venue trading scope.** It can only be given when the key is created, together with **Read quotes** and **Submit orders**, by the key's owner signed in with a second factor. It cannot be added to an existing key.
 - **Request signing.** A key created with venue trading always signs its requests. Its signing secret, in hexadecimal, is shown once when the key is created. Every request with the key must then be signed (see below).
-- **Venue trading switched on for the key.** A workspace owner, or an admin who manages credentials, switches it on while signed in with a second factor.
+- **Venue trading switched on for the key.** A workspace owner or admin with permission to manage credentials switches **Venue trading** on while signed in with a second factor. Switching it on in **Create API key** creates the key with venue trading and request signing enabled.
 - **Organisation wallets, to trade from them.** The same people choose which organisation wallets the key may use ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). Trades on exchange and OTC venue accounts do not need this.
 
-<Warning>
-The app cannot set this up yet. **Create key** has no venue trading option and does not show a signing secret, and the app has no switch for venue trading on a key or for its organisation wallets. Until it does, [contact TetraFi](/support) with your workspace owner, and we will help you set up a key with venue trading. Store the key and its signing secret in your secret manager.
-</Warning>
+<Note>
+**Create API key** does not grant organisation wallets to the key. Until a wallet is granted, on-chain Basic venues answer `unavailable` with the reason `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED`. Follow [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) for that separate grant.
+</Note>
 
 ## Send the key
 
