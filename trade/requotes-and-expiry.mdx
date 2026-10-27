@@ -1,0 +1,129 @@
+---
+title: "Requotes and expiry"
+description: "Ask a quote's venue again for a new price: to change the wallet, account, corridor or price protection, to get an executable price, or to refresh a quote that expired."
+---
+
+import RequoteAgain from '/snippets/samples/requote-again.mdx';
+import RequoteProtection from '/snippets/samples/requote-protection.mdx';
+import RequoteExpired from '/snippets/samples/requote-expired.mdx';
+
+A requote asks the venue of a quote you already hold for a new price. You send the quote's id instead of a new search, and you get back one new quote from that venue. Every other venue is left alone.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## When to requote
+
+- **To change how the quote executes.** Pick another wallet, venue account or destination for the output (`bind`), another corridor the quote offered (`corridor`), or a different price protection (`priceProtectionBps`). A corridor is the pair of chains a cross-chain quote moves between, from the chain you pay on to the chain you receive on; a quote lists the other corridors its venue offers in `corridors`.
+- **To get an executable price.** An indicative quote is the venue's price, not a commitment. A requote asks the venue for a quote you can order. For a desk whose card reads `next.kind: "requote"`, this is how you get its firm price.
+- **To refresh a price that expired.** An executable quote can be ordered only until its `expiresAt`. After that, requote it for a new price from the same venue.
+
+## The request
+
+`POST /api/v1/quotes`, the same endpoint as a search, with a different body:
+
+| Field | Required | Value |
+| --- | --- | --- |
+| `requote` | Yes | The quote id (`q_…`) from an earlier `POST /api/v1/quotes`. |
+| `bind` | No | A different wallet (`bind.wallets`), venue account (`bind.account`) or destination for the output (`bind.deliverTo`) for the new quote. Leave it out to keep the original's. |
+| `corridor` | No | `{"from": "<chain>", "to": "<chain>"}`: another corridor the original quote listed in `corridors`. |
+| `priceProtectionBps` | No | 0 to 1000. The price protection for the new quote's `minOut`, on a Basic or Advanced quote that is not firm. Leave it out to keep the original's. When you order, `priceProtectionBps` only applies to Advanced quotes and is 1 to 1000 ([Orders](/trade/orders#price-protection-and-minimum-receive)). |
+
+These four fields are the whole body. The pair, the amount, the side and the filters come from the original quote and cannot change: sending any of them with `requote` is refused with `400 REQUOTE_FIELDS_CONFLICT`. For a different pair or amount, search again.
+
+<RequoteAgain />
+
+```json Response (shortened)
+{
+  "quotes": [
+    {
+      "id": "q_01M5XJXN…",
+      "requoteOf": "q_01M5XJXM…",
+      "commitment": { "kind": "executable", "firm": false },
+      "receive": { "asset": "USDT", "amount": "5.00685" },
+      "minOut": "4.99182",
+      "expiresAt": "2026-10-27T02:27:15.792Z",
+      "next": { "kind": "order" }
+    }
+  ]
+}
+```
+
+What you get back:
+
+- **One new quote** with its own `id`, whose `requoteOf` names the quote you requoted. Order the new id.
+- **A JSON reply, never a stream**, even if you send `Accept: text/event-stream`.
+- **The original stays orderable** until its own `expiresAt`. Requoting does not cancel it. Each quote can still be ordered only once.
+- **Only that venue is asked.** For a route with several legs, every venue on the route is asked for that same route. If the venue declines, you get a named refusal, and TetraFi never substitutes another venue.
+
+A requote is a live quote request, so it counts toward the limit of one live quote request every 3 seconds.
+
+### Change the price protection
+
+A non-firm executable quote carries `minOut`, the least it may deliver. `priceProtectionBps` sets how far below the quoted amount that floor sits. Here a requote at 50 basis points lowers `minOut` from `4.99182` to `4.98181` on the same quoted amount:
+
+<RequoteProtection />
+
+## Quote times
+
+| Field | Set on | Meaning |
+| --- | --- | --- |
+| `expiresAt` | Executable quotes | When the quote stops being orderable. `null` on an indicative quote. |
+| `staleAfter` | Indicative quotes | When the indicative price is old. `null` on an executable quote. |
+| `observedAt` | Indicative quotes and order-book estimates | When the venue's price or order book was read. `null` on a firm quote. |
+| `firmAskAvailableAt` | Desk quotes, when known | The workspace has reached the desk's firm-quote limit until this time, so a requote asking it for a firm price is refused before then. |
+
+You can requote a quote until 10 minutes after it expired (its `expiresAt`, or `staleAfter` for an indicative quote). After that, the requote answers `410 QUOTE_EXPIRED`: search again.
+
+## Firm and non-firm quotes
+
+`commitment` says how committed the venue is:
+
+| Commitment | Delivery | `minOut` |
+| --- | --- | --- |
+| `executable`, `firm: true` | Exactly the quoted amount, until `expiresAt`. | `null` |
+| `executable`, `firm: false` | May move, but never below `minOut`. | set |
+| `indicative` | Not a commitment. | `null` |
+
+`next` says what you do with the quote: `order`, `preflight`, `sign`, `transact`, `fund`, or `requote`. When it is `requote`, `next.needs` lists what the new quote needs from you, such as a wallet to bind. Some desks' indicative quotes read `next.kind: "order"`: you order them with a minimum receive instead, as [Orders](/trade/orders#venue-quotes-that-execute-within-your-limit) explains.
+
+## Refresh an expired quote
+
+Ordering a quote after its `expiresAt` is refused with `410 QUOTE_EXPIRED` and nothing is sent. The refusal's `next` is `{"kind": "requote"}`, so requote the same id to get a fresh price from that venue:
+
+<RequoteExpired />
+
+```json
+{"error":"QUOTE_EXPIRED","next":{"kind":"requote","needs":[]}}
+{"quoteId":"q_01M5XJNK…","requoteOf":"q_01M5XJNB…","receive":"5.0068","expiresAt":"2026-10-27T02:22:49.076Z"}
+```
+
+## Refusals
+
+A refused requote answers the standard error body: `error` is the code, `message` a sentence you can show, and `details` or `next` where present. For a `429`, wait the `Retry-After` header's seconds before asking again.
+
+| Code | Status | Why | What to do |
+| --- | --- | --- | --- |
+| `REQUOTE_FIELDS_CONFLICT` | 400 | The body has a field that cannot go with `requote`, such as `amount` or `filters`. | Send only `requote`, `bind`, `corridor` and `priceProtectionBps`, or search again. |
+| `CORRIDOR_NOT_OFFERED` | 400 | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
+| `BINDING_NOT_ON_CHAIN` | 400 | The wallet you bound is not an account on that chain. | Bind a wallet on the quote's chain. |
+| `BINDING_NOT_OWNED` | 403 | The wallet or account in `bind` is not one you can use. | Bind one of your workspace's wallets or accounts. |
+| `ACCOUNT_NOT_AVAILABLE` | 403 | That venue account is not the one this quote was priced on. | Leave out `bind.account`, or search again. |
+| `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | 403 | This credential cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |
+| `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you. Another key's or member's quote answers the same. | Check the id. Requote only quotes your own key requested. |
+| `PERSONAL_TARGET_NOT_ALLOWED` | 409 | An API key named a personal wallet. | Bind a workspace wallet. |
+| `REQUOTE_REFUSED` | 409 | The venue declined. `message` gives its reason in words and `details.reason` a token, for example `productNotQuoted` or `venueNotListed`. | Show `message`. Your original quote still holds until its expiry. Treat a reason you do not recognise as "other". |
+| `REQUOTE_NEEDS_WALLET` | 409 | The venue quotes only once you choose a wallet. | Requote again with `bind.wallets`. |
+| `QUOTE_OWNER_CONTEXT_UNKNOWN` | 409 | The quote was recorded before it could be refreshed for a client. | Search again. |
+| `QUOTE_EXPIRED` | 410 | More than 10 minutes have passed since the quote expired. | Search again. |
+| `QUOTE_RATE_LIMITED` | 429 | More than one live quote request in 3 seconds. | Wait `Retry-After` seconds, then send it again. |
+| `FIRM_QUOTE_LIMITED` | 429 | The workspace reached the desk's firm-quote limit. | Wait `Retry-After` seconds. The quote's `firmAskAvailableAt` says when, where known. |
+| `BUDGET_EXHAUSTED` | 429 | The venue's quote budget is used up for now. | Wait `Retry-After` seconds when it is set, otherwise try later. |
+| `QUOTE_NOT_YET_DURABLE` | 503 | The quote is still being recorded. | Send the same requote again after a second. |
+| `QUOTE_STORE_UNAVAILABLE` | 503 | Held quotes cannot be read right now. | Try again shortly. |
+| `REQUOTE_TIMED_OUT` | 504 | The venue did not answer in time. | Your original quote still holds until its expiry. Try again, or order the original. |
+
+## In the app
+
+On the Trade page, an expired quote card offers to request it again, a desk's indicative card offers **Get firm quote**, and changing price protection in Review offers **Requote and execute**: each sends this same requote.

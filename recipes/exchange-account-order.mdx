@@ -1,0 +1,151 @@
+---
+title: "Trade on a connected exchange account"
+description: "Trade on one of your exchange accounts with an API key: scope the search to its venue, check it holds enough, order, recover the order by its quote and read its status."
+---
+
+import ExchangeVenue from '/snippets/samples/recipe-exchange-venue.mdx';
+import ExchangeQuote from '/snippets/samples/recipe-exchange-quote.mdx';
+import ExchangeFunds from '/snippets/samples/recipe-exchange-funds.mdx';
+import ExchangeOrder from '/snippets/samples/recipe-exchange-order.mdx';
+import ExchangeRecover from '/snippets/samples/recipe-exchange-recover.mdx';
+import ExchangeStatus from '/snippets/samples/recipe-exchange-status.mdx';
+
+This recipe trades 5 USDC for USDT on one exchange account your workspace has connected, with an API key. TetraFi places the trade on that account, with that account's balance, so no wallet signs anything. Every step comes from one script, [`samples/http/recipe-exchange-order.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/recipe-exchange-order.sh).
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Before you begin
+
+You need `bash`, `curl`, `jq` and `openssl`, and:
+
+- **A connected exchange account.** Someone who manages your workspace's venues connects it in the app ([Connect a venue account](/trade/wallets-and-accounts#connect-a-venue-account)), and it must hold the asset you pay.
+- **An API key that can trade on venue accounts.** Besides **Read quotes**, **Submit orders** and **Read orders**, the key needs the venue trading scope, which is granted only when the key is created, and venue trading switched on for it by a workspace owner or an admin who manages credentials ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). Without it, the venue is listed in `sources` as `restricted` with the reason `venueTradeScopeRequired`, and you get no quote from it.
+- **The key's signing secret.** A key with venue trading signs every request. The script's `tetrafi` helper signs each one when `TETRAFI_SIGNING_SECRET` is set ([Sign requests](/authentication#sign-requests)).
+
+Export your environment as in the [Quickstart](/quickstart), plus the venue id of your account if you know it:
+
+```bash
+export TETRAFI_VENUE=...    # optional: the venue id of your exchange account
+```
+
+<Steps>
+  <Step title="Find your account's venue">
+    Quotes from your exchange account carry its venue id, such as `binance-orderbook`. If you do not set `TETRAFI_VENUE`, the script finds it with one search that keeps only off-chain quotes (`filters.locations: ["offChain"]`): only your connected venue accounts answer that. It takes the venue of the best Basic quote.
+
+    <ExchangeVenue />
+
+    ```json Output (shortened)
+    {"venue":"okx-rfq","status":"unavailable","reason":"notConnected"}
+    {"venue":"binance-orderbook","status":"answered","reason":null}
+    ```
+
+    `notConnected` means your workspace has no account at that venue.
+  </Step>
+
+  <Step title="Search that venue only">
+    `filters.venues.include` with one venue id asks that venue alone. Every other venue is listed in `sources` as `filteredOut` and is not asked. The quote trades on your account at that venue, which its `binding.account` names.
+
+    <ExchangeQuote />
+
+    ```json Output (shortened)
+    {"quoteId":"q_01M5XSRC…","venue":"binance-orderbook","mode":"basic","commitment":"executable","pay":"5","receive":"5.00675","minOut":"4.99172","next":"order","expiresAt":"2026-10-27T04:26:42.527Z"}
+    ```
+
+    You can send one live quote request every 3 seconds. The script waits `details.retryAfter` once when it gets `429 QUOTE_RATE_LIMITED`.
+  </Step>
+
+  <Step title="Check the account holds enough">
+    An API key cannot read your venue account's balances: those reads answer `403 JWT_REQUIRED` and need a signed-in member. Each quote says instead whether the account holds enough to trade it, in `readiness`:
+
+    | `readiness.kind` | What it means |
+    | --- | --- |
+    | `funded` | The account holds enough. `next` is `order`. |
+    | `shortfall` | The account holds less. `amount` is what is missing and `next` is `fund`. Fund the account, then get a new price. |
+
+    <ExchangeFunds />
+
+    ```json Output
+    {"readiness":{"kind":"funded"}}
+    ```
+
+    To see the balances themselves, check in the app (below).
+  </Step>
+
+  <Step title="Place the order">
+    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and store before you send it. A Basic quote takes no preflight and no signature.
+
+    Some desks execute within your limit: an order on their quote that is not firm must carry `minReceive`, the least you accept ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). Their quotes are usually indicative, and on an indicative quote the script sets `minReceive` to the quoted amount less 50 basis points. On an executable quote, like the one above from an order book, `minReceive` is optional, and the script sends only the quote id. A refused order names its code, such as `409 FUNDING_SHORTFALL`, and nothing was traded ([Orders](/trade/orders#refusals)).
+
+    The script places the order only when you set `TETRAFI_PLACE_ORDER=1`.
+
+    <ExchangeOrder />
+
+    The script prints the order response's `kind`, `quoteId` and `operation`:
+
+    ```json Output (shortened)
+    {"kind":"basicTrade","quoteId":"q_01M5XSRC…","operation":{"connectionId":"15862432-…","operationId":"0b23326f-…"}}
+    ```
+  </Step>
+
+  <Step title="Recover the order by its quote">
+    If the order response never reaches you, after a timeout or a dropped connection, do not order again with a new key: that is a new order. Read the order by its quote with `GET /api/v1/orders/by-quote/{quoteId}`. It never places anything ([Idempotency](/trade/idempotency#recover-an-order-by-its-quote)).
+
+    | `state` | What to do |
+    | --- | --- |
+    | `ordered` | `order` is its address: read its status. Do not order again. |
+    | `notOrdered` | Nothing was placed. If `expired` is `false`, you can order it. |
+    | `unknown` | Wait and read again. Do not order again. |
+
+    The script reads the order this way every time, and takes the status address from the answer.
+
+    <ExchangeRecover />
+
+    ```json Output (shortened)
+    {"state":"ordered","order":{"kind":"basicTrade","connectionId":"15862432-…","operationId":"0b23326f-…"}}
+    ```
+  </Step>
+
+  <Step title="Read the status">
+    A Basic trade is read from its venue connection, with the `connectionId` and `operationId` of its address. Poll every 10 seconds until `executionStatus` is `filled` or `unfilled`. `outcome_unknown` is not a failure: the trade may have filled, so keep reading ([Order status](/trade/order-status#basic-venue-trades)).
+
+    <ExchangeStatus />
+
+    ```json Output
+    {"executionStatus":"filled"}
+    {"executionStatus":"filled","spent":"5","received":"5.00675"}
+    ```
+
+    `dispatch.inputSpent` and `dispatch.outputReceived` are what the trade took from and added to the account.
+  </Step>
+</Steps>
+
+## Run the whole script
+
+```bash
+TETRAFI_PLACE_ORDER=1 bash samples/http/recipe-exchange-order.sh
+```
+
+Progress goes to stderr and the summary to stdout:
+
+```json
+{"venue":"binance-orderbook","quoteId":"q_01M5XSRC…","kind":"basicTrade","id":"0b23326f-…","status":"filled","idempotencyKey":"33c6…"}
+```
+
+Without `TETRAFI_PLACE_ORDER=1`, the summary reads `"ordered": false`.
+
+## In the app
+
+The account's page under **Treasury** shows its balances, and the trade appears under **Trades**.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Orders" icon="list-check" href="/trade/orders">
+    Venue quotes that execute within your limit, and every refusal.
+  </Card>
+  <Card title="Idempotency" icon="rotate" href="/trade/idempotency">
+    Retry an order safely and find out whether it was placed.
+  </Card>
+</CardGroup>

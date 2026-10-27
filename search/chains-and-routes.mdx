@@ -1,0 +1,77 @@
+---
+title: "Chains and routes"
+description: "Leave the chain open, pin a side to a chain, or keep only single-chain, cross-chain or off-chain quotes."
+---
+
+import SearchSingleChain from '/snippets/samples/search-single-chain.mdx';
+import SearchCrossChain from '/snippets/samples/search-cross-chain.mdx';
+import SearchOffChain from '/snippets/samples/search-off-chain.mdx';
+
+An Asset such as `USDC` carries no chain. Left open, a search asks every venue for every place the Asset can be: on any chain it is deployed on, and on your connected venue accounts. You narrow that in two ways:
+
+- **pin a side** to one chain with `pay.chain` or `receive.chain`;
+- **choose where quotes execute** with `filters.locations`.
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `pay.chain` | A CAIP-2 chain id, such as `eip155:8453` | You pay on that chain. The pay side is on-chain. |
+| `receive.chain` | A CAIP-2 chain id | You receive on that chain. The receive side is on-chain. |
+| `filters.locations` | Any of `singleChain`, `crossChain`, `offChain` | Keeps only quotes that execute there. Omitted, all three are kept. |
+| `filters.variants` | `{"pay": "nativeOnly"}`, `{"receive": "nativeOnly"}` | Keeps only `native` variants on that side, so no `bridged`, `wrapped`, `omnichain` or `test` representation such as `USDC.e`. Default `any`. |
+
+Take chain ids from the deployments that [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery) lists for each Asset, never from a fixed list.
+
+## Where a quote executes
+
+| `location.kind` | Meaning | Its sides |
+| --- | --- | --- |
+| `singleChain` | Swapped on one chain. | `pay.chain` and `receive.chain` are the same chain. |
+| `crossChain` | Moved from one chain to another, by a bridge or a solver. | `pay.chain` and `receive.chain` differ. |
+| `offChain` | Traded on one of your venue accounts, such as an exchange or OTC desk. | `chain` is `null` on a side held on the venue account. |
+| `mixed` | A route of several legs that execute in different places. | Each entry in `legs` has its own location. |
+
+`mixed` describes a quote, not a place you can ask for: it is not a `filters.locations` value, and sending it is refused with `400 INVALID_REQUEST`.
+
+## Single-chain
+
+Pin both sides to the same chain and keep `singleChain`:
+
+<SearchSingleChain />
+
+## Cross-chain
+
+Pin the two sides to different chains. To move one Asset between chains, the same Asset goes on both sides, and at least one side must be pinned:
+
+<SearchCrossChain />
+
+A cross-chain quote's `eta` tells you how long delivery is expected to take, as an ISO 8601 duration such as `PT10S`.
+
+## Off-chain
+
+Keep `offChain` and pin no chain. Only your connected venue accounts can answer:
+
+<SearchOffChain />
+
+## What happens to the venues you exclude
+
+A venue whose quotes cannot match your pins or locations is not asked. It stays in `sources` with `status: "filteredOut"`:
+
+```json
+{ "status": "filteredOut", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "detail": null }
+```
+
+So a single-chain search lists your venue accounts and bridges as `filteredOut`, and an off-chain search lists on-chain protocols, bridges and solvers the same way. When nothing is left to answer, `quotes` is empty and `sources` shows why.
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `SAME_ASSET_NEEDS_CHAIN` | `pay.asset` and `receive.asset` are the same and no chain is pinned. | Pin a chain on at least one side. |
+| `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
+| `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that side's Asset. `details.value` is the chain. | Pin a chain the Asset is deployed on, or leave the side open. |
+| `UNKNOWN_CHAIN` | The chain id is not one TetraFi knows. `details.value` is the chain. | Use a chain from `GET /api/v1/assets`. |
+| `UNKNOWN_ASSET` | The Asset id is not in the catalogue. | Use an `assetId` from `GET /api/v1/assets`. |
+
+## In the app
+
+On the Trade page, open **Advanced filters** and choose a **Route**: **Any**, **Single-chain** (pick one chain), **Cross-chain** (pick a from chain and a to chain) or **Off-chain**.

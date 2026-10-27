@@ -1,0 +1,297 @@
+---
+title: "Errors and refusals"
+description: "Read the one error body every refusal uses, know which refusals to retry and when, and find every code with what to do about it."
+---
+
+import ErrorsParse from '/snippets/samples/errors-parse.mdx';
+import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
+import ErrorsMissingWorkspace from '/snippets/samples/errors-missing-workspace.mdx';
+
+When TetraFi refuses a request, the answer is always the same JSON object, whatever the status and whichever call you made. One parser reads every refusal on this page.
+
+The examples come from one script, [`samples/http/errors.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/errors.sh). It provokes three refusals and places no order.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Read a refusal
+
+```json
+{
+  "error": "QUOTE_EXPIRED",
+  "message": "This quote has expired, so nothing was sent. Request a new price.",
+  "requestId": "5ee4d511-5ef8-4e47-9999-5b144ec4fcbc",
+  "timestamp": 1792443399,
+  "next": { "kind": "requote", "needs": [] }
+}
+```
+
+| Field | What it is | What to do with it |
+| --- | --- | --- |
+| `error` | The stable code. | Match on it. It never changes for the same refusal. |
+| `message` | A sentence for people. | Show or log it. Never match on it: the words can change. |
+| `requestId` | The same value as the `X-Request-Id` response header. | Log it, and quote it when you contact support. |
+| `timestamp` | When the refusal was made, in Unix seconds. | Log it. |
+| `next` | The way forward, when there is one. | See [what next tells you](#what-next-tells-you). |
+| `details` | The code's detail, when there is any. | Read the keys you know. Keys are camelCase and more can be added. |
+
+`details.value` names the value that was refused, such as an unknown asset id. `details.reason` carries a token that says why, for example on `REQUOTE_REFUSED`. `details.retryAfter` says how long to wait.
+
+Here the script asks for a quote on an asset TetraFi does not list, prints the refusal and acts on its code:
+
+<ErrorsParse />
+
+```json Output
+{"error":"UNKNOWN_ASSET","requestId":"5ee4d511-…","next":null,"details":{"value":"NOT_AN_ASSET"}}
+use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
+```
+
+## What next tells you
+
+A refusal that you can recover from in a known way carries `next`. Its `kind` is the same set of steps a quote's own `next` uses:
+
+| `next.kind` | What to do |
+| --- | --- |
+| `requote` | Send `POST /api/v1/quotes` with `{"requote": "<quote id>"}`. `next.needs` lists what the new quote needs from you, such as a wallet to bind; an empty list means requote as it is. See [Requotes and expiry](/trade/requotes-and-expiry). |
+| `fund` | The paying account holds too little. Fund it, then get a new price. |
+| `preflight` | Preflight the quote before ordering. See [Orders](/trade/orders#advanced-orders). |
+| `sign` | Your wallet must sign the quote's EIP-712 document first. |
+| `transact` | Your wallet must send a transaction first. |
+| `order` | The quote can be ordered as it is. |
+
+More kinds can be added. Treat a `kind` you do not recognise as a step you cannot take automatically: show `message` and stop.
+
+## Retries
+
+Whether to retry depends on the code, and for a code you do not know, on the status class.
+
+| Answer | Retry? |
+| --- | --- |
+| `429` | Yes, after the wait it names. |
+| `503` | Yes, after `Retry-After` when it is set, otherwise after a second or two, with backoff. |
+| `500`, `502`, `504` | Yes, with backoff. For an order, only with the same `Idempotency-Key` (below). |
+| `409` | Only where the table says so, such as `ORDER_IN_PROGRESS`. Otherwise the state has to change first. |
+| Any other `4xx` | No. Fix the request, or act on `next`, then send it again. |
+
+### Waits
+
+A refusal that names a wait carries it twice:
+
+- the `Retry-After` header, in whole seconds;
+- `details.retryAfter`, an ISO 8601 duration such as `PT3S`. It can carry a fraction, such as `PT1.5S`.
+
+Wait at least that long. Sending sooner is refused again.
+
+### The quote rate limit
+
+You can send one live quote request every 3 seconds per API key. A requote counts as a quote request. A request answered entirely from cached prices does not count. A faster request answers `429 QUOTE_RATE_LIMITED`.
+
+The script sends two quote requests at once, so one of them is refused. It waits `details.retryAfter`, then sends the refused one again:
+
+<ErrorsRateLimit />
+
+```json Output
+{"error":"QUOTE_RATE_LIMITED","requestId":"522b8ba5-…","retryAfter":"PT3S"}
+retried after 3s: 2 quotes
+```
+
+The two requests carry different amounts on purpose. A signed request's signature is accepted once, so two identical requests signed in the same second would read as a replay.
+
+### Orders
+
+`POST /api/v1/orders` is safe to retry only with the same `Idempotency-Key` and the same body: the retry returns the first answer and never places a second order. When you do not know whether an order was placed (a timeout, a dropped connection, a `5xx`), never send it again with a new key. Retry with the same key, or [read the order by its quote](/trade/idempotency#recover-an-order-by-its-quote) first. [Idempotency](/trade/idempotency) has the full rules.
+
+## Codes you do not know
+
+New codes can be added at any time. Act on the codes you know, and treat any other by its status class, as the [compatibility policy](/compatibility#what-your-client-should-do) says: retry a `429` or `503` after `Retry-After`, fix the request on any other `4xx`, and retry a `5xx` with backoff. Show `message` and log `requestId` either way.
+
+## A missing workspace
+
+Every request names the workspace its key belongs to in `X-Workspace-Id`. Without it, or with an empty value, any request answers `400 MISSING_WORKSPACE`. A value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`.
+
+<ErrorsMissingWorkspace />
+
+```json Output
+{"error":"MISSING_WORKSPACE","message":"X-Workspace-Id header is required","requestId":"710fdc9b-…"}
+```
+
+## Refusals by area
+
+Each table lists the codes you can get from that part of the API with an API key. Unless a row says otherwise, nothing was placed or sent.
+
+### Authentication and workspace
+
+These can answer any request. [Authentication](/authentication) explains keys, permissions and signing.
+
+| Status and code | When it happens | What to do |
+| --- | --- | --- |
+| 400 `MISSING_WORKSPACE` | `X-Workspace-Id` is missing or empty. | Send the id of the workspace the key belongs to. |
+| 400 `INVALID_WORKSPACE_ID` | `X-Workspace-Id` is not a workspace id, or is sent more than once. | Send it once, as the workspace id. |
+| 401 `MISSING_CREDENTIALS` | No API key was sent. | Send `X-API-Key`. |
+| 401 `INVALID_API_KEY` | The key is unknown, or it was revoked. | Use a current key. |
+| 401 `API_KEY_EXPIRED` | The key is past its expiration. | Create a new key. |
+| 401 `SIGNATURE_REQUIRED` | The key needs signing and `X-Timestamp` or `X-Signature` is missing. | [Sign the request](/authentication#sign-requests). |
+| 401 `SIGNATURE_INVALID` | The signature is malformed or does not match. | Sign the exact method, path with query, and body bytes you send, with the hex-decoded secret. |
+| 401 `TIMESTAMP_OUT_OF_RANGE` | `X-Timestamp` is more than 300 seconds from TetraFi's clock. | Sync your clock and sign again. |
+| 401 `SIGNATURE_REPLAYED` | This exact signature was already used. | Sign each request afresh. Two identical requests in the same second need different bodies. |
+| 403 `WORKSPACE_SCOPE_MISMATCH` | `X-Workspace-Id` names a different workspace from the key's. | Send the key's own workspace. |
+| 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
+| 403 `IP_NOT_ALLOWED` | The key has an IP allowlist and the request came from elsewhere. | Send from an allowed address, or change the key's allowlist. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks the permission this call needs. | Create a key with that permission ([Permissions](/authentication#permissions)). |
+| 403 `INSUFFICIENT_PERMISSION` | You, the key's owner, no longer hold the permission in the workspace. A key never does more than you can. | Ask a workspace admin for the permission. |
+| 403 `VENUE_TRADE_SCOPE_REQUIRED` | The call trades on a venue account and the key lacks the venue trading scope. | Create a key with it ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
+| 403 `VENUE_TRADE_KEY_DISABLED` | Venue trading is not switched on for the key. | Ask a workspace owner or admin to switch it on. |
+| 403 `VENUE_TRADE_SIGNATURE_REQUIRED` | The call trades on a venue account and the request is not signed. | Sign the request. |
+| 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading settings changed while the request ran. | Send it again. |
+| 413 `REQUEST_BODY_TOO_LARGE` | The body is larger than TetraFi accepts. | Send a smaller body. |
+| 415 `UNSUPPORTED_CONTENT_TYPE` | A body was sent without `Content-Type: application/json`. | Send that header. |
+| 429 `RATE_LIMITED` | The key's own request budget, or the limit for your address, is used up. | Wait `Retry-After` seconds. |
+| 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `WORKSPACE_STATUS_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | TetraFi could not check the key or the workspace just now. | Send it again after a second or two. |
+| 408 `REQUEST_TIMEOUT` | The request took too long to complete. | Retry with backoff. For an order, use the same `Idempotency-Key`. |
+| 500 `INTERNAL_ERROR` | Something went wrong on TetraFi's side. | Retry with backoff, and quote `requestId` to support if it persists. |
+| 503 `SERVICE_UNAVAILABLE` | The service is briefly unavailable. | Retry with backoff. |
+
+### Quote request
+
+`POST /api/v1/quotes` for a new search, and `GET /api/v1/quotes/requests/{quoteRequestId}` to read a quote set again. [How search works](/search/how-it-works) covers the request.
+
+| Status and code | When it happens | What to do |
+| --- | --- | --- |
+| 400 `INVALID_REQUEST` | A field is unknown, missing, malformed or out of range. `message` names it. | Fix that field. |
+| 400 `UNKNOWN_ASSET` | An asset id is not in the catalogue. `details.value` is the id. | Use an `assetId` from `GET /api/v1/assets`. |
+| 400 `UNKNOWN_CHAIN` | A chain id is not one TetraFi knows. `details.value` is the chain. | Use a chain from `GET /api/v1/assets`. |
+| 400 `UNKNOWN_VENUE` | A venue id in `filters.venues` is not one TetraFi knows. `details.value` is the id. | Use an id from `sources[].venue.id`. |
+| 400 `INVALID_AMOUNT` | `amount` is not a positive decimal string. | Send it as a string, such as `"10"`. |
+| 400 `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that side's asset. | Pin a chain the asset is deployed on, or leave the side open. |
+| 400 `SAME_ASSET_NEEDS_CHAIN` | Both sides are the same asset and no chain tells them apart. | Pin a chain on at least one side ([Chains and routes](/search/chains-and-routes)). |
+| 400 `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
+| 400 `COLLECTION_MODE_UNSUPPORTED` | `collectionMode` is `untilMinimum`. Quotes are collected until the deadline. | Leave `collectionMode` out. |
+| 400 `MIN_QUOTES_UNSUPPORTED` | `minQuotes` was sent. | Leave it out. |
+| 400 `PARTIAL_FILL_UNSUPPORTED` | `partialFill` is `true`. Every order fills in full or not at all. | Leave it out. |
+| 400 `BINDING_NOT_ON_CHAIN` | A wallet in `bind.wallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
+| 403 `BINDING_NOT_OWNED` | A wallet or target in `bind` does not exist, or you cannot use it. | Choose a candidate from the quote's `bindingOptions` ([Wallets and accounts](/trade/wallets-and-accounts#binding-refusals)). |
+| 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
+| 404 `QUOTE_REQUEST_NOT_FOUND` | No quote set with this id is readable by you. | Check the id. |
+| 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |
+| 503 `QUOTE_CATALOGUE_UNAVAILABLE`, `QUOTE_ID_UNAVAILABLE`, `BASIC_VENUE_ACCOUNTS_UNAVAILABLE`, `QUOTE_REQUEST_UNAVAILABLE` | Something the search needs could not be read just now. | Send it again after a second or two. |
+
+A venue that cannot quote is not a refusal: the request succeeds and lists that venue in `sources` with its outcome ([below](#source-outcomes)).
+
+### Requote
+
+`POST /api/v1/quotes` with `requote`. [Requotes and expiry](/trade/requotes-and-expiry) covers the request.
+
+| Status and code | When it happens | What to do |
+| --- | --- | --- |
+| 400 `REQUOTE_FIELDS_CONFLICT` | The body has a field that cannot go with `requote`, such as `amount` or `filters`. | Send only `requote`, `bind`, `corridor` and `priceProtectionBps`, or search again. |
+| 400 `CORRIDOR_NOT_OFFERED` | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
+| 400 `BINDING_NOT_ON_CHAIN` | The wallet you bound cannot pay on that chain. | Bind a wallet on the quote's chain. |
+| 403 `BINDING_NOT_OWNED` | The wallet or account in `bind` is not one you can use. | Bind one of your workspace's wallets or accounts. |
+| 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. | Leave out `bind.account`, or search again. |
+| 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | This key cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |
+| 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. Requote only quotes your own key requested. |
+| 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Bind a workspace wallet. |
+| 409 `REQUOTE_REFUSED` | The venue declined. `details.reason` carries a token, such as `venueNotListed`. | Show `message`. The original quote holds until its expiry. Treat a reason you do not recognise as "other". |
+| 409 `REQUOTE_NEEDS_WALLET` | The venue quotes only once you choose a wallet. | Requote with `bind.wallets`. |
+| 409 `QUOTE_OWNER_CONTEXT_UNKNOWN` | The quote was recorded before it could be refreshed for a client. | Search again. |
+| 410 `QUOTE_EXPIRED` | More than 10 minutes have passed since the quote expired. | Search again. |
+| 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |
+| 429 `FIRM_QUOTE_LIMITED` | The workspace reached the desk's firm-quote limit. | Wait `Retry-After`. The quote's `firmAskAvailableAt` says when, where known. |
+| 429 `BUDGET_EXHAUSTED` | The venue's quote budget is used up for now. | Wait `Retry-After` when it is set, otherwise try later. |
+| 503 `QUOTE_NOT_YET_DURABLE` | The quote is still being recorded. | Send the same requote after a second. |
+| 503 `QUOTE_STORE_UNAVAILABLE` | Held quotes cannot be read just now. | Try again shortly. |
+| 504 `REQUOTE_TIMED_OUT` | The venue did not answer in time. | Try again, or order the original while it holds. |
+
+### Preflight and order
+
+`POST /api/v1/orders/preflight`, `POST /api/v1/orders` and the order reads. [Orders](/trade/orders) covers the request.
+
+| Status and code | When it happens | What to do |
+| --- | --- | --- |
+| 400 `INVALID_REQUEST` | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads was sent on a Basic quote. `message` names it. | Fix that field. |
+| 400 `ORDER_BODY_RETIRED` | The body sends a copy of the quote instead of its id. | Send `{"quoteId": "q_…"}`. |
+| 400 `SIGNATURE_REQUIRED` | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
+| 400 `SIGNATURE_NOT_ACCEPTED` | A signature was sent on a quote that takes none. | Leave out `signature`. |
+| 400 `MIN_RECEIVE_REQUIRED` | This venue executes within your limit and the quote is not firm. | Send `minReceive` ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). |
+| 400 `MIN_RECEIVE_INVALID` | `minReceive` is not a positive amount. | Send it as a positive decimal string. |
+| 400 `MIN_RECEIVE_NOT_ACCEPTED` | The quote is Advanced: its price protection bounds delivery, so it takes no minimum receive. | Leave out `minReceive`. |
+| 403 `ADVANCED_MODE_DISABLED` | The quote executes on-chain from your own wallet (Advanced), which is not open yet. | Order a Basic quote instead. |
+| 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. |
+| 404 `ORDER_NOT_FOUND` | No order with this id is readable by you. | Check the id, or [read it by its quote](/trade/idempotency#recover-an-order-by-its-quote). |
+| 409 `PREFLIGHT_NOT_APPLICABLE` | Preflight on a Basic quote. | Place the order directly. |
+| 409 `QUOTE_NOT_EXECUTABLE` | The quote is a price for comparison, not executable. `next` is `requote`. | Requote it to get an executable price. |
+| 409 `QUOTE_NOT_HELD` | The quote is no longer held. `next` is `requote`. | Search again. |
+| 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. | Lower `minReceive` or get a new price. |
+| 409 `VENUE_QUOTE_NOT_PRICED` | The venue did not give a firm price for the order. | Get a new price. |
+| 409 `FUNDING_SHORTFALL` | The venue account holds less than the trade needs. `next` is `fund`. | Fund the account, then get a new price. |
+| 409 `PILOT_TRADE_CAP_EXCEEDED` | The trade is above the venue's current per-trade limit. `next` is `requote`. | Get a price for a smaller amount. |
+| 409 `EXECUTION_STAGE_DISABLED` | The venue is not open for trading. | Choose another venue's quote. |
+| 409 `PRICE_PROTECTION_CHANGED` | `priceProtectionBps` is looser than the quote's. | Requote with the new protection. |
+| 409 `PRICE_MOVED_BEYOND_PROTECTION` | The price moved beyond your price protection. | Request the price again. |
+| 409 `PAY_WALLET_UNAVAILABLE` | The wallet the quote pays from is no longer available to you. | Get new prices. |
+| 422 `PAY_WALLET_SHORT` | The paying wallet holds less than the quote pays. | Top up that wallet, or requote with another, then order again. |
+| 410 `QUOTE_EXPIRED` | The quote's `expiresAt` has passed. `next` is `requote`. | [Requote it](/trade/requotes-and-expiry#refresh-an-expired-quote). |
+| 429 `VENUE_FIRM_QUOTE_LIMITED` | The workspace reached the desk's firm-quote limit. | Wait `Retry-After`, then get a new price. |
+| 503 `QUOTE_NOT_YET_DURABLE`, `QUOTE_STORE_UNAVAILABLE` | The quote is still being recorded, or held quotes cannot be read just now. | Send the same request with the same key after a second. |
+| 503 `VENUE_POLICY_UNAVAILABLE` | How the venue executes could not be read just now. | Send the same request with the same key shortly. |
+
+### Idempotency
+
+The `Idempotency-Key` on `POST /api/v1/orders`, and `GET /api/v1/orders/by-quote/{quoteId}`. [Idempotency](/trade/idempotency) has the full rules.
+
+| Status and code | When it happens | What to do |
+| --- | --- | --- |
+| 400 `IDEMPOTENCY_KEY_REQUIRED` | The order has no `Idempotency-Key`. | Send one, generated per order and stored before you send. |
+| 400 `IDEMPOTENCY_KEY_INVALID` | The header is not exactly one value of 1 to 255 bytes without surrounding spaces. | Send one value, such as 32 hexadecimal characters. |
+| 403 `IDEMPOTENCY_AUTHORITY_REQUIRED` | A replay, but the key no longer holds the permission the first order needed. | Restore the permission, then replay with the same key. |
+| 409 `IDEMPOTENCY_CONFLICT` | The key was already used for a different body. Nothing was placed. | Fix your code. Do not send this body with a new key until you have read the order by its quote. |
+| 409 `ORDER_IN_PROGRESS` | An order with this key is still being placed. | Wait a few seconds, then send the same body with the same key. |
+| 409 `QUOTE_ALREADY_ORDERED` | Another order, sent with a different key, already used this quote. It is not a failure. | Read it by its quote. Do not order again. |
+| 503 `IDEMPOTENCY_UNAVAILABLE` | The key could not be checked, so the request did not run. | Send the same body with the same key. |
+| 503 `QUOTE_ORDER_UNAVAILABLE` | Reading the order by its quote failed. | Do not place another order until a read succeeds. |
+
+### Prices and assets
+
+`GET /api/v1/prices`, `GET /api/v1/prices/stream` and `GET /api/v1/assets`. [Prices](/search/prices) covers the request.
+
+| Status and code | When it happens | What to do |
+| --- | --- | --- |
+| 400 `INVALID_REQUEST` | A parameter is unknown or malformed. `message` names it. | Fix that parameter. |
+| 400 `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. | Use values from `GET /api/v1/assets`. |
+| 400 `INVALID_AMOUNT` | `amount` or a size is not a positive decimal. | Send positive decimals. |
+| 400 `SAME_ASSET_NEEDS_CHAIN` | `pay` and `receive` are the same asset with no chain pinned. | Add `pay.chain` or `receive.chain`. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks the `prices_read` scope, which **Read quotes** grants. | Use a key with **Read quotes**. |
+| 429 `PRICES_RATE_LIMIT` | Too many price reads. | Wait `Retry-After` seconds. |
+| 429 `PRICES_STREAM_LIMIT` | You already hold 4 price streams. | Close one first. |
+| 503 `PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. | Retry after `Retry-After`, about 1 second. |
+| 503 `PRICES_ELIGIBILITY_UNAVAILABLE`, `PRICES_POLICIES_UNAVAILABLE`, `PRICES_IDENTITY_UNAVAILABLE` | Something prices need could not be read just now. | Retry after a second or two. |
+
+## Source outcomes
+
+A quote request that succeeds lists every venue it considered in `sources`, each with a `status` and, when it did not quote, a `reason`. These are outcomes, not refusals: the request worked, and the venue's line says why it gave no quote.
+
+| `status` | What happened |
+| --- | --- |
+| `answered` | The venue quoted. Its quotes are in `quotes`. |
+| `filteredOut` | Your filters left it out. It was not asked. |
+| `unsupported` | It does not serve this request, such as this pair or a receive-exact amount. |
+| `unavailable` | It could not quote now. `reason` and `detail` say why, such as `ADVANCED_MODE_DISABLED` for an Advanced venue while Advanced execution is not open. |
+| `restricted` | A permission keeps it from you. `reason` names it. |
+| `needsWallet` | It quotes only once you bind a wallet. |
+| `walletRefused` | The wallet it would use cannot trade there. |
+| `timedOut` | It did not answer before the collection deadline. |
+| `refused` | The venue declined. |
+
+Some reasons you may see:
+
+| `reason` | What to do |
+| --- | --- |
+| `pair_unsupported`, `exact_output_unsupported` | The venue does not trade this pair, or cannot quote a fixed receive amount. Nothing to do. On `GET /api/v1/prices`, the second reads `receiveExactUnsupported`. |
+| `venueTradeScopeRequired` | Use a key with venue trading ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
+| `notConnected` | Connect your account at that venue ([Wallets and accounts](/trade/wallets-and-accounts#connect-a-venue-account)). |
+| `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` | Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |
+| `ONCHAIN_ASSET_VARIANT_FILTERED` | Your `nativeOnly` filter left out the only variant it trades ([Native only](/search/native-only)). |
+| `ONCHAIN_ACCOUNT_DEFAULT_WALLET_REQUIRED`, `ONCHAIN_WALLET_NOT_USABLE` | No usable wallet was found for that venue. Bind one with `bind.wallets`, or ask an owner to set a default organisation wallet. |
+
+Both lists are open. New statuses and reasons appear without notice, and reasons are spelled in more than one style. Treat a status or reason you do not know as a source you cannot use: show its `detail` if you show anything, and carry on with the quotes you have.

@@ -1,0 +1,46 @@
+---
+title: "Changelog"
+description: "Every change to the TetraFi API that a client can see, newest first, with what to do about it."
+---
+
+The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
+
+<Update label="2026-10-27" description="One error body for every refusal">
+  Every refusal of a quote, price, order, preflight, asset or order-status request, at every status, is now one JSON object:
+
+  | Field | What it is |
+  |---|---|
+  | `error` | The stable code. Match on it. |
+  | `message` | A sentence for people. It can change. |
+  | `requestId` | The same value as the `X-Request-Id` response header. Quote it to support. |
+  | `timestamp` | When the refusal was made, in Unix seconds. |
+  | `next` | The way forward, when there is one. |
+  | `details` | The code's detail, when there is any. Keys are camelCase and can be added. |
+
+  What to change:
+  - Read `requestId` where you read `traceId` before.
+  - Read waits from `details.retryAfter`, an ISO 8601 duration such as `PT2S`. The `Retry-After` header still carries the same wait in seconds.
+  - Fields a refusal used to send at its top level now sit under `details`.
+  - A request body that is too large now answers JSON, `413 REQUEST_BODY_TOO_LARGE`, instead of plain text.
+  - A missing or empty `X-Workspace-Id` answers `400 MISSING_WORKSPACE` everywhere. A malformed one answers `400 INVALID_WORKSPACE_ID`.
+
+  The `Idempotency-Key` rules for `POST /api/v1/orders` are now documented in full: see [Idempotency](/trade/idempotency).
+</Update>
+
+<Update label="2026-10-27" description="New developer docs">
+  These docs now describe one API for search, quotes, requotes and orders, with a runnable sample on every page. They start from the [Quickstart](/quickstart).
+
+  The separate RFQ API, Router API, Price API and Trade History API pages are gone. Their old addresses redirect to the pages that replace them.
+</Update>
+
+<Update label="2026-10-26" description="Venue identity on quotes">
+  Each quote leg and each entry in `sources` names the venue it comes from with `venueId` and `venueName`. Group sources and quotes by `venueId` for display. The existing `id` still identifies the route that executes, and it is the id `filters.venues` takes ([Venue types and venues](/search/venues#specific-venues)). Pools and solvers that are not a named venue leave both fields out.
+</Update>
+
+<Update label="2026-10-17" description="Quotes by asset pair, requotes, and orders by quote id">
+  A quote request names the asset you pay and the asset you receive, not chains or wallets: `POST /api/v1/quotes` with `pay`, `receive`, `amount` and `side`. Every quote states where it executes and how firm it is.
+
+  - Changing a quote's wallet, account or route, or turning an indicative price executable, is a requote: `POST /api/v1/quotes` with `requote` set to the quote id. See [Requotes and expiry](/trade/requotes-and-expiry).
+  - `POST /api/v1/orders` takes the quote id. The server holds the quote's terms, so you never send them back. See [Orders](/trade/orders).
+  - `GET /api/v1/assets` lists what your workspace can trade, and `GET /api/v1/prices` returns indicative prices without asking any venue for a quote.
+</Update>

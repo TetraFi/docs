@@ -9,11 +9,11 @@ Any flow you route across TetraFi can pay you back. Two fee models are available
 
 <Tabs>
   <Tab title="Workspace fee">
-    Set a rate once, at the workspace level, as part of your integration agreement. From then on it rides on every quote issued under your keys automatically - zero code, with `platformFeeBps` disclosing it on each quote.
+    Set a rate once, at the workspace level, as part of your integration agreement. From then on it rides on every quote issued under your keys automatically - zero code, disclosed as an `integrator` line in each quote's `fees`.
   </Tab>
 
   <Tab title="Per-quote override">
-    For integrators running several fee tiers over one workspace - say, different rates per corridor or per user segment - a request-level `fee` override is on the Router API's target surface. Until it ships, tiering is handled in workspace configuration. Details in the [implementation guide](/core-concepts/monetization).
+    For integrators running several fee tiers over one workspace - say, different rates per corridor or per user segment - tiering is handled in workspace configuration. [Get in touch](/support) to set it up.
   </Tab>
 </Tabs>
 
@@ -25,22 +25,22 @@ Any flow you route across TetraFi can pay you back. Two fee models are available
   </Step>
 
   <Step title="Fees ride inside each quote">
-    Quoted receive-amounts already account for your fee; what the taker pays in never changes. Each quote itemises its components through `platformFeeBps` and `lpSpreadBps`.
+    Quoted receive-amounts already account for your fee; what the taker pays in never changes. Each quote itemises every fee line in `fees`: its kind, who pays it, and whether the quoted receive amount already includes it.
   </Step>
 
   <Step title="Collect">
-    Track fee-bearing volume in [Trade History](/trade-history-api/introduction) - scoped to your workspace - and settle on the cadence in your agreement.
+    Track fee-bearing volume in your workspace's trade history and settle on the cadence in your agreement.
   </Step>
 </Steps>
 
-## One model, both products
+## One model, every venue
 
-Whether flow goes through the [RFQ API](/rfq-api/introduction) or the [Router API](/router-api/introduction), the workspace fee applies identically and is disclosed the same way - revenue starts with your first settled trade. The [implementation guide](/core-concepts/monetization) has the field-level detail, and a note on how fees will work on [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) when they ship: the netting fee follows the saving, never the gross, and your partner fee stays on the instant quote.
+Whichever venue or route fills the trade, the workspace fee applies identically and is disclosed the same way - revenue starts with your first settled trade. On [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral), when they ship: the netting fee follows the saving, never the gross, and your partner fee stays on the instant quote.
 
 ## Finding your number
 
 Rates between 5 and 50 bps are typical, and where you land depends on what you're building and for whom. A heavier fee shows up as a wider effective spread - noticeable to users who shop venues - so many teams open conservatively and let volume data argue for adjustments.
 
-<Card icon="wrench" href="/core-concepts/monetization" title="Implementation guide">
-  Ready to wire it up? Fee disclosure fields and working examples inside.
+<Card icon="wrench" href="/quickstart" title="Quickstart">
+  Ready to wire it up? Your first quote shows its fee lines.
 </Card>

@@ -4,7 +4,13 @@
   "type": "module",
   "description": "TetraFi documentation site (Mintlify).",
   "scripts": {
-    "dev": "mint dev",
-    "broken-links": "mint broken-links"
+    "dev": "npx --yes mint@4.2.1006 dev",
+    "validate": "npx --yes mint@4.2.1006 validate",
+    "broken-links": "npx --yes mint@4.2.1006 broken-links",
+    "sync": "node scripts/sync-samples.mjs && node scripts/sync-contract.mjs",
+    "leaks": "node scripts/leak-gate.mjs",
+    "check": "npm run leaks && node scripts/sync-samples.mjs --check && node scripts/sync-contract.mjs --check && npm run validate && npm run broken-links && node scripts/refusal-coverage.mjs",
+    "test": "node scripts/leak-gate.test.mjs",
+    "coverage": "node scripts/refusal-coverage.mjs"
   }
 }
