@@ -1,0 +1,55 @@
+---
+title: "Pay or receive exact"
+description: "Fix the amount you pay, or the amount you receive. Venues quote the other side."
+---
+
+import SearchPayExact from '/snippets/samples/search-pay-exact.mdx';
+import SearchReceiveExact from '/snippets/samples/search-receive-exact.mdx';
+
+Every quote request fixes one side of the trade with `side`. `amount` is that side's amount, and each venue quotes the other side.
+
+| `side` | `amount` is | Each quote states | Quotes are sorted by default |
+| --- | --- | --- | --- |
+| `payExact` | What you pay, in units of `pay.asset` | `receive.amount`, what you would receive | Most received first, by `netReceived` |
+| `receiveExact` | What you receive, in units of `receive.asset` | `pay.amount`, what you would pay | Least paid first |
+
+`amount` is a positive decimal string in Asset units: `"10"` is ten USDC and `"0.001"` is a thousandth of an ETH, never base units. Send it as a string so no digits are lost.
+
+## How amounts are read
+
+- A venue may price a slightly smaller amount than you sent, rounded down to the precision it trades in. The quote states the amount it actually used: a request to pay `"100"` can come back with `pay.amount` of `"99.99994"`.
+- `receive.amount` is what lands after every fee the quote includes. `netReceived` also subtracts fees you pay separately, such as a network fee, so you can compare quotes fairly. It reads `{"kind": "unavailable", "reason": ...}` when a fee could not be read, never 0.
+- With `sort: "eta"`, quotes are ordered by expected time to delivery instead.
+
+## Pay exact
+
+<SearchPayExact />
+
+## Receive exact
+
+<SearchReceiveExact />
+
+Not every venue can quote a fixed receive amount. A venue that only prices the amount you pay is listed in `sources` as `unsupported` with reason `exact_output_unsupported`, and is not asked:
+
+```json
+{ "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "exact_output_unsupported", "detail": null }
+```
+
+In practice, on-chain protocols, bridges and some exchanges quote only the amount you pay, so a receive-exact search usually returns fewer quotes. When no venue can quote it, you get an empty `quotes` list and every venue's reason in `sources`. Switch to `payExact` and size the amount from a [price](/search/prices) instead.
+
+On [`GET /api/v1/prices`](/search/prices), the same limit shows as a row with `status: "unsupported"` and reason `receiveExactUnsupported`.
+
+## What filters do to venues
+
+`side` excludes no venue by itself: a venue that cannot serve it reads `unsupported`, as above. Venues your [filters](/search/how-it-works#the-request) exclude read `filteredOut` and are not asked.
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `INVALID_AMOUNT` | `amount` is not a positive decimal: zero, negative or not a number. | Send a positive decimal string such as `"10"`. |
+| `INVALID_REQUEST` | `amount` is not a string, or `side` is missing or not `payExact` or `receiveExact`. `message` names the field. | Fix that field. |
+
+## In the app
+
+On the Trade page, choose **Pay exact** or **Receive exact** in the trade ticket; the amount you type is then the amount you pay or the amount you receive.
