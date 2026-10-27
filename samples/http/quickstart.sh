@@ -9,7 +9,7 @@
 # Optional:
 #   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 10 USDC for USDT)
 #   TETRAFI_VENUES          comma-separated venue ids to ask, instead of every venue
-#   TETRAFI_PLACE_ORDER=yes places the order; without it the script stops before ordering
+#   TETRAFI_PLACE_ORDER=1 places the order; without it the script stops before ordering
 #
 # The last line printed is one JSON summary. An API error prints its error body and exits 1.
 set -euo pipefail
@@ -106,7 +106,7 @@ else
 fi
 # endregion
 
-if [[ $needs_wallet == true || ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
+if [[ $needs_wallet == true || ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
   # Stop before ordering: your wallet must act first, or you did not ask to place the order.
   jq -c -n --arg q "$quote_id" --argjson w "$needs_wallet" \
     '{quoteId: $q, ordered: false, walletActionRequired: $w}'
