@@ -99,3 +99,9 @@ test('accepted shapes', () => {
   for (const shape of [want, want.map((code) => ({ code })), { codes: want }, { errors: Object.fromEntries(want.map((c) => [c, {}])) }])
     assert.deepEqual([...declaredCodes(shape)].sort(), want, JSON.stringify(shape));
 });
+
+test('a code the generator withheld under the leak rules counts as generated; others still need a row', () => {
+  const page = ['{/* Withheld by the leak rules until the API changes its text: HIDDEN_CODE, OTHER_HIDDEN */}', generatedPage(['SHOWN_CODE'])].join('\n');
+  assert.deepEqual([...generatedCodes(page)].sort(), ['HIDDEN_CODE', 'OTHER_HIDDEN', 'SHOWN_CODE']);
+  assert.deepEqual([...generatedCodes(generatedPage(['SHOWN_CODE']))], ['SHOWN_CODE']);
+});

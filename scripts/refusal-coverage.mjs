@@ -65,7 +65,12 @@ export function generatedCodes(page) {
   const start = lines.findIndex((line) => line.trim() === heading);
   if (start < 0) throw new Error(`REFUSAL_TABLES_MISSING ${heading}`);
   const end = lines.findIndex((line, index) => index > start && /^## /.test(line));
-  return tableCodes(lines.slice(start + 1, end < 0 ? undefined : end));
+  const codes = tableCodes(lines.slice(start + 1, end < 0 ? undefined : end));
+  // Rows the generator withheld under the leak rules are declared, named on the page, and owned by
+  // the API's text; count them as covered so the gap shows as ERROR_CODE_ROW_WITHHELD, not here.
+  const withheld = page.match(/\{\/\* Withheld by the leak rules until the API changes its text: ([^*]+) \*\/\}/);
+  for (const code of withheld ? withheld[1].split(',').map((c) => c.trim()).filter(Boolean) : []) codes.add(code);
+  return codes;
 }
 
 export function coverage(declared, documented, generated) {
