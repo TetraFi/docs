@@ -114,10 +114,12 @@ export TETRAFI_VENUE=...    # optional: the venue id of your exchange account
 
     ```json Output
     {"executionStatus":"filled"}
-    {"executionStatus":"filled","spent":"5","received":"5.00675"}
+    {"executionStatus":"filled","settlementStatus":null,"bounds":{"debitAsset":"USDC","receiptAsset":"USDT","maximumDebit":"5","minimumReceipt":"4.99172"},"dispatch":{"inputSpent":"5","outputReceived":"5.00675","venueOrderId":"229377"}}
     ```
 
-    `dispatch.inputSpent` and `dispatch.outputReceived` are what the trade took from and added to the account.
+    When the venue reports them, `dispatch.inputSpent` and `dispatch.outputReceived` are what the trade took from and added to the account. A missing or `null` amount is unknown, never zero. `bounds.maximumDebit` and `bounds.minimumReceipt` are your accepted limits, not fill amounts. `dispatch.venueOrderId`, when present, is the venue's native order id.
+
+    Check `settlementStatus` for any later money movement. To confirm the balance independently, open the account under **Treasury** in the app.
   </Step>
 </Steps>
 

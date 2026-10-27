@@ -48,9 +48,8 @@ sequenceDiagram
 
 ## Analyze Before You Execute
 
-Start with `mode: analyze`: send real batches, get back what would have netted, execute nothing. Illustrative shapes, with one of two items shown:
+Start with `mode: analyze`: send real batches, get back what would have netted, execute nothing. An illustrative batch request, with one of two items shown:
 
-<CodeGroup>
 ```json Batch (request)
 {
   "mode": "analyze",
@@ -67,28 +66,9 @@ Start with `mode: analyze`: send real batches, get back what would have netted, 
 }
 ```
 
-```json Analysis (result)
-{
-  "status": "analyzed",
-  "executable": false,
-  "grossAtomic": "180000000",
-  "dischargedBySetOffAtomic": "160000000",
-  "positions": [
-    { "memberRef": "member-A", "netDebitAtomic": "20000000" },
-    { "memberRef": "member-B", "netCreditAtomic": "20000000" }
-  ],
-  "transferLegs": [
-    { "debtorRef": "member-A", "creditorRef": "member-B", "amountAtomic": "20000000" }
-  ],
-  "requiredBeforeExecution": [
-    "nettingConsent", "intakeEligibility", "grossRedemptionFence",
-    "residualFundingAuthority", "agreedDischargeVerifier"
-  ]
-}
-```
-</CodeGroup>
+For example, two opposing obligations of 100 and 80 USDC leave 20 USDC to fund after set-off. This is an explanation of the calculation, not a public API response shape. The [API overview](/overview) describes the current public API.
 
-**From analysis to execution** adds what the result lists:
+**From analysis to execution**, you need:
 
 * each counterparty's **consent** to settle by set-off;
 * **eligibility** for the signed-obligation lane;
