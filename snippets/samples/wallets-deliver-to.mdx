@@ -10,15 +10,6 @@ target=$(jq -c 'first(.quotes[] as $q | $q.bindingOptions[] | select(.kind == "d
   | {quoteId: $q.id, deliverTo: ({kind: "address", chain: .chains[0], address}
       + (if .destinationTag then {destinationTag} else {} end))}) // empty' <<<"$quotes")
 if [[ -z $target ]]; then
-  # No quote lists one (an API key is usually not shown deliverTo candidates). Name one of
-  # your workspace's delivery candidates from your Default binding on the first venue quote.
-  defaults=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/binding-defaults/me")
-  target=$(jq -c -n --argjson q "$quotes" --argjson d "$defaults" '
-    first($q.quotes[] | select(.binding.account != null and .pay.chain == null)) as $venue
-    | first($d.candidates.deliverTo[] | select(.address != null and (.chains | length) > 0)) as $c
-    | {quoteId: $venue.id, deliverTo: {kind: "address", chain: $c.chains[0], address: $c.address}}' || true)
-fi
-if [[ -z $target ]]; then
   echo '{"deliverTo":"no venue quote and delivery candidate to try"}' >&2
   deliver_outcome=none
 else

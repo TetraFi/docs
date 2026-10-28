@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Every refusal code the API declares has a row on trade/errors.mdx, and every row names a code
-// the API still declares. The declared list is the API's own file, never a list kept here:
+// Every refusal code the API declares has a row on reference/error-codes.mdx. The hand-written
+// refusal tables on trade/errors.mdx may select a subset, but never name undeclared codes.
+// The declared list is the API's own file, never a list kept here:
 //   - tetrafi-rfq/docs/api/integrator/error-codes.json   (TETRAFI_RFQ_API_DOCS overrides docs/api)
 // A row is a table row under "## Refusals by area"; its codes are the backticked SCREAMING_SNAKE
 // tokens in its first cell (`400 UNKNOWN_ASSET` or 400 `UNKNOWN_ASSET`). Source reason tokens are an
@@ -39,13 +40,9 @@ export function declaredCodes(json) {
   return new Set(raw.filter((code) => typeof code === 'string' && CODE.test(code)));
 }
 
-export function documentedCodes(page) {
-  const lines = page.split('\n');
-  const start = lines.findIndex((line) => line.trim() === SECTION);
-  if (start < 0) throw new Error(`REFUSAL_TABLES_MISSING ${SECTION}`);
+function tableCodes(lines) {
   const codes = new Set();
-  for (const line of lines.slice(start + 1)) {
-    if (/^## /.test(line)) break;
+  for (const line of lines) {
     if (!line.startsWith('|') || /^\|[\s:|-]+\|?\s*$/.test(line)) continue;
     const first = line.split('|')[1] ?? '';
     for (const match of first.matchAll(ROW_CODE)) codes.add(match[1]);
@@ -53,14 +50,37 @@ export function documentedCodes(page) {
   return codes;
 }
 
-export function coverage(declared, documented) {
+// Only code cells count, never incidental mentions in prose or the source-reason table.
+export function documentedCodes(page) {
+  const lines = page.split('\n');
+  const start = lines.findIndex((line) => line.trim() === SECTION);
+  if (start < 0) throw new Error(`REFUSAL_TABLES_MISSING ${SECTION}`);
+  const end = lines.findIndex((line, index) => index > start && /^## /.test(line));
+  return tableCodes(lines.slice(start + 1, end < 0 ? undefined : end));
+}
+
+export function generatedCodes(page) {
+  const lines = page.split('\n');
+  const heading = '## Refusal codes';
+  const start = lines.findIndex((line) => line.trim() === heading);
+  if (start < 0) throw new Error(`REFUSAL_TABLES_MISSING ${heading}`);
+  const end = lines.findIndex((line, index) => index > start && /^## /.test(line));
+  const codes = tableCodes(lines.slice(start + 1, end < 0 ? undefined : end));
+  // Rows the generator withheld under the leak rules are declared, named on the page, and owned by
+  // the API's text; count them as covered so the gap shows as ERROR_CODE_ROW_WITHHELD, not here.
+  const withheld = page.match(/\{\/\* Withheld by the leak rules until the API changes its text: ([^*]+) \*\/\}/);
+  for (const code of withheld ? withheld[1].split(',').map((c) => c.trim()).filter(Boolean) : []) codes.add(code);
+  return codes;
+}
+
+export function coverage(declared, documented, generated) {
   return {
-    undocumented: [...declared].filter((code) => !documented.has(code)).sort(),
+    undocumented: [...declared].filter((code) => !generated.has(code)).sort(),
     unknown: [...documented].filter((code) => !declared.has(code)).sort(),
   };
 }
 
-export function main({ env = process.env, log = console.log } = {}) {
+export function main({ env = process.env, log = console.log, siteRoot = root } = {}) {
   const from = sourcePath(env);
   if (!existsSync(from)) {
     log('REFUSAL_COVERAGE_PENDING error-codes.json not published');
@@ -76,11 +96,25 @@ export function main({ env = process.env, log = console.log } = {}) {
     log(`REFUSAL_COVERAGE_UNREADABLE ${from}`);
     return 1;
   }
-  const documented = documentedCodes(readFileSync(path.join(root, 'trade', 'errors.mdx'), 'utf8'));
-  const { undocumented, unknown } = coverage(declared, documented);
+  let documented;
+  try {
+    documented = documentedCodes(readFileSync(path.join(siteRoot, 'trade', 'errors.mdx'), 'utf8'));
+  } catch {
+    log('REFUSAL_COVERAGE_UNREADABLE trade/errors.mdx');
+    return 1;
+  }
+  let generated;
+  try {
+    generated = generatedCodes(readFileSync(path.join(siteRoot, 'reference', 'error-codes.mdx'), 'utf8'));
+  } catch {
+    log('REFUSAL_COVERAGE_UNREADABLE reference/error-codes.mdx');
+    for (const code of [...documented].filter((code) => !declared.has(code)).sort()) log(`REFUSAL_UNKNOWN ${code}`);
+    return 1;
+  }
+  const { undocumented, unknown } = coverage(declared, documented, generated);
   for (const code of undocumented) log(`REFUSAL_UNDOCUMENTED ${code}`);
   for (const code of unknown) log(`REFUSAL_UNKNOWN ${code}`);
-  log(`refusal-coverage: ${declared.size} declared, ${documented.size} documented, ${undocumented.length} undocumented, ${unknown.length} unknown`);
+  log(`refusal-coverage: ${declared.size} declared, ${generated.size} generated, ${documented.size} documented, ${undocumented.length} undocumented, ${unknown.length} unknown`);
   return undocumented.length || unknown.length ? 1 : 0;
 }
 

@@ -164,7 +164,9 @@ for _ in $(seq 1 30); do
   case $status in filled | unfilled | needs_review) break ;; esac
   sleep 10
 done
-jq -c '{executionStatus, spent: .dispatch.inputSpent, received: .dispatch.outputReceived}' <<<"$trade" >&2
+# Amounts can be null when the venue has not reported them. Bounds are limits, not a fill.
+jq -c '{executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
+  dispatch: (.dispatch | if . == null then null else {inputSpent, outputReceived, venueOrderId} end)}' <<<"$trade" >&2
 # endregion
 
 jq -c --arg q "$quote_id" --arg v "$venue" --arg s "$status" --arg k "$idempotency_key" \

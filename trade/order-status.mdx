@@ -48,12 +48,14 @@ Poll every 10 seconds until it is `filled` or `unfilled`. If it reads `needs_rev
 
 <OrderStatusAdvanced />
 
-`GET /api/v1/orders/{orderId}` returns the order. The fields to follow:
+`GET /api/v1/orders/{orderId}` requires authentication. Send your key and workspace headers, with **Read orders** permission. A read without credentials never returns the order: it answers `401 MISSING_CREDENTIALS` before TetraFi looks up the id, or `404 ORDER_NOT_FOUND` on a deployment that does not have this change yet. Treat both as "send credentials".
+
+The response returns the order. `status` is always a string, including `"failed"`; read the separate `failure` object for failure details. The fields to follow:
 
 | Field | Meaning |
 | --- | --- |
 | `terminal` | `true` when the order can no longer change. Poll this, rather than inferring the end from `status`. |
-| `status` | Where the order is (below). |
+| `status` | A string that says where the order is (below). |
 | `nextActor` | Who must act next: `taker` (you, for example a further signature), `support` (TetraFi's operations team), `counterparty` (a venue, solver, chain or provider is working) or `none` (nothing more will happen). |
 | `failure` | When the order failed: `phase`, a `code` your code can match and a `message` you can show. |
 
@@ -67,7 +69,7 @@ Poll every 10 seconds until it is `filled` or `unfilled`. If it reads `needs_rev
 | `settled` | Settlement is complete. For most orders this is the end. |
 | `finalized` | A final step after settlement, for products that have one. Not every order reaches it. |
 | `refunded` | Your funds were returned. |
-| `failed` | Execution failed. This one arrives as an object, `{"failed": ["<phase>", "<message>"]}`, so read `failure` for details. |
+| `failed` | Execution failed. Read `failure.phase`, `failure.code` and `failure.message` for details. |
 
 Poll every 10 to 15 seconds until `terminal` is `true`. Do not wait for `finalized` on every order. More values may be added to `status` and `nextActor`: treat one you do not recognise as "other" and keep following `terminal`.
 

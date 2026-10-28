@@ -101,7 +101,7 @@ request=$(jq -nc --arg asset "$asset" --arg amount "$amount" --arg from "$from_c
 }')
 quotes=$(quote "$request")
 
-# Every venue asked, with its outcome. API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED means the key
+# Every venue asked, with its outcome. apiKeyOrganisationWalletScopeRequired means the key
 # has no organisation wallet granted to it yet.
 jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$quotes" >&2
 
@@ -174,11 +174,11 @@ esac
 # endregion
 
 # region recipe-cross-chain-arrival
-# A filled move says what arrived and where: outputReceived, and the delivery transaction on the
-# receiving chain. Each transaction your organisation wallet sent is listed with its hash.
+# Read the documented amounts and bounds, not transaction details outside the public contract.
+# A missing amount is unknown, never zero. Confirm arrival in the destination wallet's app balance.
 if [[ $status == filled ]]; then
-  jq -c '{received: .dispatch.outputReceived, spent: .dispatch.inputSpent, delivery: .dispatch.settlement,
-    sent: [.organisationWalletSteps[]? | {purpose: .summary.purpose, chain, txHash}]}' <<<"$state" >&2
+  jq -c '{executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
+    dispatch: (.dispatch | if . == null then null else {inputSpent, outputReceived, venueOrderId} end)}' <<<"$state" >&2
 fi
 # endregion
 

@@ -5,7 +5,7 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
-<Update label="2026-10-27" description="One error body for every refusal">
+<Update label="2026-10-27" description="Consistent refusals, order status and source reasons">
   Every refusal of a quote, price, order, preflight, asset or order-status request, at every status, is now one JSON object:
 
   | Field | What it is |
@@ -23,8 +23,13 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Fields a refusal used to send at its top level now sit under `details`.
   - A request body that is too large now answers JSON, `413 REQUEST_BODY_TOO_LARGE`, instead of plain text.
   - A missing or empty `X-Workspace-Id` answers `400 MISSING_WORKSPACE` everywhere. A malformed one answers `400 INVALID_WORKSPACE_ID`.
+  - Send credentials on `GET /api/v1/orders/{orderId}`. Without them, you get `401 MISSING_CREDENTIALS` before any order lookup. This one is rolling out: until it reaches a deployment, a read without credentials answers `404 ORDER_NOT_FOUND`.
+  - Read order `status` as a string, including `"failed"`. Failure details are in `failure.phase`, `failure.code` and `failure.message`, not inside `status`.
+  - Source reasons on quotes and prices are camelCase tokens, for example `pairNotServed` instead of `pair_unsupported` and `apiKeyOrganisationWalletScopeRequired` instead of `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED`.
+  - Match `receiveExactUnsupported` when a source cannot quote a fixed receive amount. Quotes and prices now use the same token. Read it from `reason`, or from `detail` on a `filteredOut` row.
+  - Read `venueTradeEnabled` on API key summaries to check whether venue trading is switched on.
 
-  The `Idempotency-Key` rules for `POST /api/v1/orders` are now documented in full: see [Idempotency](/trade/idempotency).
+  The [error-code reference](/reference/error-codes) lists every declared refusal and source reason. The `Idempotency-Key` rules for `POST /api/v1/orders` are now documented in full: see [Idempotency](/trade/idempotency).
 </Update>
 
 <Update label="2026-10-27" description="New developer docs">

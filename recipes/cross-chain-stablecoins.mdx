@@ -102,23 +102,26 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
   </Step>
 
   <Step title="Confirm it arrived">
-    A filled move says what arrived and where. `dispatch.outputReceived` is the amount received, and `dispatch.settlement` names the receiving chain and the hash of the transaction that delivered it. `organisationWalletSteps` lists each transaction your organisation wallet sent on the paying chain, such as the token approval and the deposit, with its `txHash`.
+    Read `executionStatus` for the trade and `settlementStatus` for any later money movement. When the venue reports amounts, `dispatch.inputSpent` is what you paid and `dispatch.outputReceived` is what you received. A missing or `null` amount is unknown, not zero. `dispatch.venueOrderId`, when present, is the venue's native order id.
+
+    `bounds.maximumDebit` and `bounds.minimumReceipt` are the limits you accepted, not the amounts that settled. The public response does not document delivery transaction hashes or your organisation wallet's transaction steps.
 
     <CrossChainArrival />
 
     ```json Output (shortened)
     {
-      "received": "0.999501",
-      "spent": "1",
-      "delivery": { "chain": "eip155:11155111", "txHash": "0x9c0174d3…" },
-      "sent": [
-        { "purpose": "token_approval", "chain": "eip155:84532", "txHash": "0x138f2c66…" },
-        { "purpose": "bridge_deposit", "chain": "eip155:84532", "txHash": "0x0fc930a0…" }
-      ]
+      "executionStatus": "filled",
+      "bounds": {
+        "debitAsset": "USDC",
+        "receiptAsset": "USDC",
+        "maximumDebit": "1",
+        "minimumReceipt": "0.994503"
+      },
+      "dispatch": { "inputSpent": "1", "outputReceived": "0.999501" }
     }
     ```
 
-    Look the delivery hash up on the receiving chain's block explorer to see the USDC arrive at the receiving wallet.
+    To confirm arrival independently, check the receiving wallet's balance on the destination chain in the app. Keep reading the order status if the trade or its money movement is not yet final.
   </Step>
 </Steps>
 
@@ -139,12 +142,12 @@ Progress goes to stderr and the summary to stdout:
 When no quote's `next` is `order`, the script stops and its summary lists why, venue by venue:
 
 ```json Output (shortened)
-{"from":"eip155:84532","to":"eip155:11155111","orderable":false,"ownWallet":[],"reasons":[{"venue":"across","reason":"API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED"},{"venue":"cctp","reason":"API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED"}]}
+{"from":"eip155:84532","to":"eip155:11155111","orderable":false,"ownWallet":[],"reasons":[{"venue":"across","reason":"apiKeyOrganisationWalletScopeRequired"},{"venue":"cctp","reason":"apiKeyOrganisationWalletScopeRequired"}]}
 ```
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `unavailable` with `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` | The key has no organisation wallet granted to it. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
+| `unavailable` with `apiKeyOrganisationWalletScopeRequired` | The key has no organisation wallet granted to it. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
 | `unavailable` with `amountBelowMinimum` | The amount is below what that venue moves. `detail` names the least. | Move at least that amount. |
 | A quote whose `next` is `preflight`, `sign` or `transact` | The move pays from your own wallet, which must sign or send a transaction first. An API key cannot do that. | Sign with your wallet in your application, then order it ([Orders](/trade/orders#advanced-orders)). |
 | `restricted` with `venueTradeScopeRequired` | The key cannot trade on venue accounts. | Set up [venue trading](/authentication#trading-on-your-venue-accounts) for the key. |

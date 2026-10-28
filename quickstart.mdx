@@ -37,7 +37,7 @@ Create the key in the app as a workspace owner or admin with permission to manag
 3. Switch **Venue trading** on and select **Create key**.
 4. Copy **API Key** and **Request-signing secret** to your secret manager, keeping them separate. They are shown once and cannot be recovered. Tick **I have saved both credentials securely** and select **Done**.
 
-The dialog does not grant organisation wallets to the key. Exchange and OTC venue accounts need no wallet grant, but on-chain Basic venues answer `unavailable` with `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` until an owner or admin grants a wallet. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains that separate step.
+The dialog does not grant organisation wallets to the key. Exchange and OTC venue accounts need no wallet grant, but on-chain Basic venues answer `unavailable` with `apiKeyOrganisationWalletScopeRequired` until an owner or admin grants a wallet. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains that separate step.
 
 ### Find your workspace id
 
@@ -46,7 +46,7 @@ The dialog does not grant organisation wallets to the key. Exchange and OTC venu
 In the app, a workspace owner or admin finds it as **Workspace ID** in the workspace's settings, on the **General** tab.
 
 <Note>
-On-chain (Advanced) execution is not open yet: Advanced venues are listed in `sources` as `unavailable` with the reason `ADVANCED_MODE_DISABLED`, and are not asked. This guide and every sample on this site use Basic quotes. [Orders](/trade/orders) describes the Advanced path for when it opens.
+On-chain (Advanced) execution is not open yet: Advanced venues are listed in `sources` as `unavailable` with the reason `advancedModeDisabled`, and are not asked. This guide and every sample on this site use Basic quotes. [Orders](/trade/orders) describes the Advanced path for when it opens.
 </Note>
 
 <Steps>
@@ -114,7 +114,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
       ],
       "sources": [
         { "venue": { "id": "binance-orderbook" }, "status": "answered" },
-        { "venue": { "id": "across" }, "status": "unsupported", "reason": "pair_unsupported" }
+        { "venue": { "id": "across" }, "status": "unsupported", "reason": "pairNotServed" }
       ]
     }
     ```
@@ -199,9 +199,9 @@ When no quote's `next` is `order` or `preflight`, the script stops with `NO_ACTI
 | --- | --- | --- |
 | `restricted`, `venueTradeScopeRequired` | The key has no venue trading, so venue accounts are not asked. | Use a key with venue trading ([Get a key with venue trading](#get-a-key-with-venue-trading)). |
 | `unavailable`, `notConnected` | Your workspace has no account at that venue. | Connect one ([Connect a venue account](/trade/wallets-and-accounts#connect-a-venue-account)), or ignore that venue. |
-| `unavailable`, `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` | The venue trades from an organisation wallet, and none is granted to the key. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
-| `unavailable`, `ADVANCED_MODE_DISABLED` | The venue executes on-chain from your own wallet (Advanced), which is not open yet. | Nothing to do. Use a Basic quote. |
-| `unsupported`, `pair_unsupported` | The venue does not trade this pair. | Nothing to do, or try another pair. |
+| `unavailable`, `apiKeyOrganisationWalletScopeRequired` | The venue trades from an organisation wallet, and none is granted to the key. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
+| `unavailable`, `advancedModeDisabled` | The venue executes on-chain from your own wallet (Advanced), which is not open yet. | Nothing to do. Use a Basic quote. |
+| `unsupported`, `pairNotServed` | The venue does not trade this pair. | Nothing to do, or try another pair. |
 | A quote whose `next` is `fund` | The venue account holds less than you pay, so the script skipped it. `readiness.amount` is what is missing. | Fund the account, then run the script again. |
 
 [Errors and refusals](/trade/errors#source-outcomes) lists more outcomes.

@@ -39,7 +39,7 @@ Leave `bind` out and every venue prices with your default binding. TetraFi fills
 
 A workspace always has a default organisation wallet: the first organisation wallet created or linked in it. Saved defaults are organisation wallets and workspace-registered addresses, never personal wallets.
 
-To see what your key resolves to, call `GET /api/v1/workspaces/{workspaceId}/binding-defaults/me`. With an API key it needs **Read orders**. It returns each slot (`wallet:evm`, `wallet:solana`, `wallet:tron`, `bankAccount`, `deliverTo`), where its value came from (`source`), the wallet chosen for each network, and the candidates you could choose instead. An API key can read its defaults but not change them.
+To see what your key resolves to through the public API, request quotes and read each quote's `binding`. Its `bindingOptions` lists the alternatives available to that quote. In the app, you can inspect your saved defaults under **Default binding**.
 
 The script asks for a quote with no `bind`, then prints each venue's outcome and what each quote is bound to.
 
@@ -50,7 +50,7 @@ The script asks for a quote with no `bind`, then prints each venue's outcome and
 {"venue":"binance-orderbook","status":"answered"}
 {"venue":"keyrock-rfq","status":"answered"}
 {"venue":"okx-rfq","status":"unavailable","reason":"notConnected"}
-{"venue":"across","status":"unsupported","reason":"pair_unsupported"}
+{"venue":"across","status":"unsupported","reason":"pairNotServed"}
 {"quoteId":"q_01M5…","venue":"bebop","next":"order","wallets":["eip155:8453"],"account":true,"deliverTo":null}
 {"quoteId":"q_01M5…","venue":"binance-orderbook","next":"order","wallets":[],"account":true,"deliverTo":null}
 ```
@@ -68,7 +68,7 @@ Send `bind` on a new quote request or on a requote. It has the same four parts a
 }
 ```
 
-Send only the parts you want to change. The ids to use come from the quote itself, in `bindingOptions` (see below), or from the candidates of `binding-defaults/me`.
+Send only the parts you want to change. The ids to use come from the quote itself, in `bindingOptions` (see below).
 
 ### Wallets, one per chain
 
@@ -80,7 +80,7 @@ Send only the parts you want to change. The ids to use come from the quote itsel
 | Solana | `solana:<genesis hash>` | `solana:5eykt4Us…` | `wallet:solana` |
 | Tron | `tron:<network>` | `tron:shasta` (the Shasta test network) | `wallet:tron` |
 
-Each value is a wallet id, as `bindingOptions` and `binding-defaults/me` return it, or an address. The wallet must be able to pay on that chain: a custody vault or a registered address pays only on the chains it is registered on.
+Each value is a wallet id from `bindingOptions`, or an address. The wallet must be able to pay on that chain: a custody vault or a registered address pays only on the chains it is registered on.
 
 An API key uses your workspace's wallets and the organisation wallets an owner has granted to that key ([below](#give-a-key-organisation-wallets)). It cannot use a personal wallet, and it cannot link one: linking a personal wallet is done by a signed-in member. In the app, a member can choose a personal wallet for a single request on the trade page while **Advanced filters** is open. Despite its name, **Advanced filters** only opens more search filters: it is not Advanced execution.
 
@@ -118,12 +118,12 @@ When a venue cannot deliver where you asked, a new quote request lists that venu
 | `deliverToCalldataUnsupported` | This venue cannot send calldata with the output. Leave `calldata` out. |
 | `deliverToNotPermitted` | Delivering to a wallet needs a signed-in member who can view wallets. Keep the output on the account, or deliver from the app. |
 
-The script looks for a quote whose `deliverTo` option lists an address. When none does, as with an API key, it names one of your delivery candidates from `binding-defaults/me` on the first venue quote and prints the answer.
+The script looks for a quote whose `deliverTo` option lists an address. When none does, as with an API key, it skips the delivery requote. It never guesses a destination.
 
 <WalletsDeliverTo />
 
 ```json Output with an API key
-{"requoteRefused":"REQUOTE_REFUSED","reason":"deliverToNotPermitted","message":"Delivering to a wallet needs a current member session that can view the workspace's wallets."}
+{"deliverTo":"no venue quote and delivery candidate to try"}
 ```
 
 ## Read bindingOptions
@@ -187,7 +187,7 @@ Some venues can only quote once they know which wallet pays. You can see this in
 
 **A venue reads `walletRefused` in `sources`.** The wallet in `wallet` cannot trade there, for example because it was revoked or screening confirmed a sanctions match; `reason` says why when TetraFi can. When the refused wallet is an organisation wallet you chose that is not linked to the venue account, `recovery` carries the `wallet`, a `linkHref` where it can be linked, and a `defaultBinding` you can send as `bind` to use the account's default wallet for this request instead.
 
-With an API key, on-chain venues may also read `unavailable` with the reason `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED`. The key has no organisation wallet granted to it yet: ask a workspace owner to grant one.
+With an API key, on-chain venues may also read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired`. The key has no organisation wallet granted to it yet: ask a workspace owner to grant one.
 
 ## Give a key organisation wallets
 
