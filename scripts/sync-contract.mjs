@@ -56,8 +56,8 @@ function errorCodesPage() {
   const from = path.join(source, 'integrator', 'error-codes.json');
   if (!existsSync(from)) return { page: null, withheld: 'not published yet', hits: [] };
   const contract = JSON.parse(readFileSync(from, 'utf8'));
-  if (typeof contract.version !== 'string' || !contract.version || !Array.isArray(contract.codes) || !contract.codes.length || !Array.isArray(contract.sourceReasons)) {
-    throw new Error(`${from}: expected version, nonempty codes and sourceReasons`);
+  if (typeof contract.version !== 'string' || !contract.version || !Array.isArray(contract.codes) || !contract.codes.length || !Array.isArray(contract.sourceReasons) || !contract.sourceReasons.length) {
+    throw new Error(`${from}: expected version, nonempty codes and nonempty sourceReasons`);
   }
   const rules = rulesFor(root, allowedInternalNames(path.join(source, 'integrator', 'openapi.json')));
   const hits = [];
@@ -70,14 +70,20 @@ function errorCodesPage() {
         throw new Error(`${from}: invalid or duplicate ${kind} row`);
       }
       seen.add(row[kind]);
-      for (const hit of scanText(JSON.stringify(row), rules)) hits.push({ row: row[kind], ...hit });
+      // A leak in the row's own name cannot be withheld by naming it: refuse the page instead.
+      if (scanText(row[kind], rules).length) throw new Error(`ERROR_CODE_NAME_LEAKS a ${kind} name fails the leak rules; the API must rename it`);
+      for (const hit of scanText(JSON.stringify(row), rules)) hits.push({ row: row[kind], rule: hit.rule });
     }
   }
   // A row whose own text fails the leak rules is left off the public page, never rewritten here:
-  // the API owns the wording. The page names what it withholds so coverage reads it as declared.
+  // the API owns the wording. The page names what it withholds so coverage reads it as declared,
+  // and --check stays red unless samples/withheld-rows.json records why that row may stay off.
   const withheldRows = [...new Set(hits.map((hit) => hit.row))].sort();
+  const allowFile = path.join(root, 'samples', 'withheld-rows.json');
+  const allowed = existsSync(allowFile) ? JSON.parse(readFileSync(allowFile, 'utf8')).rows ?? {} : {};
+  const unexplained = withheldRows.filter((row) => typeof allowed[row] !== 'string' || !allowed[row].trim());
   const keep = (key) => (row) => !withheldRows.includes(row[key]);
-  // Escape table/MDX syntax, never alter the contract's wording or omit a row.
+  // Escape table/MDX syntax; never alter the contract's wording. Rows are omitted only when withheld above.
   const cell = (value) => String(value).replace(/&/g, '&amp;').replace(/\|/g, '&#124;')
     .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;').replace(/\r?\n/g, '<br />');
   const sorted = (rows, key) => [...rows].sort((a, b) => a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0);
@@ -108,7 +114,7 @@ function errorCodesPage() {
     '| :--- | :--- | :--- | :--- |',
     ...sorted(contract.sourceReasons.filter(keep('reason')), 'reason').map((row) => `| \`${cell(row.reason)}\` | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
     '',
-  ].join('\n'), withheld: null, hits };
+  ].join('\n'), withheld: null, hits, unexplained };
 }
 const errorCodes = errorCodesPage();
 
@@ -121,7 +127,8 @@ const staleErrorCodes = !errorCodes.page && existsSync(path.join(root, 'referenc
 function reportWithheld() {
   if (reference.withheld) console.log(`REFERENCE_WITHHELD ${reference.withheld}`);
   if (errorCodes.withheld) console.log(`ERROR_CODES_WITHHELD ${errorCodes.withheld}`);
-  for (const hit of errorCodes.hits) console.log(`ERROR_CODE_ROW_WITHHELD ${hit.row} ${hit.rule} ${hit.match}`);
+  for (const hit of errorCodes.hits) console.log(`ERROR_CODE_ROW_WITHHELD ${hit.row} ${hit.rule}`);
+  for (const row of errorCodes.unexplained ?? []) console.log(`ERROR_CODE_ROW_UNEXPLAINED ${row} (record why in samples/withheld-rows.json, or fix the API text)`);
 }
 const drift = outputs.filter(([file, content]) => !existsSync(path.join(root, file)) || readFileSync(path.join(root, file), 'utf8') !== content);
 if (check) {
@@ -130,7 +137,7 @@ if (check) {
   if (staleErrorCodes) console.log('CONTRACT_DRIFT reference/error-codes.mdx (present while the error codes are withheld)');
   reportWithheld();
   console.log(`sync-contract --check: ${outputs.length} files, ${drift.length} drifted`);
-  process.exit(drift.length || staleReference || errorCodes.withheld || staleErrorCodes ? 1 : 0);
+  process.exit(drift.length || staleReference || errorCodes.withheld || staleErrorCodes || errorCodes.unexplained?.length ? 1 : 0);
 }
 for (const [file, content] of outputs) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
