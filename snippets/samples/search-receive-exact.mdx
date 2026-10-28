@@ -26,6 +26,8 @@ const receiveExact = await client.quote({
   filters: { locations: ['offChain'] },
 });
 // A venue that cannot fix the output names it in sources, for example `receiveExactUnsupported`.
+// When none can, the set is empty: that is an answer, and `sources` says why for each venue.
+const receivePriced = receiveExact.quotes.length > 0;
 const receiveMismatch = receiveExact.quotes
   .filter((quote) => quote.receive.amount !== null && Number(quote.receive.amount) !== 0.001);
 ```
