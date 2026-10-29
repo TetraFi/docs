@@ -110,13 +110,15 @@ request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | ke
 # endregion
 
 # region trading-source-refusal
-# A wallet the key may not use is refused before any venue is asked: the code says which rule
-# applied and next, when present, says what to do. Nothing is quoted or reserved.
+# A wallet or account you may not use at all is refused before any venue is asked (for example
+# 403 SOURCE_NOT_OWNED): nothing is quoted or reserved. A trading wallet a venue account has not
+# linked is not refused: that venue reads unavailable with reason tradingSourceNotLinked.
 if ! quotes=$(quote_request "$request"); then
   jq -c '{refused: .error, message, next}' <<<"$quotes" >&2
   jq -cn --argjson q "$quotes" '{tradingWallets: true, refused: $q.error}'
   exit 0
 fi
+jq -c '[.sources[] | select(.reason == "tradingSourceNotLinked") | {venue: .venue.id, reason, detail}]' <<<"$quotes" >&2
 # endregion
 
 # region trading-source-funding

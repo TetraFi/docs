@@ -16,7 +16,10 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Read a quote's `location` as `{ "kind": … }` only: `singleChain`, `crossChain`, `offChain` or `mixed`.
   - On a `walletRefused` source, read `recovery.defaultWallets` and send it as `source.tradingWallets`, where you sent `recovery.defaultBinding` as `bind`.
 
-  Refusal codes keep their names, for example `BINDING_NOT_OWNED`. [Wallets and accounts](/trade/wallets-and-accounts) covers the new fields.
+  - Match `SOURCE_NOT_OWNED` (403) where you matched `BINDING_NOT_OWNED`. It now refuses a `deliverTo` or `source.fundingAccountId` naming a wallet or account you cannot use.
+  - A trading wallet in `source.tradingWallets` that a venue account has not linked is no longer refused. That venue reads `unavailable` with the reason `tradingSourceNotLinked`, and the others still quote.
+
+  The other source refusal codes keep their names, for example `BINDING_NOT_ON_CHAIN`. [Wallets and accounts](/trade/wallets-and-accounts) covers the new fields.
 </Update>
 
 <Update label="2026-10-27" description="Consistent refusals, order status and source reasons">

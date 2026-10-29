@@ -22,6 +22,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `ACE_READINESS_UNAVAILABLE` | 503 | The wallet's compliance identity could not be prepared just now. | Retry the same request shortly, with backoff. | Yes |
 | `ADVANCED_ACCOUNT_ELIGIBILITY_UNAVAILABLE` | 409 | Whether the route's venue account allows Advanced trading could not be read; nothing was placed. | Request a new quote, then place the order on it. | No |
 | `ADVANCED_MODE_DISABLED` | 403 | This platform has not enabled Advanced trading; nothing was placed. | Use a Basic quote, or wait until Advanced trading is enabled. | No |
+| `ADVANCED_SOURCE_ACCOUNT_UNAVAILABLE` | 409 | The selected trading source's accounts could not be read, or the selected financial account does not resolve to one wallet; no venue was asked. | Retry shortly; if it persists, choose another trading source. | Yes |
 | `ADVANCED_VENUE_ACCOUNT_REQUIRED` | 409 | This route needs an Advanced venue account that the workspace does not have; nothing was placed. | Set up the venue account for Advanced trading, then request a new quote. | No |
 | `AGGREGATION_ERROR` | 400 | No venue could price the request. | Change the pair, amount or filters, then request quotes again. | No |
 | `AGGREGATION_TIMEOUT` | 504 | No venue returned a valid quote before the deadline. | Retry the same request shortly, with backoff. | Yes |
@@ -36,11 +37,11 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `AUTH_REQUIRED` | 401 | This operation needs an authenticated caller. | Send an API key (X-API-Key) or a bearer token. | No |
 | `AUTO_WITHDRAW_ROUTE_UNAVAILABLE` | 422 | Automatic withdrawal has no route for this order. | Turn off automatic withdrawal for this order, or choose another settlement wallet. | No |
 | `AUTO_WITHDRAW_WALLET_REQUIRED` | 400 | Automatic withdrawal needs a settlement wallet. | Select a settlement wallet, then place the order again. | No |
+| `BANK_ACCOUNTS_UNAVAILABLE` | 503 | The workspace's bank accounts could not be read. | Retry the same request shortly, with backoff. | Yes |
 | `BANK_DESTINATION_NOT_SCREENED` | 403 | The payout's bank destination has not been screened. | Screen the bank destination, then place the order again. | No |
 | `BANK_DESTINATION_SCREEN_UNAVAILABLE` | 503 | The bank destination's screening could not be read; nothing was admitted. | Retry the same request shortly, with backoff. | Yes |
 | `BINDING_DEFAULTS_UNAVAILABLE` | 500, 503 | Default wallet bindings could not be read. | Retry the same request shortly, with backoff. | Yes |
 | `BINDING_NOT_ON_CHAIN` | 400 | The bound wallet or address is not an account on the chain it was bound to. | Bind a wallet registered on that chain. | No |
-| `BINDING_NOT_OWNED` | 403 | The binding names a wallet this caller cannot use: unknown, not in this workspace, or outside the key's grants. | Bind a wallet registered in this workspace that the credential may use. | No |
 | `BUDGET_EXHAUSTED` | 429 | This venue's quote budget is used up for now. | Wait for the Retry-After period, then requote. | Yes |
 | `CAPABILITY_BLOCKED` | 403, 503 | The workspace cannot use this capability; details.capabilityBlockers says why. | Resolve each blocker in details.capabilityBlockers; a 503 means a blocker could not be read, so retry shortly. | No |
 | `CHAIN_MISSING` | 400 | The quote payload is missing its execution chain. | Request a new quote, then place the order on it. | No |
@@ -135,6 +136,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `FUNDER_PERMIT_REQUIRED` | 400 | This continuation needs funderSignature and funderPermit2. | Include funderSignature and funderPermit2. | No |
 | `FUNDING_NOT_ACCEPTED` | 400 | This quote is not paid from a venue account, so it takes no funding choice. | Remove the funding field. | No |
 | `FUNDING_SHORTFALL` | 409 | The venue account holds less than the trade needs; nothing was sent. | Fund the venue account, then request a new quote. | No |
+| `HELD_QUOTE_SOURCE_UNRESOLVED` | 409 | The held quote's trading source or exact venue account can no longer be resolved; nothing was sent. | Request a new quote, then place the order on it. | No |
 | `HIGH_SLIPPAGE_ACK_REQUIRED` | 403, 422 | The quote's slippage is above the threshold that needs acknowledgement. | Acknowledge the high slippage in the request, or choose a better quote. | No |
 | `IDEMPOTENCY_AUTHORITY_REQUIRED` | 403 | The caller no longer holds the authority needed to replay this stored response. | Use a credential with the same authority as the original request. | No |
 | `IDEMPOTENCY_CONFLICT` | 409 | This Idempotency-Key was already used with a different request body. | Use a new Idempotency-Key for a different request. | No |
@@ -319,6 +321,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `SOLVER_DATA_UNAVAILABLE` | 422 | The venues could not read their own balances or prices just now. | Retry the same request shortly, with backoff. | Yes |
 | `SOLVER_UNAVAILABLE` | 503 | The chosen liquidity provider is temporarily unavailable. | Retry shortly, or choose another quote. | Yes |
 | `SOURCE_LEG_RECOVERED` | 409 | The source transaction succeeded but its funds were returned to the payer instead of starting the route. | Request a new quote for a new order. | No |
+| `SOURCE_NOT_OWNED` | 403 | A source names a wallet or account this caller cannot use: unknown, outside this workspace, or outside the key's grants. | Name a wallet or account from the answer's sourceOptions. | No |
 | `SOURCE_RECOVERY_BINDING_INVALID` | 409 | The recovery quote does not match its held terms. | Use the recovery quote exactly as held. | No |
 | `SOURCE_RECOVERY_CLAIM_MISMATCH` | 409 | This source does not belong to the retained quote claim. | Register the source of this order's own claim. | No |
 | `SOURCE_RECOVERY_UNAVAILABLE` | 503 | The retained recovery claim could not be read. | Retry shortly; do not send another trade. | Yes |
@@ -362,6 +365,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `TRADE_LEDGER_AUTHORIZATION_REQUIRED` | 400 | This order needs tradeLedgerAuthorization. | Include the signed tradeLedgerAuthorization. | No |
 | `TRADE_LEDGER_INSUFFICIENT_BALANCE` | 422 | The on-chain trading account does not hold enough for this order. | Deposit funds to the account, then place the order again. | No |
 | `TRADE_LEDGER_INTENT_INVALID` | 400 | The order payload is not a valid trade intent. | Request a new quote, then place the order on it. | No |
+| `TRADING_SOURCE_NOT_LINKED` | 409 | The selected trading source is not linked to the venue account this quote would use. | Choose a linked trading source, or link it on the venue account, then request quotes again. | No |
 | `TRANSPORT_PATHWAY_UNREACHABLE` | 422 | The settlement transport for this chain pair has no live path. | Choose a different chain pair or quote. | No |
 | `TREASURY_DISABLED` | 503 | Trade preparation is not available on this server. | Choose a quote that does not trade on a venue account. | No |
 | `TREASURY_FREEZE_UNAVAILABLE` | 503 | The workspace's freeze state could not be read. | Retry the same request shortly, with backoff. | Yes |
@@ -420,6 +424,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `accountFeeUnavailable` | The venue account's fee could not be read. | Read prices again shortly. | Yes |
 | `accountSetupIncomplete` | The venue account is still being set up. | Complete the account's activation steps. | No |
 | `acrossCapacityExceeded` | The amount exceeds Across's current route capacity. | Lower the amount or wait for capacity. | Yes |
+| `acrossRoutedViaCctp` | At this size Across sends USDC through Circle CCTP, which the Across signing grant cannot sign. | Use the Circle CCTP route for this transfer. | No |
 | `adapterPayloadSerializationFailed` | The venue's quote payload could not be prepared, so the quote was withheld. | Choose another quote. | No |
 | `admissionUnavailable` | The workspace's taker admission could not be read. | Request again shortly. | Yes |
 | `advancedAccountEligibilityUnavailable` | Whether the venue account allows Advanced trading could not be read. | Request quotes again shortly. | Yes |
@@ -435,14 +440,20 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `amountBelowMinimum` | The amount is below what the venue takes. | Raise the amount. | No |
 | `amountUnreadable` | The venue's amounts could not be read. | Request quotes again. | No |
 | `amountsUnreadable` | The route's amounts could not be read. | Request quotes again. | No |
+| `apiKeyOrganisationWalletNotAllowlisted` | The organisation wallet the venue would use is not granted to this API key. | A workspace owner adds the wallet to the key's organisation wallets, then request quotes again. | No |
 | `apiKeyOrganisationWalletScopeRequired` | The API key was not granted the organisation wallet the venue would use. | Grant the key that wallet, or bind a wallet it holds. | No |
 | `askFirst` | The venue prices only when asked directly. | Name the venue in filters.venues.include, or requote its card. | No |
 | `authorityUnavailable` | The caller's trading authority could not be read. | Request quotes again shortly. | Yes |
 | `automationNeverAsks` | Automated callers do not trigger a live ask to this venue. | Requote the card to ask it. | No |
 | `availabilityUnreadable` | The venue's availability could not be read. | Request quotes again shortly. | Yes |
 | `backgroundNeverAsks` | A background request does not ask this venue live. | Ask in a foreground request or requote. | No |
+| `balanceAvailabilityUnconfirmed` | The venue has not confirmed whether its balance is available to trade. | Request quotes again once the venue reports its balance. | Yes |
 | `balanceUnreadable` | The paying wallet's balance could not be read. | Request quotes again shortly. | Yes |
+| `bankDestinationUnavailable` | The venue account's registered bank accounts could not be read. | Request quotes again shortly. | Yes |
 | `basicVenueAccountsUnavailable` | The workspace's venue accounts could not be read. | Request quotes again shortly. | Yes |
+| `bebopJamKeyNotEnabled` | Bebop does not price this pair on its solver route for TetraFi yet. | Choose a pair Bebop's RFQ route prices, or another venue. | No |
+| `bebopJamQuoteDeclined` | Bebop's solver route returned no price for this wallet. | Choose a pair Bebop's RFQ route prices, or another venue. | No |
+| `bebopTokenUnavailable` | Bebop is not trading one of this pair's tokens right now. | Choose another venue, or request quotes again later. | No |
 | `billingPaymentOverdue` | The organisation's TetraFi bill is more than 30 days overdue, so no venue was asked for a new quote. | Pay the overdue statement in Settings, Billing, then request quotes again. | No |
 | `bindingDefaultsUnavailable` | Default wallet bindings could not be read. | Request quotes again shortly. | Yes |
 | `bindingNotOnChain` | The chosen wallet is registered on another network, so the venue was not asked. | Choose a wallet on this network. | No |
@@ -571,6 +582,8 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `referencePriceUnavailable` | No reference price was available to price the route. | Request quotes again shortly. | Yes |
 | `registryUnavailable` | The deployment registry could not be read. | Request quotes again shortly. | Yes |
 | `relayCapacityExceeded` | The amount exceeds Relay's available liquidity on this route; detail names the dollar ceiling when Relay states one. | Lower the amount, use another bridge or wait for liquidity. | Yes |
+| `relayCurrencyUnsupported` | Relay does not carry this token on this route; no deposit was sent. | Use another bridge. | No |
+| `relaySwapImpactTooHigh` | Relay will not quote this size on this route because its price impact is too high. | Try another amount or another bridge. | No |
 | `releaseRecheckUnavailable` | The final checks of the caller's authority and venue account could not be completed before the quote was returned. | Request quotes again shortly. | Yes |
 | `requestUnbuildable` | The request for this route could not be built. | Change the request, or choose another route. | No |
 | `routeLegChainUnknown` | A route leg's chain is not known. | Request quotes again. | No |
@@ -594,14 +607,21 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `solverChainUnready` | The solver is not ready to settle on the chain named by network and detail. | Choose another route while the solver operator restores settlement readiness. | No |
 | `submitOrderBlocked` | The workspace cannot submit orders now. | Resolve what blocks order submission. | No |
 | `takerOnboardingIncomplete` | The workspace has not finished taker onboarding. | Finish taker onboarding. | No |
+| `tetrafiSolverCallbackNotAuthorized` | TetraFi has not yet enabled delivery to this receiving wallet on that network. | Choose an enabled receiving wallet, or ask TetraFi support to enable this one. | No |
 | `tierNotQuoted` | The venue no longer quotes this size tier. | Request fresh quotes. | No |
 | `tradePaused` | Trading on the venue account is paused. | Request quotes again after it resumes. | Yes |
+| `tradingLinkSnapshotChanged` | The venue account's trading links changed while the quote was qualified. | Request quotes again. | Yes |
+| `tradingLinkSnapshotUnavailable` | The venue account's trading links could not be read. | Request quotes again shortly. | Yes |
 | `tradingPermissionRequired` | Firm prices from this venue need Request quotes and Place orders. | Use a credential with both permissions. | No |
+| `uniswapChainReadUnavailable` | The chain could not be read to price the Uniswap v3 pool. | Request quotes again shortly. | Yes |
+| `uniswapInsufficientDepth` | The amount is above the depth Uniswap v3 has available right now. | Lower the amount, or request quotes again later. | Yes |
+| `uniswapQuoteUnreadable` | Uniswap v3's pool quote could not be read. | Request quotes again shortly. | Yes |
 | `unsupportedNative` | The native token's balance cannot be read on this chain. | Proceed without the balance check. | No |
 | `venueConnectionStorageUnavailable` | The venue account's quote-admission records could not be read or written. | Request quotes again shortly. | Yes |
 | `venueDataStale` | The venue could not read its own balances or prices just now. | Request quotes again shortly. | Yes |
 | `venueDeclined` | The venue declined to quote. | Choose another venue. | No |
 | `venueNotConnected` | The venue's account is not connected for this workspace. | Connect the venue account. | No |
+| `venueNotEnabled` | The venue is not enabled on the selected trading source's venue account; `fix` names who can enable it. | A credentials manager enables the venue, then request quotes again. | No |
 | `venueNotEnabledForWorkspace` | The venue is not enabled for this workspace. | Enable the venue for the workspace. | No |
 | `venueNotListed` | The venue no longer quotes this pair. | Request fresh quotes. | No |
 | `venueRelationship` | The workspace's relationship with this venue does not allow trading. | Resolve the relationship with the venue. | No |

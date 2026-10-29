@@ -117,19 +117,20 @@ An API key uses your workspace's wallets and the organisation wallets an owner h
 
 ### When TetraFi refuses a source
 
-A source you may not use is refused before any venue is asked, so nothing is quoted or reserved:
+A wallet or account you may not use at all is refused before any venue is asked, so nothing is quoted or reserved. Trading wallets in `source.tradingWallets` are different: one a venue account has not linked is not refused. That venue reads `unavailable` with the reason `tradingSourceNotLinked`, and the others still quote. The script prints either case:
 
 <TradingSourceRefusal />
 
 ```json Output shape of a refusal (shortened)
-{"refused":"BINDING_NOT_OWNED","message":"The binding names a wallet this caller cannot use.","next":null}
+{"refused":"SOURCE_NOT_OWNED","message":"A source names a wallet or account this caller cannot use.","next":null}
 ```
 
 | Status and code | Meaning | What to do |
 | --- | --- | --- |
-| `403 BINDING_NOT_OWNED` | The wallet or account does not exist, or you cannot use it. Both cases read the same. | Choose a candidate from `sourceOptions`. A key needs an owner to grant the organisation wallet. Otherwise, ask a wallet manager to register or share it. |
+| `403 SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist, or you cannot use it, for example another workspace's bank account. Both cases read the same. | Choose a candidate from `sourceOptions`. A key needs an owner to grant the organisation wallet. Otherwise, ask a wallet manager to register or share it. |
 | `400 BINDING_NOT_ON_CHAIN` | The wallet is registered on another chain, so it cannot trade on the chain you keyed it under. | Choose a candidate listed for that chain. |
 | `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
+| `unavailable`, `tradingSourceNotLinked` (on the venue, not a refusal) | The trading wallet you named is not linked to that venue's account. The other venues still quote. | Name a wallet that venue's account has linked, or link it on the venue account. |
 | `403 ACCOUNT_NOT_AVAILABLE` | The venue account is not one this quote can trade on. | Leave `venueAccountId` out, or name a candidate from the `venueAccount` option. |
 | `409 REQUOTE_NEEDS_WALLET` | The venue quotes only once a wallet is chosen. `details.reason` names the family. | Requote with `source.tradingWallets` naming a wallet of that family. |
 
