@@ -3,26 +3,19 @@
 <CodeGroup>
 
 ```bash cURL
-# Requote one quote with a delivery from its deliverTo options: an address keeps its chain and
-# any destination tag it was approved with.
-target=$(jq -c 'first(.quotes[] as $q | $q.bindingOptions[] | select(.kind == "deliverTo")
-  | .candidates[] | select(.kind != "venueAccount" and .address != null and (.chains | length) > 0)
-  | {quoteId: $q.id, deliverTo: ({kind: "address", chain: .chains[0], address}
-      + (if .destinationTag then {destinationTag} else {} end))}) // empty' <<<"$quotes")
+# Delivering elsewhere is a requote with deliverTo. With an API key a venue account's output stays on
+# the account: a deliverTo naming another destination is refused (REQUOTE_REFUSED, deliverToNotPermitted).
+target=$(jq -c 'first(.quotes[] | select(.location.kind == "offChain")) // empty' <<<"$quotes")
 if [[ -z $target ]]; then
-  echo '{"deliverTo":"no venue quote and delivery candidate to try"}' >&2
+  echo '{"deliverTo":"no off-chain quote to try"}' >&2
   deliver_outcome=none
 else
-  body=$(jq -c '{requote: .quoteId, bind: {deliverTo}}' <<<"$target")
+  body=$(jq -c --argjson w "$trading_wallets" '{requote: .id, deliverTo: {kind: "financialAccount",
+    financialAccountId: ($w | to_entries[0].value)}}' <<<"$target")
   if delivered=$(quote_request "$body"); then
-    jq -c '.quotes[0] | {quoteId: .id, requoteOf, next: .next.kind, deliverTo: .binding.deliverTo.kind,
-      receive: .receive.amount}' <<<"$delivered" >&2
     deliver_outcome=$(jq -r '.quotes[0].next.kind' <<<"$delivered")
   else
-    # A venue that cannot deliver there names why in details.reason,
-    # for example WITHDRAWAL_CHAIN_UNSUPPORTED or DESTINATION_NOT_APPROVED.
     deliver_outcome=$(jq -r '[.error, .details.reason // empty] | join(":")' <<<"$delivered")
-    jq -c '{requoteRefused: .error, reason: .details.reason, message}' <<<"$delivered" >&2
   fi
 fi
 ```

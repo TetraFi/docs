@@ -54,7 +54,9 @@ function publishedPages() {
   const ignored = readFileSync(path.join(root, '.mintignore'), 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
     .map((l) => l.replace(/^\//, '').replace(/\/$/, ''));
   return execFileSync('git', ['-C', root, 'ls-files', '*.mdx'], { encoding: 'utf8' }).split('\n').filter(Boolean)
-    .filter((f) => !ignored.some((i) => f === i || f.startsWith(`${i}/`)));
+    .filter((f) => !ignored.some((i) => f === i || f.startsWith(`${i}/`)))
+    // A tracked page moved to .archive but not yet committed is not published.
+    .filter((f) => existsSync(path.join(root, f)));
 }
 
 export function main() {

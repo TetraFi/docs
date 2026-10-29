@@ -109,7 +109,7 @@ jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status
 # next "preflight", "sign" or "transact": your own wallet has to act first, which a key cannot do.
 jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
   pay: "\(.pay.amount) on \(.pay.chain)", receive: "\(.receive.amount) on \(.receive.chain)",
-  eta, paysFrom: .binding.wallets[.pay.chain], receivesAt: .binding.wallets[.receive.chain]}' <<<"$quotes" >&2
+  eta, tradesFrom: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
 # endregion
 
