@@ -37,7 +37,7 @@ Read these fields on every quote. Two quotes from the same venue can trade from 
 
 <TradingSourceFunding />
 
-```json Output on test networks (shortened)
+```json Output shape with a granted wallet (ids shortened)
 {"quoteId":"q_01M5…","venue":"across","location":"crossChain","tradingSource":{"kind":"wallet","financialAccountId":"4d46…","network":"eip155:84532"},"fundingModel":"prefunded","fundingAccount":{"kind":"wallet","financialAccountId":"4d46…"},"receive":"9.98","next":"order"}
 ```
 
@@ -71,11 +71,19 @@ An empty list means there is nothing else to choose. The script reads the tradin
 
 <TradingSourceOptions />
 
-```json Output on test networks (shortened)
+```json Output shape with a granted wallet (ids shortened)
 {"sourceOptions":[{"kind":"wallet","chain":"eip155:84532","candidates":[{"financialAccountId":"4d46…","kind":"wallet","displayName":"Treasury (Base Sepolia)","isDefault":true},{"financialAccountId":"61c3…","kind":"wallet","displayName":"Payments (Base Sepolia)","isDefault":false}]}]}
 ```
 
-When the list has no wallet the key may use, the script prints what each on-chain venue says and stops. With an API key that usually reads `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired`. See [Give a key organisation wallets](#give-a-key-organisation-wallets).
+When the list has no wallet the key may use, the script prints what each on-chain venue says and stops. This is the live output for a key with no wallet granted:
+
+```json Output on test networks, no wallet granted (shortened)
+{"sourceOptions":[]}
+[{"venue":"circle-cctp","status":"unavailable","reason":"onchainWalletNotUsable","detail":"Your saved wallet is not visible or usable for this API key on Base Sepolia, so it was not asked. …"}]
+{"tradingWallets":{},"quoted":false}
+```
+
+With an API key that has no wallet granted, on-chain venues read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`: the second means the venue account's saved wallet is not visible to the key. See [Give a key organisation wallets](#give-a-key-organisation-wallets).
 
 ## Choose with source
 
@@ -113,7 +121,7 @@ A source you may not use is refused before any venue is asked, so nothing is quo
 
 <TradingSourceRefusal />
 
-```json Output (shortened)
+```json Output shape of a refusal (shortened)
 {"refused":"BINDING_NOT_OWNED","message":"The binding names a wallet this caller cannot use.","next":null}
 ```
 
@@ -159,7 +167,7 @@ The script requotes an off-chain quote with `deliverTo` naming the trading walle
 
 <WalletsDeliverTo />
 
-```json Output with an API key
+```json Output when no off-chain quote came back
 {"deliverTo":"no off-chain quote to try"}
 ```
 
@@ -183,7 +191,7 @@ Some venues can only quote once they know which wallet trades. You can see this 
 
 **A venue reads `walletRefused` in `sources`.** The wallet in `wallet` cannot trade there, for example because it was revoked or screening confirmed a sanctions match. `reason` says why when TetraFi can. Sometimes the refused wallet is an organisation wallet you chose that is not linked to the venue account. Then `recovery` carries the `wallet`, a `linkHref` where it can be linked, and `defaultWallets`: the account's default wallet for each chain, which you can send as `source.tradingWallets` for this request instead.
 
-With an API key, on-chain venues may also read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired`. The key has no organisation wallet granted to it yet: ask a workspace owner to grant one.
+With an API key, on-chain venues may also read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. The key has no organisation wallet granted to it yet: ask a workspace owner to grant one.
 
 ## Give a key organisation wallets
 
