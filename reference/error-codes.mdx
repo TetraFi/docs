@@ -56,11 +56,9 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `CONTINUATION_ACCEPTANCE_NOT_OFFERED` | 409 | The signed acceptance does not answer the continuation's current offer. | Prepare the continuation again for a fresh offer, then sign that offer. | No |
 | `CONTINUATION_ACCEPTED_BY_RETIRED_TRADER` | 409 | The continuation's trade was accepted before the client signed as trader; it is held for recovery. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
 | `CONTINUATION_ASSET_MISMATCH` | 409 | A trade that finishes an order must spend the asset that order left, on the same network. | Spend the asset and network the parent order left. | No |
-| `CONTINUATION_COMPLIANCE_REFUSED` | 409 | Compliance refused this continuation; nothing was sent. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
 | `CONTINUATION_EXPIRED` | 409 | The prepared continuation step has expired. | Prepare the continuation again (POST the continuation path), then sign it. | No |
 | `CONTINUATION_FUNDER_MISMATCH` | 400, 403, 409 | The continuation was signed or funded by a wallet other than the route's taker. | Sign the continuation with the wallet that placed the order. | No |
 | `CONTINUATION_FUNDING_PENDING` | 409 | Funding for this continuation was submitted or is awaiting confirmation. | Read the order's status; do not start a replacement trade. | Yes |
-| `CONTINUATION_IDENTITY_UNREADABLE` | 409 | The continuation's recorded identity could not be read just now. | Retry the same request shortly, with backoff. | Yes |
 | `CONTINUATION_IN_PROGRESS` | 409 | Preparation or funding of this continuation is already in progress. | Read the order's status, then retry preparation to resume the same trade. | Yes |
 | `CONTINUATION_NOT_ARRIVED` | 409 | The funds the continuation needs have not arrived yet. | Wait, then read the continuation again before signing. | Yes |
 | `CONTINUATION_NOT_CLAIMED` | 409 | The continuation has no claimed signature to relay. | Prepare the continuation and sign it before submitting. | No |
@@ -168,6 +166,8 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `KEY_ACCESS_CHANGED` | 403 | The API key's access changed since the request was admitted. | Retry the request so it is admitted under the key's current access. | No |
 | `KEY_AUTHORITY_REQUIRED` | 403 | The request needs a current workspace key with the required permission. | Use a current key that holds the permission. | No |
 | `KEY_AUTHORITY_UNAVAILABLE` | 503 | The API key's current authority could not be read. | Retry the same request shortly, with backoff. | Yes |
+| `KYC_EXPIRED` | 403 | The identity or company verification this order is checked against has expired; nothing was admitted or sent. | Renew the verification the message names, then place the order again. | No |
+| `KYC_NOT_VERIFIED` | 403 | The identity or company verification this order is checked against is not complete; nothing was admitted or sent. | Complete the verification the message names, then place the order again. | No |
 | `LEGACY_CEX_LANE_RETIRED` | 409 | This liquidity provider's old connection path is retired. | Connect the provider as a venue account, then request new quotes. | No |
 | `LEGACY_USER_KEY_REQUIRES_REBINDING` | 401 | The API key has no workspace binding. | Create a new key under the workspace and use it. | No |
 | `LP_CREDIT_EXHAUSTED` | 422 | The liquidity provider has no available credit for this order. | Lower the amount, or choose another quote. | No |
@@ -280,7 +280,6 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `ROUTE_TRADE_INTENT_NOT_APPLICABLE` | 400 | This continuation takes funderSignature and funderPermit2, not a route trade intent. | Send funderSignature and funderPermit2 instead. | No |
 | `ROUTE_TRADE_INTENT_REQUIRED` | 400 | This continuation needs routeTradeIntent and routeTradeIntentSignature. | Include both fields. | No |
 | `ROUTE_TRADE_INTENT_TOO_LARGE` | 400 | routeTradeIntent is larger than allowed. | Correct the request body as the message says, then send it again. | No |
-| `ROUTE_WAIT_NOT_CLOSED` | 409 | The order could not be stopped just now. | Retry the same request shortly, with backoff. | Yes |
 | `ROUTING_OPTIONS_FORBIDDEN` | 403 | The request used an option reserved for TetraFi operators. | Remove the reserved option and retry. | No |
 | `SAME_ASSET_NEEDS_CHAIN` | 400 | Paying and receiving the same asset needs a chain pinned on each side. | Pin the pay and receive chains. | No |
 | `SCHEMA_INVALID` | 400 | The order's signed payload does not match its schema. | Request a new quote, then place the order on it. | No |
@@ -316,7 +315,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `SOLANA_TRANSACTION_MALFORMED` | 400 | The Solana order payload is malformed. | Request a new quote, then place the order on it. | No |
 | `SOLVER_ADAPTER_ERROR` | 502 | The liquidity provider is temporarily unavailable. | Retry the same request shortly, with backoff. | Yes |
 | `SOLVER_CANNOT_FILL` | 503 | The chosen liquidity provider cannot fill this trade right now. | Request new quotes, or choose another quote. | No |
-| `SOLVER_CLIENT_ERROR` | 400 | The liquidity provider refused the order request. | Correct the order as the message says, or choose another quote. | No |
+| `SOLVER_CLIENT_ERROR` | 400 | The liquidity provider refused the order request. | Request a new quote, or choose another venue. | No |
 | `SOLVER_DATA_UNAVAILABLE` | 422 | The venues could not read their own balances or prices just now. | Retry the same request shortly, with backoff. | Yes |
 | `SOLVER_UNAVAILABLE` | 503 | The chosen liquidity provider is temporarily unavailable. | Retry shortly, or choose another quote. | Yes |
 | `SOURCE_LEG_RECOVERED` | 409 | The source transaction succeeded but its funds were returned to the payer instead of starting the route. | Request a new quote for a new order. | No |
@@ -375,12 +374,15 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `USER_RESOLUTION_FAILED` | 500 | The caller's user identity could not be resolved. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
 | `VALIDATION_ERROR` | 400 | The request failed validation. | Correct the request body as the message says, then send it again. | No |
 | `VENUE_ACCOUNT_BINDING_UNVERIFIED` | 409 | The venue account's wallet binding is not verified. | Verify the binding, then request a new quote. | No |
+| `VENUE_FIRM_QUOTE_BUDGET_EXHAUSTED` | 429 | The declared venue quote-rate pool is spent; no new provider ask was sent. | Wait for details.retryAfter or details.retryAfterMs, then deliberately retry; details.reason is tetrafi:declaredPool. | Yes |
+| `VENUE_FIRM_QUOTE_COUNT_UNREADABLE` | 409 | The workspace's daily firm-quote count could not be read; the price remains blocked and no new ask is sent. | Try again to read the count before requesting a firm price. | Yes |
 | `VENUE_FIRM_QUOTE_LIMITED` | 429 | This venue's firm-quote limit is reached. | Wait for the Retry-After period, then retry. | Yes |
 | `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | 403 | This credential cannot ask this venue for a firm quote. | Use a credential with Request quotes and Place orders, or a member session. | No |
 | `VENUE_OPERATION_MISMATCH` | 409 | The order does not match the venue operation it continues. | Read the operation, or request a new quote. | No |
 | `VENUE_POLICY_UNAVAILABLE` | 503 | How this venue executes cannot be read right now; nothing was sent. | Retry the same request shortly, with backoff. | Yes |
 | `VENUE_QUOTE_NOT_PRICED` | 409 | The venue returned no price for the firm ask; nothing was sent. | Request the price again. | No |
 | `VENUE_QUOTE_OUTSIDE_BOUNDS` | 409 | The venue's firm price is below the order's minimum receive; nothing was sent. | Request a new price, or lower the minimum receive. | No |
+| `VENUE_QUOTE_RATE_LIMITED` | 429 | The named venue is limiting quote requests; the request remains counted and nothing was placed. | Wait for Retry-After (also details.retryAfter), then deliberately request again; details.reason names the retry timing source. | Yes |
 | `VENUE_TRADE_KEY_CHANGED` | 403 | The API key's venue-trading settings changed since the request was admitted. | Retry so the request is admitted under the key's current settings. | No |
 | `VENUE_TRADE_KEY_DISABLED` | 403 | The API key's venue-trading switch is off. | Turn on venue trading for the key. | No |
 | `VENUE_TRADE_KEY_UNAVAILABLE` | 503 | The API key's venue-trading settings could not be read. | Retry the same request shortly, with backoff. | Yes |
@@ -417,6 +419,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | :--- | :--- | :--- | :--- |
 | `accountFeeUnavailable` | The venue account's fee could not be read. | Read prices again shortly. | Yes |
 | `accountSetupIncomplete` | The venue account is still being set up. | Complete the account's activation steps. | No |
+| `acrossCapacityExceeded` | The amount exceeds Across's current route capacity. | Lower the amount or wait for capacity. | Yes |
 | `adapterPayloadSerializationFailed` | The venue's quote payload could not be prepared, so the quote was withheld. | Choose another quote. | No |
 | `admissionUnavailable` | The workspace's taker admission could not be read. | Request again shortly. | Yes |
 | `advancedAccountEligibilityUnavailable` | Whether the venue account allows Advanced trading could not be read. | Request quotes again shortly. | Yes |
@@ -424,6 +427,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `advancedConnectionDisabled` | The venue account's Advanced connection is disabled. | Enable it, then request quotes again. | No |
 | `advancedConnectionNotConfigured` | The venue account has no Advanced connection. | Configure the Advanced connection. | No |
 | `advancedConnectionPaused` | The venue account's Advanced connection is paused. | Resume it, then request quotes again. | No |
+| `advancedModeDisabled` | This platform has not enabled Advanced trading, so the venue was not asked. | Use a Basic quote, or wait until Advanced trading is enabled. | No |
 | `advancedNotAvailableForAccount` | Advanced trading is not available for this venue account. | Use Basic, or another venue. | No |
 | `advancedNotEnabledForAccount` | Advanced trading is not enabled on this venue account. | Enable Advanced on the account. | No |
 | `allowanceUnavailable` | The wallet's token allowance could not be read. | Request quotes again shortly. | Yes |
@@ -439,6 +443,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `backgroundNeverAsks` | A background request does not ask this venue live. | Ask in a foreground request or requote. | No |
 | `balanceUnreadable` | The paying wallet's balance could not be read. | Request quotes again shortly. | Yes |
 | `basicVenueAccountsUnavailable` | The workspace's venue accounts could not be read. | Request quotes again shortly. | Yes |
+| `billingPaymentOverdue` | The organisation's TetraFi bill is more than 30 days overdue, so no venue was asked for a new quote. | Pay the overdue statement in Settings, Billing, then request quotes again. | No |
 | `bindingDefaultsUnavailable` | Default wallet bindings could not be read. | Request quotes again shortly. | Yes |
 | `bindingNotOnChain` | The chosen wallet is registered on another network, so the venue was not asked. | Choose a wallet on this network. | No |
 | `bindingTargetHasNoAddress` | The bound wallet has no address on this network. | Bind a wallet with an address on the network. | No |
@@ -483,6 +488,8 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `firmAskRefused` | The venue refused the firm ask. | Choose another quote. | No |
 | `freshnessUnknown` | How fresh the venue's price is could not be read. | Request quotes again. | No |
 | `fundingWindow` | The venue is inside a funding window. | Request quotes again after the window. | Yes |
+| `grantCapExceeded` | The amount exceeds the paying organisation wallet's approved signing-grant cap. | Lower the amount or ask the wallet owner to approve a larger grant. | No |
+| `indicative` | A priced indicative card from a venue read or estimate, not a firm-price ask. | Read the card's firmAsk: onRequest offers a firm ask; atExecution fixes the price only when the order executes. | No |
 | `insufficientLiquidity` | The venue lacks liquidity for this amount. | Try a smaller amount. | No |
 | `jurisdictionUnproven` | The requester's identity country is not on record, so the quote was withheld. | Complete the identity country, then request quotes again. | No |
 | `kybUnavailable` | The workspace's business verification could not be read. | Request quotes again shortly. | Yes |
@@ -496,6 +503,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `noAddress` | The paying wallet has no address to read a balance from. | Bind a wallet with an address. | No |
 | `noCard` | The venue returned no quote card. | Request quotes again. | No |
 | `noFetcher` | Balances cannot be read on this server. | Proceed without the balance check. | No |
+| `noInventory` | The venue holds none of the receive asset on that network right now. | Choose another venue, or request quotes again later. | Yes |
 | `noLaneForPair` | The venue has no lane for this pair. | Choose another venue. | No |
 | `noLegs` | The route has no legs. | Request quotes again. | No |
 | `noOnChainCorridor` | This pair has no on-chain corridor. | Choose another pair. | No |
@@ -562,6 +570,8 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `referenceMidUnreadable` | The reference mid price could not be read. | Request quotes again. | No |
 | `referencePriceUnavailable` | No reference price was available to price the route. | Request quotes again shortly. | Yes |
 | `registryUnavailable` | The deployment registry could not be read. | Request quotes again shortly. | Yes |
+| `relayCapacityExceeded` | The amount exceeds Relay's available liquidity on this route; detail names the dollar ceiling when Relay states one. | Lower the amount, use another bridge or wait for liquidity. | Yes |
+| `releaseRecheckUnavailable` | The final checks of the caller's authority and venue account could not be completed before the quote was returned. | Request quotes again shortly. | Yes |
 | `requestUnbuildable` | The request for this route could not be built. | Change the request, or choose another route. | No |
 | `routeLegChainUnknown` | A route leg's chain is not known. | Request quotes again. | No |
 | `routeLegUnnamed` | A route leg could not be identified. | Request quotes again. | No |
@@ -581,13 +591,14 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `singleChainVenue` | The venue trades on one chain only. | Choose pay and receive on the same chain. | No |
 | `siteChainUnreadable` | The venue site's chain could not be read. | Request quotes again shortly. | Yes |
 | `sizeNotEligible` | The amount is outside the venue's eligible sizes. | Change the amount. | No |
-| `solverChainUnready` | The venue cannot trade on one of this pair's chains right now. | Request quotes again shortly. | Yes |
+| `solverChainUnready` | The solver is not ready to settle on the chain named by network and detail. | Choose another route while the solver operator restores settlement readiness. | No |
 | `submitOrderBlocked` | The workspace cannot submit orders now. | Resolve what blocks order submission. | No |
 | `takerOnboardingIncomplete` | The workspace has not finished taker onboarding. | Finish taker onboarding. | No |
 | `tierNotQuoted` | The venue no longer quotes this size tier. | Request fresh quotes. | No |
 | `tradePaused` | Trading on the venue account is paused. | Request quotes again after it resumes. | Yes |
 | `tradingPermissionRequired` | Firm prices from this venue need Request quotes and Place orders. | Use a credential with both permissions. | No |
 | `unsupportedNative` | The native token's balance cannot be read on this chain. | Proceed without the balance check. | No |
+| `venueConnectionStorageUnavailable` | The venue account's quote-admission records could not be read or written. | Request quotes again shortly. | Yes |
 | `venueDataStale` | The venue could not read its own balances or prices just now. | Request quotes again shortly. | Yes |
 | `venueDeclined` | The venue declined to quote. | Choose another venue. | No |
 | `venueNotConnected` | The venue's account is not connected for this workspace. | Connect the venue account. | No |

@@ -13,15 +13,15 @@ request=$(jq -nc --arg asset "$asset" --arg amount "$amount" --arg from "$from_c
 }')
 quotes=$(quote "$request")
 
-# Every venue asked, with its outcome. apiKeyOrganisationWalletScopeRequired means the key
-# has no organisation wallet granted to it yet.
+# Every venue asked, with its outcome. apiKeyOrganisationWalletScopeRequired or onchainWalletNotUsable
+# means the key has no organisation wallet granted to it that the venue can use.
 jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$quotes" >&2
 
 # next "order": TetraFi executes the move from an organisation wallet, so the key can order it.
 # next "preflight", "sign" or "transact": your own wallet has to act first, which a key cannot do.
 jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
   pay: "\(.pay.amount) on \(.pay.chain)", receive: "\(.receive.amount) on \(.receive.chain)",
-  eta, paysFrom: .binding.wallets[.pay.chain], receivesAt: .binding.wallets[.receive.chain]}' <<<"$quotes" >&2
+  eta, tradesFrom: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
 ```
 

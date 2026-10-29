@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Wallets and accounts: quote with your defaults, read each quote's bindingOptions, then requote
-# one quote with a different wallet or account, and with a different delivery, chosen from the
-# quote's own options.
+# Trading source and funding: read the trading wallets the key may name (sourceOptions), quote with
+# one named per chain (source.tradingWallets), and read where each quote trades from and how it is
+# funded. Without a granted wallet, it prints what each on-chain venue says instead.
 #
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
@@ -9,12 +9,11 @@
 #   TETRAFI_WORKSPACE_ID    the workspace the key belongs to
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
-#   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 10 USDC for ETH)
-#   TETRAFI_PAY_CHAIN, TETRAFI_RECEIVE_CHAIN      CAIP-2 chains to pin each side to (default: any chain)
+#   TETRAFI_AMOUNT  the USDC amount you pay (default 10)
 #
 # Every request asks for quotes only: nothing is ordered. The last line printed is one JSON
 # summary. An API error on the first quote request prints its error body and exits 1; a refused
-# requote is printed as its error code, because a refusal is an answer you act on.
+# source or delivery is printed as its error code, because a refusal is an answer you act on.
 set -euo pipefail
 
 : "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
@@ -74,104 +73,78 @@ quote_request() {
   tetrafi POST /api/v1/quotes "$1" 2>/dev/null
 }
 
-pay=${TETRAFI_PAY:-USDC}
-receive=${TETRAFI_RECEIVE:-ETH}
 amount=${TETRAFI_AMOUNT:-10}
-pay_chain=${TETRAFI_PAY_CHAIN:-}
-receive_chain=${TETRAFI_RECEIVE_CHAIN:-}
 
-# region wallets-default-quote
-# No wallet or account in the request: every venue prices with your default binding.
-request=$(jq -n --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" \
-  --arg payChain "$pay_chain" --arg receiveChain "$receive_chain" '{
-    pay: ({asset: $pay} + (if $payChain == "" then {} else {chain: $payChain} end)),
-    receive: ({asset: $receive} + (if $receiveChain == "" then {} else {chain: $receiveChain} end)),
-    amount: $amount,
-    side: "payExact"
-  }')
+# USDC's EVM chains, from the asset list.
+usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.assets[] | select(.assetId == "USDC") | .variants[]
+  | select(.kind == "native") | .deployments[].chain | select(startswith("eip155:"))] | unique')
+
+# region trading-source-options
+# Every answer's sourceOptions lists, per network, the trading wallets this key may name, each by its
+# financialAccountId; isDefault marks the one used when you name none.
+first=$(quote_request "$(jq -cn --arg amount "$amount" '{pay: {asset: "USDC"}, receive: {asset: "ETH"},
+  amount: $amount, side: "payExact"}')") || { printf '%s\n' "$first" >&2; exit 1; }
+trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
+  | select(.chain as $c | $chains | index($c))
+  | {key: .chain, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
+  | select(.value != null)] | from_entries' <<<"$first")
+jq -c '{sourceOptions: [.sourceOptions[]? | {kind, chain, candidates: [.candidates[] | {financialAccountId, kind, displayName, isDefault}]}]}' <<<"$first" >&2
+# endregion
+
+if [[ $(jq 'length' <<<"$trading_wallets") == 0 ]]; then
+  # Nothing granted yet: each on-chain venue says why it did not quote.
+  jq -c '[.sources[] | select(.status != "answered" and .status != "filteredOut")
+    | {venue: .venue.id, status, reason, detail}]' <<<"$first" >&2
+  jq -cn '{tradingWallets: {}, quoted: false}'
+  exit 0
+fi
+
+# region trading-source-request
+# Name one trading wallet per chain in source.tradingWallets, by the financialAccountId sourceOptions
+# gave: two chains move USDC between them, one chain swaps USDC for ETH on it.
+request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | keys) as $chains
+  | (if ($chains | length) > 1
+      then {pay: {asset: "USDC", chain: $chains[0]}, receive: {asset: "USDC", chain: $chains[1]}}
+      else {pay: {asset: "USDC", chain: $chains[0]}, receive: {asset: "ETH", chain: $chains[0]}} end)
+  + {amount: $amount, side: "payExact", source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
+# endregion
+
+# region trading-source-refusal
+# A wallet the key may not use is refused before any venue is asked: the code says which rule
+# applied and next, when present, says what to do. Nothing is quoted or reserved.
 if ! quotes=$(quote_request "$request"); then
-  printf '%s\n' "$quotes" >&2
-  exit 1
+  jq -c '{refused: .error, message, next}' <<<"$quotes" >&2
+  jq -cn --argjson q "$quotes" '{tradingWallets: true, refused: $q.error}'
+  exit 0
 fi
-
-# Each venue's outcome. needsWallet names the wallet family it needs; walletRefused names
-# the wallet it refused and, when there is one, how to recover.
-jq -c '.sources[] | {venue: .venue.id, status}
-  + (if .status == "needsWallet" then {family} else {} end)
-  + (if .status == "walletRefused" then {wallet, reason, recovery: (.recovery != null)} else {} end)
-  + (if .reason and .status != "walletRefused" then {reason} else {} end)' <<<"$quotes" >&2
-
-# What each quote is bound to: the wallet per chain, the venue account and the delivery.
-jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
-  wallets: (.binding.wallets // {} | keys), account: (.binding.account != null),
-  deliverTo: .binding.deliverTo.kind}' <<<"$quotes" >&2
 # endregion
 
-# region wallets-binding-options
-# bindingOptions lists what each quote can be requoted with. A candidate's id is what bind names.
-jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id,
-  options: [.bindingOptions[] | {kind, chain, family,
-    candidates: [.candidates[] | {id, kind, label, chains,
-      balance: (if .balance == null then null elif .balance.kind == "known"
-        then "\(.balance.amount) \(.balance.asset)" else "unavailable" end)}]}]}' <<<"$quotes" >&2
-
-# A quote whose next step is requote says which slots it needs filled before it can be ordered.
-jq -c '.quotes[] | select(.next.kind == "requote") | {quoteId: .id, needs: .next.needs}' <<<"$quotes" >&2
-# endregion
-
-# region wallets-requote-bind
-# Requote one quote with a wallet or venue account from its own bindingOptions: a candidate that
-# differs from what the quote is bound to now when there is one, else the first candidate.
-choice=$(jq -c '[.quotes[] as $q | $q.bindingOptions[]
-  | select(.kind == "wallet" or .kind == "account") as $o | $o.candidates[]
-  | {quoteId: $q.id,
-     bind: (if $o.kind == "wallet" then {wallets: {($o.chain): .id}} else {account: .id} end),
-     same: (if $o.kind == "wallet" then $q.binding.wallets[$o.chain] == .id else $q.binding.account == .id end)}]
-  | (map(select(.same | not)) + .)[0] // empty | del(.same)' <<<"$quotes")
-if [[ -z $choice ]]; then
-  echo '{"requoteBind":"no quote offers a wallet or account"}' >&2
-  bind_outcome=none
-else
-  body=$(jq -c '{requote: .quoteId, bind}' <<<"$choice")
-  jq -c '{requote: .quoteId, bind}' <<<"$choice" >&2
-  if requoted=$(quote_request "$body"); then
-    jq -c '.quotes[0] | {quoteId: .id, requoteOf, next: .next.kind,
-      wallets: (.binding.wallets // {} | keys), account: (.binding.account != null)}' <<<"$requoted" >&2
-    bind_outcome=$(jq -r '.quotes[0].next.kind' <<<"$requoted")
-  else
-    # Binding refusals arrive by name, for example BINDING_NOT_OWNED or BINDING_NOT_ON_CHAIN.
-    bind_outcome=$(jq -r '.error' <<<"$requoted")
-    jq -c '{requoteRefused: .error, message}' <<<"$requoted" >&2
-  fi
-fi
+# region trading-source-funding
+# Each quote names where it trades from (tradingSource), how the venue is funded (fundingModel,
+# fundingAccount) and how it settles. Read them; never assume them from the venue's name.
+jq -c '.quotes[] | {quoteId: .id, venue: ([.legs[].venue.id] | join(" + ")), location: .location.kind,
+  tradingSource: (.tradingSource | {kind, financialAccountId, network}), fundingModel,
+  fundingAccount: (.fundingAccount | {kind, financialAccountId}), receive: .receive.amount, next: .next.kind}' <<<"$quotes" >&2
 # endregion
 
 # region wallets-deliver-to
-# Requote one quote with a delivery from its deliverTo options: an address keeps its chain and
-# any destination tag it was approved with.
-target=$(jq -c 'first(.quotes[] as $q | $q.bindingOptions[] | select(.kind == "deliverTo")
-  | .candidates[] | select(.kind != "venueAccount" and .address != null and (.chains | length) > 0)
-  | {quoteId: $q.id, deliverTo: ({kind: "address", chain: .chains[0], address}
-      + (if .destinationTag then {destinationTag} else {} end))}) // empty' <<<"$quotes")
+# Delivering elsewhere is a requote with deliverTo. With an API key a venue account's output stays on
+# the account: a deliverTo naming another destination is refused (REQUOTE_REFUSED, deliverToNotPermitted).
+target=$(jq -c 'first(.quotes[] | select(.location.kind == "offChain")) // empty' <<<"$quotes")
 if [[ -z $target ]]; then
-  echo '{"deliverTo":"no venue quote and delivery candidate to try"}' >&2
+  echo '{"deliverTo":"no off-chain quote to try"}' >&2
   deliver_outcome=none
 else
-  body=$(jq -c '{requote: .quoteId, bind: {deliverTo}}' <<<"$target")
+  body=$(jq -c --argjson w "$trading_wallets" '{requote: .id, deliverTo: {kind: "financialAccount",
+    financialAccountId: ($w | to_entries[0].value)}}' <<<"$target")
   if delivered=$(quote_request "$body"); then
-    jq -c '.quotes[0] | {quoteId: .id, requoteOf, next: .next.kind, deliverTo: .binding.deliverTo.kind,
-      receive: .receive.amount}' <<<"$delivered" >&2
     deliver_outcome=$(jq -r '.quotes[0].next.kind' <<<"$delivered")
   else
-    # A venue that cannot deliver there names why in details.reason,
-    # for example WITHDRAWAL_CHAIN_UNSUPPORTED or DESTINATION_NOT_APPROVED.
     deliver_outcome=$(jq -r '[.error, .details.reason // empty] | join(":")' <<<"$delivered")
-    jq -c '{requoteRefused: .error, reason: .details.reason, message}' <<<"$delivered" >&2
   fi
 fi
 # endregion
 
-jq -c -n --argjson quotes "$quotes" --arg bind "$bind_outcome" --arg deliver "$deliver_outcome" '{
-  quotes: ($quotes.quotes | length),
-  sources: ($quotes.sources | group_by(.status) | map({(.[0].status): length}) | add),
-  requoteBind: $bind, requoteDeliverTo: $deliver}'
+jq -cn --argjson q "$quotes" --arg deliver "$deliver_outcome" '{tradingWallets: true,
+  quotes: ($q.quotes | length), fromNamedWallet: ([$q.quotes[] | select(.tradingSource.kind == "wallet")] | length),
+  requoteDeliverTo: $deliver}'

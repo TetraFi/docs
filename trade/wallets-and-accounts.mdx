@@ -1,14 +1,17 @@
 ---
 title: "Wallets and accounts"
-description: "See what pays and what receives on each quote, quote with your defaults, and choose a different wallet, venue account or delivery with bind."
+description: "See what each quote trades from and how it is funded, quote with your defaults, and name a trading wallet, venue account or delivery with source and deliverTo."
 ---
 
-import WalletsDefaultQuote from '/snippets/samples/wallets-default-quote.mdx';
-import WalletsBindingOptions from '/snippets/samples/wallets-binding-options.mdx';
-import WalletsRequoteBind from '/snippets/samples/wallets-requote-bind.mdx';
+import TradingSourceOptions from '/snippets/samples/trading-source-options.mdx';
+import TradingSourceRequest from '/snippets/samples/trading-source-request.mdx';
+import TradingSourceRefusal from '/snippets/samples/trading-source-refusal.mdx';
+import TradingSourceFunding from '/snippets/samples/trading-source-funding.mdx';
 import WalletsDeliverTo from '/snippets/samples/wallets-deliver-to.mdx';
 
-Every quote says what it would execute with: which wallet pays on each chain, which venue account trades, which bank account pays in and where the output goes. That is the quote's `binding`. You never need to name a wallet to get a quote: venues price with your defaults, and you change any part of the binding with `bind`.
+Every quote says what it would execute with: where it trades from, how the venue is funded, how it settles and where the output goes. You never need to name a wallet to get a quote: venues price with your defaults. To choose differently, send `source` and `deliverTo` on a quote request or a requote.
+
+Every value you send is a `financialAccountId`, and you never invent one: each quote set lists the ids you may name in `sourceOptions`.
 
 The examples on this page come from one script, [`samples/http/wallets.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/wallets.sh). It only asks for quotes and requotes: nothing is ordered.
 
@@ -16,97 +19,139 @@ The examples on this page come from one script, [`samples/http/wallets.sh`](http
 The API may change until launch. Every change is listed in the [Changelog](/changelog).
 </Note>
 
-## What pays and what receives
+## What a quote trades from
 
-A quote's `binding` has four parts. Each is optional, and a part you leave out takes your default.
+Each quote carries one source block, decided by its venue:
 
-| Field | What it names |
+| Field | What it says |
 | --- | --- |
-| `wallets` | The wallet that pays or signs on each chain, keyed by CAIP-2 chain id. |
-| `account` | The venue account the quote trades on. |
-| `bankAccount` | The bank account a fiat pay-in comes from. |
-| `deliverTo` | Where the output goes: an address, a venue account or a bank account. |
+| `tradingSource` | Where the trade executes from: `{"kind": "wallet", "financialAccountId", "network", "venueEnablementId"}` for an on-chain venue, or `{"kind": "venueAccount", "financialAccountId", "venueEnablementId"}` for one of your exchange or OTC venue accounts. |
+| `fundingModel` | `prefunded`: the trade spends money already in the trading source. `payIn`: you pay in after you order, by the terms in `payIn`. |
+| `fundingAccount` | The account that backs execution, with its `kind` (`wallet`, `venueAccount` or `bankAccount`). `linkId` appears only when money moves through that link. |
+| `settlement` | How and when the assets move: `method` (`venueLedger`, `dvp` or `fop`) and `timing` (`immediate`, `byDeadline` or `cycle`). |
+| `deliverTo` | Where the output goes, resolved, with a `displayName`. |
 
-A quote from one of your exchange or OTC venue accounts trades on that `account`. An on-chain quote pays from a wallet in `wallets`. Some quotes use both.
+A quote that cannot execute from any source you may use carries `sourceRefusal` instead of a usable source: its `code` says why, `venueId` names the venue and `fix` names the next step.
+
+Read these fields on every quote. Two quotes from the same venue can trade from different sources, so never infer the source from the venue's name.
+
+<TradingSourceFunding />
+
+```json Output shape with a granted wallet (ids shortened)
+{"quoteId":"q_01M5…","venue":"across","location":"crossChain","tradingSource":{"kind":"wallet","financialAccountId":"4d46…","network":"eip155:84532"},"fundingModel":"prefunded","fundingAccount":{"kind":"wallet","financialAccountId":"4d46…"},"receive":"9.98","next":"order"}
+```
 
 ## Quote with your defaults
 
-Leave `bind` out and every venue prices with your default binding. TetraFi fills each part in this order:
+Leave `source` out and every venue prices with your defaults. TetraFi fills each part in this order:
 
-1. what the request names in `bind`;
-2. your own defaults: an API key's own defaults, or a signed-in member's;
-3. the workspace's defaults.
+1. what the request names in `source`;
+2. each venue account's default organisation wallet, for on-chain venues that trade through that account;
+3. your own defaults: an API key's own defaults, or a signed-in member's;
+4. the workspace's defaults.
 
 A workspace always has a default organisation wallet: the first organisation wallet created or linked in it. Saved defaults are organisation wallets and workspace-registered addresses, never personal wallets.
 
-To see what your key resolves to through the public API, request quotes and read each quote's `binding`. Its `bindingOptions` lists the alternatives available to that quote. In the app, you can inspect your saved defaults under **Default binding**.
+A quote's `walletSelection` says, per chain, why each wallet was chosen. Its `reason` is `accountDefault`, `preference` or `explicit`. It is a record of the choice and grants nothing.
 
-The script asks for a quote with no `bind`, then prints each venue's outcome and what each quote is bound to.
+## Read sourceOptions
 
-<WalletsDefaultQuote />
+Every quote set, and every quote in it, lists in `sourceOptions` what you may name. Each entry has a `kind` and its `candidates`:
 
-```json Output (shortened)
-{"venue":"bebop","status":"answered"}
-{"venue":"binance-orderbook","status":"answered"}
-{"venue":"keyrock-rfq","status":"answered"}
-{"venue":"okx-rfq","status":"unavailable","reason":"notConnected"}
-{"venue":"across","status":"unsupported","reason":"pairNotServed"}
-{"quoteId":"q_01M5…","venue":"bebop","next":"order","wallets":["eip155:8453"],"account":true,"deliverTo":null}
-{"quoteId":"q_01M5…","venue":"binance-orderbook","next":"order","wallets":[],"account":true,"deliverTo":null}
+| `kind` | Lists |
+| --- | --- |
+| `wallet` | Trading wallets of one `family` (`evm`, `solana` or `tron`) that can trade on `chain`. |
+| `venueAccount` | Venue accounts that can trade at the venue. |
+| `fundingAccount` | Accounts that can fund the trade, such as a bank account for a pay-in. |
+| `deliverTo` | Where the output can go. |
+
+Each candidate carries its `financialAccountId`, `kind`, `displayName` and `isDefault`. A wallet also carries its `address` and `network`. When present, `balance` is the pay asset held there (`"kind": "known"`) or `"kind": "unavailable"`. A balance that could not be read is never shown as 0, and `null` means it was not observed.
+
+An empty list means there is nothing else to choose. The script reads the trading wallets for each USDC chain, preferring the candidate marked `isDefault`:
+
+<TradingSourceOptions />
+
+```json Output shape with a granted wallet (ids shortened)
+{"sourceOptions":[{"kind":"wallet","chain":"eip155:84532","candidates":[{"financialAccountId":"4d46…","kind":"wallet","displayName":"Treasury (Base Sepolia)","isDefault":true},{"financialAccountId":"61c3…","kind":"wallet","displayName":"Payments (Base Sepolia)","isDefault":false}]}]}
 ```
 
-## Choose with bind
+When the list has no wallet the key may use, the script prints what each on-chain venue says and stops. This is the live output for a key with no wallet granted:
 
-Send `bind` on a new quote request or on a requote. It has the same four parts as `binding`:
-
-```json
-{
-  "wallets": { "eip155:8453": "<wallet id or address>" },
-  "account": "<venue account id>",
-  "bankAccount": "<bank account id>",
-  "deliverTo": { "kind": "address", "chain": "eip155:8453", "address": "0x…" }
-}
+```json Output on test networks, no wallet granted (shortened)
+{"sourceOptions":[]}
+[{"venue":"circle-cctp","status":"unavailable","reason":"onchainWalletNotUsable","detail":"Your saved wallet is not visible or usable for this API key on Base Sepolia, so it was not asked. …"}]
+{"tradingWallets":{},"quoted":false}
 ```
 
-Send only the parts you want to change. The ids to use come from the quote itself, in `bindingOptions` (see below).
+With an API key that has no wallet granted, on-chain venues read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`: the second means the venue account's saved wallet is not visible to the key. See [Give a key organisation wallets](#give-a-key-organisation-wallets).
 
-### Wallets, one per chain
+## Choose with source
 
-`wallets` is keyed by CAIP-2 chain id, so you name a wallet for each chain the quote touches. Chains belong to one of three families, and each family has its own defaults slot:
+`source` has three parts. Each is optional, and a part you leave out takes your default.
 
-| Family | Chain id form | Example | Defaults slot |
-| --- | --- | --- | --- |
-| EVM | `eip155:<chain id>` | `eip155:8453` | `wallet:evm` |
-| Solana | `solana:<genesis hash>` | `solana:5eykt4Us…` | `wallet:solana` |
-| Tron | `tron:<network>` | `tron:shasta` (the Shasta test network) | `wallet:tron` |
+| Field | What it names |
+| --- | --- |
+| `tradingWallets` | The trading wallet for each chain, keyed by CAIP-2 chain id. Each value is a wallet's `financialAccountId` from `sourceOptions`. |
+| `venueAccountId` | The venue account the quote trades on. |
+| `fundingAccountId` | The account that funds the trade, such as the bank account a pay-in comes from. |
 
-Each value is a wallet id from `bindingOptions`, or an address. The wallet must be able to pay on that chain: a custody vault or a registered address pays only on the chains it is registered on.
+Chains belong to one of three families, and each value must be a wallet that can trade on its chain:
 
-An API key uses your workspace's wallets and the organisation wallets an owner has granted to that key ([below](#give-a-key-organisation-wallets)). It cannot use a personal wallet, and it cannot link one: linking a personal wallet is done by a signed-in member. In the app, a member can choose a personal wallet for a single request on the trade page while **Advanced filters** is open. Despite its name, **Advanced filters** only opens more search filters: it is not Advanced execution.
+| Family | Chain id form | Example |
+| --- | --- | --- |
+| EVM | `eip155:<chain id>` | `eip155:8453` |
+| Solana | `solana:<genesis hash>` | `solana:5eykt4Us…` |
+| Tron | `tron:<network>` | `tron:shasta` (the Shasta test network) |
 
-### Venue accounts and bank accounts
+The script names the wallets it read. With two chains it moves USDC between them; with one, it swaps USDC for ETH on that chain:
 
-`account` is a venue account id. Your workspace has one account at each venue, so a venue quote's `account` option lists that account only. Naming any other account is refused with `403 ACCOUNT_NOT_AVAILABLE`.
+<TradingSourceRequest />
 
-`bankAccount` names the bank account a fiat pay-in comes from. Quotes that pay in from a bank list the bank accounts you can use in their `bankAccount` option.
+```json Request sent (shortened)
+{"pay":{"asset":"USDC","chain":"eip155:84532"},"receive":{"asset":"USDC","chain":"eip155:11155111"},"amount":"10","side":"payExact","source":{"tradingWallets":{"eip155:84532":"4d46…","eip155:11155111":"9b07…"}}}
+```
 
-### Where the output goes
+`preferredWallets` is a softer choice. It is keyed the same way, but it is only a preference. A venue account uses that wallet only when it is one of the account's linked wallets on the venue's network; otherwise it quotes from its own default. A preference never makes a venue refuse. `source.tradingWallets` is the explicit choice and wins on its chain.
 
-`deliverTo` takes one of three shapes, tagged by `kind`:
+An API key uses your workspace's wallets and the organisation wallets an owner has granted to that key. It cannot use or link a personal wallet: only a signed-in member can link one. In the app, a member can choose a personal wallet for a single request on the trade page while **Advanced filters** is open. Despite its name, **Advanced filters** only opens more search filters: it is not Advanced execution.
+
+### When TetraFi refuses a source
+
+A source you may not use is refused before any venue is asked, so nothing is quoted or reserved:
+
+<TradingSourceRefusal />
+
+```json Output shape of a refusal (shortened)
+{"refused":"BINDING_NOT_OWNED","message":"The binding names a wallet this caller cannot use.","next":null}
+```
+
+| Status and code | Meaning | What to do |
+| --- | --- | --- |
+| `403 BINDING_NOT_OWNED` | The wallet or account does not exist, or you cannot use it. Both cases read the same. | Choose a candidate from `sourceOptions`. A key needs an owner to grant the organisation wallet. Otherwise, ask a wallet manager to register or share it. |
+| `400 BINDING_NOT_ON_CHAIN` | The wallet is registered on another chain, so it cannot trade on the chain you keyed it under. | Choose a candidate listed for that chain. |
+| `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
+| `403 ACCOUNT_NOT_AVAILABLE` | The venue account is not one this quote can trade on. | Leave `venueAccountId` out, or name a candidate from the `venueAccount` option. |
+| `409 REQUOTE_NEEDS_WALLET` | The venue quotes only once a wallet is chosen. `details.reason` names the family. | Requote with `source.tradingWallets` naming a wallet of that family. |
+
+Your workspace has one account at each venue, so a venue quote's `venueAccount` option lists that account only.
+
+## Where the output goes
+
+`deliverTo` is a top-level field of the request, tagged by `kind`:
 
 | `kind` | Fields | Meaning |
 | --- | --- | --- |
-| `address` | `chain`, `address`, `destinationTag` (optional) | Send the output to this address on this chain. |
-| `account` | `account` | Keep the output on this venue account. |
-| `bankAccount` | `bankAccount` | Pay the output out to this bank account. |
+| `financialAccount` | `financialAccountId` | Deliver to one of your own accounts: a wallet, a venue account or a bank account. |
+| `payee` | `payeeId` | Pay the output to a payee registered in your workspace. |
+| `address` | `chain`, `address`, `destinationTag` (optional), `calldata` (optional) | Send the output to this address on this chain. |
 
 `destinationTag` is the tag or memo an address needs, such as an XRP destination tag, a Stellar memo or an exchange deposit memo. Leaving it out means no tag: TetraFi never fills one in for you.
 
-On a venue quote, `deliverTo` with an address asks TetraFi to withdraw the output from your venue account once the order fills. The address must be one of your workspace's wallets, approved as a withdrawal destination of that venue account for the asset you receive, with exactly the tag it was approved with. The quote then carries a network fee line for the venue's withdrawal fee (the most the order will pay) and a `receive` amount net of it.
+On a venue quote, delivering to a wallet asks TetraFi to withdraw the output from your venue account once the order fills. The wallet must be one of your workspace's wallets, approved as a withdrawal destination of that venue account for the asset you receive, with exactly the tag it was approved with. The quote then carries a network fee line for the venue's withdrawal fee (the most the order will pay) and a `receive` amount net of it.
 
-Delivering a venue quote to a wallet needs a signed-in member who can view the workspace's wallets. An API key's venue quotes do not list `deliverTo` candidates, and a requote that names an address is refused with the reason `deliverToNotPermitted`. With an API key, a venue quote's output stays on the venue account.
+Delivering a venue quote to a wallet needs a signed-in member who can view the workspace's wallets. With an API key, a venue quote's output stays on the venue account: a requote that names another destination is refused with the reason `deliverToNotPermitted`.
 
-When a venue cannot deliver where you asked, a new quote request lists that venue in `sources` as `unavailable` with the reason, and a requote is refused with `409 REQUOTE_REFUSED` and the reason in `details.reason`:
+When a venue cannot deliver where you asked, a new quote request lists that venue in `sources` as `unavailable` with the reason. A requote is refused with `409 REQUOTE_REFUSED` and the reason in `details.reason`:
 
 | Reason | What to do |
 | --- | --- |
@@ -118,86 +163,45 @@ When a venue cannot deliver where you asked, a new quote request lists that venu
 | `deliverToCalldataUnsupported` | This venue cannot send calldata with the output. Leave `calldata` out. |
 | `deliverToNotPermitted` | Delivering to a wallet needs a signed-in member who can view wallets. Keep the output on the account, or deliver from the app. |
 
-The script looks for a quote whose `deliverTo` option lists an address. When none does, as with an API key, it skips the delivery requote. It never guesses a destination.
+The script requotes an off-chain quote with `deliverTo` naming the trading wallet it read, and records the outcome. When no off-chain quote came back, it skips the requote. It never guesses a destination.
 
 <WalletsDeliverTo />
 
-```json Output with an API key
-{"deliverTo":"no venue quote and delivery candidate to try"}
+```json Output when no off-chain quote came back
+{"deliverTo":"no off-chain quote to try"}
 ```
 
-## Read bindingOptions
+## Requote with a different source
 
-Each quote's `bindingOptions` lists what that quote can be requoted with. Each entry has a `kind` and its `candidates`:
+To change the source of a quote you hold, requote it. Send `POST /api/v1/quotes` with `requote` set to the quote id, plus `source` or `deliverTo` with the parts you change. Only that quote's venue is asked again, for the same pair, amount and side. You get back one new quote whose `requoteOf` names the original. The original stays orderable until its own `expiresAt`. [Requotes and expiry](/trade/requotes-and-expiry) covers requotes in full.
 
-| `kind` | Lists |
-| --- | --- |
-| `wallet` | Wallets of one `family` that can pay on `chain`. |
-| `account` | Venue accounts that can trade at the quote's venue. |
-| `bankAccount` | Bank accounts for a fiat pay-in. |
-| `deliverTo` | Where the output can go: approved destination wallets and the venue account itself. |
-
-A candidate's `id` is what `bind` names. It also carries `kind` (`organizationWallet`, `workspaceWallet`, `linkedWallet`, `venueAccount` or `destination`, spelled exactly so), `label`, `address`, `chains`, `ownership`, `balance` and, for a delivery destination, the `destinationTag` it was approved with. When `balance` is present, it is the pay asset held there (`"kind": "known"`) or `"kind": "unavailable"` with a reason, never a made-up 0. It is `null` where a balance does not apply.
-
-Only wallets that can pay on the quote's pay chain are listed. An empty `bindingOptions` means there is nothing else to choose for that quote.
-
-<WalletsBindingOptions />
-
-```json Output on test networks (shortened)
-{
-  "quoteId": "q_01M5…",
-  "venue": "across",
-  "options": [
-    { "kind": "account", "candidates": [{ "id": "5ca2…", "kind": "venueAccount", "label": "Across account", "chains": [] }] },
-    {
-      "kind": "wallet",
-      "chain": "eip155:84532",
-      "family": "evm",
-      "candidates": [
-        { "id": "4d46…", "kind": "organizationWallet", "label": "Treasury (Base Sepolia)", "chains": ["eip155:84532"] },
-        { "id": "61c3…", "kind": "organizationWallet", "label": "Payments (Base Sepolia)", "chains": ["eip155:84532"] }
-      ]
-    }
-  ]
-}
-```
-
-## Requote with a different wallet or account
-
-To change the binding of a quote you hold, requote it: `POST /api/v1/quotes` with `requote` set to the quote id and `bind` set to the parts you change. Only that quote's venue is asked again, for the same pair, amount and side. You get back one new quote whose `requoteOf` names the original, and the original stays orderable until its own `expiresAt`. [Requotes and expiry](/trade/requotes-and-expiry) covers requotes in full.
-
-The script picks a candidate from the quote's own `bindingOptions`, never a hard-coded id: one that differs from what the quote is bound to now when there is one.
-
-<WalletsRequoteBind />
-
-```json Output on test networks (shortened)
-{"requote":"q_01M5…","bind":{"wallets":{"eip155:84532":"61c3…"}}}
-{"quoteId":"q_01M5…","requoteOf":"q_01M5…","next":"order","wallets":["eip155:11155111","eip155:84532"],"account":true}
+```json Request
+{ "requote": "q_01M5…", "source": { "tradingWallets": { "eip155:84532": "61c3…" } } }
 ```
 
 A requote is a live quote request, so the limit of one every 3 seconds applies. The script's `quote_request` helper waits for `Retry-After` once when it gets `429 QUOTE_RATE_LIMITED`.
 
 ## When a quote needs a wallet
 
-Some venues can only quote once they know which wallet pays. You can see this in three places.
+Some venues can only quote once they know which wallet trades. You can see this in three places.
 
-**A quote's next step is a requote.** `next` reads `{"kind": "requote", "needs": [...]}`. Each entry in `needs` is a slot to fill: `wallet:evm`, `wallet:solana`, `wallet:tron`, `account`, `bankAccount` or `deliverTo`. Requote the quote with `bind` filling those slots, choosing from its `bindingOptions`. An empty `needs` means requote it as it is.
+**A quote's next step is a requote.** `next` reads `{"kind": "requote", "needs": [...]}`. Each entry in `needs` is a slot to fill: `wallet:evm`, `wallet:solana`, `wallet:tron`, `account`, `bankAccount` or `deliverTo`. Requote the quote with `source` or `deliverTo` filling those slots, choosing from `sourceOptions`. An empty `needs` means requote it as it is.
 
-**A venue reads `needsWallet` in `sources`.** It has no wallet of that `family` (`evm`, `solana` or `tron`) to ask with. Send the request again with `bind.wallets` naming a wallet on the chain you pay from, or set a default for that family.
+**A venue reads `needsWallet` in `sources`.** It has no wallet of that `family` (`evm`, `solana` or `tron`) to ask with. Send the request again with `source.tradingWallets` naming a wallet on the chain you pay from, or set a default for that family.
 
-**A venue reads `walletRefused` in `sources`.** The wallet in `wallet` cannot trade there, for example because it was revoked or screening confirmed a sanctions match; `reason` says why when TetraFi can. When the refused wallet is an organisation wallet you chose that is not linked to the venue account, `recovery` carries the `wallet`, a `linkHref` where it can be linked, and a `defaultBinding` you can send as `bind` to use the account's default wallet for this request instead.
+**A venue reads `walletRefused` in `sources`.** The wallet in `wallet` cannot trade there, for example because it was revoked or screening confirmed a sanctions match. `reason` says why when TetraFi can. Sometimes the refused wallet is an organisation wallet you chose that is not linked to the venue account. Then `recovery` carries the `wallet`, a `linkHref` where it can be linked, and `defaultWallets`: the account's default wallet for each chain, which you can send as `source.tradingWallets` for this request instead.
 
-With an API key, on-chain venues may also read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired`. The key has no organisation wallet granted to it yet: ask a workspace owner to grant one.
+With an API key, on-chain venues may also read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. The key has no organisation wallet granted to it yet: ask a workspace owner to grant one.
 
 ## Give a key organisation wallets
 
-An API key trades through organisation wallets only when a workspace owner, or an admin who manages credentials, grants them to that key. The key must already be able to trade on venue accounts ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
+An API key trades through organisation wallets only when they are granted to it, by a workspace owner or by an admin who manages credentials. The key must already be able to trade on venue accounts ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
 
-The grant is made by that owner or admin, signed in with a second factor. It names the key's complete list of organisation wallets: a new list replaces the previous one, and an empty list revokes them all. Every wallet must be an active organisation wallet of the workspace. The key itself cannot make or change its grant.
+That owner or admin makes the grant while signed in with a second factor. The grant is the key's complete list of organisation wallets: a new list replaces the previous one, and an empty list revokes them all. Every wallet must be an active organisation wallet of the workspace. The key itself cannot make or change its grant.
 
 The app does not offer the grant yet. Until it does, [contact TetraFi](/support) with your workspace owner to grant a key organisation wallets.
 
-At trade time the key also needs venue trading switched on and a valid request signature, and you, the key's owner, still need trading rights on the wallet.
+Once granted, the wallets appear in the key's `sourceOptions`, and their ids are what the key sends in `source.tradingWallets`. At trade time the key also needs venue trading switched on and a valid request signature, and you, the key's owner, still need trading rights on the wallet.
 
 ## Connect a venue account
 
@@ -208,19 +212,7 @@ Exchange and OTC venue accounts are connected in the app by someone who can mana
 3. Work through **Integration mode**, **Account** and **Venues**, entering the credentials the venue asks for.
 4. In **Verification**, TetraFi checks each venue you added. Select **Check again** to repeat a check, then **Review setup**.
 
-Once the account is set up, **Open \<provider\> account** takes you to it, and its quotes appear for the members and keys allowed to trade on venue accounts.
-
-## Binding refusals
-
-A `bind` TetraFi cannot use is refused by name, on a new quote request or a requote:
-
-| Status and code | Meaning | What to do |
-| --- | --- | --- |
-| `403 BINDING_NOT_OWNED` | The wallet or target does not exist, or you cannot use it. Both read the same. | Choose a candidate from the quote's `bindingOptions`. For a key, ask an owner to grant the organisation wallet; otherwise ask a wallet manager to register or share it. |
-| `400 BINDING_NOT_ON_CHAIN` | The wallet is registered on another chain and cannot pay on the one you keyed it under. | Choose a candidate listed for that chain. |
-| `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
-| `409 REQUOTE_NEEDS_WALLET` | The venue quotes only once a wallet is chosen. `details.reason` names the family. | Requote with `bind.wallets` naming a wallet of that family. |
-| `403 ACCOUNT_NOT_AVAILABLE` | The venue account is not this quote's account. | Leave `bind.account` out, or name the account in the quote's `account` option. |
+Once the account is set up, **Open \<provider\> account** takes you to it. Its quotes appear for the members and keys allowed to trade on venue accounts, with `tradingSource.kind` reading `venueAccount`.
 
 In the app, the **Pay from**, **Account** and **Deliver** choices on a quote card each send one of these requotes.
 

@@ -92,14 +92,14 @@ fi
 # endregion
 
 # region recipe-exchange-quote
-# Ask that venue only. Its quote trades on your account there: binding.account names it.
+# Ask that venue only. Its quote trades on your account there: tradingSource names it (kind venueAccount).
 request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg venue "$venue" '{
   pay: {asset: $pay}, receive: {asset: $receive}, amount: $amount, side: "payExact",
   filters: {venues: {include: [$venue]}}
 }')
 quotes=$(quote "$request")
 jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$quotes" >&2
-quote=$(jq -c 'first(.quotes[] | select(.binding.account != null)) // empty' <<<"$quotes")
+quote=$(jq -c 'first(.quotes[] | select(.tradingSource.kind == "venueAccount")) // empty' <<<"$quotes")
 if [[ -z $quote ]]; then
   jq -c --arg v "$venue" '{venue: $v, orderable: false, sources: [.sources[] | {venue: .venue.id, status, reason}]}' <<<"$quotes"
   exit 0

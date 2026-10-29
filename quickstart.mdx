@@ -37,7 +37,7 @@ Create the key in the app as a workspace owner or admin with permission to manag
 3. Switch **Venue trading** on and select **Create key**.
 4. Copy **API Key** and **Request-signing secret** to your secret manager, keeping them separate. They are shown once and cannot be recovered. Tick **I have saved both credentials securely** and select **Done**.
 
-The dialog does not grant organisation wallets to the key. Exchange and OTC venue accounts need no wallet grant, but on-chain Basic venues answer `unavailable` with `apiKeyOrganisationWalletScopeRequired` until an owner or admin grants a wallet. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains that separate step.
+The dialog does not grant organisation wallets to the key. Exchange and OTC venue accounts need no wallet grant, but on-chain Basic venues answer `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` until an owner or admin grants a wallet. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains that separate step.
 
 ### Find your workspace id
 
@@ -199,7 +199,7 @@ When no quote's `next` is `order` or `preflight`, the script stops with `NO_ACTI
 | --- | --- | --- |
 | `restricted`, `venueTradeScopeRequired` | The key has no venue trading, so venue accounts are not asked. | Use a key with venue trading ([Get a key with venue trading](#get-a-key-with-venue-trading)). |
 | `unavailable`, `notConnected` | Your workspace has no account at that venue. | Connect one ([Connect a venue account](/trade/wallets-and-accounts#connect-a-venue-account)), or ignore that venue. |
-| `unavailable`, `apiKeyOrganisationWalletScopeRequired` | The venue trades from an organisation wallet, and none is granted to the key. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
+| `unavailable`, `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | The venue trades from an organisation wallet, and none the key may use is granted to it. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
 | `unavailable`, `advancedModeDisabled` | The venue executes on-chain from your own wallet (Advanced), which is not open yet. | Nothing to do. Use a Basic quote. |
 | `unsupported`, `pairNotServed` | The venue does not trade this pair. | Nothing to do, or try another pair. |
 | A quote whose `next` is `fund` | The venue account holds less than you pay, so the script skipped it. `readiness.amount` is what is missing. | Fund the account, then run the script again. |

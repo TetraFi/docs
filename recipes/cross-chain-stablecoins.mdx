@@ -54,7 +54,7 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
   <Step title="Quote the move">
     `POST /api/v1/quotes` with the same asset on both sides, each side pinned to its chain, and `filters.locations` set to `["crossChain"]` so only moves between the two chains are quoted ([Chains and routes](/search/chains-and-routes)).
 
-    Pick a quote whose `next` is `order`: TetraFi executes it from an organisation wallet, so your key can order it. Its `binding.wallets` names the wallet that pays on the first chain and the wallet that receives on the second. The quote's `eta` is how long delivery is expected to take.
+    Pick a quote whose `next` is `order`: TetraFi executes it from an organisation wallet, so your key can order it. Its `tradingSource` names the wallet it trades from (`financialAccountId` and `network`), and `fundingModel` says how the move is funded ([Wallets and accounts](/trade/wallets-and-accounts)). The quote's `eta` is how long delivery is expected to take.
 
     <CrossChainQuote />
 
@@ -142,12 +142,12 @@ Progress goes to stderr and the summary to stdout:
 When no quote's `next` is `order`, the script stops and its summary lists why, venue by venue:
 
 ```json Output (shortened)
-{"from":"eip155:84532","to":"eip155:11155111","orderable":false,"ownWallet":[],"reasons":[{"venue":"across","reason":"apiKeyOrganisationWalletScopeRequired"},{"venue":"cctp","reason":"apiKeyOrganisationWalletScopeRequired"}]}
+{"from":"eip155:11155111","to":"eip155:11155420","orderable":false,"ownWallet":[],"reasons":[{"venue":"across-solver-testnet","reason":"onchainWalletNotUsable"},{"venue":"circle-cctp","reason":"onchainWalletNotUsable"},{"venue":"across","reason":"apiKeyOrganisationWalletScopeRequired"},{"venue":"cctp","reason":"apiKeyOrganisationWalletScopeRequired"}]}
 ```
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| `unavailable` with `apiKeyOrganisationWalletScopeRequired` | The key has no organisation wallet granted to it. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
+| `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | The key has no organisation wallet granted to it that this venue can use. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
 | `unavailable` with `amountBelowMinimum` | The amount is below what that venue moves. `detail` names the least. | Move at least that amount. |
 | A quote whose `next` is `preflight`, `sign` or `transact` | The move pays from your own wallet, which must sign or send a transaction first. An API key cannot do that. | Sign with your wallet in your application, then order it ([Orders](/trade/orders#advanced-orders)). |
 | `restricted` with `venueTradeScopeRequired` | The key cannot trade on venue accounts. | Set up [venue trading](/authentication#trading-on-your-venue-accounts) for the key. |
@@ -160,7 +160,7 @@ On the Trade page, open **Advanced filters** and set **Route** to **Cross-chain*
 
 <CardGroup cols={2}>
   <Card title="Wallets and accounts" icon="wallet" href="/trade/wallets-and-accounts">
-    Choose which organisation wallet pays or receives with bind.
+    Choose which organisation wallet trades or receives with source and deliverTo.
   </Card>
   <Card title="Order status" icon="list-check" href="/trade/order-status">
     Every status a trade can read, and how often to poll.

@@ -5,6 +5,20 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-29" description="Trading source and funding replace bind and binding">
+  A quote request names what a trade executes with in `source`, and where its output goes in a top-level `deliverTo`. Each quote states its trading source and its funding. The old `bind`, `binding` and `bindingOptions` fields are gone, with no aliases.
+
+  What to change:
+  - Read `sourceOptions` where you read `bindingOptions`. It is listed on the quote set and on each quote. Candidates carry `financialAccountId`, `kind`, `displayName` and `isDefault` instead of `id` and `label`.
+  - Send `source.tradingWallets` (CAIP-2 chain id to `financialAccountId`) where you sent `bind.wallets`, `source.venueAccountId` where you sent `bind.account`, and `source.fundingAccountId` where you sent `bind.bankAccount`.
+  - Send `deliverTo` at the top level of the request or requote, not under `bind`. Its kinds are `financialAccount`, `payee` and `address`.
+  - Read each quote's `tradingSource`, `fundingModel`, `fundingAccount`, `settlement` and `deliverTo` where you read `binding`. A quote with no usable source carries `sourceRefusal`.
+  - Read a quote's `location` as `{ "kind": … }` only: `singleChain`, `crossChain`, `offChain` or `mixed`.
+  - On a `walletRefused` source, read `recovery.defaultWallets` and send it as `source.tradingWallets`, where you sent `recovery.defaultBinding` as `bind`.
+
+  Refusal codes keep their names, for example `BINDING_NOT_OWNED`. [Wallets and accounts](/trade/wallets-and-accounts) covers the new fields.
+</Update>
+
 <Update label="2026-10-27" description="Consistent refusals, order status and source reasons">
   Every refusal of a quote, price, order, preflight, asset or order-status request, at every status, is now one JSON object:
 

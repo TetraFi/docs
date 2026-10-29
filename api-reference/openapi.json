@@ -132,6 +132,25 @@
         ],
         "x-extensible-enum": true
       },
+      "AfterPayBy_String": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LateFunds"
+          },
+          {
+            "properties": {
+              "source": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "One family serves owned wire values and borrowed catalogue declarations."
+      },
       "AmountMode": {
         "description": "Whether the Taker fixes the input or the output side of an outcome.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
@@ -227,7 +246,7 @@
             ]
           },
           "reason": {
-            "description": "A machine-readable reason token the refusing step gave.",
+            "description": "A machine-readable reason token the refusing step gave.\n\nKnown source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
             "type": [
               "string",
               "null"
@@ -643,88 +662,8 @@
         ],
         "type": "object"
       },
-      "Binding": {
-        "additionalProperties": false,
-        "description": "What a quote executes with: a wallet per chain, a venue account, a bank account and\nwhere the output goes. Every field is optional; an absent one takes the Default\nbinding.",
-        "properties": {
-          "account": {
-            "description": "The quote card's `venueAccount.accountBindingId`.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "bankAccount": {
-            "description": "The pay-in bank source, a bank destination id.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "deliverTo": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DeliverTo"
-              }
-            ]
-          },
-          "wallets": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Per CAIP-2 chain: a wallet target id as the Default-bindings API returns it\n(linked, workspace or organisation wallet), or an address.",
-            "propertyNames": {
-              "description": "A CAIP-2 chain id (`eip155:8453`, `solana:<genesis>`, `tron:shasta`), syntax-checked:\na namespace of 3 to 8 lowercase letters, digits or `-`, and a reference of 1 to 32\nletters, digits, `-` or `_`. Compared exactly, as CAIP-2 references are case-sensitive.",
-              "example": "eip155:8453",
-              "type": "string"
-            },
-            "type": [
-              "object",
-              "null"
-            ]
-          }
-        },
-        "type": "object"
-      },
-      "BindingCandidate": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/BindingTargetView"
-          },
-          {
-            "properties": {
-              "balance": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CandidateBalance",
-                    "description": "The pay Asset held there; `null` where no balance applies (a bank destination)."
-                  }
-                ]
-              },
-              "destinationTag": {
-                "description": "The tag or memo a `deliverTo` destination was approved with: choosing it sends\nexactly this `destinationTag`. Absent is no tag, never a default.",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "balance"
-            ],
-            "type": "object"
-          }
-        ],
-        "description": "One candidate a `bind` can name by its target `id`. Candidates carry no screening\noutcome: only the bound wallet is screened."
-      },
       "BindingDestinationKind": {
-        "description": "What a `destination` target is. An `lp_account` destination is a\n`venueAccount` target instead, so it never carries this.\n\nNew values may be added; treat unknown values as other.",
+        "description": "What a payee destination target is. Own financial accounts are not targets\nof this defaults store.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "cryptoAddress",
           "bankAccount"
@@ -732,126 +671,12 @@
         "type": "string",
         "x-extensible-enum": true
       },
-      "BindingOption": {
-        "description": "One way a quote could be bound differently, with its compatible candidates.\n\nNew values may be added; treat unknown values as other.",
-        "discriminator": {
-          "propertyName": "kind"
-        },
-        "oneOf": [
-          {
-            "description": "Wallets of one family that can pay on `chain`.",
-            "properties": {
-              "candidates": {
-                "items": {
-                  "$ref": "#/components/schemas/BindingCandidate"
-                },
-                "type": "array"
-              },
-              "chain": {
-                "$ref": "#/components/schemas/Caip2Chain"
-              },
-              "family": {
-                "$ref": "#/components/schemas/ChainFamily"
-              },
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "wallet"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              }
-            },
-            "required": [
-              "family",
-              "chain",
-              "candidates",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "description": "Venue accounts that can trade at the quote's venue.",
-            "properties": {
-              "candidates": {
-                "items": {
-                  "$ref": "#/components/schemas/BindingCandidate"
-                },
-                "type": "array"
-              },
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "account"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              }
-            },
-            "required": [
-              "candidates",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "description": "Bank destinations for the pay-in.",
-            "properties": {
-              "candidates": {
-                "items": {
-                  "$ref": "#/components/schemas/BindingCandidate"
-                },
-                "type": "array"
-              },
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "bankAccount"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              }
-            },
-            "required": [
-              "candidates",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "description": "Where the output can go: usable wallets, destinations and venue accounts.",
-            "properties": {
-              "candidates": {
-                "items": {
-                  "$ref": "#/components/schemas/BindingCandidate"
-                },
-                "type": "array"
-              },
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "deliverTo"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              }
-            },
-            "required": [
-              "candidates",
-              "kind"
-            ],
-            "type": "object"
-          }
-        ],
-        "x-extensible-enum": true
-      },
       "BindingTargetKind": {
-        "description": "The kind of thing a target names. A `crypto_address` or own bank\ndestination is `destination`; an LP-account destination is `venueAccount`.\n\nNew values may be added; treat unknown values as other.",
+        "description": "Native wallet/default targets. Trading venue accounts and funding links use\nthe financial-account source model, never this wallet preference namespace.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "linkedWallet",
           "workspaceWallet",
           "organizationWallet",
-          "venueAccount",
           "destination"
         ],
         "type": "string",
@@ -1756,6 +1581,19 @@
           "submittedByYou": {
             "type": "boolean"
           },
+          "tetrafiFee": {
+            "description": "Gross TetraFi fee (list rate, before incentives) from the Basic billing ledger, in tetrafiFeeAsset; absent until accrued.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tetrafiFeeAsset": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "venueAccountName": {
             "description": "The workspace's venue account it went through, titled by its catalogue Venue\n(\"Keyrock account\"), never by the execution type (\"Keyrock OTC\"); an on-chain venue is\nnever an account and reads as itself (\"Circle StableFX\").",
             "type": "string"
@@ -2188,14 +2026,55 @@
         "type": "object"
       },
       "DeliverTo": {
-        "description": "Where a quote's output is delivered. Each kind carries only its own fields; any other\ncombination fails to parse.\n\nNew values may be added; treat unknown values as other.",
+        "description": "Output to own money, a third-party payee, or an explicit chain address.\n\nNew values may be added; treat unknown values as other.",
         "discriminator": {
           "propertyName": "kind"
         },
         "oneOf": [
           {
             "additionalProperties": false,
-            "description": "An address on a chain, with optional calldata for the receiver.",
+            "properties": {
+              "financialAccountId": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "financialAccount"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "financialAccountId",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "payee"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "payeeId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "payeeId",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
             "properties": {
               "address": {
                 "type": "string"
@@ -2210,7 +2089,6 @@
                 "$ref": "#/components/schemas/Caip2Chain"
               },
               "destinationTag": {
-                "description": "The destination tag or memo the address needs (an XRP tag, a Stellar memo, an\nexchange deposit memo). A venue card's withdrawal goes only to the venue's approved\ndestination with exactly this memo. Absent is no tag, never a default.",
                 "type": [
                   "string",
                   "null"
@@ -2228,50 +2106,6 @@
             "required": [
               "chain",
               "address",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "A venue account the output stays on.",
-            "properties": {
-              "account": {
-                "type": "string"
-              },
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "account"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              }
-            },
-            "required": [
-              "account",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "A registered bank destination for the payout.",
-            "properties": {
-              "bankAccount": {
-                "type": "string"
-              },
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "bankAccount"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              }
-            },
-            "required": [
-              "bankAccount",
               "kind"
             ],
             "type": "object"
@@ -2335,7 +2169,8 @@
         "description": "Who bears a fee line. Sponsored relayer gas on a delegated lane is a `network` line\npaid by the `platform`.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "taker",
-          "platform"
+          "platform",
+          "takerStatement"
         ],
         "type": "string",
         "x-extensible-enum": true
@@ -2359,16 +2194,6 @@
         "type": "string",
         "x-extensible-enum": true
       },
-      "FiatFundingModel": {
-        "description": "The funding-model token alone (filters, card summaries). The declared\nmodel with its window is [`FiatFunding`].\n\nNew values may be added; treat unknown values as other.",
-        "enum": [
-          "prefunded",
-          "funding_window",
-          "at_par"
-        ],
-        "type": "string",
-        "x-extensible-enum": true
-      },
       "FiatRail": {
         "type": "string"
       },
@@ -2386,6 +2211,46 @@
         "enum": [
           "onRequest",
           "atExecution"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "FirmQuoteDailyWarning": {
+        "description": "Read-only workspace/day warning. It never admits or spends a firm ask.",
+        "properties": {
+          "code": {
+            "description": "VENUE_FIRM_QUOTE_DAILY_NEAR_CAP from 80%; VENUE_FIRM_QUOTE_DAILY_CAP_REACHED at or above the UTC-day cap.",
+            "example": "VENUE_FIRM_QUOTE_DAILY_NEAR_CAP",
+            "type": "string"
+          },
+          "limit": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resetsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "used": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "used",
+          "limit",
+          "resetsAt"
+        ],
+        "type": "object"
+      },
+      "FirstLeg": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "taker",
+          "maker"
         ],
         "type": "string",
         "x-extensible-enum": true
@@ -2507,6 +2372,47 @@
             "type": "object"
           },
           {
+            "description": "The quote's own bound pay wallet (an organisation wallet on a Basic on-chain\nvenue account) holds less than the trade debits: send `amount` of `asset` to\n`address` on `chain`, then get a new price. `walletId` is the binding target the\nsource's `topUp` fix names; `tokenContract` is the registry's deployment address\nof `asset` on `chain` (the zero address for the chain's native coin).",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "amount": {
+                "$ref": "#/components/schemas/DecimalAmount"
+              },
+              "asset": {
+                "$ref": "#/components/schemas/AssetId"
+              },
+              "chain": {
+                "$ref": "#/components/schemas/Caip2Chain"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "walletTopUp"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "tokenContract": {
+                "type": "string"
+              },
+              "walletId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "walletId",
+              "address",
+              "chain",
+              "asset",
+              "tokenContract",
+              "amount",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
             "description": "Native gas for a transaction the Taker sends itself.",
             "properties": {
               "amount": {
@@ -2571,12 +2477,63 @@
         ],
         "x-extensible-enum": true
       },
+      "FundingAccount": {
+        "description": "What backs execution. A link id appears only when money moves through that link.",
+        "properties": {
+          "financialAccountId": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FundingAccountKind"
+          },
+          "linkId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "financialAccountId",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "FundingAccountKind": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "venueAccount",
+          "wallet",
+          "bankAccount"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "FundingClock": {
+        "description": "What a pay-by deadline measures. Explicit tokens retain persisted terms.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "payment_started",
+          "funds_arrived"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "FundingMethod": {
         "description": "How a measured pay-asset shortfall is covered.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "venueDeposit",
           "bankDeposit",
           "walletTopUp"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "FundingModel": {
+        "description": "What backs execution. Credit joins only with its first executable unit.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "prefunded",
+          "payIn"
         ],
         "type": "string",
         "x-extensible-enum": true
@@ -2900,6 +2857,82 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "LateFunds": {
+        "description": "New values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "action": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "returned"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "action": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "re_priced"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "untilSeconds": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "untilSeconds",
+              "action"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "action": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "held"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "action": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "handled_by_support"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
       "LedgerLagRef": {
         "description": "Per-chain ACE event-listener position, mirroring the in-process state\n`/health.compliance.aceEventListeners` exposes.\n\n`listener_present: false` is the \"this chain has no listener at all\"\ncase — distinct from a present-but-lagging listener, and never folded\nonto `lag_blocks: 0`.",
         "properties": {
@@ -3166,12 +3199,19 @@
                 "type": "string",
                 "x-extensible-enum": true
               },
-              "venueAccount": {
-                "$ref": "#/components/schemas/VenueAccountRef"
+              "tradingSource": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TradingSource",
+                    "description": "Absent only on a priced card whose named sourceRefusal disables ordering."
+                  }
+                ]
               }
             },
             "required": [
-              "venueAccount",
               "kind"
             ],
             "type": "object"
@@ -3295,6 +3335,7 @@
                 "x-extensible-enum": true
               },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               }
             },
@@ -3992,12 +4033,17 @@
           "phase": {
             "$ref": "#/components/schemas/OrderFailurePhase",
             "description": "Lifecycle phase where the failure was observed."
+          },
+          "recoveryStopped": {
+            "description": "True when recovery has written this order off as permanently unrecoverable: it will\nnot be retried. False while recovery may still resume it.",
+            "type": "boolean"
           }
         },
         "required": [
           "phase",
           "code",
-          "message"
+          "message",
+          "recoveryStopped"
         ],
         "type": "object"
       },
@@ -5247,6 +5293,324 @@
         "type": "object"
       },
       "PairQuote": {
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ResolvedTradingSource",
+                "description": "The indivisible, venue-declared source/funding/settlement block."
+              }
+            ]
+          },
+          {
+            "properties": {
+              "advisories": {
+                "description": "Competing mechanisms' limitations remain visible even when one serves.",
+                "items": {
+                  "$ref": "#/components/schemas/RfqMechanismAdvisory"
+                },
+                "type": "array"
+              },
+              "assurance": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteAssurance",
+                    "description": "The bond backing the quote, separate from its commitment; null when unbonded."
+                  }
+                ]
+              },
+              "basis": {
+                "$ref": "#/components/schemas/QuoteBasis",
+                "description": "Where the price came from: a live venue quote, published levels, or a model."
+              },
+              "commitment": {
+                "$ref": "#/components/schemas/Commitment",
+                "description": "`indicative` (a price, never orderable except through its `next: order`, executed within the caller's\nminimum receive) or `executable` (`firm`: the venue is bound; otherwise held to `minOut`)."
+              },
+              "corridors": {
+                "description": "The venue's other supported corridors; changing one is a Requote.",
+                "items": {
+                  "$ref": "#/components/schemas/QuoteCorridor"
+                },
+                "type": "array"
+              },
+              "eta": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IsoDuration",
+                    "description": "Expected time to delivery (ISO 8601 duration); null when the venue states none."
+                  }
+                ]
+              },
+              "expiresAt": {
+                "description": "When an executable quote stops being orderable; null for an indicative one (see `staleAfter`).",
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "failureHandling": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteFailureHandling",
+                    "description": "What happens to the input if execution fails, as the venue reports it."
+                  }
+                ]
+              },
+              "fees": {
+                "description": "Every fee line, its payer and whether `receive.amount` already includes it; an amount that could\nnot be read is null, never 0.",
+                "items": {
+                  "$ref": "#/components/schemas/QuoteFee"
+                },
+                "type": "array"
+              },
+              "firmAsk": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FirmAsk",
+                    "description": "When this card's venue gives its binding price, from the venue's own declaration:\n`onRequest` (a desk is firm-asked by Get firm quote or a requote) or `atExecution`\n(the venue prices firm only when the order executes, so Get firm quote is not offered).\nAbsent when no venue declares it (protocol routes, order books, fiat venues)."
+                  }
+                ]
+              },
+              "firmAskAvailableAt": {
+                "description": "When this desk takes its next firm ask: its firm-quote limit for this workspace is reached\nuntil then, so Get firm quote and an order-time ask are refused before it. Absent\nwhen no limit is known here; the desk's admission still decides at ask time.",
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "firmQuoteDailyWarning": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FirmQuoteDailyWarning",
+                    "description": "Current workspace/venue firm asks, read without contacting the provider."
+                  }
+                ]
+              },
+              "id": {
+                "description": "The held quote's id (`q_` + ULID): order it with `POST /orders {quoteId}`, preflight it with\n`POST /orders/preflight {quoteId}`, requote it with `POST /quotes {requote: id}`. It belongs to the\nprincipal that asked; another principal reads it as unknown (404).",
+                "type": "string"
+              },
+              "legs": {
+                "description": "One leg per venue the quote runs through, in execution order: a multi-leg route (for example\nCCTP then Circle StableFX) lists each leg's venue and location.",
+                "items": {
+                  "$ref": "#/components/schemas/QuoteLeg"
+                },
+                "type": "array"
+              },
+              "location": {
+                "$ref": "#/components/schemas/QuoteLocation",
+                "description": "Derived from the legs ([`QuoteLocation::of_legs`])."
+              },
+              "maxPay": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecimalAmount",
+                    "description": "The most `pay.amount` a `receiveExact` venue card may debit: the mirror of `minOut`, the quoted\ndebit grown by `priceProtectionBps`. It is the consent an order on it carries, so Confirm's\none fresh quote of an expired card is judged by it. Absent for `payExact`."
+                  }
+                ]
+              },
+              "mechanism": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RfqMechanism",
+                    "description": "The native mechanism that actually supplied this venue's price."
+                  }
+                ]
+              },
+              "minOut": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecimalAmount",
+                    "description": "The least `receive.amount` execution may deliver (from `priceProtectionBps`)."
+                  }
+                ]
+              },
+              "netReceived": {
+                "$ref": "#/components/schemas/NetReceived",
+                "description": "`receive.amount` minus every other cost, converted at the Reference mid: for\ncomparison and sort only, never what lands."
+              },
+              "next": {
+                "$ref": "#/components/schemas/QuoteNextAction",
+                "description": "The caller's next call: `preflight` (protocol), `order`, `requote` (a production venue's indicative\ncard: its firm quote comes from a requote), or what to fix first."
+              },
+              "observedAt": {
+                "description": "When the price was observed: an indicative price, or the book read an executable\norder-book estimate (one that reprices when chosen) was priced from; null for a firm quote.",
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pay": {
+                "$ref": "#/components/schemas/QuoteSide",
+                "description": "What the taker pays: Asset, chain (null off-chain), variant and amount in Asset units."
+              },
+              "readiness": {
+                "$ref": "#/components/schemas/Readiness",
+                "description": "Whether the quote can be ordered now (funding, gas, wallet); an unknown is `unavailable`, never 0."
+              },
+              "receive": {
+                "$ref": "#/components/schemas/QuoteSide",
+                "description": "`receive.amount` is what lands at `deliverTo`, after every `included: true` fee\ntaken in the receive Asset."
+              },
+              "refundClaimableAfter": {
+                "description": "With `refundOnSource` on an escrowed intent: the instant after which the source-chain\nescrow refunds the input if the order was not filled, read from the signed order's own\nexpiry (`expires`). Until then the input stays in that escrow. Absent when the quote holds\nno escrowed intent or its expiry could not be read; never estimated.",
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requoteOf": {
+                "description": "The quote this one requoted (`POST /quotes {requote}`); the original stays orderable until its own\nexpiry, and a route's requote is that same route.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "screening": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteScreening",
+                    "description": "The bound wallet's screening state; null when no wallet is bound."
+                  }
+                ]
+              },
+              "signaturesRequired": {
+                "description": "Every signature the order needs. `next.sign` carries the first; later ones arrive\non the order as `signNextLeg`.",
+                "format": "int32",
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "sizeLimits": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VenueRfqSizeObservation",
+                    "description": "Provider bounds retained with this answer, never a current admission grant."
+                  }
+                ]
+              },
+              "sourceOptions": {
+                "items": {
+                  "$ref": "#/components/schemas/SourceOption"
+                },
+                "type": "array"
+              },
+              "sourceRefusal": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteTradingSourceRefusal"
+                  }
+                ]
+              },
+              "spreadFromMidBps": {
+                "$ref": "#/components/schemas/SpreadFromMid",
+                "description": "The price's distance from the Reference mid, or the reason it is unknown."
+              },
+              "staleAfter": {
+                "description": "When an indicative price goes stale; null for an executable quote.",
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "unspent": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UnspentPay",
+                    "description": "What a `payExact` card leaves unspent of the amount asked: an order book fills whole\nlots, so the card spends less and the rest stays where it is paid from. Absent when the card\nspends the whole amount."
+                  }
+                ]
+              },
+              "walletSelection": {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/QuoteWalletSelection"
+                },
+                "description": "Why each Basic on-chain wallet was selected. Response metadata, never request authority.",
+                "propertyNames": {
+                  "description": "A CAIP-2 chain id (`eip155:8453`, `solana:<genesis>`, `tron:shasta`), syntax-checked:\na namespace of 3 to 8 lowercase letters, digits or `-`, and a reference of 1 to 32\nletters, digits, `-` or `_`. Compared exactly, as CAIP-2 references are case-sensitive.",
+                  "example": "eip155:8453",
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "advisories",
+              "assurance",
+              "basis",
+              "commitment",
+              "corridors",
+              "eta",
+              "expiresAt",
+              "failureHandling",
+              "fees",
+              "id",
+              "legs",
+              "location",
+              "minOut",
+              "netReceived",
+              "next",
+              "observedAt",
+              "pay",
+              "readiness",
+              "receive",
+              "requoteOf",
+              "screening",
+              "signaturesRequired",
+              "sourceOptions",
+              "spreadFromMidBps",
+              "staleAfter"
+            ],
+            "type": "object"
+          }
+        ],
         "description": "One venue's quote for the pair. Every field is always present; one that does not\napply to the quote's commitment is `null`:\n\n| field | indicative | executable, firm | executable, non-firm |\n|---|---|---|---|\n| `expiresAt` | null | set | set |\n| `minOut` | null | null | set |\n| `observedAt`, `staleAfter` | set | null | null |\n\nA stub (`sources[].priceOnRequest`) is indicative with `null` amounts.\n\nThe example is an executable non-firm quote: 10000 USDC paid,\n`receive.amount` 9996.0 USDT lands after the included 4.0 USDT provider fee;\n`netReceived` 9994.8 also subtracts the 0.0004 ETH network fee the taker pays\nseparately (`included: false`, about 1.2 USDT at the Reference mid), so it is lower\nthan `receive.amount`; `minOut` 9966.01 (30 bps) bounds `receive.amount`, not\n`netReceived`.",
         "example": {
           "advisories": [],
@@ -5357,302 +5721,7 @@
             "kind": "known"
           },
           "staleAfter": null
-        },
-        "properties": {
-          "advisories": {
-            "description": "Competing mechanisms' limitations remain visible even when one serves.",
-            "items": {
-              "$ref": "#/components/schemas/RfqMechanismAdvisory"
-            },
-            "type": "array"
-          },
-          "assurance": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/QuoteAssurance",
-                "description": "The bond backing the quote, separate from its commitment; null when unbonded."
-              }
-            ]
-          },
-          "basis": {
-            "$ref": "#/components/schemas/QuoteBasis",
-            "description": "Where the price came from: a live venue quote, published levels, or a model."
-          },
-          "binding": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Binding",
-                "description": "What this quote would execute with (the wire Binding)."
-              }
-            ]
-          },
-          "bindingOptions": {
-            "description": "The wallets (or accounts) this card can be requoted with: only those that can pay on its pay chain\n(a custody vault or registered workspace address only on its own chains), each with its cached\nbalance or `unavailable`, never 0. Choosing one is `POST /quotes {requote, bind}`.",
-            "items": {
-              "$ref": "#/components/schemas/BindingOption"
-            },
-            "type": "array"
-          },
-          "commitment": {
-            "$ref": "#/components/schemas/Commitment",
-            "description": "`indicative` (a price, never orderable except through its `next: order`, executed within the caller's\nminimum receive) or `executable` (`firm`: the venue is bound; otherwise held to `minOut`)."
-          },
-          "corridors": {
-            "description": "The venue's other supported corridors; changing one is a Requote.",
-            "items": {
-              "$ref": "#/components/schemas/QuoteCorridor"
-            },
-            "type": "array"
-          },
-          "eta": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/IsoDuration",
-                "description": "Expected time to delivery (ISO 8601 duration); null when the venue states none."
-              }
-            ]
-          },
-          "expiresAt": {
-            "description": "When an executable quote stops being orderable; null for an indicative one (see `staleAfter`).",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "failureHandling": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/QuoteFailureHandling",
-                "description": "What happens to the input if execution fails, as the venue reports it."
-              }
-            ]
-          },
-          "fees": {
-            "description": "Every fee line, its payer and whether `receive.amount` already includes it; an amount that could\nnot be read is null, never 0.",
-            "items": {
-              "$ref": "#/components/schemas/QuoteFee"
-            },
-            "type": "array"
-          },
-          "firmAsk": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/FirmAsk",
-                "description": "When this card's venue gives its binding price, from the venue's own declaration:\n`onRequest` (a desk is firm-asked by Get firm quote or a requote) or `atExecution`\n(the venue prices firm only when the order executes, so Get firm quote is not offered).\nAbsent when no venue declares it (protocol routes, order books, fiat venues)."
-              }
-            ]
-          },
-          "firmAskAvailableAt": {
-            "description": "When this desk takes its next firm ask: its firm-quote limit for this workspace is reached\nuntil then, so Get firm quote and an order-time ask are refused before it. Absent\nwhen no limit is known here; the desk's admission still decides at ask time.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "id": {
-            "description": "The held quote's id (`q_` + ULID): order it with `POST /orders {quoteId}`, preflight it with\n`POST /orders/preflight {quoteId}`, requote it with `POST /quotes {requote: id}`. It belongs to the\nprincipal that asked; another principal reads it as unknown (404).",
-            "type": "string"
-          },
-          "legs": {
-            "description": "One leg per venue the quote runs through, in execution order: a multi-leg route (for example\nCCTP then Circle StableFX) lists each leg's venue and location.",
-            "items": {
-              "$ref": "#/components/schemas/QuoteLeg"
-            },
-            "type": "array"
-          },
-          "location": {
-            "$ref": "#/components/schemas/QuoteLocation",
-            "description": "Derived from the legs ([`QuoteLocation::of_legs`])."
-          },
-          "maxPay": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DecimalAmount",
-                "description": "The most `pay.amount` a `receiveExact` venue card may debit: the mirror of `minOut`, the quoted\ndebit grown by `priceProtectionBps`. It is the consent an order on it carries, so Confirm's\none fresh quote of an expired card is judged by it. Absent for `payExact`."
-              }
-            ]
-          },
-          "mechanism": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/RfqMechanism",
-                "description": "The native mechanism that actually supplied this venue's price."
-              }
-            ]
-          },
-          "minOut": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DecimalAmount",
-                "description": "The least `receive.amount` execution may deliver (from `priceProtectionBps`)."
-              }
-            ]
-          },
-          "netReceived": {
-            "$ref": "#/components/schemas/NetReceived",
-            "description": "`receive.amount` minus every other cost, converted at the Reference mid: for\ncomparison and sort only, never what lands."
-          },
-          "next": {
-            "$ref": "#/components/schemas/QuoteNextAction",
-            "description": "The caller's next call: `preflight` (protocol), `order`, `requote` (a production venue's indicative\ncard: its firm quote comes from a requote), or what to fix first."
-          },
-          "observedAt": {
-            "description": "When the price was observed: an indicative price, or the book read an executable\norder-book estimate (one that reprices when chosen) was priced from; null for a firm quote.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "pay": {
-            "$ref": "#/components/schemas/QuoteSide",
-            "description": "What the taker pays: Asset, chain (null off-chain), variant and amount in Asset units."
-          },
-          "readiness": {
-            "$ref": "#/components/schemas/Readiness",
-            "description": "Whether the quote can be ordered now (funding, gas, wallet); an unknown is `unavailable`, never 0."
-          },
-          "receive": {
-            "$ref": "#/components/schemas/QuoteSide",
-            "description": "`receive.amount` is what lands at `deliverTo`, after every `included: true` fee\ntaken in the receive Asset."
-          },
-          "refundClaimableAfter": {
-            "description": "With `refundOnSource` on an escrowed intent: the instant after which the source-chain\nescrow refunds the input if the order was not filled, read from the signed order's own\nexpiry (`expires`). Until then the input stays in that escrow. Absent when the quote holds\nno escrowed intent or its expiry could not be read; never estimated.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "requoteOf": {
-            "description": "The quote this one requoted (`POST /quotes {requote}`); the original stays orderable until its own\nexpiry, and a route's requote is that same route.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "screening": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/QuoteScreening",
-                "description": "The bound wallet's screening state; null when no wallet is bound."
-              }
-            ]
-          },
-          "signaturesRequired": {
-            "description": "Every signature the order needs. `next.sign` carries the first; later ones arrive\non the order as `signNextLeg`.",
-            "format": "int32",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "sizeLimits": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueRfqSizeObservation",
-                "description": "Provider bounds retained with this answer, never a current admission grant."
-              }
-            ]
-          },
-          "spreadFromMidBps": {
-            "$ref": "#/components/schemas/SpreadFromMid",
-            "description": "The price's distance from the Reference mid, or the reason it is unknown."
-          },
-          "staleAfter": {
-            "description": "When an indicative price goes stale; null for an executable quote.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "unspent": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/UnspentPay",
-                "description": "What a `payExact` card leaves unspent of the amount asked: an order book fills whole\nlots, so the card spends less and the rest stays where it is paid from. Absent when the card\nspends the whole amount."
-              }
-            ]
-          },
-          "walletSelection": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/QuoteWalletSelection"
-            },
-            "description": "Why each Basic on-chain wallet was selected. Response metadata, never request authority.",
-            "propertyNames": {
-              "description": "A CAIP-2 chain id (`eip155:8453`, `solana:<genesis>`, `tron:shasta`), syntax-checked:\na namespace of 3 to 8 lowercase letters, digits or `-`, and a reference of 1 to 32\nletters, digits, `-` or `_`. Compared exactly, as CAIP-2 references are case-sensitive.",
-              "example": "eip155:8453",
-              "type": "string"
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "advisories",
-          "assurance",
-          "basis",
-          "binding",
-          "bindingOptions",
-          "commitment",
-          "corridors",
-          "eta",
-          "expiresAt",
-          "failureHandling",
-          "fees",
-          "id",
-          "legs",
-          "location",
-          "minOut",
-          "netReceived",
-          "next",
-          "observedAt",
-          "pay",
-          "readiness",
-          "receive",
-          "requoteOf",
-          "screening",
-          "signaturesRequired",
-          "spreadFromMidBps",
-          "staleAfter"
-        ],
-        "type": "object"
+        }
       },
       "PairQuoteFilters": {
         "additionalProperties": false,
@@ -5717,13 +5786,13 @@
             "$ref": "#/components/schemas/DecimalAmount",
             "description": "A positive decimal string in Asset units of the `side` it fixes (`INVALID_AMOUNT`\notherwise)."
           },
-          "bind": {
+          "deliverTo": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/Binding"
+                "$ref": "#/components/schemas/DeliverTo"
               }
             ]
           },
@@ -5794,6 +5863,16 @@
               }
             ]
           },
+          "source": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SourceSelection"
+              }
+            ]
+          },
           "timeout": {
             "oneOf": [
               {
@@ -5801,7 +5880,7 @@
               },
               {
                 "$ref": "#/components/schemas/IsoDuration",
-                "description": "Collection deadline, an ISO 8601 duration; default `PT3S`."
+                "description": "Collection deadline, an ISO 8601 duration; default `PT6S`, at least 100 milliseconds and at\nmost `PT10S`."
               }
             ]
           }
@@ -5818,7 +5897,7 @@
         "description": "The JSON reply, and the SSE `complete` event.",
         "properties": {
           "quoteRequestId": {
-            "description": "The quote set's id (`rq_…`), read back at `GET /quotes/requests/{quoteRequestId}`.\nThe HTTP trace id is separate (`x-request-id`, an error body's `traceId`).",
+            "description": "The quote set's id (`rq_…`), read back at `GET /quotes/requests/{quoteRequestId}`.\nThe HTTP request id is separate (`X-Request-Id`, an error body's `requestId`).",
             "type": "string"
           },
           "quotes": {
@@ -5838,6 +5917,13 @@
               }
             ]
           },
+          "sourceOptions": {
+            "description": "The trading wallets this caller may name in `source.tradingWallets`, per network:\neach one's stored financial account (`acct_…`), scoped to the principal (an API key\nsees only the organisation wallets granted to it). Sent even when no card was priced,\nso an unbound request learns what to bind. Empty when none is usable.",
+            "items": {
+              "$ref": "#/components/schemas/SourceOption"
+            },
+            "type": "array"
+          },
           "sources": {
             "description": "Every considered venue, with its outcome.",
             "items": {
@@ -5853,6 +5939,7 @@
         "required": [
           "quoteRequestId",
           "quotes",
+          "sourceOptions",
           "sources",
           "venueAsked"
         ],
@@ -5917,6 +6004,219 @@
             "type": "object"
           }
         ],
+        "x-extensible-enum": true
+      },
+      "PayBy": {
+        "properties": {
+          "clock": {
+            "$ref": "#/components/schemas/FundingClock"
+          },
+          "seconds": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seconds",
+          "clock"
+        ],
+        "type": "object"
+      },
+      "PayInTerms": {
+        "properties": {
+          "afterPayBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AfterPayBy_String"
+              }
+            ]
+          },
+          "payBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayBy",
+                "description": "None means the venue declares no deadline, not an inferred duration."
+              }
+            ]
+          },
+          "settlementGrace": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SettlementGrace"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "PayoutRailReference": {
+        "description": "New values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "not_reported_yet"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "$ref": "#/components/schemas/PayoutRailReferenceKind"
+              },
+              "state": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "reported"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "value",
+              "state"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "PayoutRailReferenceKind": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "swift_uetr",
+          "sepa_end_to_end_id",
+          "faster_payments_reference",
+          "bank_rail_reference"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "PayoutRecipientConfirmation": {
+        "properties": {
+          "confirmationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "confirmedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "confirmedBy": {
+            "description": "`user:<id>` or `key:<id>`; immutable authenticated identity.",
+            "type": "string"
+          },
+          "confirmedByName": {
+            "description": "A safe name captured at confirmation, never an email address.",
+            "type": "string"
+          },
+          "legId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmationId",
+          "legId",
+          "confirmedBy",
+          "confirmedByName",
+          "confirmedAt"
+        ],
+        "type": "object"
+      },
+      "PermissionRequestTarget": {
+        "description": "New values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "walletRight"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "right": {
+                "$ref": "#/components/schemas/PermissionRequestWalletRight"
+              },
+              "venueId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "walletId": {
+                "format": "uuid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "walletId",
+              "right",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "workspacePermission"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "permission": {
+                "$ref": "#/components/schemas/WorkspacePermission"
+              },
+              "venueId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "permission",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "PermissionRequestWalletRight": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "trade"
+        ],
+        "type": "string",
         "x-extensible-enum": true
       },
       "PolicyRunRef": {
@@ -6727,6 +7027,7 @@
           {
             "properties": {
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               },
               "status": {
@@ -6795,7 +7096,8 @@
           {
             "properties": {
               "reason": {
-                "$ref": "#/components/schemas/RestrictedReason"
+                "$ref": "#/components/schemas/RestrictedReason",
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other."
               },
               "status": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -6815,6 +7117,7 @@
           {
             "properties": {
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               },
               "status": {
@@ -7400,6 +7703,17 @@
           "asset": {
             "$ref": "#/components/schemas/AssetId"
           },
+          "bound": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteFeeBound",
+                "description": "The amount is an authorised ceiling, not an expected or charged fee."
+              }
+            ]
+          },
           "chain": {
             "oneOf": [
               {
@@ -7442,6 +7756,70 @@
         ],
         "type": "object"
       },
+      "QuoteFeeBound": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "maximum"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "QuoteFixExistingRequest": {
+        "description": "A pending permission request the caller already made for a `requestPermission` target.",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "QuoteFixFundingTarget": {
+        "description": "A measured shortfall names either its paying wallet or its venue account's venue.",
+        "oneOf": [
+          {
+            "properties": {
+              "walletId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "walletId"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "venueId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "venueId"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "QuoteFixVenueTarget": {
+        "properties": {
+          "venueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "venueId"
+        ],
+        "type": "object"
+      },
       "QuoteLeg": {
         "description": "One leg of a quote: the venue it runs on and where it executes.",
         "properties": {
@@ -7470,7 +7848,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/FiatFundingModel",
+                "$ref": "#/components/schemas/FundingModel",
                 "description": "Off-chain legs; `null` on-chain."
               }
             ]
@@ -8121,74 +8499,102 @@
         "description": "What `POST /orders {quoteId}` created, read from the owner that saves it: a\nprotocol order in `orders`, or a workspace venue trade (fiat included) in the venue\ntrade operations. Nothing is recorded twice.\n\nNew values may be added; treat unknown values as other.",
         "oneOf": [
           {
-            "properties": {
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "advancedTrade"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedTradingSource"
+              },
+              {
+                "properties": {
+                  "order": {
+                    "$ref": "#/components/schemas/OrderResponse"
+                  },
+                  "quoteId": {
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "statusUrl": {
+                    "description": "Where to read this order's status (`GET`). An API key needs the `orders_read` scope;\nplacing the order needed only `orders_write`.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "quoteId",
+                  "statusUrl",
+                  "order"
                 ],
-                "type": "string",
-                "x-extensible-enum": true
+                "type": "object"
               },
-              "order": {
-                "$ref": "#/components/schemas/OrderResponse"
-              },
-              "quoteId": {
-                "type": "string"
-              },
-              "requestId": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "statusUrl": {
-                "description": "Where to read this order's status (`GET`). An API key needs the `orders_read` scope;\nplacing the order needed only `orders_write`.",
-                "type": "string"
+              {
+                "properties": {
+                  "kind": {
+                    "description": "New values may be added; treat unknown values as other.",
+                    "enum": [
+                      "advancedTrade"
+                    ],
+                    "type": "string",
+                    "x-extensible-enum": true
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
               }
-            },
-            "required": [
-              "quoteId",
-              "statusUrl",
-              "order",
-              "kind"
-            ],
-            "type": "object"
+            ]
           },
           {
-            "properties": {
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "basicTrade"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedTradingSource"
+              },
+              {
+                "properties": {
+                  "operation": {
+                    "$ref": "#/components/schemas/VenueTradeOperation"
+                  },
+                  "quoteId": {
+                    "type": "string"
+                  },
+                  "requestId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "statusUrl": {
+                    "description": "Where to read this trade's status (`GET`). An API key reads it with the same\n`workspace_venue_trade` scope it ordered with.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "quoteId",
+                  "statusUrl",
+                  "operation"
                 ],
-                "type": "string",
-                "x-extensible-enum": true
+                "type": "object"
               },
-              "operation": {
-                "$ref": "#/components/schemas/VenueTradeOperation"
-              },
-              "quoteId": {
-                "type": "string"
-              },
-              "requestId": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "statusUrl": {
-                "description": "Where to read this trade's status (`GET`). An API key reads it with the same\n`workspace_venue_trade` scope it ordered with.",
-                "type": "string"
+              {
+                "properties": {
+                  "kind": {
+                    "description": "New values may be added; treat unknown values as other.",
+                    "enum": [
+                      "basicTrade"
+                    ],
+                    "type": "string",
+                    "x-extensible-enum": true
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
               }
-            },
-            "required": [
-              "quoteId",
-              "statusUrl",
-              "operation",
-              "kind"
-            ],
-            "type": "object"
+            ]
           }
         ],
         "x-extensible-enum": true
@@ -8411,11 +8817,43 @@
         "x-extensible-enum": true
       },
       "QuoteSourceEntry": {
-        "description": "One considered venue's outcome, a closed set tagged `status`:\n\n| status | meaning |\n|---|---|\n| `answered` | the venue produced a quote |\n| `needsWallet` | no wallet of `family` to ask with |\n| `walletRefused` | the bound wallet is refused (`Revoked`, a confirmed sanctions hit) |\n| `firmQuoteLimited` | a desk's firm-quote cap applies; `explanation` is product copy |\n| `priceOnRequest` | no venue price was requested; `quoteId` identifies the held estimate or stub to Requote |\n| `askLimitReached` | the venue's ask limit is reached for now; `retryAfter` says when to ask again |\n| `timedOut` | no answer inside the deadline |\n| `refused` | the venue refused the live ask |\n| `restricted` | a gate kept the venue from this principal |\n| `unsupported` | the venue does not serve the pair |\n| `filteredOut` | the request's filters exclude it |\n| `unavailable` | a read failed (`kybUnavailable`, `admissionUnavailable`, …) |\n\nAn unscreened default wallet is not a status: the quote carries `screening`. `venue`\nis the venue block, its `id` the one quote legs and `/prices` rows carry. Durations\n(`retryAfter`) are ISO 8601, counted from when the response was sent. Every entry\ncarries `asked`: whether this venue was consulted for this request: a live ask, or a\nfresh read of its published book or live desk price within that source's freshness\nwindow. An estimate no venue gave (a model or reference price) is not consulted, and\nan `answered` entry is always consulted. How a card's price was obtained is its own\nprice basis, never this flag.\n\nNew values may be added; treat unknown values as other.",
+        "description": "One considered venue's outcome, a closed set tagged `status`:\n\n| status | meaning |\n|---|---|\n| `asking` | in flight on the stream only: the auction is consulting this venue now; its final outcome replaces it under the same venue key, and none remains at `complete` |\n| `answered` | the venue produced a quote |\n| `needsWallet` | no wallet of `family` to ask with |\n| `walletRefused` | the bound wallet is refused (`Revoked`, a confirmed sanctions hit) |\n| `firmQuoteLimited` | a desk's firm-quote cap applies; `explanation` is product copy |\n| `priceOnRequest` | no venue price was requested; `quoteId` identifies the held estimate or stub to Requote |\n| `askLimitReached` | the venue's ask limit is reached for now; `retryAfter` says when to ask again |\n| `timedOut` | no answer inside the deadline |\n| `refused` | the venue refused the live ask |\n| `restricted` | a gate kept the venue from this principal |\n| `unsupported` | the venue does not serve the pair |\n| `filteredOut` | the request's own filters exclude it (never a coverage or chain gap) |\n| `unavailable` | a read failed (`kybUnavailable`, `admissionUnavailable`, …) |\n\nAn unscreened default wallet is not a status: the quote carries `screening`. `venue`\nis the venue block, its `id` the one quote legs and `/prices` rows carry. Durations\n(`retryAfter`) are ISO 8601, counted from when the response was sent. Every entry\ncarries `asked`: whether this venue was consulted for this request: a live ask, or a\nfresh read of its published book or live desk price within that source's freshness\nwindow. An estimate no venue gave (a model or reference price) is not consulted, and\nan `answered` entry is always consulted. How a card's price was obtained is its own\nprice basis, never this flag.\n\nNew values may be added; treat unknown values as other.",
         "discriminator": {
           "propertyName": "status"
         },
         "oneOf": [
+          {
+            "description": "A venue the auction is consulting for this request, sent before its first quote\n(`asked` is always `true`). A venue refused before sending ends with that named\nrefusal and `asked: false`. Transient: the same venue key's final outcome replaces it,\nso it never appears in `complete` or the JSON reply.",
+            "properties": {
+              "asked": {
+                "type": "boolean"
+              },
+              "detail": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "asking"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "venue": {
+                "$ref": "#/components/schemas/QuoteVenue"
+              }
+            },
+            "required": [
+              "asked",
+              "detail",
+              "status",
+              "venue"
+            ],
+            "type": "object"
+          },
           {
             "properties": {
               "asked": {
@@ -8425,6 +8863,28 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
+              "product": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BridgeTransferMode",
+                    "description": "The independently priced product, when this venue offers several."
+                  }
                 ]
               },
               "status": {
@@ -8461,6 +8921,17 @@
               "family": {
                 "$ref": "#/components/schemas/ChainFamily"
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
               "status": {
                 "description": "New values may be added; treat unknown values as other.",
                 "enum": [
@@ -8493,7 +8964,30 @@
                   "null"
                 ]
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
+              "product": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BridgeTransferMode",
+                    "description": "The independently priced product, when this venue offers several."
+                  }
+                ]
+              },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": [
                   "string",
                   "null"
@@ -8538,6 +9032,14 @@
               "asked": {
                 "type": "boolean"
               },
+              "code": {
+                "description": "VENUE_QUOTE_RATE_LIMITED for a provider throttle; VENUE_FIRM_QUOTE_LIMITED for a workspace cap.",
+                "example": "VENUE_QUOTE_RATE_LIMITED",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "detail": {
                 "type": [
                   "string",
@@ -8547,8 +9049,27 @@
               "explanation": {
                 "type": "string"
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
               "retryAfter": {
                 "$ref": "#/components/schemas/IsoDuration"
+              },
+              "retrySource": {
+                "description": "The native provider retry field, provider:legacyLpReported for old stored blocks,\ntetrafi:declaredPool for our pool, or explicit AQ09_DEFAULT.cooldown.",
+                "example": "provider:Retry-After",
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "status": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -8573,6 +9094,7 @@
             "type": "object"
           },
           {
+            "description": "A priced indicative card from a venue read or estimate, without a firm-price ask.\n`asked` is false when this request did not consult the venue. The card's\n`firmAsk` declares whether the binding price comes on request or at execution.",
             "properties": {
               "asked": {
                 "type": "boolean"
@@ -8581,6 +9103,74 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
+              "product": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BridgeTransferMode",
+                    "description": "The independently priced product, when this venue offers several."
+                  }
+                ]
+              },
+              "quoteId": {
+                "type": "string"
+              },
+              "status": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "indicative"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "venue": {
+                "$ref": "#/components/schemas/QuoteVenue"
+              }
+            },
+            "required": [
+              "asked",
+              "detail",
+              "quoteId",
+              "status",
+              "venue"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "asked": {
+                "type": "boolean"
+              },
+              "detail": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
                 ]
               },
               "quoteId": {
@@ -8616,6 +9206,17 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
                 ]
               },
               "retryAfter": {
@@ -8660,6 +9261,28 @@
                   "null"
                 ]
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
+              "product": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BridgeTransferMode",
+                    "description": "The independently priced product, when this venue offers several."
+                  }
+                ]
+              },
               "status": {
                 "description": "New values may be added; treat unknown values as other.",
                 "enum": [
@@ -8691,7 +9314,19 @@
                   "null"
                 ]
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               },
               "status": {
@@ -8726,8 +9361,20 @@
                   "null"
                 ]
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
               "reason": {
-                "$ref": "#/components/schemas/RestrictedReason"
+                "$ref": "#/components/schemas/RestrictedReason",
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other."
               },
               "status": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -8761,7 +9408,19 @@
                   "null"
                 ]
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               },
               "sizeLimits": {
@@ -8806,6 +9465,17 @@
                   "null"
                 ]
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
               "status": {
                 "description": "New values may be added; treat unknown values as other.",
                 "enum": [
@@ -8837,6 +9507,17 @@
                   "null"
                 ]
               },
+              "fix": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteSourceFix",
+                    "description": "The server-owned recovery step; absent on an unblocked or older source."
+                  }
+                ]
+              },
               "network": {
                 "oneOf": [
                   {
@@ -8848,7 +9529,19 @@
                   }
                 ]
               },
+              "product": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BridgeTransferMode",
+                    "description": "The independently priced product, when this venue offers several."
+                  }
+                ]
+              },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               },
               "sizeLimits": {
@@ -8884,6 +9577,237 @@
           }
         ],
         "x-extensible-enum": true
+      },
+      "QuoteSourceFix": {
+        "description": "The server-owned next step for a blocked source. It describes recovery, never grants authority.\nUnknown causes carry `none`; unknown amounts, approvers and existing requests are never invented.\n\nNew values may be added; treat unknown values as other.",
+        "discriminator": {
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "description": "Ask for the permission or wallet right `target`. For a member session it is offered only\nwhen the permission-request owner would open (or already holds) a request on it; a target\nit refuses by name (`blocked`, `not_applicable`, ...) reads `none`. When that read fails,\nthe step is offered unchanged.",
+            "properties": {
+              "action": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "existingRequest": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteFixExistingRequest",
+                    "description": "The calling member's own pending request for this same target (the target key\nthe create route deduplicates on, so a request made from another venue's card\ncounts), read once per auction: the member already asked, so a client shows that\ninstead of offering a second request. Absent when there is none, when the read\nfailed or timed out (never a guessed value), and always for API keys and\nautomation principals: only a member session's quotes carry it."
+                  }
+                ]
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "requestPermission"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "target": {
+                "$ref": "#/components/schemas/PermissionRequestTarget"
+              }
+            },
+            "required": [
+              "target",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "amount": {
+                "$ref": "#/components/schemas/DecimalAmount"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "topUp"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "target": {
+                "$ref": "#/components/schemas/QuoteFixFundingTarget"
+              }
+            },
+            "required": [
+              "target",
+              "amount",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "switchWallet"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Link a personal wallet that pays on `chain`: an Advanced card trades only from the member's\nown wallet, and none is linked there.",
+            "properties": {
+              "chain": {
+                "$ref": "#/components/schemas/Caip2Chain"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "linkWallet"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "chain",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "amount": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecimalAmount"
+                  }
+                ]
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "changeAmount"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "enableVenue"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "target": {
+                "$ref": "#/components/schemas/QuoteFixVenueTarget"
+              },
+              "who": {
+                "$ref": "#/components/schemas/WorkspacePermission"
+              }
+            },
+            "required": [
+              "target",
+              "who",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "finishOnboarding"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "waitUntil"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "until": {
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "required": [
+              "until",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "none"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "QuoteTradingSourceRefusal": {
+        "description": "Why a priced card has no executable source, with the native in-page recovery action.",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "fix": {
+            "$ref": "#/components/schemas/QuoteSourceFix"
+          },
+          "venueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "venueId",
+          "fix"
+        ],
+        "type": "object"
       },
       "QuoteVenue": {
         "description": "The venue block. A protocol version is part of the venue's identity. `id` is\nthe registry's venue id, the same one `/prices` rows and `sources[]` carry.",
@@ -9136,6 +10060,7 @@
                 "x-extensible-enum": true
               },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               }
             },
@@ -9392,17 +10317,6 @@
         "additionalProperties": false,
         "description": "Asks the venue of an earlier quote again. Only these four fields;\na venue account is `bind.account`.\n\nOnly that quote's venue (every venue of a multi-leg route) is asked, for the same pair, amount and side,\nand the answer is one new held quote with `requoteOf`; the original stays orderable until its own expiry.\nA venue's indicative card gets its firm quote this way (every such venue, including one whose\nfirm quote lives 5 s or less and whose card offers Execute within your limit, `next: order`), like naming\nthe venue in `filters.venues.include`, under the same desk ask limits. Refusals, each by name: 404\n`QUOTE_NOT_FOUND` (unknown or another principal's), 410 `QUOTE_EXPIRED` (over 10 minutes past expiry),\n400 `CORRIDOR_NOT_OFFERED`, 403 `BINDING_NOT_OWNED`,\n409 `PERSONAL_TARGET_NOT_ALLOWED` (an API key naming a personal wallet), 400 `BINDING_NOT_ON_CHAIN`,\n403 `ACCOUNT_NOT_AVAILABLE`, 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL`, 409 `REQUOTE_REFUSED` (the venue's\nreason in `message`, its token in `details.reason`), 409 `REQUOTE_NEEDS_WALLET`, 504 `REQUOTE_TIMED_OUT`,\n429 `QUOTE_RATE_LIMITED` / `FIRM_QUOTE_LIMITED` / `BUDGET_EXHAUSTED` with `Retry-After`.",
         "properties": {
-          "bind": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Binding",
-                "description": "A different wallet (one of the card's `bindingOptions`), venue account or delivery for the new\nquote; absent keeps the original's binding, re-keyed to the new corridor when one is given."
-              }
-            ]
-          },
           "corridor": {
             "oneOf": [
               {
@@ -9411,6 +10325,16 @@
               {
                 "$ref": "#/components/schemas/QuoteCorridor",
                 "description": "Another corridor the original card offered (`corridors[]`, or its own)."
+              }
+            ]
+          },
+          "deliverTo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeliverTo"
               }
             ]
           },
@@ -9426,10 +10350,163 @@
           "requote": {
             "description": "The quote id to requote (`q_…`, from an earlier `POST /quotes`).",
             "type": "string"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SourceSelection",
+                "description": "A different wallet (one of the card's `bindingOptions`), venue account or delivery for the new\nquote; absent keeps the original's binding, re-keyed to the new corridor when one is given."
+              }
+            ]
           }
         },
         "required": [
           "requote"
+        ],
+        "type": "object"
+      },
+      "ResolvedDeliverTo": {
+        "description": "A resolved destination includes observed presentation facts, unlike a request.\n\nNew values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "accountKind": {
+                "$ref": "#/components/schemas/FundingAccountKind"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "financialAccountId": {
+                "type": "string"
+              },
+              "isDefault": {
+                "type": "boolean"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "financialAccount"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "network": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Caip2Chain"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "financialAccountId",
+              "accountKind",
+              "displayName",
+              "isDefault",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "payee"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "payeeId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "payeeId",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "calldata": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "chain": {
+                "$ref": "#/components/schemas/Caip2Chain"
+              },
+              "destinationTag": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "address"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "chain",
+              "address",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "ResolvedTradingSource": {
+        "description": "An indivisible quote/order source block. Its funding and settlement are venue-owned.",
+        "properties": {
+          "deliverTo": {
+            "$ref": "#/components/schemas/ResolvedDeliverTo"
+          },
+          "fundingAccount": {
+            "$ref": "#/components/schemas/FundingAccount"
+          },
+          "fundingModel": {
+            "$ref": "#/components/schemas/FundingModel"
+          },
+          "payIn": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayInTerms"
+              }
+            ]
+          },
+          "settlement": {
+            "$ref": "#/components/schemas/SettlementTerms"
+          },
+          "tradingSource": {
+            "$ref": "#/components/schemas/TradingSource"
+          }
+        },
+        "required": [
+          "tradingSource",
+          "fundingModel",
+          "settlement",
+          "fundingAccount",
+          "deliverTo"
         ],
         "type": "object"
       },
@@ -9572,6 +10649,137 @@
         ],
         "type": "object"
       },
+      "SettlementGrace": {
+        "description": "New values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "no_grace"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "within"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "seconds": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "seconds",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "SettlementMethod": {
+        "description": "New values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "method": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "venueLedger"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "method"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "method": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "dvp"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "method"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "firstLeg": {
+                "$ref": "#/components/schemas/FirstLeg"
+              },
+              "method": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "fop"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "firstLeg",
+              "method"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "SettlementTerms": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SettlementMethod"
+          },
+          {
+            "properties": {
+              "timing": {
+                "$ref": "#/components/schemas/SettlementTiming"
+              }
+            },
+            "required": [
+              "timing"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "How and when the trade's assets move, as one flat set of fields."
+      },
+      "SettlementTiming": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "immediate",
+          "byDeadline",
+          "cycle"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "SettlementType": {
         "description": "Settlement mechanism types\n\nCore settlement mechanisms that are stable across protocol versions.\n- `Escrow`: On-chain escrow-based atomic settlement (T+0).\n- `ResourceLock`: Resource lock-based atomic settlement (T+0).\n- `Deferred`: Off-chain bilateral settlement with LP settlement window (T+~8h).\n\nNew values may be added; treat unknown values as other.",
         "enum": [
@@ -9591,6 +10799,196 @@
         ],
         "type": "string",
         "x-extensible-enum": true
+      },
+      "SourceCandidate": {
+        "properties": {
+          "address": {
+            "description": "A wallet's own address, so a page names exactly which wallet pays (the old\nbinding candidate carried it); absent for accounts and unread addresses.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "balance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CandidateBalance",
+                "description": "None is an unobserved balance, never a zero balance."
+              }
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "financialAccountId": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FundingAccountKind"
+          },
+          "network": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Caip2Chain"
+              }
+            ]
+          }
+        },
+        "required": [
+          "financialAccountId",
+          "kind",
+          "displayName",
+          "isDefault"
+        ],
+        "type": "object"
+      },
+      "SourceOption": {
+        "description": "New values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/components/schemas/SourceCandidate"
+                },
+                "type": "array"
+              },
+              "chain": {
+                "$ref": "#/components/schemas/Caip2Chain"
+              },
+              "family": {
+                "$ref": "#/components/schemas/ChainFamily"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "wallet"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "family",
+              "chain",
+              "candidates",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/components/schemas/SourceCandidate"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "venueAccount"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "candidates",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/components/schemas/SourceCandidate"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "fundingAccount"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "candidates",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/components/schemas/SourceCandidate"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "deliverTo"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "candidates",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "SourceSelection": {
+        "additionalProperties": false,
+        "description": "An explicit request choice. Every value is a financial-account id.",
+        "properties": {
+          "fundingAccountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradingWallets": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "description": "A CAIP-2 chain id (`eip155:8453`, `solana:<genesis>`, `tron:shasta`), syntax-checked:\na namespace of 3 to 8 lowercase letters, digits or `-`, and a reference of 1 to 32\nletters, digits, `-` or `_`. Compared exactly, as CAIP-2 references are case-sensitive.",
+              "example": "eip155:8453",
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "venueAccountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
       },
       "SpreadFromMid": {
         "description": "The spread from the Reference mid in basis points.\n\nNew values may be added; treat unknown values as other.",
@@ -9630,6 +11028,7 @@
                 "x-extensible-enum": true
               },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               }
             },
@@ -9943,7 +11342,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/FiatFundingModel",
+                "$ref": "#/components/schemas/FundingModel",
                 "description": "A bank leg's funding model, fixed when it was planned. Absent on a\nchain leg."
               }
             ]
@@ -9998,6 +11397,16 @@
               }
             ]
           },
+          "payoutApproval": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TradeLegPayoutApproval"
+              }
+            ]
+          },
           "payoutBreakdown": {
             "oneOf": [
               {
@@ -10007,6 +11416,13 @@
                 "$ref": "#/components/schemas/TradeLegPayoutBreakdown",
                 "description": "A payout's amounts in its asset (operator 2026-10-22: every fee-bearing\naction shows what leaves the account, the fee and what arrives). Absent\non a pay-in and on a payout with no consent yet."
               }
+            ]
+          },
+          "payoutBreakdownUnavailableReason": {
+            "description": "A payout whose fee/charging declaration could not be read. Never means no fee.",
+            "type": [
+              "string",
+              "null"
             ]
           },
           "payoutHeldReason": {
@@ -10043,6 +11459,28 @@
               {
                 "$ref": "#/components/schemas/FiatRailOptionKind",
                 "description": "The rail option the bank leg uses (`standard` or `fast`)."
+              }
+            ]
+          },
+          "railReference": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayoutRailReference",
+                "description": "A genuine bank rail reference or named not-reported state; absent on non-bank-payout legs."
+              }
+            ]
+          },
+          "recipientConfirmation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayoutRecipientConfirmation",
+                "description": "The receiving workspace's assertion, never settlement or independent verification."
               }
             ]
           },
@@ -10124,6 +11562,13 @@
               "null"
             ]
           },
+          "venueReportedCredited": {
+            "description": "Only an explicit receiving-bank credit report from the venue; withdrawal completion is not credit.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "venueWithdrawalId": {
             "description": "A wallet payout's withdrawal as the venue recorded it, once sent: the\nvenue's own withdrawal id and the chain transaction. Absent before the send and\non a bank leg.",
             "type": [
@@ -10149,6 +11594,53 @@
         ],
         "type": "string",
         "x-extensible-enum": true
+      },
+      "TradeLegPayoutApproval": {
+        "description": "Treasury's existing Run approval for a bank payout. No funds are reserved\nwhile this approval is pending; release rechecks balances and terms.",
+        "properties": {
+          "approvalRequestId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approvalsRequired": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "approverGroup": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approverGroupName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approverNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "runId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "approvalsRequired",
+          "approverNames"
+        ],
+        "type": "object"
       },
       "TradeLegPayoutBreakdown": {
         "description": "What a payout takes from the venue account, its fee and what arrives, as exact decimals in the leg's asset. The venue sends gross minus fee. With on-top charging the account loses gross and the bank receives the amount sent; with deducted charging the bank receives one fee less; when unverified, withdrawn is the maximum debit and receivedMin to receivedMax bounds the receipt.",
@@ -10407,6 +11899,64 @@
         ],
         "type": "object"
       },
+      "TradingSource": {
+        "description": "The exact source selected for a quote, retained through execution and recovery.\n\nNew values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "financialAccountId": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "venueAccount"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "venueEnablementId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "venueEnablementId",
+              "financialAccountId",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "financialAccountId": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "wallet"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "network": {
+                "$ref": "#/components/schemas/Caip2Chain"
+              },
+              "venueEnablementId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "venueEnablementId",
+              "financialAccountId",
+              "network",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
       "U256": {
         "description": "U256 value represented as a string to preserve precision\n\nUsed for handling large integer values that might overflow native integer types",
         "type": "string"
@@ -10461,45 +12011,6 @@
         ],
         "type": "string",
         "x-extensible-enum": true
-      },
-      "VenueAccountRef": {
-        "description": "The venue account an off-chain leg trades on.",
-        "properties": {
-          "accountBindingId": {
-            "type": "string"
-          },
-          "accountName": {
-            "description": "The account's one name on every surface (\"VALR account\"), so a product's card (\"VALR RFQ\") never names the\naccount after the product. Display only: empty on a row stored before this field.",
-            "type": "string"
-          },
-          "lp": {
-            "type": "string"
-          },
-          "offering": {
-            "$ref": "#/components/schemas/IntegrationMode"
-          },
-          "venueAccountId": {
-            "description": "The venue account (`workspace_venue_accounts.account_id`). `accountBindingId` is\nthe binding id that `binding.account` shares. Absent on a row stored before it.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "venueId": {
-            "description": "The Venue the account is at (`keyrock`), never the execution type. Absent on a\nrow stored before it.",
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "accountBindingId",
-          "accountName",
-          "lp",
-          "offering"
-        ],
-        "type": "object"
       },
       "VenueExecution": {
         "description": "A venue account's recorded execution facts, never protocol network metadata.",
@@ -10629,6 +12140,7 @@
                 "x-extensible-enum": true
               },
               "reason": {
+                "description": "Known source reason tokens (not all apply to every status): `adapterPayloadSerializationFailed`, `apiKeyOrganisationWalletScopeRequired`, `basicVenueAccountsUnavailable`, `billingPaymentOverdue`, `bindingNotOnChain`, `ccxtVenueRequiresCexLane`, `deliverToAmbiguous`, `deliverToNotAWorkspaceWallet`, `destinationNotApproved`, `executionStageDisabled`, `jurisdictionUnproven`, `onboardedVenuesUnavailable`, `onchainAccountDefaultWalletRequired`, `onchainAccountDefaultWalletUnavailable`, `onchainAccountWalletRequired`, `onchainAssetDecimalsMismatch`, `onchainAssetIdentityMismatch`, `onchainAssetUnmapped`, `onchainAssetVariantFiltered`, `onchainBindingUnavailable`, `onchainCatalogueUnavailable`, `onchainDeliverToNotReceivingWallet`, `onchainDeliverToUnverified`, `onchainMarketsUnavailable`, `onchainMarketCatalogUnreadable`, `onchainMarketChainRequired`, `onchainMarketVariantRequired`, `onchainMarketTokenRequired`, `onchainSiteChainUnreadable`, `onchainWalletChainUnreadable`, `onchainWalletInactive`, `onchainWalletNotLinked`, `onchainWalletNotUsable`, `onchainWalletPickAmbiguous`, `onchainWalletWrongNetwork`, `signerLacksRight`, `signerUnavailable`, `signingGrantAmbiguous`, `signingGrantExpired`, `signingGrantRequired`, `signingGrantTokenNotKept`, `signingGrantTokenNotPayable`, `solverChainUnready`, `walletChainMismatch`, `walletNotVerifiedForAce`, `walletNotWhitelisted`, `withdrawalChainUnsupported`, `withdrawalFeeExceedsAmount`, `accountFeeUnavailable`, `comparisonCostsUnavailable`, `connectionListingUnavailable`, `feeUnverified`, `noPool`, `noPrice`, `noSize`, `notFilled`, `notYetPublished`, `priceArithmetic`, `priceSourceNone`, `referenceMidUnavailable`, `settlementPrecisionUnavailable`, `accountSetupIncomplete`, `admissionUnavailable`, `advancedAccountEligibilityUnavailable`, `advancedAccountStateInconsistent`, `advancedConnectionDisabled`, `advancedConnectionNotConfigured`, `advancedConnectionPaused`, `advancedModeDisabled`, `advancedNotAvailableForAccount`, `advancedNotEnabledForAccount`, `allowanceUnavailable`, `acrossCapacityExceeded`, `relayCapacityExceeded`, `grantCapExceeded`, `amountAboveMaximum`, `amountBelowMinimum`, `amountUnreadable`, `amountsUnreadable`, `askFirst`, `authorityUnavailable`, `automationNeverAsks`, `availabilityUnreadable`, `backgroundNeverAsks`, `balanceUnreadable`, `bindingDefaultsUnavailable`, `bindingTargetHasNoAddress`, `bindingUnavailable`, `bondAmountUnreadable`, `bondAssetUnreadable`, `catalogueUnavailable`, `chainFamilyUnknown`, `chainUnrecorded`, `clientSessionRequired`, `clockUnreadable`, `comingSoon`, `connectionChanged`, `connectionRevoked`, `corridorInvalid`, `credential`, `deadlineExceeded`, `defaultsLoading`, `deliverToCalldataUnsupported`, `deliverToNotPermitted`, `deliverToUnreadable`, `tradingPermissionRequired`, `directPatienceHarvest`, `economicallyInferior`, `exactAmountConflictsWithCard`, `exactAmountConflictsWithQuote`, `exactOutputDeliveryUnsupported`, `exactOutputEstimateUnavailable`, `exactRouteHypothesisUnavailable`, `expiredOnArrival`, `expiryUnknown`, `feeUnreadable`, `filteredOut`, `firmAskRefused`, `freshnessUnknown`, `fundingWindow`, `insufficientLiquidity`, `kybUnavailable`, `venueRelationship`, `venueRelationshipUnavailable`, `lpUnknown`, `mfaEnrolmentRequired`, `mfaRequired`, `minimumUnverified`, `mixedNetworks`, `netReceivedUnavailable`, `networkUnrecorded`, `noAddress`, `noCard`, `noFetcher`, `noInventory`, `noLaneForPair`, `noLegs`, `noOnChainCorridor`, `noPlannedVenue`, `noQuote`, `noRpc`, `notConnected`, `notEligible`, `notExecutable`, `orderPayloadMissing`, `outsideTopComposites`, `pairUnmapped`, `payChainInvalid`, `permissionsUnreadable`, `placeOrderNotPermitted`, `prefundingMarkerUnreadable`, `prefundingRequired`, `indicative`, `priceOnRequest`, `priceOutOfRange`, `priceProtectionInvalid`, `pricingBookOnly`, `productNotQuoted`, `protocolChainMissing`, `providerFeeTreatmentUnknown`, `providerSiteUnrecorded`, `quoteIdUnissuable`, `quoteNotHeld`, `receiveChainInvalid`, `receiveExactUnsupported`, `exactOutputDebitUnavailable`, `pairNotServed`, `receiveWalletNotServed`, `referenceMidUnreadable`, `referencePriceUnavailable`, `registryUnavailable`, `releaseRecheckUnavailable`, `requestUnbuildable`, `routeLegChainUnknown`, `routeLegUnnamed`, `routeLegUnplanned`, `routeUnavailable`, `secondFactorUnreadable`, `shortfallUnmeasured`, `shortfallUnreadable`, `singleChainVenue`, `siteChainUnreadable`, `sizeNotEligible`, `submitOrderBlocked`, `takerOnboardingIncomplete`, `tierNotQuoted`, `tradePaused`, `unsupportedNative`, `venueConnectionStorageUnavailable`, `venueDataStale`, `venueDeclined`, `venueNotConnected`, `venueNotEnabledForWorkspace`, `venueNotListed`, `venueTradeKeyUnavailable`, `venueTradeScopeRequired`, `venueTradeUnreadable`, `venueUnavailable`, `walletRefused`, `withdrawalFeeUnread`.\n\nNew values may be added; treat unknown values as other.",
                 "type": "string"
               }
             },
@@ -11161,6 +12673,7 @@
           "BOOK_SELL_LIMIT_UNREPRESENTABLE",
           "VENUE_DISPATCH_AUTHORITY_UNAVAILABLE",
           "BOOK_PLACEMENT_PRICE_UNRECORDED_UNSENT",
+          "VENUE_ORDER_ABSENT_PAST_HORIZON",
           "NOT_SENT_UNCLASSIFIED"
         ],
         "type": "string",
@@ -11535,15 +13048,19 @@
       "WalletLinkRecovery": {
         "description": "Recovery for an explicitly chosen organisation wallet not linked to a Basic account.",
         "properties": {
-          "defaultBinding": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Binding",
-                "description": "A per-request switch to the account default, never a persistent preference write."
-              }
+          "defaultWallets": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Per CAIP-2 chain, the account's default wallets (target ids): a per-request switch the\ncaller sends as its pay-from preference, never a persistent preference write.",
+            "propertyNames": {
+              "description": "A CAIP-2 chain id (`eip155:8453`, `solana:<genesis>`, `tron:shasta`), syntax-checked:\na namespace of 3 to 8 lowercase letters, digits or `-`, and a reference of 1 to 32\nletters, digits, `-` or `_`. Compared exactly, as CAIP-2 references are case-sensitive.",
+              "example": "eip155:8453",
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
             ]
           },
           "linkHref": {
@@ -11614,6 +13131,52 @@
           "signingDigest"
         ],
         "type": "object"
+      },
+      "WorkspacePermission": {
+        "description": "Granular workspace permissions.\n\nResolved via `permissions_for(ws_type, role)` — the same role\nunlocks different capabilities depending on the workspace type.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "request_quotes",
+          "place_order",
+          "view_orders",
+          "view_flow_analytics",
+          "view_settlements",
+          "manage_team",
+          "manage_access",
+          "manage_credentials",
+          "manage_security_policy",
+          "manage_treasury_policy",
+          "manage_workspace_profile",
+          "view_compliance",
+          "modify_compliance",
+          "connect_reporting",
+          "view_credit",
+          "modify_credit",
+          "view_wallets",
+          "manage_wallets",
+          "request_treasury_transfers",
+          "approve_treasury_transfers",
+          "approve_venue_trades",
+          "manage_lp_scoping",
+          "manage_sub_workspaces",
+          "manage_affiliations",
+          "onboard_external_users",
+          "manage_bilateral",
+          "view_bilateral_documents",
+          "manage_settlements",
+          "manage_solvers",
+          "view_solver_operations",
+          "protocol_admin",
+          "approve_onboarding",
+          "manage_promotions",
+          "manage_market_intelligence",
+          "view_umbrella_compliance",
+          "manage_umbrella_users",
+          "manage_cases",
+          "view_reports",
+          "file_reports"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
       },
       "WorkspaceRole": {
         "description": "Workspace membership roles.\n\nOwner > Admin > Trader/Member > RM > Viewer > ReadOnly.\n`has_at_least` still works for legacy code; new code should use\n`WorkspacePermission::permissions_for()` for granular checks.\n\nNew values may be added; treat unknown values as other.",
@@ -11873,7 +13436,15 @@
                 }
               }
             },
-            "description": "Order created: a tagged QuoteOrderResponse (`advancedTrade` or `basicTrade`)."
+            "description": "Order created: a tagged QuoteOrderResponse (`advancedTrade` or `basicTrade`).",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "`true` when this answer was released from the stored receipt of an earlier request with the same Idempotency-Key and body, rather than produced now. Absent on a first answer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "400": {
             "content": {
@@ -14568,6 +16139,11 @@
   "security": [
     {
       "api_key": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://api.tetrafi.io"
     }
   ],
   "tags": [

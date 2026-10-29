@@ -55,7 +55,7 @@ A refusal that you can recover from in a known way carries `next`. Its `kind` is
 
 | `next.kind` | What to do |
 | --- | --- |
-| `requote` | Send `POST /api/v1/quotes` with `{"requote": "<quote id>"}`. `next.needs` lists what the new quote needs from you, such as a wallet to bind; an empty list means requote as it is. See [Requotes and expiry](/trade/requotes-and-expiry). |
+| `requote` | Send `POST /api/v1/quotes` with `{"requote": "<quote id>"}`. `next.needs` lists what the new quote needs from you, such as a trading wallet to name; an empty list means requote as it is. See [Requotes and expiry](/trade/requotes-and-expiry). |
 | `fund` | The paying account holds too little. Fund it, then get a new price. |
 | `preflight` | Preflight the quote before ordering. See [Orders](/trade/orders#advanced-orders). |
 | `sign` | Your wallet must sign the quote's EIP-712 document first. |
@@ -168,8 +168,8 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 400 `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that side's asset. | Pin a chain the asset is deployed on, or leave the side open. |
 | 400 `SAME_ASSET_NEEDS_CHAIN` | Both sides are the same asset and no chain tells them apart. | Pin a chain on at least one side ([Chains and routes](/search/chains-and-routes)). |
 | 400 `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
-| 400 `BINDING_NOT_ON_CHAIN` | A wallet in `bind.wallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
-| 403 `BINDING_NOT_OWNED` | A wallet or target in `bind` does not exist, or you cannot use it. | Choose a candidate from the quote's `bindingOptions` ([Wallets and accounts](/trade/wallets-and-accounts#binding-refusals)). |
+| 400 `BINDING_NOT_ON_CHAIN` | A wallet in `source.tradingWallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
+| 403 `BINDING_NOT_OWNED` | A wallet or account in `source` does not exist, or you cannot use it. | Choose a candidate from the answer's `sourceOptions` ([Wallets and accounts](/trade/wallets-and-accounts#binding-refusals)). |
 | 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
 | 404 `QUOTE_REQUEST_NOT_FOUND` | No quote set with this id is readable by you. | Check the id. |
 | 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |
@@ -183,16 +183,16 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
-| 400 `REQUOTE_FIELDS_CONFLICT` | The body has a field that cannot go with `requote`, such as `amount` or `filters`. | Send only `requote`, `bind`, `corridor` and `priceProtectionBps`, or search again. |
+| 400 `REQUOTE_FIELDS_CONFLICT` | The body has a field that cannot go with `requote`, such as `amount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
 | 400 `CORRIDOR_NOT_OFFERED` | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
-| 400 `BINDING_NOT_ON_CHAIN` | The wallet you bound cannot pay on that chain. | Bind a wallet on the quote's chain. |
-| 403 `BINDING_NOT_OWNED` | The wallet or account in `bind` is not one you can use. | Bind one of your workspace's wallets or accounts. |
-| 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. | Leave out `bind.account`, or search again. |
+| 400 `BINDING_NOT_ON_CHAIN` | The trading wallet you named cannot pay on that chain. | Name a trading wallet on that chain in `source.tradingWallets`. |
+| 403 `BINDING_NOT_OWNED` | The wallet or account in `source` is not one you can use. | Name a wallet or account from `sourceOptions`. |
+| 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. | Leave out `source.venueAccountId`, or search again. |
 | 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | This key cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. Requote only quotes your own key requested. |
 | 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Bind a workspace wallet. |
 | 409 `REQUOTE_REFUSED` | The venue declined. `details.reason` carries a token, such as `venueNotListed`. | Show `message`. The original quote holds until its expiry. Treat a reason you do not recognise as "other". |
-| 409 `REQUOTE_NEEDS_WALLET` | The venue quotes only once you choose a wallet. | Requote with `bind.wallets`. |
+| 409 `REQUOTE_NEEDS_WALLET` | The venue quotes only once you choose a wallet. | Requote with `source.tradingWallets`. |
 | 410 `QUOTE_EXPIRED` | More than 10 minutes have passed since the quote expired. | Search again. |
 | 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |
 | 429 `FIRM_QUOTE_LIMITED` | The workspace reached the desk's firm-quote limit. | Wait `Retry-After`. The quote's `firmAskAvailableAt` says when, where known. |
@@ -274,7 +274,7 @@ A quote request that succeeds lists every venue it considered in `sources`, each
 | `unsupported` | It does not serve this request, such as this pair or a receive-exact amount. |
 | `unavailable` | It could not quote now. `reason` and `detail` say why, such as `advancedModeDisabled` for an Advanced venue while Advanced execution is not open. |
 | `restricted` | A permission keeps it from you. `reason` names it. |
-| `needsWallet` | It quotes only once you bind a wallet. |
+| `needsWallet` | It quotes only once you name a trading wallet. |
 | `walletRefused` | The wallet it would use cannot trade there. |
 | `timedOut` | It did not answer before the collection deadline. |
 | `refused` | The venue declined. |
@@ -286,8 +286,8 @@ Some reasons you may see:
 | `pairNotServed`, `receiveExactUnsupported` | The venue does not trade this pair, or cannot quote a fixed receive amount. Choose another pair or switch to `payExact`. Quotes and prices use the same tokens. A venue you trade through your own account can show `receiveExactUnsupported` on a `filteredOut` row, in `detail`. |
 | `venueTradeScopeRequired` | Use a key with venue trading ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
 | `notConnected` | Connect your account at that venue ([Wallets and accounts](/trade/wallets-and-accounts#connect-a-venue-account)). |
-| `apiKeyOrganisationWalletScopeRequired` | Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |
+| `apiKeyOrganisationWalletScopeRequired` | The key has no organisation wallet granted for this venue. Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |
 | `onchainAssetVariantFiltered` | Your `nativeOnly` filter left out the only variant it trades ([Native only](/search/native-only)). |
-| `onchainAccountDefaultWalletRequired`, `onchainWalletNotUsable` | No usable wallet was found for that venue. Bind one with `bind.wallets`, or ask an owner to set a default organisation wallet. |
+| `onchainAccountDefaultWalletRequired`, `onchainWalletNotUsable` | No usable wallet was found for that venue. Name one from `sourceOptions` in `source.tradingWallets`, or ask an owner to set a default organisation wallet. With an API key, the saved wallet must also be granted to the key ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |
 
 Both lists are open. New statuses and reasons appear without notice. Reasons are camelCase tokens. Treat a status or reason you do not know as a source you cannot use: show its `detail` if you show anything, and carry on with the quotes you have.
