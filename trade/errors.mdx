@@ -114,6 +114,8 @@ New codes can be added at any time. Act on the codes you know, and treat any oth
 
 An API key is bound to its workspace, so it may leave `X-Workspace-Id` out. When it sends one, it must be the key's own: any other workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
 
+A few paths name a workspace, such as `GET /api/v1/workspaces/{id}/trades`. A path workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
+
 <ErrorsWrongWorkspace />
 
 ## Refusals by area
@@ -130,6 +132,7 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 400 `INVALID_WORKSPACE_ID` | `X-Workspace-Id` is not a workspace id, or is sent more than once. | Send it once, as the workspace id. |
 | 401 `AUTH_REQUIRED` | The request did not authenticate. `details.reason` says why (below). | Act on `details.reason`. |
 | 403 `WORKSPACE_SCOPE_MISMATCH` | `X-Workspace-Id` names a different workspace from the key's. | Send the key's own workspace. |
+| 404 `WORKSPACE_NOT_FOUND` | A path names a workspace that does not exist or is not yours. Both read the same. | Use your own workspace id in the path. |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
 | 403 `IP_NOT_ALLOWED` | The key has an IP allowlist and the request came from elsewhere. | Send from an allowed address, or change the key's allowlist. |
 | 403 `INSUFFICIENT_SCOPE` | The key lacks the permission this call needs. | Create a key with that permission ([Permissions](/authentication#permissions)). |
