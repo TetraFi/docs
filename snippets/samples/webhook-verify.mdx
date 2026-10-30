@@ -11,7 +11,7 @@ verify() {
   local secret=$1 id=$2 timestamp=$3 body=$4 signatures=$5 now=${6:-$(date +%s)}
   (( timestamp > now - 300 && timestamp < now + 300 )) || return 1
   local key expected candidate
-  key=$(printf '%s' "${secret#whsec_}" | openssl base64 -d -A | od -An -tx1 | tr -d ' \n')
+  key=$(printf '%s' "${secret#whsec_}" | openssl base64 -d -A | od -An -v -tx1 | tr -d ' \n')
   expected=$(printf '%s.%s.%s' "$id" "$timestamp" "$body" \
     | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$key" -binary | openssl base64 -A)
   # During a secret rotation the header holds two space-separated signatures: either may match.
