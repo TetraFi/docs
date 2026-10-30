@@ -1,6 +1,7 @@
 // Run with node scripts/sync-postman.test.mjs (not node --test).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash, createHmac } from 'node:crypto';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -63,6 +64,25 @@ test('generator honors the source override and drift fails until regeneration', 
     '/api/v1/assets': { get: { summary: 'Do not publish private.example' } },
   } }));
   assert.throws(() => main({ ...input, check: false }), /POSTMAN_WITHHELD/);
+});
+
+test('default source reads committed HEAD and ignores uncommitted source edits', () => {
+  const workspace = mkdtempSync(path.join(tmpdir(), 'postman-head-'));
+  const siteRoot = path.join(workspace, 'docs'), rfqRoot = path.join(workspace, 'tetrafi-rfq');
+  mkdirSync(siteRoot);
+  mkdirSync(path.join(rfqRoot, 'docs/api/integrator'), { recursive: true });
+  mkdirSync(path.join(workspace, 'tetrafi-docs/public-site'), { recursive: true });
+  writeFileSync(path.join(workspace, 'tetrafi-docs/public-site/leak-terms.json'), JSON.stringify({ terms: ['private.example'] }));
+  const source = path.join(rfqRoot, 'docs/api/integrator/openapi.json');
+  writeFileSync(source, JSON.stringify(spec));
+  const git = (...args) => execFileSync('git', ['-C', rfqRoot, ...args], { stdio: 'pipe' });
+  git('init', '--quiet');
+  git('add', 'docs/api/integrator/openapi.json');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', 'Fixture contract');
+  writeFileSync(source, JSON.stringify({ ...spec, paths: { '/uncommitted': { get: {} } } }));
+  assert.equal(main({ siteRoot, env: {}, check: false, log: () => {} }), 0);
+  const collection = JSON.parse(readFileSync(path.join(siteRoot, 'api-reference/tetrafi.postman_collection.json'), 'utf8'));
+  assert.equal(collection.item.length, 3);
 });
 
 test('unresolved references and unsupported request bodies fail closed', () => {

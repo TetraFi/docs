@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Generate the Postman collection from the same integrator contract as sync-contract.mjs.
 // TETRAFI_RFQ_API_DOCS overrides the source directory. --check refuses generated-file drift.
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -144,9 +145,23 @@ export function collectionFromSpec(spec) {
 }
 
 export function main({ siteRoot = root, env = process.env, check = process.argv.includes('--check'), log = console.log } = {}) {
-  const source = path.join(env.TETRAFI_RFQ_API_DOCS ?? path.join(siteRoot, '..', 'tetrafi-rfq', 'docs', 'api'), 'integrator', 'openapi.json');
-  if (!existsSync(source)) throw new Error('POSTMAN_SPEC_MISSING integrator/openapi.json');
-  const content = `${JSON.stringify(collectionFromSpec(JSON.parse(readFileSync(source, 'utf8'))), null, 2)}\n`;
+  const rfqRoot = path.join(siteRoot, '..', 'tetrafi-rfq');
+  const source = path.join(env.TETRAFI_RFQ_API_DOCS ?? path.join(rfqRoot, 'docs', 'api'), 'integrator', 'openapi.json');
+  // Match sync-contract: the default source is committed HEAD, not a peer's
+  // working tree. Explicit source overrides remain useful for fixtures/exports.
+  let text;
+  if (!env.TETRAFI_RFQ_API_DOCS && existsSync(path.join(rfqRoot, '.git'))) {
+    try {
+      text = execFileSync('git', ['-C', rfqRoot, 'show', 'HEAD:docs/api/integrator/openapi.json'],
+        { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch {
+      throw new Error('POSTMAN_SPEC_UNREADABLE integrator/openapi.json at committed HEAD');
+    }
+  } else {
+    if (!existsSync(source)) throw new Error('POSTMAN_SPEC_MISSING integrator/openapi.json');
+    text = readFileSync(source, 'utf8');
+  }
+  const content = `${JSON.stringify(collectionFromSpec(JSON.parse(text)), null, 2)}\n`;
   const hits = scanText(content, rulesFor(siteRoot, allowedInternalNames(source)));
   if (hits.length) throw new Error(`POSTMAN_WITHHELD ${hits.length} leak hits; fix the source before publishing`);
   const destination = path.join(siteRoot, output);
