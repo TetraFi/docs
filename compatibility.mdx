@@ -89,12 +89,17 @@ A workspace webhook receives a signed `POST` for each event it subscribes to.
   `{orderId, status, statusUrl}`; read the order at `statusUrl` for its full state. New
   `type` values and new fields can appear without notice, so ignore what you don't know.
   A breaking change to a body ships under a new `apiVersion`.
-- **Signature.** `TetraFi-Signature: t=<unix seconds>,v1=<hex>`. Each `v1` is
-  HMAC-SHA256 with your secret over `"<t>.<raw request body>"`. Accept the delivery when any
-  `v1` matches and `t` is within a few minutes of now. After you rotate the secret, the old
-  one also signs for 24 hours, so a delivery can carry two `v1` values.
+- **Signature.** Standard Webhooks headers: `webhook-id`, `webhook-timestamp` (Unix seconds),
+  and `webhook-signature: v1,<base64>`. Each signature is HMAC-SHA256 over
+  `"<webhook-id>.<webhook-timestamp>.<raw request body>"`, keyed with the base64-decoded suffix
+  of the shown-once `whsec_<base64>` secret. Verify the raw body with a Standard Webhooks
+  library and reject timestamps more than five minutes from now before processing the event.
+  Rotation dual-signs with current and previous keys for 24 hours: space-separated `v1,<base64>`
+  values, either of which may verify. No legacy headers are sent.
+  Existing sealed key bytes are unchanged. For an older hex secret, use
+  `"whsec_" + Buffer.from(oldSecret, "hex").toString("base64")` in the reference library.
 - **Delivery.** At least once: a delivery that does not get a `2xx` is retried after 5 s,
-  30 s, 10 min, 1 h, 6 h and 24 h. Deduplicate on `TetraFi-Delivery-Id`, and on the body's
+  30 s, 10 min, 1 h, 6 h and 24 h. Deduplicate on `webhook-id`, and on the body's
   `id` for the event itself. The delivery log and the test call are in the webhook
   endpoints.
 
