@@ -1,0 +1,91 @@
+---
+title: "Webhooks"
+description: "Get order status changes pushed to your endpoint: register it, verify each delivery's Standard Webhooks signature, and handle retries and duplicates safely."
+---
+
+import WebhookVerify from '/snippets/samples/webhook-verify.mdx';
+
+Instead of polling an order's status, register an HTTPS endpoint, and TetraFi sends it an `order.updated` event each time one of your workspace's orders changes status. Deliveries follow [Standard Webhooks](https://www.standardwebhooks.com): every library that implements it can verify them.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Register an endpoint
+
+Webhooks belong to a workspace. Someone with the **Manage credentials and integrations** permission adds one in the app:
+
+1. Open **Integrations** and select the **Webhooks** tab.
+2. Select **Add webhook**, enter the **Webhook URL** of your HTTPS endpoint, choose the **Events** it handles, then select **Create webhook**.
+3. Copy the signing secret, which starts with `whsec_`, to your secret manager. It is shown once. Tick **I've saved this secret**.
+4. Select **Test event** on the webhook to send one signed delivery right away, and check that your endpoint verifies it.
+
+API keys cannot manage webhooks yet.
+
+## Events
+
+| Type | Sent when |
+| --- | --- |
+| `order.updated` | An order placed in the workspace changes status. |
+| `webhook.test` | You select **Test event**. |
+
+More event types will be added. Ignore a `type` you do not handle, and answer it with a `2xx` so it is not retried.
+
+## What a delivery looks like
+
+Each delivery is a `POST` with a JSON body and three headers:
+
+| Header | What it carries |
+| --- | --- |
+| `webhook-id` | The delivery's id. A retry of the same delivery carries the same id. |
+| `webhook-timestamp` | When the delivery was signed, in Unix seconds. |
+| `webhook-signature` | `v1,` followed by the base64 signature. During a secret rotation, two space-separated values. |
+
+The body has the same envelope for every event:
+
+```json Output shape
+{
+  "id": "…",
+  "type": "order.updated",
+  "apiVersion": "2026-10-29",
+  "createdAt": "2026-10-30T09:12:44.000Z",
+  "data": { "orderId": "…", "status": "…", "statusUrl": "/api/v1/orders/…" }
+}
+```
+
+The event is thin: it says that an order changed and where to read it. Read the order at `statusUrl` with your API key for its full state. New fields can appear in the body at any time, so ignore fields you do not know. A change that would break a reader ships under a new `apiVersion`.
+
+## Verify the signature
+
+Verify every delivery before you trust its body. The signature is an HMAC-SHA256 over `<webhook-id>.<webhook-timestamp>.<raw body>`, keyed with the base64-decoded part of your secret after `whsec_`:
+
+- compute it over the exact bytes you received, before you parse the JSON;
+- compare it in constant time;
+- refuse a `webhook-timestamp` more than five minutes from your clock, so a captured delivery cannot be replayed later;
+- accept the delivery when any one of the `v1,` values matches.
+
+You can use a [Standard Webhooks library](https://github.com/standard-webhooks/standard-webhooks) instead of your own code. These samples check themselves against the Standard Webhooks example delivery, and refuse a changed body and a stale timestamp:
+
+<WebhookVerify />
+
+```json Output
+{"valid":"accepted","changedBody":"refused","staleTimestamp":"refused"}
+```
+
+When you rotate the secret, TetraFi signs with both the new and the previous secret for 24 hours, so a receiver still holding the old one keeps verifying while you deploy the new one.
+
+## Retries
+
+Answer with any `2xx` status within 10 seconds to acknowledge a delivery. Anything else, or no answer in time, is retried after 5 seconds, 30 seconds, 10 minutes, 1 hour, 6 hours and 24 hours.
+
+After five deliveries in a row fail every retry, the webhook is paused. Fix your endpoint, then reactivate the webhook in the app. Each webhook lists its recent deliveries and their outcomes, and you can redeliver one from there.
+
+## Handle each event once
+
+Deliveries are at least once: a retry or a redelivery can bring the same event again, and events can arrive out of order.
+
+- Record each body's `id` when you have processed the event, and skip one you have already recorded. A retry of one delivery also repeats its `webhook-id`.
+- Acknowledge first, work later: answer `2xx` once the delivery is verified and stored, then process it, so slow work does not cause retries.
+- To learn an order's current status, read `statusUrl` rather than relying on the order in which events arrived.
+
+[Order status](/trade/order-status) lists every status an order can read.

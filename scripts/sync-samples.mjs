@@ -2,9 +2,10 @@
 // Every code sample on the site comes from a runnable source, so a published sample is one a test
 // has executed. Sources:
 //   - samples/http/*.sh                          curl, owned by this repo
+//   - samples/node/*.mjs, samples/python/*.py    Node.js and Python, owned by this repo
 //   - ../tetrafi-ui/packages/sdk/examples/*.ts   TypeScript SDK (TETRAFI_SDK_EXAMPLES overrides)
-// A region `# region <name>` … `# endregion` (shell) or `// #region <name>` … `// #endregion`
-// (TypeScript) becomes snippets/samples/<name>.mdx: one <CodeGroup> holding every language that
+// A region `# region <name>` … `# endregion` (shell, Python) or `// #region <name>` … `// #endregion`
+// (JavaScript, TypeScript) becomes snippets/samples/<name>.mdx: one <CodeGroup> holding every language that
 // defines that region. Pages import the snippet; they never hold inline request samples.
 //
 //   node scripts/sync-samples.mjs           write snippets
@@ -18,6 +19,8 @@ const check = process.argv.includes('--check');
 
 const SOURCES = [
   { dir: path.join(root, 'samples', 'http'), ext: '.sh', lang: 'bash', title: 'cURL', open: /^\s*# region (\S+)\s*$/, close: /^\s*# endregion(?:\s+(\S+))?\s*$/ },
+  { dir: path.join(root, 'samples', 'node'), ext: '.mjs', lang: 'javascript', title: 'Node.js', open: /^\s*\/\/ #region (\S+)\s*$/, close: /^\s*\/\/ #endregion(?:\s+(\S+))?\s*$/ },
+  { dir: path.join(root, 'samples', 'python'), ext: '.py', lang: 'python', title: 'Python', open: /^\s*# region (\S+)\s*$/, close: /^\s*# endregion(?:\s+(\S+))?\s*$/ },
   {
     dir: process.env.TETRAFI_SDK_EXAMPLES ?? path.join(root, '..', 'tetrafi-ui', 'packages', 'sdk', 'examples'),
     ext: '.ts', lang: 'typescript', title: 'TypeScript SDK', open: /^\s*\/\/ #region (\S+)\s*$/, close: /^\s*\/\/ #endregion(?:\s+(\S+))?\s*$/,
