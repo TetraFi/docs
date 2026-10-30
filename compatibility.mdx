@@ -11,6 +11,20 @@ quotes and requotes, preflight, orders, and the order and quote-set reads. It ta
 at launch. Until then the contract is still changing, and every change is listed in the
 [changelog](/changelog).
 
+## Reference exposure and launch availability
+
+`GET /api-docs/openapi.json` is the public integrator projection generated at
+`docs/api/integrator/openapi.json`, byte-for-byte. Launch annotations appear only
+after the export owner publishes them; the runtime does not patch the artifact.
+It never serves the full platform API as a fallback.
+`GET /api-docs/full/openapi.json` requires a current platform-admin session with verified MFA, and is not available to an API key or a workspace
+administrator without that platform grant. Its response is `private, no-store`.
+
+An operation marked `x-availability: notLaunched` is not a launched integrator
+product. This currently covers Advanced preflight, continuation GET/POST and
+continue; it does not grant or revoke runtime execution authority. UI and SDK
+generation continues to consume committed full-spec files, not these HTTP routes.
+
 ## What we promise
 
 After launch, a change to the integrator API is **additive**. We may:

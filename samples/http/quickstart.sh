@@ -115,8 +115,9 @@ fi
 
 # region quickstart-order
 order_body=$(jq -c '{quoteId: .id}' <<<"$quote")
-if [[ $(jq -r '.commitment.firm' <<<"$quote") != true ]]; then
-  # minReceive is the quoted receive less slippage (default 50 bps), rounded down.
+if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
+  # The quote says when it needs minReceive: the least you accept, here the quoted receive less
+  # slippage (default 50 bps), rounded down.
   # Without a receive chain, use the lowest precision listed for the native asset.
   decimals=$(jq -er --arg a "$(jq -r '.receive.asset' <<<"$quote")" \
     --arg c "$(jq -r '.receive.chain // empty' <<<"$quote")" '[.assets[] | select(.assetId == $a)

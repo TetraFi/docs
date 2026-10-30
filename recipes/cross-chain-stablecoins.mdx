@@ -71,7 +71,7 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id and an `Idempotency-Key` header you generate and keep. A retry with the same key and body returns the first answer instead of moving the funds twice ([Idempotency](/trade/idempotency)).
 
-    A bridge that TetraFi trades from your organisation wallet executes within your limit: an order on a quote that is not firm must carry `minReceive`, the least you accept to receive ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). Without it, the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent. Cross-chain quotes from such a venue are usually indicative (`commitment.kind` is `indicative`), and the script sends `minReceive` on an indicative quote: the quoted amount less 50 basis points. Change that with `TETRAFI_SLIPPAGE_BPS`.
+    A bridge that TetraFi trades from your organisation wallet executes within your limit: an order on a quote whose `minReceiveRequired` is `true` must carry `minReceive`, the least you accept to receive ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). Without it, the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent. Cross-chain quotes from such a venue are usually indicative, and the script sends `minReceive` whenever the quote asks for it: the quoted amount less 50 basis points. Change that with `TETRAFI_SLIPPAGE_BPS`.
 
     The script places the order only when you set `TETRAFI_PLACE_ORDER=1`.
 
