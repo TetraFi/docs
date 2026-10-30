@@ -128,7 +128,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
     | `TETRAFI_RECEIVE` | `USDT` | The asset you receive. |
     | `TETRAFI_AMOUNT` | `10` | The amount you pay. |
     | `TETRAFI_VENUES` | every venue | A comma-separated list of venue ids to ask, sent as `filters.venues.include`. Use `sources[].venue.id` values ([Venue types and venues](/search/venues#specific-venues)). |
-    | `TETRAFI_SLIPPAGE_BPS` | `50` | How far below a quote that is not firm you accept, in basis points. |
+    | `TETRAFI_SLIPPAGE_BPS` | `50` | How far below the quoted amount you accept when the quote needs `minReceive`, in basis points. |
     | `TETRAFI_PLACE_ORDER` | not set | Set it to `1` to place the order. |
 
     In the app, this is the quote list on the trade page.
@@ -147,7 +147,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` header with a value you generate and keep: a retry with the same key and body returns the first answer instead of placing a second order. Each quote can be ordered once.
 
-    When `commitment.firm` is not `true`, send `minReceive`, the least you accept: the script uses the quoted receive amount less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the receive asset's decimals from `GET /api/v1/assets`.
+    When the quote's `minReceiveRequired` is `true`, send `minReceive`, the least you accept: the script uses the quoted receive amount less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the receive asset's decimals from `GET /api/v1/assets`.
 
     The script places the order only when you set `TETRAFI_PLACE_ORDER=1`. Without it, it stops after preflight and prints the quote it would order.
 
@@ -156,6 +156,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
     ```json Response (shortened)
     {
       "kind": "basicTrade",
+      "orderId": "acb8…",
       "quoteId": "q_01M5…",
       "status": "working",
       "terminal": false,

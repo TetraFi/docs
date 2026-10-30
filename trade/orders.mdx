@@ -34,7 +34,7 @@ The quote's `next` tells you the next call: `order` means place the order now; `
 | --- | --- | --- |
 | `quoteId` | Yes | The quote id (`q_…`) from `POST /api/v1/quotes`. |
 | `signature` | Advanced, when asked | Your wallet's signature over the quote's EIP-712 document. Refused on a Basic quote. |
-| `minReceive` | Basic: when the venue executes within your limit and the quote is not firm. Optional on other Basic quotes. | The least you accept to receive, in receive-Asset units, such as `"4.99"`. Refused on an Advanced quote. |
+| `minReceive` | Basic: when the quote's `minReceiveRequired` is `true`. Optional on other Basic quotes. | The least you accept to receive, in receive-Asset units, such as `"4.99"`. Refused on an Advanced quote. |
 | `priceProtectionBps` | No, Advanced only | 1 to 1000. Tightens the quote's price protection. Refused on a Basic quote. |
 
 An API key must send an `Idempotency-Key` header with every order. A retry with the same key and body returns the first answer instead of placing a second order ([Idempotency](/trade/idempotency)).
@@ -46,6 +46,7 @@ A Basic quote answers `"kind": "basicTrade"` with the venue trade it created:
 ```json Response (shortened)
 {
   "kind": "basicTrade",
+  "orderId": "acb84378-…",
   "quoteId": "q_01M5XJXR…",
   "status": "working",
   "terminal": false,
@@ -62,6 +63,7 @@ An Advanced quote answers `"kind": "advancedTrade"` with the order. Both kinds c
 ```json Shape
 {
   "kind": "advancedTrade",
+  "orderId": "…",
   "quoteId": "q_…",
   "status": "pending",
   "terminal": false,
@@ -85,7 +87,7 @@ Some venues execute within your limit: you name the least you accept, and the ve
 - desks whose firm prices last only a few seconds, too short to confirm;
 - on-chain venues, such as bridges, that TetraFi trades for you from an organisation wallet.
 
-Their quotes are often indicative with `next.kind: "order"`. On such a venue, any quote that is not firm (`commitment.firm` is not `true`) must be ordered with `minReceive`: the order trades only if the venue delivers at least that. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent.
+Their quotes are often indicative with `next.kind: "order"`. On such a venue, a quote that is not firm reads `minReceiveRequired: true` and must be ordered with `minReceive`: the order trades only if the venue delivers at least that. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED`, with `details.field` `minReceive`, and nothing is sent. Read the flag rather than working it out from `commitment`.
 
 You can also send `minReceive` on any other Basic quote to set your own floor, and the order then trades only at or above it. If the venue's held firm price already delivers less, the order is refused with `409 VENUE_QUOTE_OUTSIDE_BOUNDS` and nothing is sent.
 
@@ -132,7 +134,7 @@ Which field applies where:
 | --- | --- | --- | --- |
 | Quote request or requote | `priceProtectionBps` | 0 to 1000, 30 when omitted | Every non-firm executable quote, Basic or Advanced. It sets the quote's `minOut`, and `maxPay` on a `receiveExact` quote from a venue account ([Sort and price protection](/search/sort-and-protection#price-protection)). |
 | Preflight or order | `priceProtectionBps` | 1 to 1000 | Advanced quotes only. It may tighten the quote's protection, never loosen it: a wider value is refused with `409 PRICE_PROTECTION_CHANGED`. To loosen it, requote with the new value ([Requotes and expiry](/trade/requotes-and-expiry#change-the-price-protection)). On a Basic quote it is refused with `400 INVALID_REQUEST`. |
-| Order | `minReceive` | A positive amount | Basic quotes only. Required on a quote that is not firm from a venue that executes within your limit ([above](#venue-quotes-that-execute-within-your-limit)), optional on any other Basic quote. On an Advanced quote it is refused with `400 MIN_RECEIVE_NOT_ACCEPTED`. |
+| Order | `minReceive` | A positive amount | Basic quotes only. Required when the quote's `minReceiveRequired` is `true` ([above](#venue-quotes-that-execute-within-your-limit)), optional on any other Basic quote. On an Advanced quote it is refused with `400 MIN_RECEIVE_NOT_ACCEPTED`. |
 
 If an Advanced quote's price has moved beyond your protection when you order, the order is refused with `409 QUOTE_PRICE_MOVED` and nothing is sent. Request the price again.
 

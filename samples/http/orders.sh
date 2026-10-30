@@ -121,7 +121,7 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   # Use this to retry after a timeout or a dropped connection.
   replayed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
   jq -n -c --argjson a "$placed" --argjson b "$replayed" \
-    '{replayedSameOrder: (($a.operation.operationId // $a.order.orderId) == ($b.operation.operationId // $b.order.orderId))}' >&2
+    '{replayedSameOrder: ($a.orderId == $b.orderId)}' >&2
   # endregion
 
   # region order-idempotency-conflict
@@ -139,12 +139,12 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   # anything else. ordered: read the order at statusUrl. notOrdered: nothing was placed.
   # unknown: wait, then read again.
   recovered=$(tetrafi GET "/api/v1/orders/by-quote/$order_quote")
-  jq -c '{state, statusUrl}' <<<"$recovered" >&2
+  jq -c '{state, orderId, statusUrl}' <<<"$recovered" >&2
   unordered=$(tetrafi GET "/api/v1/orders/by-quote/$quote_id")
   jq -c '{state, expired}' <<<"$unordered" >&2
   # endregion
   summary=$(jq -c --argjson p "$placed" --argjson r "$recovered" --arg c "$(error_of "$conflict")" '. + {order: {
-    kind: $p.kind, quoteId: $p.quoteId, id: ($p.operation.operationId // $p.order.orderId),
+    kind: $p.kind, quoteId: $p.quoteId, id: $p.orderId,
     conflict: $c, recovered: $r.state}}' <<<"$summary")
 
   # region order-status

@@ -127,12 +127,13 @@ if [[ ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
 fi
 
 # region recipe-cross-chain-order
-# A quote that is not firm executes within your limit: send minReceive, the least you accept, here
-# the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the asset's decimals.
+# When the quote's minReceiveRequired is true, it executes within your limit: send minReceive, the
+# least you accept, here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the
+# asset's decimals.
 decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.assets[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[] | select(.chain == $c) | .decimals][0]' <<<"$assets")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id}
-  + (if .commitment.firm != true then {minReceive: ((.receive.amount | tonumber) * (10000 - $bps) / 10000
+  + (if .minReceiveRequired == true then {minReceive: ((.receive.amount | tonumber) * (10000 - $bps) / 10000
       | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)} else {} end)' <<<"$quote")
 # One Idempotency-Key per order, stored before you send it: a retry with the same key and body
 # returns the first answer instead of moving the funds twice.
@@ -169,5 +170,5 @@ fi
 
 jq -c --arg f "$from_chain" --arg t "$to_chain" --arg q "$quote_id" --arg k "$idempotency_key" \
   --argjson state "$state" --argjson p "$placed" \
-  '{from: $f, to: $t, quoteId: $q, kind: $p.kind, id: ($p.operation.operationId // $p.order.orderId),
+  '{from: $f, to: $t, quoteId: $q, kind: $p.kind, id: $p.orderId,
     status: $state.status, terminal: $state.terminal, idempotencyKey: $k}' <<<'{}'

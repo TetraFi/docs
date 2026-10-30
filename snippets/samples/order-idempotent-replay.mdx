@@ -7,7 +7,7 @@
 # Use this to retry after a timeout or a dropped connection.
 replayed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
 jq -n -c --argjson a "$placed" --argjson b "$replayed" \
-  '{replayedSameOrder: (($a.operation.operationId // $a.order.orderId) == ($b.operation.operationId // $b.order.orderId))}' >&2
+  '{replayedSameOrder: ($a.orderId == $b.orderId)}' >&2
 ```
 
 ```typescript TypeScript SDK
