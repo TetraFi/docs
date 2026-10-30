@@ -5,8 +5,9 @@
 ```bash cURL
 # Read the documented amounts and bounds, not transaction details outside the public contract.
 # A missing amount is unknown, never zero. Confirm arrival in the destination wallet's app balance.
-if [[ $status == filled ]]; then
-  jq -c '{executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
+# A move TetraFi executes for you keeps its detail under operation.
+if [[ $(jq -r '.kind' <<<"$state") == basicTrade ]]; then
+  jq -c '.operation | {executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
     dispatch: (.dispatch | if . == null then null else {inputSpent, outputReceived, venueOrderId} end)}' <<<"$state" >&2
 fi
 ```

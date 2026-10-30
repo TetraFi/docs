@@ -47,6 +47,9 @@ A Basic quote answers `"kind": "basicTrade"` with the venue trade it created:
 {
   "kind": "basicTrade",
   "quoteId": "q_01M5XJXR…",
+  "status": "working",
+  "terminal": false,
+  "statusUrl": "/api/v1/orders/acb84378-…",
   "operation": {
     "connectionId": "15862432-…",
     "operationId": "acb84378-…"
@@ -54,13 +57,16 @@ A Basic quote answers `"kind": "basicTrade"` with the venue trade it created:
 }
 ```
 
-An Advanced quote answers `"kind": "advancedTrade"` with the order, the same object [`GET /api/v1/orders/{orderId}`](/trade/order-status#advanced-orders) returns:
+An Advanced quote answers `"kind": "advancedTrade"` with the order. Both kinds carry `status`, `terminal` and `statusUrl`, and [`GET /api/v1/orders/{id}`](/trade/order-status) at `statusUrl` answers the same envelope:
 
 ```json Shape
 {
   "kind": "advancedTrade",
   "quoteId": "q_…",
-  "order": { "orderId": "…", "status": "…", "terminal": false, "nextActor": "…" }
+  "status": "pending",
+  "terminal": false,
+  "statusUrl": "/api/v1/orders/…",
+  "order": { "orderId": "…", "status": "…", "nextActor": "…" }
 }
 ```
 
@@ -108,7 +114,7 @@ An Advanced order moves funds from your wallet, so your wallet acts before Tetra
   </Step>
 
   <Step title="Place the order">
-    `POST /api/v1/orders` with `{"quoteId": "q_…", "signature": "0x…"}` and an `Idempotency-Key`. Without the signature, it is refused with `400 SIGNATURE_REQUIRED`.
+    `POST /api/v1/orders` with `{"quoteId": "q_…", "signature": "0x…"}` and an `Idempotency-Key`. Without the signature, it is refused with `400 WALLET_SIGNATURE_REQUIRED`.
   </Step>
 </Steps>
 
@@ -128,7 +134,7 @@ Which field applies where:
 | Preflight or order | `priceProtectionBps` | 1 to 1000 | Advanced quotes only. It may tighten the quote's protection, never loosen it: a wider value is refused with `409 PRICE_PROTECTION_CHANGED`. To loosen it, requote with the new value ([Requotes and expiry](/trade/requotes-and-expiry#change-the-price-protection)). On a Basic quote it is refused with `400 INVALID_REQUEST`. |
 | Order | `minReceive` | A positive amount | Basic quotes only. Required on a quote that is not firm from a venue that executes within your limit ([above](#venue-quotes-that-execute-within-your-limit)), optional on any other Basic quote. On an Advanced quote it is refused with `400 MIN_RECEIVE_NOT_ACCEPTED`. |
 
-If an Advanced quote's price has moved beyond your protection when you order, the order is refused with `409 PRICE_MOVED_BEYOND_PROTECTION` and nothing is sent. Request the price again.
+If an Advanced quote's price has moved beyond your protection when you order, the order is refused with `409 QUOTE_PRICE_MOVED` and nothing is sent. Request the price again.
 
 ## Refusals
 
@@ -137,7 +143,7 @@ A refused order answers the standard error body: `error`, `message`, and `next` 
 | Code | Status | Why | What to do |
 | --- | --- | --- | --- |
 | `INVALID_REQUEST` | 400 | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads, such as `priceProtectionBps`, was sent on a Basic quote. `message` names it. | Fix that field. |
-| `SIGNATURE_REQUIRED` | 400 | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
+| `WALLET_SIGNATURE_REQUIRED` | 400 | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
 | `SIGNATURE_NOT_ACCEPTED` | 400 | A signature was sent on a quote that takes none. | Leave out `signature`. |
 | `MIN_RECEIVE_REQUIRED` | 400 | This venue executes within your limit and the quote is not firm. | Send `minReceive`. |
 | `MIN_RECEIVE_INVALID` | 400 | `minReceive` is not a positive amount. | Send it as a positive decimal string. |
@@ -151,7 +157,7 @@ A refused order answers the standard error body: `error`, `message`, and `next` 
 | `VENUE_QUOTE_OUTSIDE_BOUNDS` | 409 | The venue's held firm price is below your `minReceive`. | Lower `minReceive` or get a new price. |
 | `FUNDING_SHORTFALL` | 409 | The venue account holds less than the trade needs. `next` is `fund`. | Fund the account, then get a new price. |
 | `PRICE_PROTECTION_CHANGED` | 409 | `priceProtectionBps` is looser than the quote's. | Requote with the new protection. |
-| `PRICE_MOVED_BEYOND_PROTECTION` | 409 | The price moved beyond your price protection. | Request the price again. |
+| `QUOTE_PRICE_MOVED` | 409 | The price moved beyond your price protection. | Request the price again. |
 | `PREFLIGHT_NOT_APPLICABLE` | 409 | Preflight on a Basic quote. | Place the order directly. |
 | `IDEMPOTENCY_CONFLICT`, `ORDER_IN_PROGRESS` | 409 | The key was used for a different body, or an order with it is still being placed. | See [Idempotency](/trade/idempotency). |
 | `QUOTE_EXPIRED` | 410 | The quote's `expiresAt` has passed. `next` is `requote`. | [Requote it](/trade/requotes-and-expiry#refresh-an-expired-quote). |

@@ -144,43 +144,30 @@ jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation |
 # endregion
 
 # region recipe-cross-chain-status
-# Follow the order where the response points until it ends. A move TetraFi executes for you is a
-# venue trade (basicTrade): poll every 10 seconds until it is filled or unfilled. An on-chain order
-# (advancedTrade) is polled until terminal is true.
-case $(jq -r '.kind' <<<"$placed") in
-  basicTrade)
-    path=$(jq -r '.statusUrl' <<<"$placed")
-    for _ in $(seq 1 60); do
-      state=$(tetrafi GET "$path")
-      status=$(jq -r '.executionStatus' <<<"$state")
-      echo "{\"executionStatus\":\"$status\"}" >&2
-      case $status in filled | unfilled) break ;; esac
-      sleep 10
-    done
-    ;;
-  advancedTrade)
-    path="/api/v1/orders/$(jq -r '.order.orderId' <<<"$placed")"
-    for _ in $(seq 1 60); do
-      state=$(tetrafi GET "$path")
-      status=$(jq -r '.status | if type == "object" then keys[0] else . end' <<<"$state")
-      echo "{\"status\":\"$status\",\"terminal\":$(jq '.terminal' <<<"$state")}" >&2
-      if jq -e '.terminal == true' <<<"$state" >/dev/null; then break; fi
-      sleep 10
-    done
-    ;;
-esac
+# Follow the order at the statusUrl the answer gave until terminal is true, polling every 10
+# seconds, or after next.retryAfter when it says to wait. The envelope is the same for a move
+# TetraFi executes for you (basicTrade) and an on-chain order (advancedTrade).
+status_url=$(jq -r '.statusUrl' <<<"$placed")
+for _ in $(seq 1 60); do
+  state=$(tetrafi GET "$status_url")
+  jq -c '{kind, status, terminal, next}' <<<"$state" >&2
+  if jq -e '.terminal == true' <<<"$state" >/dev/null; then break; fi
+  wait=$(jq -r '.next | select(.kind == "wait") | .retryAfter | capture("^PT(?<s>[0-9]+)S$").s' <<<"$state" 2>/dev/null || true)
+  sleep "${wait:-10}"
+done
 # endregion
 
 # region recipe-cross-chain-arrival
 # Read the documented amounts and bounds, not transaction details outside the public contract.
 # A missing amount is unknown, never zero. Confirm arrival in the destination wallet's app balance.
-if [[ $status == filled ]]; then
-  jq -c '{executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
+# A move TetraFi executes for you keeps its detail under operation.
+if [[ $(jq -r '.kind' <<<"$state") == basicTrade ]]; then
+  jq -c '.operation | {executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
     dispatch: (.dispatch | if . == null then null else {inputSpent, outputReceived, venueOrderId} end)}' <<<"$state" >&2
 fi
 # endregion
 
 jq -c --arg f "$from_chain" --arg t "$to_chain" --arg q "$quote_id" --arg k "$idempotency_key" \
-  --arg s "$status" --argjson p "$placed" \
+  --argjson state "$state" --argjson p "$placed" \
   '{from: $f, to: $t, quoteId: $q, kind: $p.kind, id: ($p.operation.operationId // $p.order.orderId),
-    status: $s, idempotencyKey: $k}' <<<'{}'
+    status: $state.status, terminal: $state.terminal, idempotencyKey: $k}' <<<'{}'

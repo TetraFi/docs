@@ -25,6 +25,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
   "message": "This quote has expired, so nothing was sent. Request a new price.",
   "requestId": "5ee4d511-5ef8-4e47-9999-5b144ec4fcbc",
   "timestamp": 1792443399,
+  "docUrl": "https://tetrafi.mintlify.app/reference/error-codes#QUOTE_EXPIRED",
   "next": { "kind": "requote", "needs": [] }
 }
 ```
@@ -35,6 +36,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 | `message` | A sentence for people. | Show or log it. Never match on it: the words can change. |
 | `requestId` | The same value as the `X-Request-Id` response header. | Log it, and quote it when you contact support. |
 | `timestamp` | When the refusal was made, in Unix seconds. | Log it. |
+| `docUrl` | This code's entry in the [error-code reference](/reference/error-codes). | Link it in your logs or show it to a developer. |
 | `next` | The way forward, when there is one. | See [what next tells you](#what-next-tells-you). |
 | `details` | The code's detail, when there is any. | Read the keys you know. Keys are camelCase and more can be added. |
 
@@ -126,13 +128,7 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | --- | --- | --- |
 | 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. | Send the workspace id, or use a key created in the workspace. |
 | 400 `INVALID_WORKSPACE_ID` | `X-Workspace-Id` is not a workspace id, or is sent more than once. | Send it once, as the workspace id. |
-| 401 `MISSING_CREDENTIALS` | No API key was sent. | Send `X-API-Key`. |
-| 401 `INVALID_API_KEY` | The key is unknown, or it was revoked. | Use a current key. |
-| 401 `API_KEY_EXPIRED` | The key is past its expiration. | Create a new key. |
-| 401 `SIGNATURE_REQUIRED` | The key needs signing and `X-Timestamp` or `X-Signature` is missing. | [Sign the request](/authentication#sign-requests). |
-| 401 `SIGNATURE_INVALID` | The signature is malformed or does not match. | Sign the exact method, path with query, and body bytes you send, with the hex-decoded secret. |
-| 401 `TIMESTAMP_OUT_OF_RANGE` | `X-Timestamp` is more than 300 seconds from TetraFi's clock. | Sync your clock and sign again. |
-| 401 `SIGNATURE_REPLAYED` | This exact signature was already used. | Sign each request afresh. Two identical requests in the same second need different bodies. |
+| 401 `AUTH_REQUIRED` | The request did not authenticate. `details.reason` says why (below). | Act on `details.reason`. |
 | 403 `WORKSPACE_SCOPE_MISMATCH` | `X-Workspace-Id` names a different workspace from the key's. | Send the key's own workspace. |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
 | 403 `IP_NOT_ALLOWED` | The key has an IP allowlist and the request came from elsewhere. | Send from an allowed address, or change the key's allowlist. |
@@ -149,6 +145,20 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 408 `REQUEST_TIMEOUT` | The request took too long to complete. | Retry with backoff. For an order, use the same `Idempotency-Key`. |
 | 500 `INTERNAL_ERROR` | Something went wrong on TetraFi's side. | Retry with backoff, and quote `requestId` to support if it persists. |
 | 503 `SERVICE_UNAVAILABLE` | The service is briefly unavailable. | Retry with backoff. |
+
+Every authentication failure is the one code `401 AUTH_REQUIRED`. Its `details.reason` names the cause:
+
+| What went wrong | `details.reason` | What to do |
+| --- | --- | --- |
+| No API key was sent. | `MISSING_CREDENTIALS` | Send `X-API-Key`. |
+| The key is unknown, or it was revoked. | `INVALID_API_KEY` | Use a current key. |
+| The key is past its expiration. | `API_KEY_EXPIRED` | Create a new key. |
+| The key needs signing and `X-Timestamp` or `X-Signature` is missing. | `SIGNATURE_REQUIRED` | [Sign the request](/authentication#sign-requests). |
+| The signature is malformed or does not match. | `SIGNATURE_INVALID` | Sign the exact method, path with query, and body bytes you send, with the hex-decoded secret. |
+| `X-Timestamp` is more than 300 seconds from TetraFi's clock. | `TIMESTAMP_OUT_OF_RANGE` | Sync your clock and sign again. |
+| This exact signature was already used. | `SIGNATURE_REPLAYED` | Sign each request afresh. Two identical requests in the same second need different bodies. |
+
+More reasons may be added: treat one you do not recognise as "fix the credentials".
 
 ### Quote request
 
@@ -191,7 +201,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | 409 `REQUOTE_NEEDS_WALLET` | The venue quotes only once you choose a wallet. | Requote with `source.tradingWallets`. |
 | 410 `QUOTE_EXPIRED` | More than 10 minutes have passed since the quote expired. | Search again. |
 | 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |
-| 429 `FIRM_QUOTE_LIMITED` | The workspace reached the desk's firm-quote limit. | Wait `Retry-After`. The quote's `firmAskAvailableAt` says when, where known. |
+| 429 `VENUE_FIRM_QUOTE_LIMITED` | The workspace reached the venue's firm-quote limit. | Wait `Retry-After`. The quote's `firmAskAvailableAt` says when, where known. |
 | 429 `BUDGET_EXHAUSTED` | The venue's quote budget is used up for now. | Wait `Retry-After` when it is set, otherwise try later. |
 | 503 `QUOTE_STORE_UNAVAILABLE` | Held quotes cannot be read just now. | Try again shortly. |
 | 504 `REQUOTE_TIMED_OUT` | The venue did not answer in time. | Try again, or order the original while it holds. |
@@ -203,7 +213,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
 | 400 `INVALID_REQUEST` | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads was sent on a Basic quote. `message` names it. | Fix that field. |
-| 400 `SIGNATURE_REQUIRED` | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
+| 400 `WALLET_SIGNATURE_REQUIRED` | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
 | 400 `SIGNATURE_NOT_ACCEPTED` | A signature was sent on a quote that takes none. | Leave out `signature`. |
 | 400 `MIN_RECEIVE_REQUIRED` | This venue executes within your limit and the quote is not firm. | Send `minReceive` ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). |
 | 400 `MIN_RECEIVE_INVALID` | `minReceive` is not a positive amount. | Send it as a positive decimal string. |
@@ -220,7 +230,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | 409 `PILOT_TRADE_CAP_EXCEEDED` | The trade is above the venue's current per-trade limit. `next` is `requote`. | Get a price for a smaller amount. |
 | 409 `EXECUTION_STAGE_DISABLED` | The venue is not open for trading. | Choose another venue's quote. |
 | 409 `PRICE_PROTECTION_CHANGED` | `priceProtectionBps` is looser than the quote's. | Requote with the new protection. |
-| 409 `PRICE_MOVED_BEYOND_PROTECTION` | The price moved beyond your price protection. | Request the price again. |
+| 409 `QUOTE_PRICE_MOVED` | The price moved beyond your price protection. | Request the price again. |
 | 409 `PAY_WALLET_UNAVAILABLE` | The wallet the quote pays from is no longer available to you. | Get new prices. |
 | 422 `PAY_WALLET_SHORT` | The paying wallet holds less than the quote pays. | Top up that wallet, or requote with another, then order again. |
 | 410 `QUOTE_EXPIRED` | The quote's `expiresAt` has passed. `next` is `requote`. | [Requote it](/trade/requotes-and-expiry#refresh-an-expired-quote). |

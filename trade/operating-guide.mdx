@@ -7,7 +7,7 @@ import SearchPrices from '/snippets/samples/search-prices.mdx';
 import RequoteAgain from '/snippets/samples/requote-again.mdx';
 import OrderIdempotentReplay from '/snippets/samples/order-idempotent-replay.mdx';
 import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
-import OrderStatusBasic from '/snippets/samples/order-status-basic.mdx';
+import OrderStatus from '/snippets/samples/order-status.mdx';
 import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
 
 These are the habits that keep an integration fast, inside its limits and safe with money. Each rule links to the guide that covers it in full, and each example is a runnable sample from those guides.
@@ -42,7 +42,7 @@ For every other request, retry only answers marked retryable in the [error-code 
 
 ## An unknown outcome is not a failure
 
-When an order times out, or reads `outcome_unknown`, the trade may still have filled. Never place a new order for the same intent to "make sure". Keep reading its status, or find the order by its quote:
+When an order times out, or reads `outcomeUnknown`, the trade may still have filled. Never place a new order for the same intent to "make sure". Keep reading its status, or find the order by its quote:
 
 <OrderRecoverByQuote />
 
@@ -50,8 +50,8 @@ Only when the order is shown not to exist, or reads a final status that did not 
 
 ## Follow an order to the end
 
-Poll an order's status every 10 to 15 seconds until it ends. A Basic venue trade ends at `filled` or `unfilled`. An Advanced order ends when `terminal` is `true`. Treat a status you do not recognise as "other" and keep polling. [Order status](/trade/order-status) lists every status.
+Read an order at its `statusUrl` every 10 to 15 seconds until `terminal` is `true`. When `next` says `wait`, read again after its `retryAfter`; when it says `contact`, contact support with its `reference`. Treat a status you do not recognise as "other" and keep following `terminal`. [Order status](/trade/order-status) lists every status.
 
-<OrderStatusBasic />
+<OrderStatus />
 
 Or let [webhooks](/trade/webhooks) tell you: an `order.updated` event is sent to your endpoint on each order status change. It is thin: it names the order and the `statusUrl` to read, so read that URL rather than trusting the order events arrived in. An event can arrive more than once, so record each event's `id` and skip one you have already handled.

@@ -3,20 +3,10 @@
 <CodeGroup>
 
 ```bash cURL
-# An Advanced order is read at /orders/{orderId}; a Basic venue trade at its venue connection.
-case $(jq -r '.kind' <<<"$placed") in
-  advancedTrade)
-    order=$(tetrafi GET "/api/v1/orders/$(jq -r '.order.orderId' <<<"$placed")")
-    jq -c --arg k "$idempotency_key" \
-      '{kind: "advancedTrade", id: .orderId, status, terminal, idempotencyKey: $k}' <<<"$order"
-    ;;
-  basicTrade)
-    path=$(jq -r '.statusUrl' <<<"$placed")
-    trade=$(tetrafi GET "$path")
-    jq -c --arg k "$idempotency_key" \
-      '{kind: "basicTrade", id: .operationId, status: .executionStatus, idempotencyKey: $k}' <<<"$trade"
-    ;;
-esac
+# Read the order at the statusUrl the answer gave: one envelope for Basic and Advanced orders.
+# terminal says whether it can still change; next, when present, says what to do meanwhile.
+order=$(tetrafi GET "$(jq -r '.statusUrl' <<<"$placed")")
+jq -c --arg k "$idempotency_key" '{kind, status, terminal, next, idempotencyKey: $k}' <<<"$order"
 ```
 
 </CodeGroup>
