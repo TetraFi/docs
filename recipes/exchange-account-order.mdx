@@ -97,26 +97,26 @@ The script needs the workspace id for one step only: after it recovers the order
 
     | `state` | What to do |
     | --- | --- |
-    | `ordered` | `order` is its address: read its status. Do not order again. |
+    | `ordered` | Read its status at `statusUrl`. Do not order again. |
     | `notOrdered` | Nothing was placed. If `expired` is `false`, you can order it. |
     | `unknown` | Wait and read again. Do not order again. |
 
-    The script reads the order this way every time, and takes the status address from the answer.
+    The script reads the order this way every time, and takes `statusUrl` from the answer.
 
     <ExchangeRecover />
 
     ```json Output (shortened)
-    {"state":"ordered","order":{"kind":"basicTrade","connectionId":"15862432-…","operationId":"0b23326f-…"}}
+    {"state":"ordered","statusUrl":"/api/v1/orders/0b23326f-…"}
     ```
   </Step>
 
   <Step title="Read the status">
-    A Basic trade is read from its venue connection, with the `connectionId` and `operationId` of its address. Poll every 10 seconds until `executionStatus` is `filled` or `unfilled`. `outcome_unknown` is not a failure: the trade may have filled, so keep reading ([Order status](/trade/order-status#basic-venue-trades)).
+    Read the trade at its `statusUrl` until `terminal` is `true`, every 10 seconds, or after `next.retryAfter` when `next` says `wait`. `outcomeUnknown` is not a failure: the trade may have filled, so keep reading ([Order status](/trade/order-status)). The venue's own detail is under `operation`.
 
     <ExchangeStatus />
 
     ```json Output
-    {"executionStatus":"filled"}
+    {"status":"settled","terminal":true,"next":null}
     {"executionStatus":"filled","settlementStatus":null,"bounds":{"debitAsset":"USDC","receiptAsset":"USDT","maximumDebit":"5","minimumReceipt":"4.99172"},"dispatch":{"inputSpent":"5","outputReceived":"5.00675","venueOrderId":"229377"}}
     ```
 

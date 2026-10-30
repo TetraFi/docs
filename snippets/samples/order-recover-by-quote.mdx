@@ -4,9 +4,10 @@
 
 ```bash cURL
 # When you cannot tell whether an order was placed, read it by its quote id before doing
-# anything else. ordered: read that order. notOrdered: nothing was placed. unknown: wait, read again.
+# anything else. ordered: read the order at statusUrl. notOrdered: nothing was placed.
+# unknown: wait, then read again.
 recovered=$(tetrafi GET "/api/v1/orders/by-quote/$order_quote")
-jq -c '{state, order}' <<<"$recovered" >&2
+jq -c '{state, statusUrl}' <<<"$recovered" >&2
 unordered=$(tetrafi GET "/api/v1/orders/by-quote/$quote_id")
 jq -c '{state, expired}' <<<"$unordered" >&2
 ```

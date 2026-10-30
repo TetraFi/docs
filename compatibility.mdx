@@ -80,13 +80,56 @@ second order. A different body under the same key answers `409 IDEMPOTENCY_CONFL
 Refusals are not stored, so after one, fix the request and send it again. The OpenAPI
 description of the header has the full rules.
 
+## Order lifecycle
+
+`POST /api/v1/orders` and `GET /api/v1/orders/{id}` return the same envelope:
+`{kind, status, terminal, statusUrl, quoteId?, requestId?, order|operation}`.
+`kind` is `advancedTrade` (nested `order`) or `basicTrade` (nested `operation`).
+For Basic trades, `{id}` is the operation id. `statusUrl` is always
+`/api/v1/orders/{id}`, including quote-order recovery and webhook data.
+A workspace reader with ViewOrders or PlaceOrder can read a placed order;
+API keys need `orders_read`. Unknown, foreign and unreadable orders share
+404 `ORDER_NOT_FOUND`; a key missing the read scope receives 403 `INSUFFICIENT_SCOPE`.
+
+States may be skipped; act on `terminal`, not on a particular sequence.
+The public `status` is an open, camelCase enum; nested native status fields
+retain their own vocabulary.
+
+| status | Meaning | FIX OrdStatus analogue | terminal |
+|---|---|---|---|
+| `pending` | Accepted, nothing sent yet | A PendingNew | no |
+| `working` | Sent; executing | 0 New / 1 PartiallyFilled | no |
+| `filled` | Executed; settlement or delivery remains | 2 Filled | no |
+| `settled` | Executed and settled, or no settlement applies | 2 Filled | yes |
+| `unfilled` | Venue did not fill; nothing traded | 4 Canceled / C Expired | yes |
+| `cancelled` | Cancelled before dispatch | 4 Canceled | yes |
+| `failed` | Refused or failed; nothing more will happen | 8 Rejected | yes |
+| `refunded` | Funds returned to the payer | 4 Canceled | yes |
+| `reviewRequired` | A person must review before it continues | 9 Suspended | no |
+| `outcomeUnknown` | Venue outcome is being reconciled | none | no |
+
+Terminality comes from the order's durable product facts. Advanced escrow,
+resource-lock and deferred orders can still owe a claim after native `settled`;
+route delivery and atomic venue orders need no separate claim. A failed fill
+that can recover remains nonterminal. Basic orders require final execution
+and final settlement/delivery, or no such legs. Review and unknown outcomes
+never mean terminal.
+
+For an uncertain or review-required order, `next` names the supported step:
+`wait` carries an ISO 8601 `retryAfter` for another read; `contact` carries the
+order reference for support. Neither authorizes another order or a funds movement.
+Terminal orders carry no `next`. Unknown future action kinds are not actions a
+client may take automatically.
+
 ## Webhooks
 
 A workspace webhook receives a signed `POST` for each event it subscribes to.
 `order.updated` is sent on every status change of an order placed in that workspace.
 
 - **Body.** `{id, type, apiVersion, createdAt, data}`. For `order.updated`, `data` is
-  `{orderId, status, statusUrl}`; read the order at `statusUrl` for its full state. New
+  `{orderId, kind, status, terminal, statusUrl}`; read the order at `statusUrl` for its full state.
+  If durable lifecycle facts are temporarily unavailable, `terminal` is omitted
+  (never guessed) and `status` names the observed event. New
   `type` values and new fields can appear without notice, so ignore what you don't know.
   A breaking change to a body ships under a new `apiVersion`.
 - **Signature.** Standard Webhooks headers: `webhook-id`, `webhook-timestamp` (Unix seconds),

@@ -5,6 +5,19 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-30" description="One order read, one 401 code, and renamed refusals">
+  An order has one read, and every refusal has one code with one status.
+
+  What to change:
+  - Read every order at the `statusUrl` its answer gives: `GET /api/v1/orders/{id}`. It answers the same envelope as `POST /api/v1/orders`, for Basic and Advanced orders alike: `kind`, `status`, `terminal`, `statusUrl`, `next` when there is something to do, and the trade's own detail under `operation` or `order`. The recovery answer of `GET /api/v1/orders/by-quote/{quoteId}` also carries `statusUrl`.
+  - Read `status` from one camelCase list: `pending`, `working`, `filled`, `settled`, `unfilled`, `cancelled`, `failed`, `refunded`, `reviewRequired` and `outcomeUnknown`. Stop polling on `terminal`. While an order is not final, `next` says `wait` (read again after `retryAfter`) or `contact` (contact support with `reference`).
+  - Stop building the Basic trade's address from your workspace, connection and operation ids.
+  - Match `401 AUTH_REQUIRED` for every authentication failure, and read the cause in `details.reason`, for example `MISSING_CREDENTIALS`, `INVALID_API_KEY` or `SIGNATURE_INVALID`.
+  - Match the renamed codes: `QUOTE_PRICE_MOVED` (was `PRICE_MOVED_BEYOND_PROTECTION`), `VENUE_FIRM_QUOTE_LIMITED` (was `FIRM_QUOTE_LIMITED`), `QUOTE_ALREADY_ORDERED`, `QUOTE_ID_INVALID` for a malformed quote id, and `WALLET_SIGNATURE_REQUIRED` for a missing wallet signature on an order.
+  - Read `docUrl` on any refusal: it links the code's entry in the [error-code reference](/reference/error-codes).
+  - Deliver trade output to an address or one of your own accounts: no trade can deliver to a payee.
+</Update>
+
 <Update label="2026-10-30" description="An API key implies its workspace">
   An API key is bound to the workspace it was created in, and every request it sends now works in that workspace without `X-Workspace-Id`.
 

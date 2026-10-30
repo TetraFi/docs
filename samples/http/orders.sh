@@ -12,7 +12,6 @@
 #   TETRAFI_VENUES          comma-separated venue ids to ask, instead of every venue
 #   TETRAFI_PLACE_ORDER=1   places one order, replays it and recovers it by quote (yes also works)
 #   TETRAFI_EXPIRED=yes     waits for the first quote to expire, tries to order it, then requotes it
-#   TETRAFI_ORDER_ID        an Advanced order id to read the status of
 #
 # Progress goes to stderr; the last line printed is one JSON summary. An unexpected API error
 # prints its error body and exits 1.
@@ -137,9 +136,10 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
 
   # region order-recover-by-quote
   # When you cannot tell whether an order was placed, read it by its quote id before doing
-  # anything else. ordered: read that order. notOrdered: nothing was placed. unknown: wait, read again.
+  # anything else. ordered: read the order at statusUrl. notOrdered: nothing was placed.
+  # unknown: wait, then read again.
   recovered=$(tetrafi GET "/api/v1/orders/by-quote/$order_quote")
-  jq -c '{state, order}' <<<"$recovered" >&2
+  jq -c '{state, statusUrl}' <<<"$recovered" >&2
   unordered=$(tetrafi GET "/api/v1/orders/by-quote/$quote_id")
   jq -c '{state, expired}' <<<"$unordered" >&2
   # endregion
@@ -147,34 +147,23 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
     kind: $p.kind, quoteId: $p.quoteId, id: ($p.operation.operationId // $p.order.orderId),
     conflict: $c, recovered: $r.state}}' <<<"$summary")
 
-  if [[ $(jq -r '.kind' <<<"$placed") == basicTrade ]]; then
-    # region order-status-basic
-    # A Basic trade is read from its venue connection. Poll every 10 seconds until it is filled
-    # or unfilled. This sample also stops at needs_review, which waits on a review. Treat an
-    # unknown value as "other" and keep polling.
-    path=$(jq -r '.statusUrl' <<<"$placed")
-    for _ in $(seq 1 12); do
-      trade=$(tetrafi GET "$path")
-      status=$(jq -r '.executionStatus' <<<"$trade")
-      echo "{\"executionStatus\":\"$status\"}" >&2
-      case $status in filled | unfilled | needs_review) break ;; esac
-      sleep 10
-    done
-    # endregion
-    summary=$(jq -c --arg s "$status" '.order.status = $s' <<<"$summary")
-  else
-    TETRAFI_ORDER_ID=$(jq -r '.order.orderId' <<<"$placed")
-  fi
-fi
-
-if [[ -n ${TETRAFI_ORDER_ID:-} ]]; then
-  # region order-status-advanced
-  # An Advanced order is read at /orders/{orderId}. Poll every 10 to 15 seconds until terminal
-  # is true; nextActor says who has to act next.
-  order=$(tetrafi GET "/api/v1/orders/$TETRAFI_ORDER_ID")
-  jq -c '{orderId, status, terminal, nextActor}' <<<"$order" >&2
+  # region order-status
+  # Read the order at the statusUrl its answer gave: the same envelope as POST /orders, for
+  # Basic and Advanced orders alike. Poll every 10 to 15 seconds until terminal is true. While it
+  # is not, next can say what to do: wait (retryAfter) or contact support with its reference.
+  # A status you do not recognise is "other": keep following terminal.
+  status_url=$(jq -r '.statusUrl' <<<"$placed")
+  for _ in $(seq 1 12); do
+    read_order=$(tetrafi GET "$status_url")
+    jq -c '{kind, status, terminal, next}' <<<"$read_order" >&2
+    [[ $(jq -r '.terminal' <<<"$read_order") == true ]] && break
+    wait=$(jq -r '.next | select(.kind == "wait") | .retryAfter | capture("^PT(?<s>[0-9]+)S$").s' \
+      <<<"$read_order" 2>/dev/null || true)
+    sleep "${wait:-10}"
+  done
   # endregion
-  summary=$(jq -c --argjson o "$order" '. + {advancedOrder: {status: $o.status, terminal: $o.terminal, nextActor: $o.nextActor}}' <<<"$summary")
+  summary=$(jq -c --arg s "$(jq -r '.status' <<<"$read_order")" --arg t "$(jq -r '.terminal' <<<"$read_order")" \
+    '.order.status = $s | .order.terminal = ($t == "true")' <<<"$summary")
 fi
 
 if [[ ${TETRAFI_EXPIRED:-} == yes ]]; then

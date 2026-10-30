@@ -67,14 +67,14 @@ pay=${TETRAFI_PAY:-USDC}
 receive=${TETRAFI_RECEIVE:-USDT}
 
 # region errors-parse
-# Every refusal is one JSON body: {error, message, requestId, timestamp, next?, details?}.
-# Match on `error`, never on `message`. Keep `requestId` for support.
+# Every refusal is one JSON body: {error, message, requestId, timestamp, docUrl, next?, details?}.
+# Match on `error`, never on `message`. Keep `requestId` for support; docUrl links the code's entry.
 if refusal=$(tetrafi POST /api/v1/quotes \
   '{"pay":{"asset":"NOT_AN_ASSET"},"receive":{"asset":"USDT"},"amount":"10","side":"payExact"}' 2>/dev/null); then
   echo '{"error":"EXPECTED_A_REFUSAL"}' >&2
   exit 1
 fi
-jq -c '{error, requestId, next, details}' <<<"$refusal" >&2
+jq -c '{error, requestId, docUrl, next, details}' <<<"$refusal" >&2
 case $(jq -r '.error' <<<"$refusal") in
   UNKNOWN_ASSET | UNKNOWN_CHAIN | UNKNOWN_VENUE)
     echo "use values from GET /api/v1/assets: $(jq -c '.details' <<<"$refusal")" >&2 ;;

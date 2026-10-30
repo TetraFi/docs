@@ -58,7 +58,7 @@ Send your key with every request:
 
 The key is bound to its workspace when it is created, so every request it sends works in that workspace, with or without `X-Workspace-Id`. If you send the header, it must name that same workspace: another workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a malformed one answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session has no workspace of its own, so it must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
 
-Order reads need authentication too. Send your key on `GET /api/v1/orders/{orderId}`. A read without credentials never returns the order: it answers `401 MISSING_CREDENTIALS` before any order lookup, or `404 ORDER_NOT_FOUND` on a deployment that does not have this change yet. Authentication and workspace refusals use the same [JSON error body](/trade/errors#read-a-refusal) as other API refusals.
+Order reads need authentication too. Send your key on `GET /api/v1/orders/{orderId}`. A read without credentials never returns the order: it answers `401 AUTH_REQUIRED` before any order lookup. Authentication and workspace refusals use the same [JSON error body](/trade/errors#read-a-refusal) as other API refusals.
 
 To check a key, call `GET /api/v1/me`. It has no side effects and returns the key's workspace in `workspaceId`, its current permissions and scopes, its rate limits and its expiry. Use it to find the workspace id of a new key: a few paths, such as a Basic trade status read after [recovering an order by its quote](/trade/idempotency#recover-an-order-by-its-quote), still contain it. A key with request signing must still sign it.
 
@@ -82,21 +82,23 @@ The signed string is four lines joined by a newline, with no newline at the end:
 
 A request without a body signs the SHA-256 of zero bytes. Each signature is accepted once.
 
-| Refusal | Meaning |
+A request that fails the signature check is refused with `401 AUTH_REQUIRED`, and `details.reason` says why:
+
+| What went wrong | `details.reason` |
 | --- | --- |
-| `SIGNATURE_REQUIRED` | The key needs signing and a header is missing. |
-| `SIGNATURE_INVALID` | The signature is malformed or does not match. |
-| `TIMESTAMP_OUT_OF_RANGE` | `X-Timestamp` is more than 300 seconds from TetraFi's clock. |
-| `SIGNATURE_REPLAYED` | This exact signature was already used. |
+| The key needs signing and a header is missing. | `SIGNATURE_REQUIRED` |
+| The signature is malformed or does not match. | `SIGNATURE_INVALID` |
+| `X-Timestamp` is more than 300 seconds from TetraFi's clock. | `TIMESTAMP_OUT_OF_RANGE` |
+| This exact signature was already used. | `SIGNATURE_REPLAYED` |
 
 The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.
 
 ## Rotate and revoke
 
 - **Rotate.** Choose **Rotate key** on the key. A new secret is issued, and the old one keeps working for a short grace period so you can deploy the new one. The rotated key keeps its permissions and its signing secret.
-- **Revoke.** Choose **Revoke key** on the key. Revoking is permanent and immediate: applications using the key lose access at once, and the key then answers `401 INVALID_API_KEY`.
+- **Revoke.** Choose **Revoke key** on the key. Revoking is permanent and immediate: applications using the key lose access at once, and the key then answers `401 AUTH_REQUIRED` with `details.reason` `INVALID_API_KEY`.
 
-A key past its **Expiration** answers `401 API_KEY_EXPIRED`.
+A key past its **Expiration** answers `401 AUTH_REQUIRED` with `details.reason` `API_KEY_EXPIRED`.
 
 ## Rate limits
 

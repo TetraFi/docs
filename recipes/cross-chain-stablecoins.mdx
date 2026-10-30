@@ -85,23 +85,22 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
   </Step>
 
   <Step title="Follow it until it ends">
-    The order answers as soon as it is accepted. A move executed from an organisation wallet answers `"kind": "basicTrade"`; read it from its venue connection every 10 seconds until `executionStatus` is `filled` or `unfilled` ([Order status](/trade/order-status)).
+    The order answers as soon as it is accepted. A move executed from an organisation wallet answers `"kind": "basicTrade"`; read it at its `statusUrl` every 10 seconds until `terminal` is `true` ([Order status](/trade/order-status)).
 
-    While the funds are on their way, the status reads `outcome_unknown`. That is not a failure: keep reading, and never place a new order for it.
+    While the funds are on their way, the status can read `working` or `outcomeUnknown`. Neither is a failure: keep reading, and never place a new order for it. When `next` says `wait`, read again after its `retryAfter`.
 
     <CrossChainStatus />
 
     ```json Output (shortened)
-    {"executionStatus":"outcome_unknown"}
-    {"executionStatus":"outcome_unknown"}
-    {"executionStatus":"filled"}
+    {"kind":"basicTrade","status":"working","terminal":false,"next":null}
+    {"kind":"basicTrade","status":"settled","terminal":true,"next":null}
     ```
 
-    In this run on test networks, the move from Base Sepolia to Ethereum Sepolia read `filled` about two and a half minutes after the order.
+    On test networks, a move from Base Sepolia to Ethereum Sepolia finished about two and a half minutes after the order.
   </Step>
 
   <Step title="Confirm it arrived">
-    Read `executionStatus` for the trade and `settlementStatus` for any later money movement. When the venue reports amounts, `dispatch.inputSpent` is what you paid and `dispatch.outputReceived` is what you received. A missing or `null` amount is unknown, not zero. `dispatch.venueOrderId`, when present, is the venue's native order id.
+    The venue trade's own detail is under `operation`: `executionStatus` for the trade and `settlementStatus` for any later money movement. When the venue reports amounts, `dispatch.inputSpent` is what you paid and `dispatch.outputReceived` is what you received. A missing or `null` amount is unknown, not zero. `dispatch.venueOrderId`, when present, is the venue's native order id.
 
     `bounds.maximumDebit` and `bounds.minimumReceipt` are the limits you accepted, not the amounts that settled. The public response does not document delivery transaction hashes or your organisation wallet's transaction steps.
 

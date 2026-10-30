@@ -157,20 +157,22 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
     {
       "kind": "basicTrade",
       "quoteId": "q_01M5…",
-      "statusUrl": "/api/v1/workspaces/…/venue-connections/1586…/trade-preparations/acb8…",
+      "status": "working",
+      "terminal": false,
+      "statusUrl": "/api/v1/orders/acb8…",
       "operation": { "connectionId": "1586…", "operationId": "acb8…" }
     }
     ```
 
-    A Basic quote answers `"kind": "basicTrade"` with the venue trade in `operation`. An Advanced quote answers `"kind": "advancedTrade"` with the order in `order`. Either way, `statusUrl` is where to read its status.
+    A Basic quote answers `"kind": "basicTrade"` with the venue trade in `operation`. An Advanced quote answers `"kind": "advancedTrade"` with the order in `order`. Either way, `status` and `terminal` say where it is, and `statusUrl` is where to read it again.
   </Step>
 
   <Step title="Read the status">
-    Read the order where the response points. A Basic venue trade is read from its venue connection, with `operation.connectionId` and `operation.operationId` from the order response. An Advanced order is at `GET /api/v1/orders/{orderId}`, with `order.orderId`.
+    Read the order at the `statusUrl` the answer gave. The read answers the same envelope as the order answer, for every kind of order.
 
     <QuickstartStatus />
 
-    The script reads the status once. In your own code, poll every 10 seconds until the trade is final: `executionStatus` `filled` or `unfilled` for a Basic trade, `terminal: true` for an Advanced order. `outcome_unknown` is not a failure: the trade was sent and may have filled, so keep reading it and never place a new order for it ([Order status](/trade/order-status)).
+    The script reads the status once. In your own code, poll every 10 to 15 seconds until `terminal` is `true`. `outcomeUnknown` is not a failure: the trade was sent and may have filled, so keep reading it and never place a new order for it ([Order status](/trade/order-status)).
 
     The script's last line is a one-line summary:
 
