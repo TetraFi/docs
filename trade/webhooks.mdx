@@ -64,7 +64,7 @@ Verify every delivery before you trust its body. The signature is an HMAC-SHA256
 - refuse a `webhook-timestamp` more than five minutes from your clock, so a captured delivery cannot be replayed later;
 - accept the delivery when any one of the `v1,` values matches.
 
-You can use a [Standard Webhooks library](https://github.com/standard-webhooks/standard-webhooks) instead of your own code. These samples check themselves against the Standard Webhooks example delivery, and refuse a changed body and a stale timestamp:
+You can verify with a [Standard Webhooks library](https://github.com/standard-webhooks/standard-webhooks) instead of your own code, such as `standardwebhooks` on npm or PyPI: pass it your `whsec_` secret, the raw body and the three headers. Or verify it yourself; these samples check themselves against the Standard Webhooks example delivery, and refuse a changed body and a stale timestamp:
 
 <WebhookVerify />
 
@@ -84,7 +84,8 @@ After five deliveries in a row fail every retry, the webhook is paused. Fix your
 
 Deliveries are at least once: a retry or a redelivery can bring the same event again, and events can arrive out of order.
 
-- Record each body's `id` when you have processed the event, and skip one you have already recorded. A retry of one delivery also repeats its `webhook-id`.
+- Deduplicate on `webhook-id`: a retry or redelivery of one delivery carries the same `webhook-id`, so store it and skip a delivery you have already handled.
+- The body's `id` names the event itself: use it to recognise the same event across deliveries.
 - Acknowledge first, work later: answer `2xx` once the delivery is verified and stored, then process it, so slow work does not cause retries.
 - To learn an order's current status, read `statusUrl` rather than relying on the order in which events arrived.
 

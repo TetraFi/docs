@@ -46,6 +46,18 @@ We do not, without the deprecation process below:
   `GET /api/v1/assets` and from quote responses. A venue or asset can be added without
   any change to your code.
 
+## Order identity and minimum receive
+
+Both order kinds carry one top-level `orderId`, accepted by `GET /api/v1/orders/{id}`.
+An Advanced order retains `order.orderId`; a Basic order retains `operation.operationId`.
+The ordered by-quote recovery answer and `order.updated.data` carry that same canonical id.
+These nested resource identifiers are not aliases for a second order resource.
+
+Read each quote card's `minReceiveRequired` boolean before ordering. When true, supply
+`minReceive`; omission returns 400 `MIN_RECEIVE_REQUIRED` with `details.field: "minReceive"`.
+The flag describes existing admission, not a new restriction. A false flag does not grant
+permission to order: readiness, expiry and the card's `next` still apply.
+
 ## The error body
 
 Every refusal of an integrator operation, at every status, is one JSON object:
