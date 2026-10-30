@@ -5,7 +5,7 @@ description: "Read the one error body every refusal uses, know which refusals to
 
 import ErrorsParse from '/snippets/samples/errors-parse.mdx';
 import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
-import ErrorsMissingWorkspace from '/snippets/samples/errors-missing-workspace.mdx';
+import ErrorsWrongWorkspace from '/snippets/samples/errors-wrong-workspace.mdx';
 
 When TetraFi refuses a request, the answer is always the same JSON object, whatever the status and whichever call you made. One parser reads every refusal on this page.
 
@@ -108,15 +108,11 @@ The two requests carry different amounts on purpose. A signed request's signatur
 
 New codes can be added at any time. Act on the codes you know, and treat any other by its status class, as the [compatibility policy](/compatibility#what-your-client-should-do) says: retry a `429` or `503` after `Retry-After`, fix the request on any other `4xx`, and retry a `5xx` with backoff. Show `message` and log `requestId` either way.
 
-## A missing workspace
+## The wrong workspace
 
-Every request names the workspace its key belongs to in `X-Workspace-Id`. Without it, or with an empty value, any request answers `400 MISSING_WORKSPACE`. A value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`.
+An API key is bound to its workspace, so it may leave `X-Workspace-Id` out. When it sends one, it must be the key's own: any other workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
 
-<ErrorsMissingWorkspace />
-
-```json Output
-{"error":"MISSING_WORKSPACE","message":"X-Workspace-Id header is required","requestId":"710fdc9b-…"}
-```
+<ErrorsWrongWorkspace />
 
 ## Refusals by area
 
@@ -128,7 +124,7 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
-| 400 `MISSING_WORKSPACE` | `X-Workspace-Id` is missing or empty. | Send the id of the workspace the key belongs to. |
+| 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. | Send the workspace id, or use a key created in the workspace. |
 | 400 `INVALID_WORKSPACE_ID` | `X-Workspace-Id` is not a workspace id, or is sent more than once. | Send it once, as the workspace id. |
 | 401 `MISSING_CREDENTIALS` | No API key was sent. | Send `X-API-Key`. |
 | 401 `INVALID_API_KEY` | The key is unknown, or it was revoked. | Use a current key. |

@@ -5,7 +5,6 @@
 ```bash cURL
 : "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
 : "${TETRAFI_API_KEY:?Set TETRAFI_API_KEY}"
-: "${TETRAFI_WORKSPACE_ID:?Set TETRAFI_WORKSPACE_ID}"
 
 # tetrafi METHOD PATH [BODY] [HEADER]
 # Sends one request and prints the response body. On an error status it also prints
@@ -14,9 +13,9 @@ tetrafi() {
   local method=$1 path=$2 body=${3:-} extra=${4:-}
   local headers=(
     -H "X-API-Key: $TETRAFI_API_KEY"
-    -H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"
     -H "Accept: application/json"
   )
+  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then

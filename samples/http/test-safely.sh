@@ -6,7 +6,7 @@
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
 #   TETRAFI_API_KEY         your API key, with Read quotes
-#   TETRAFI_WORKSPACE_ID    the workspace the key belongs to
+#   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on
 # Optional:
 #   TETRAFI_PAY, TETRAFI_RECEIVE   the pair (default USDC for USDT)
@@ -17,7 +17,6 @@ set -euo pipefail
 
 : "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
 : "${TETRAFI_API_KEY:?Set TETRAFI_API_KEY}"
-: "${TETRAFI_WORKSPACE_ID:?Set TETRAFI_WORKSPACE_ID}"
 
 # tetrafi METHOD PATH [BODY] [HEADER] [HEADERS_FILE]
 # Sends one request and prints the response body. On an error status it also prints the body to
@@ -27,9 +26,9 @@ tetrafi() {
   local method=$1 path=$2 body=${3:-} extra=${4:-} dump=${5:-}
   local headers=(
     -H "X-API-Key: $TETRAFI_API_KEY"
-    -H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"
     -H "Accept: application/json"
   )
+  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then

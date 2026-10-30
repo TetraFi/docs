@@ -6,7 +6,8 @@
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
 #   TETRAFI_API_KEY         your API key, with venue trading switched on
-#   TETRAFI_WORKSPACE_ID    the workspace the key belongs to
+#   TETRAFI_WORKSPACE_ID    the workspace the key belongs to, for the trade status path when
+#                           recovering an order by its quote
 #   TETRAFI_SIGNING_SECRET  the key's signing secret (venue trading needs request signing)
 # Optional:
 #   TETRAFI_VENUE           the venue id of your exchange account (default: the venue of the best
@@ -31,9 +32,9 @@ tetrafi() {
   local method=$1 path=$2 body=${3:-} extra=${4:-}
   local headers=(
     -H "X-API-Key: $TETRAFI_API_KEY"
-    -H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"
     -H "Accept: application/json"
   )
+  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then

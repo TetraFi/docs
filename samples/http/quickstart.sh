@@ -4,7 +4,7 @@
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
 #   TETRAFI_API_KEY         your API key
-#   TETRAFI_WORKSPACE_ID    the workspace the key belongs to
+#   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
 #   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 10 USDC for USDT)
@@ -18,7 +18,6 @@ set -euo pipefail
 # region quickstart-client
 : "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
 : "${TETRAFI_API_KEY:?Set TETRAFI_API_KEY}"
-: "${TETRAFI_WORKSPACE_ID:?Set TETRAFI_WORKSPACE_ID}"
 
 # tetrafi METHOD PATH [BODY] [HEADER]
 # Sends one request and prints the response body. On an error status it also prints
@@ -27,9 +26,9 @@ tetrafi() {
   local method=$1 path=$2 body=${3:-} extra=${4:-}
   local headers=(
     -H "X-API-Key: $TETRAFI_API_KEY"
-    -H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"
     -H "Accept: application/json"
   )
+  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
@@ -144,8 +143,7 @@ case $(jq -r '.kind' <<<"$placed") in
       '{kind: "advancedTrade", id: .orderId, status, terminal, idempotencyKey: $k}' <<<"$order"
     ;;
   basicTrade)
-    path=$(jq -r --arg ws "$TETRAFI_WORKSPACE_ID" '.operation |
-      "/api/v1/workspaces/\($ws)/venue-connections/\(.connectionId)/trade-preparations/\(.operationId)"' <<<"$placed")
+    path=$(jq -r '.statusUrl' <<<"$placed")
     trade=$(tetrafi GET "$path")
     jq -c --arg k "$idempotency_key" \
       '{kind: "basicTrade", id: .operationId, status: .executionStatus, idempotencyKey: $k}' <<<"$trade"
