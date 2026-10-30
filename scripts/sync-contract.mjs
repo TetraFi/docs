@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The public contract pages come from the RFQ repository's contract files, never from a hand copy:
+// The public contract pages come from the RFQ repository's committed contract files, never from a hand copy:
 //   - tetrafi-rfq/docs/api/COMPATIBILITY.md         → compatibility.mdx
 //   - tetrafi-rfq/docs/api/integrator/openapi.json  → api-reference/openapi.json (when it exists)
 //   - tetrafi-rfq/docs/api/integrator/error-codes.json → reference/error-codes.mdx
@@ -8,6 +8,7 @@
 //
 //   node scripts/sync-contract.mjs           write
 //   node scripts/sync-contract.mjs --check   exit 1 on drift (CONTRACT_DRIFT <file>)
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
@@ -16,10 +17,31 @@ const root = path.resolve(import.meta.dirname, '..');
 const source = process.env.TETRAFI_RFQ_API_DOCS ?? path.join(root, '..', 'tetrafi-rfq', 'docs', 'api');
 const check = process.argv.includes('--check');
 
+// Contract sources are read from tetrafi-rfq's committed HEAD, never its working tree: a peer's
+// uncommitted edit there must not reach the public site. With TETRAFI_RFQ_API_DOCS set (tests,
+// scratch copies), the files are read as they are. A file HEAD does not have reads as unpublished;
+// any other failed read throws rather than passing for an empty contract.
+const rfqRoot = path.join(root, '..', 'tetrafi-rfq');
+const fromHead = !process.env.TETRAFI_RFQ_API_DOCS && existsSync(path.join(rfqRoot, '.git'));
+function sourceText(relative) {
+  if (!fromHead) {
+    const file = path.join(source, relative);
+    return existsSync(file) ? readFileSync(file, 'utf8') : null;
+  }
+  try {
+    return execFileSync('git', ['-C', rfqRoot, 'show', `HEAD:docs/api/${relative}`],
+      { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    if (/does not exist in|exists on disk, but not in/.test(String(error.stderr ?? ''))) return null;
+    throw new Error(`CONTRACT_SOURCE_UNREADABLE docs/api/${relative} at tetrafi-rfq HEAD`);
+  }
+}
+
 function compatibilityPage() {
   const from = path.join(source, 'COMPATIBILITY.md');
-  if (!existsSync(from)) throw new Error(`missing contract source ${from}`);
-  const lines = readFileSync(from, 'utf8').split('\n');
+  const text = sourceText('COMPATIBILITY.md');
+  if (text === null) throw new Error(`missing contract source ${from}`);
+  const lines = text.split('\n');
   if (!lines[0].startsWith('# ')) throw new Error(`${from}: expected a level-1 heading on line 1`);
   const body = lines.slice(1).join('\n').replace(/^\n+/, '')
     // Links that point inside the RFQ repository become site links.
@@ -45,8 +67,9 @@ function compatibilityPage() {
 // then it is withheld (never partly scrubbed here: the generator owns its text).
 function referenceSpec() {
   const from = path.join(source, 'integrator', 'openapi.json');
-  if (!existsSync(from)) return { spec: null, withheld: 'not published yet' };
-  const text = `${JSON.stringify(JSON.parse(readFileSync(from, 'utf8')), null, 2)}\n`;
+  const raw = sourceText('integrator/openapi.json');
+  if (raw === null) return { spec: null, withheld: 'not published yet' };
+  const text = `${JSON.stringify(JSON.parse(raw), null, 2)}\n`;
   const hits = scanText(text, rulesFor(root, allowedInternalNames(from)));
   if (hits.length) return { spec: null, withheld: `${hits.length} leak hits (${[...new Set(hits.map((h) => h.match))].slice(0, 5).join(', ')}, …)` };
   return { spec: text, withheld: null };
@@ -55,8 +78,9 @@ const reference = referenceSpec();
 
 function errorCodesPage() {
   const from = path.join(source, 'integrator', 'error-codes.json');
-  if (!existsSync(from)) return { page: null, withheld: 'not published yet', hits: [] };
-  const contract = JSON.parse(readFileSync(from, 'utf8'));
+  const raw = sourceText('integrator/error-codes.json');
+  if (raw === null) return { page: null, withheld: 'not published yet', hits: [] };
+  const contract = JSON.parse(raw);
   if (typeof contract.version !== 'string' || !contract.version || !Array.isArray(contract.codes) || !contract.codes.length || !Array.isArray(contract.sourceReasons) || !contract.sourceReasons.length) {
     throw new Error(`${from}: expected version, nonempty codes and nonempty sourceReasons`);
   }
@@ -132,8 +156,9 @@ const errorCodes = errorCodesPage();
 // published as one to subscribe to.
 function webhookEventsPage() {
   const from = path.join(source, 'openapi.json');
-  if (!existsSync(from)) return { page: null, withheld: 'full spec not found', hits: [] };
-  const catalogue = JSON.parse(readFileSync(from, 'utf8'))['x-tetrafi-webhook-event-catalogue'];
+  const raw = sourceText('openapi.json');
+  if (raw === null) return { page: null, withheld: 'full spec not found', hits: [] };
+  const catalogue = JSON.parse(raw)['x-tetrafi-webhook-event-catalogue'];
   if (!Array.isArray(catalogue?.events) || !catalogue.events.length || !Array.isArray(catalogue?.groups) || !catalogue.groups.length) {
     return { page: null, withheld: 'no x-tetrafi-webhook-event-catalogue in the full spec', hits: [] };
   }
