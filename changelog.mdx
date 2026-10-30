@@ -5,6 +5,12 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-30" description="List and cancel orders">
+  - List your orders with `GET /api/v1/orders`: newest first, in the order envelope, filtered by `status`, `kind`, `sellAsset`, `buyAsset`, `from` and `to`, and paged with `cursor`. A page can hold fewer than `limit` orders, even none: follow `nextCursor` until it is `null`.
+  - Cancel an order before it is sent to a venue, or a pay-in waiting for funds, with `POST /api/v1/orders/{id}/cancel` and an `Idempotency-Key`. Afterwards it answers `409 ORDER_NOT_CANCELLABLE` with `details.status`. TetraFi never cancels at the venue or refunds.
+  - `GET /api/v1/workspaces/{id}/trades` is no longer part of the integrator API: use the order list.
+</Update>
+
 <Update label="2026-10-30" description="orderId on every order answer; minReceiveRequired on quotes">
   What to change:
   - Read an order's id from the top-level `orderId` of the order answer, the status read and the recovery answer. It is the id `GET /api/v1/orders/{id}` takes, for Basic and Advanced orders alike.

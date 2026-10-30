@@ -114,7 +114,7 @@ New codes can be added at any time. Act on the codes you know, and treat any oth
 
 An API key is bound to its workspace, so it may leave `X-Workspace-Id` out. When it sends one, it must be the key's own: any other workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
 
-A few paths name a workspace, such as `GET /api/v1/workspaces/{id}/trades`. A path workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
+A few paths name a workspace, such as `GET /api/v1/workspaces/{id}/webhooks`. A path workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
 
 <ErrorsWrongWorkspace />
 
@@ -215,6 +215,8 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
+| 400 `INVALID_CURSOR` | The order list's `cursor` is not one this key got for these filters. | Start again without `cursor`, or send the `nextCursor` you were given. |
+| 409 `ORDER_NOT_CANCELLABLE` | The order was already sent, its funding or delivery moved, or it ended. `details.status` is its status. | Read the order; it can no longer be cancelled. |
 | 400 `INVALID_REQUEST` | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads was sent on a Basic quote. `message` names it. | Fix that field. |
 | 400 `WALLET_SIGNATURE_REQUIRED` | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
 | 400 `SIGNATURE_NOT_ACCEPTED` | A signature was sent on a quote that takes none. | Leave out `signature`. |
