@@ -4,6 +4,7 @@ description: "Follow an order to the end: one read for every order, what each st
 ---
 
 import OrderStatus from '/snippets/samples/order-status.mdx';
+import OrdersList from '/snippets/samples/orders-list.mdx';
 
 `POST /api/v1/orders` answers as soon as the order is accepted. To follow it to the end, read it at the `statusUrl` the answer gives: `GET /api/v1/orders/{id}`. The read answers the same envelope as the order answer, for Basic and Advanced orders alike, so one parser reads both.
 
@@ -62,6 +63,29 @@ Without `next`, poll every 10 to 15 seconds until `terminal` is `true`.
 
 ```json Output on test networks
 {"kind":"basicTrade","status":"settled","terminal":true,"next":null}
+```
+
+## List your orders
+
+`GET /api/v1/orders` lists your workspace's orders, newest first, each in the same envelope as `GET /api/v1/orders/{id}`. The key needs **Read orders**.
+
+| Query parameter | What it filters |
+| --- | --- |
+| `status` | One status from the list above. |
+| `kind` | `basicTrade` or `advancedTrade`. |
+| `sellAsset`, `buyAsset` | The asset paid or received, such as `USDC`. |
+| `from`, `to` | Created at or after, and at or before, an RFC 3339 time. |
+| `limit` | Up to 20 orders a page; 20 when left out. |
+| `cursor` | The previous page's `nextCursor`. |
+
+A page can hold fewer than `limit` orders, even none, while there are more: keep following `nextCursor` until it is `null`. A cursor belongs to the key and the exact filters it came with; any other answers `400 INVALID_CURSOR`. The script [`samples/http/orders-list.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/orders-list.sh) lists the last 30 days:
+
+<OrdersList />
+
+```json Output on test networks (shortened)
+orders: 100 across 5 pages
+{"orderId":"b7670e34-…","kind":"basicTrade","status":"unfilled","terminal":true}
+{"orderId":"dad901ac-…","kind":"basicTrade","status":"settled","terminal":true}
 ```
 
 ## In the app

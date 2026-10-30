@@ -4,6 +4,7 @@ description: "Preflight a quote, sign what your wallet must sign and place the o
 ---
 
 import OrderPlace from '/snippets/samples/order-place.mdx';
+import OrderCancel from '/snippets/samples/order-cancel.mdx';
 
 You place an order by naming a quote you hold. TetraFi kept the quote's terms when it returned them, so the order body is the quote id plus anything only you can supply: a signature, a minimum receive or a tighter price protection.
 
@@ -137,6 +138,18 @@ Which field applies where:
 | Order | `minReceive` | A positive amount | Basic quotes only. Required when the quote's `minReceiveRequired` is `true` ([above](#venue-quotes-that-execute-within-your-limit)), optional on any other Basic quote. On an Advanced quote it is refused with `400 MIN_RECEIVE_NOT_ACCEPTED`. |
 
 If an Advanced quote's price has moved beyond your protection when you order, the order is refused with `409 QUOTE_PRICE_MOVED` and nothing is sent. Request the price again.
+
+## Cancel an order
+
+`POST /api/v1/orders/{id}/cancel` cancels an order that has not been sent to a venue yet, or a pay-in still waiting for your funds. It answers the order envelope with `status` `cancelled` and `terminal` `true`, and cancelling it again changes nothing. Send an `Idempotency-Key`, as when you place it; the key needs **Submit orders**.
+
+Once the order has been sent to a venue, its funding or delivery has moved, or it has ended, the cancel is refused with `409 ORDER_NOT_CANCELLABLE` and the order's status in `details.status`. TetraFi never cancels at the venue and never refunds: a Basic venue trade is sent as soon as it is placed, so in practice you can cancel one only while it waits for a pay-in.
+
+<OrderCancel />
+
+```json Output on test networks
+{"error":"ORDER_NOT_CANCELLABLE","status":"unfilled"}
+```
 
 ## Refusals
 

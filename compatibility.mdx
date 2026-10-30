@@ -106,6 +106,18 @@ second order. A different body under the same key answers `409 IDEMPOTENCY_CONFL
 Refusals are not stored, so after one, fix the request and send it again. The OpenAPI
 description of the header has the full rules.
 
+## Cancellation
+
+`POST /orders/{id}/cancel` accepts the GET order identifier and returns that same
+envelope with `status: "cancelled"` and `terminal: true`. It is naturally idempotent
+by order id: a repeated cancellation does not change the resource. Sessions need
+PlaceOrder; keys need `orders_write` and `Idempotency-Key`. Only undispatched Basic
+orders and deposit-first pay-ins still awaiting funds are eligible. A durable
+claim or any progressed funding/delivery step refuses with 409
+`ORDER_NOT_CANCELLABLE`; `details.status` is the current public lifecycle status.
+Advanced orders are not cancellable through this endpoint. No cancellation calls
+reach a venue, and any deposit already credited remains the workspace's balance.
+
 ## Order lifecycle
 
 `POST /api/v1/orders` and `GET /api/v1/orders/{id}` return the same envelope:

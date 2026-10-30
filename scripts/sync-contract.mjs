@@ -163,7 +163,7 @@ function webhookEventsPage() {
     return { page: null, withheld: 'no x-tetrafi-webhook-event-catalogue in the full spec', hits: [] };
   }
   const events = catalogue.events.filter((row) => row.subscribable === true);
-  const stale = events.filter((row) => typeof row.event !== 'string' || !/^[a-z]+(?:\.[a-z][a-z_]*)+$/.test(row.event));
+  const stale = events.filter((row) => typeof row.event !== 'string' || !/^[a-z][a-z_]*(?:\.[a-z][a-z_]*)+$/.test(row.event));
   if (stale.length) return { page: null, withheld: `event names not canonical: ${stale.slice(0, 5).map((row) => row.event).join(', ')}${stale.length > 5 ? ', …' : ''}`, hits: [] };
   const rules = rulesFor(root, allowedInternalNames(path.join(source, 'integrator', 'openapi.json')));
   const hits = [];
