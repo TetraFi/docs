@@ -15,7 +15,7 @@ verify() {
   local secret=$1 id=$2 timestamp=$3 body=$4 signatures=$5 now=${6:-$(date +%s)}
   (( timestamp > now - 300 && timestamp < now + 300 )) || return 1
   local key expected candidate
-  key=$(printf '%s' "${secret#whsec_}" | openssl base64 -d -A | od -An -tx1 | tr -d ' \n')
+  key=$(printf '%s' "${secret#whsec_}" | openssl base64 -d -A | od -An -v -tx1 | tr -d ' \n')
   expected=$(printf '%s.%s.%s' "$id" "$timestamp" "$body" \
     | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$key" -binary | openssl base64 -A)
   # During a secret rotation the header holds two space-separated signatures: either may match.
@@ -25,6 +25,21 @@ verify() {
   return 1
 }
 # endregion
+
+# Optional live-delivery harness. Values stay in the environment, never argv or output.
+# The sentinel preserves trailing newlines in the raw body through command substitution.
+if [[ -n ${TETRAFI_WEBHOOK_SECRET+x}${TETRAFI_WEBHOOK_ID+x}${TETRAFI_WEBHOOK_TIMESTAMP+x}${TETRAFI_WEBHOOK_BODY_BASE64+x}${TETRAFI_WEBHOOK_SIGNATURE+x}${TETRAFI_WEBHOOK_NOW+x} ]]; then
+  if [[ -z ${TETRAFI_WEBHOOK_SECRET:-} || -z ${TETRAFI_WEBHOOK_ID:-} || -z ${TETRAFI_WEBHOOK_BODY_BASE64:-} || -z ${TETRAFI_WEBHOOK_SIGNATURE:-} \
+    || ! ${TETRAFI_WEBHOOK_TIMESTAMP:-} =~ ^[0-9]+$ || ! ${TETRAFI_WEBHOOK_NOW:-$(date +%s)} =~ ^[0-9]+$ ]]; then
+    echo '{"error":"DELIVERY_INPUT_INVALID"}' >&2; exit 2
+  fi
+  body=$(printf '%s' "$TETRAFI_WEBHOOK_BODY_BASE64" | openssl base64 -d -A; printf '.')
+  body=${body%.}
+  if verify "$TETRAFI_WEBHOOK_SECRET" "$TETRAFI_WEBHOOK_ID" "$TETRAFI_WEBHOOK_TIMESTAMP" "$body" "$TETRAFI_WEBHOOK_SIGNATURE" "${TETRAFI_WEBHOOK_NOW:-$(date +%s)}"; then
+    echo '{"verdict":"accepted"}'; exit 0
+  fi
+  echo '{"verdict":"refused"}'; exit 1
+fi
 
 secret='whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw'
 id='msg_p5jXN8AQM9LWM0D4loKWxJek'

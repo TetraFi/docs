@@ -193,15 +193,23 @@ Some venues can only quote once they know which wallet trades. You can see this 
 
 **A venue reads `walletRefused` in `sources`.** The wallet in `wallet` cannot trade there, for example because it was revoked or screening confirmed a sanctions match. `reason` says why when TetraFi can. Sometimes the refused wallet is an organisation wallet you chose that is not linked to the venue account. Then `recovery` carries the `wallet`, a `linkHref` where it can be linked, and `defaultWallets`: the account's default wallet for each chain, which you can send as `source.tradingWallets` for this request instead.
 
-With an API key, on-chain venues may also read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. The key has no organisation wallet granted to it yet: ask a workspace owner to grant one.
+With an API key, on-chain venues may also read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. The key has no organisation wallet granted to it yet: grant one from the key's **Wallets** tab (see below).
 
 ## Give a key organisation wallets
 
-An API key trades through organisation wallets only when they are granted to it, by a workspace owner or by an admin who manages credentials. The key must already be able to trade on venue accounts ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
+An API key trades through organisation wallets only when they are granted to it. The key must already be able to trade on venue accounts ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
 
-That owner or admin makes the grant while signed in with a second factor. The grant is the key's complete list of organisation wallets: a new list replaces the previous one, and an empty list revokes them all. Every wallet must be an active organisation wallet of the workspace. The key itself cannot make or change its grant.
+**Create API key** with venue trading already grants your workspace's default organisation wallets that you hold a Trade right on. To change the grant later, open **Personal API keys** (**Settings**, then **Open API keys** under **Your account**), expand the key and choose its **Wallets** tab:
 
-The app does not offer the grant yet. Until it does, [contact TetraFi](/support) with your workspace owner to grant a key organisation wallets.
+- **Grant** adds a wallet. The tab offers only the organisation wallets you hold a Trade right on.
+- **Revoke** removes one.
+
+Who can grant what:
+
+- **The key's owner**, with permission to request quotes and place orders, can add the workspace's default organisation wallets they hold a Trade right on, and can revoke any grant. Any other wallet is refused with `API_KEY_ORGANISATION_WALLET_NOT_A_DEFAULT`, and one without your Trade right with `API_KEY_ORGANISATION_WALLET_TRADE_RIGHT_REQUIRED`.
+- **A workspace owner, or an admin who manages credentials**, can grant any active organisation wallet of the workspace through the API below; the tab still offers only the wallets they hold a Trade right on, since the key trades only through wallets its owner can trade.
+
+Every change needs a sign-in with a second factor (otherwise `MFA_REQUIRED`), and the tab shows each refusal with its reason. Behind it, `PUT /api/v1/workspaces/{id}/api-keys/{keyId}/organisation-wallets` takes the key's complete list: a new list replaces the previous one, and an empty list revokes them all. The key itself cannot make or change its grant.
 
 Once granted, the wallets appear in the key's `sourceOptions`, and their ids are what the key sends in `source.tradingWallets`. At trade time the key also needs venue trading switched on and a valid request signature, and you, the key's owner, still need trading rights on the wallet.
 

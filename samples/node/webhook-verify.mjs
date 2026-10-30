@@ -24,6 +24,27 @@ function verifyWebhook(secret, headers, rawBody, now = Math.floor(Date.now() / 1
 }
 // #endregion
 
+// Optional live-delivery harness. Values stay in the environment, never argv or output.
+// BODY_BASE64 preserves the captured raw body; NOW is only for the stale-time control.
+if (Object.keys(process.env).some((name) => name.startsWith('TETRAFI_WEBHOOK_'))) {
+  const input = process.env;
+  const required = ['SECRET', 'ID', 'TIMESTAMP', 'BODY_BASE64', 'SIGNATURE'];
+  if (required.some((name) => !input[`TETRAFI_WEBHOOK_${name}`])
+    || !/^\d+$/.test(input.TETRAFI_WEBHOOK_TIMESTAMP)
+    || (input.TETRAFI_WEBHOOK_NOW != null && !/^\d+$/.test(input.TETRAFI_WEBHOOK_NOW))) {
+    console.error('{"error":"DELIVERY_INPUT_INVALID"}');
+    process.exit(2);
+  }
+  const accepted = verifyWebhook(input.TETRAFI_WEBHOOK_SECRET, {
+    'webhook-id': input.TETRAFI_WEBHOOK_ID,
+    'webhook-timestamp': input.TETRAFI_WEBHOOK_TIMESTAMP,
+    'webhook-signature': input.TETRAFI_WEBHOOK_SIGNATURE,
+  }, Buffer.from(input.TETRAFI_WEBHOOK_BODY_BASE64, 'base64'),
+  input.TETRAFI_WEBHOOK_NOW == null ? undefined : Number(input.TETRAFI_WEBHOOK_NOW));
+  console.log(JSON.stringify({ verdict: accepted ? 'accepted' : 'refused' }));
+  process.exit(accepted ? 0 : 1);
+}
+
 const secret = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
 const timestamp = 1614265330;
 const headers = {

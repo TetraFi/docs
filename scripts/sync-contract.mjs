@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// The public contract pages come from the RFQ repository's contract files, never from a hand copy:
+// The public contract pages come from the RFQ repository's committed contract files, never from a hand copy:
 //   - tetrafi-rfq/docs/api/COMPATIBILITY.md         → compatibility.mdx
 //   - tetrafi-rfq/docs/api/integrator/openapi.json  → api-reference/openapi.json (when it exists)
 //   - tetrafi-rfq/docs/api/integrator/error-codes.json → reference/error-codes.mdx
+//   - tetrafi-rfq/docs/api/openapi.json, its x-tetrafi-webhook-event-catalogue → reference/webhook-events.mdx
 // TETRAFI_RFQ_API_DOCS overrides the source directory.
 //
 //   node scripts/sync-contract.mjs           write
 //   node scripts/sync-contract.mjs --check   exit 1 on drift (CONTRACT_DRIFT <file>)
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
@@ -15,10 +17,31 @@ const root = path.resolve(import.meta.dirname, '..');
 const source = process.env.TETRAFI_RFQ_API_DOCS ?? path.join(root, '..', 'tetrafi-rfq', 'docs', 'api');
 const check = process.argv.includes('--check');
 
+// Contract sources are read from tetrafi-rfq's committed HEAD, never its working tree: a peer's
+// uncommitted edit there must not reach the public site. With TETRAFI_RFQ_API_DOCS set (tests,
+// scratch copies), the files are read as they are. A file HEAD does not have reads as unpublished;
+// any other failed read throws rather than passing for an empty contract.
+const rfqRoot = path.join(root, '..', 'tetrafi-rfq');
+const fromHead = !process.env.TETRAFI_RFQ_API_DOCS && existsSync(path.join(rfqRoot, '.git'));
+function sourceText(relative) {
+  if (!fromHead) {
+    const file = path.join(source, relative);
+    return existsSync(file) ? readFileSync(file, 'utf8') : null;
+  }
+  try {
+    return execFileSync('git', ['-C', rfqRoot, 'show', `HEAD:docs/api/${relative}`],
+      { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    if (/does not exist in|exists on disk, but not in/.test(String(error.stderr ?? ''))) return null;
+    throw new Error(`CONTRACT_SOURCE_UNREADABLE docs/api/${relative} at tetrafi-rfq HEAD`);
+  }
+}
+
 function compatibilityPage() {
   const from = path.join(source, 'COMPATIBILITY.md');
-  if (!existsSync(from)) throw new Error(`missing contract source ${from}`);
-  const lines = readFileSync(from, 'utf8').split('\n');
+  const text = sourceText('COMPATIBILITY.md');
+  if (text === null) throw new Error(`missing contract source ${from}`);
+  const lines = text.split('\n');
   if (!lines[0].startsWith('# ')) throw new Error(`${from}: expected a level-1 heading on line 1`);
   const body = lines.slice(1).join('\n').replace(/^\n+/, '')
     // Links that point inside the RFQ repository become site links.
@@ -44,8 +67,9 @@ function compatibilityPage() {
 // then it is withheld (never partly scrubbed here: the generator owns its text).
 function referenceSpec() {
   const from = path.join(source, 'integrator', 'openapi.json');
-  if (!existsSync(from)) return { spec: null, withheld: 'not published yet' };
-  const text = `${JSON.stringify(JSON.parse(readFileSync(from, 'utf8')), null, 2)}\n`;
+  const raw = sourceText('integrator/openapi.json');
+  if (raw === null) return { spec: null, withheld: 'not published yet' };
+  const text = `${JSON.stringify(JSON.parse(raw), null, 2)}\n`;
   const hits = scanText(text, rulesFor(root, allowedInternalNames(from)));
   if (hits.length) return { spec: null, withheld: `${hits.length} leak hits (${[...new Set(hits.map((h) => h.match))].slice(0, 5).join(', ')}, …)` };
   return { spec: text, withheld: null };
@@ -54,8 +78,9 @@ const reference = referenceSpec();
 
 function errorCodesPage() {
   const from = path.join(source, 'integrator', 'error-codes.json');
-  if (!existsSync(from)) return { page: null, withheld: 'not published yet', hits: [] };
-  const contract = JSON.parse(readFileSync(from, 'utf8'));
+  const raw = sourceText('integrator/error-codes.json');
+  if (raw === null) return { page: null, withheld: 'not published yet', hits: [] };
+  const contract = JSON.parse(raw);
   if (typeof contract.version !== 'string' || !contract.version || !Array.isArray(contract.codes) || !contract.codes.length || !Array.isArray(contract.sourceReasons) || !contract.sourceReasons.length) {
     throw new Error(`${from}: expected version, nonempty codes and nonempty sourceReasons`);
   }
@@ -124,26 +149,86 @@ function errorCodesPage() {
 }
 const errorCodes = errorCodesPage();
 
+// The webhook event catalogue lives only in the full spec, as one extension; nothing else of that spec
+// is read. Only subscribable events are listed, in the catalogue's own group order. A row whose text
+// fails the leak rules is withheld like an error-code row. A name that is not the dotted canonical
+// form (a spec exported before the names were canonical) refuses the page, so a refused name is never
+// published as one to subscribe to.
+function webhookEventsPage() {
+  const from = path.join(source, 'openapi.json');
+  const raw = sourceText('openapi.json');
+  if (raw === null) return { page: null, withheld: 'full spec not found', hits: [] };
+  const catalogue = JSON.parse(raw)['x-tetrafi-webhook-event-catalogue'];
+  if (!Array.isArray(catalogue?.events) || !catalogue.events.length || !Array.isArray(catalogue?.groups) || !catalogue.groups.length) {
+    return { page: null, withheld: 'no x-tetrafi-webhook-event-catalogue in the full spec', hits: [] };
+  }
+  const events = catalogue.events.filter((row) => row.subscribable === true);
+  const stale = events.filter((row) => typeof row.event !== 'string' || !/^[a-z]+(?:\.[a-z][a-z_]*)+$/.test(row.event));
+  if (stale.length) return { page: null, withheld: `event names not canonical: ${stale.slice(0, 5).map((row) => row.event).join(', ')}${stale.length > 5 ? ', …' : ''}`, hits: [] };
+  const rules = rulesFor(root, allowedInternalNames(path.join(source, 'integrator', 'openapi.json')));
+  const hits = [];
+  for (const row of events) {
+    if (typeof row.label !== 'string' || typeof row.description !== 'string' || typeof row.group !== 'string') throw new Error(`${from}: invalid webhook event row ${row.event}`);
+    if (scanText(row.event, rules).length) throw new Error(`WEBHOOK_EVENT_NAME_LEAKS ${row.event}; the API must rename it`);
+    for (const hit of scanText(JSON.stringify(row), rules)) hits.push({ row: row.event, rule: hit.rule });
+  }
+  const withheldRows = [...new Set(hits.map((hit) => hit.row))].sort();
+  const allowFile = path.join(root, 'samples', 'withheld-rows.json');
+  const allowed = existsSync(allowFile) ? JSON.parse(readFileSync(allowFile, 'utf8')).rows ?? {} : {};
+  const unexplained = withheldRows.filter((row) => typeof allowed[row] !== 'string' || !allowed[row].trim());
+  const cell = (value) => String(value).replace(/&/g, '&amp;').replace(/\|/g, '&#124;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;').replace(/\r?\n/g, '<br />');
+  const sections = [];
+  for (const group of catalogue.groups) {
+    const rows = events.filter((row) => row.group === group.id && !withheldRows.includes(row.event));
+    if (!rows.length) continue;
+    sections.push(`## ${cell(group.label)}`, '', '| Event | What it means |', '| :--- | :--- |',
+      ...rows.map((row) => `| <span id="${row.event}"></span>\`${row.event}\` | ${cell(row.description)} |`), '');
+  }
+  const ungrouped = events.filter((row) => !catalogue.groups.some((group) => group.id === row.group));
+  if (ungrouped.length) throw new Error(`${from}: events in no listed group: ${ungrouped.map((row) => row.event).join(', ')}`);
+  return { page: [
+    '---',
+    'title: "Webhook events"',
+    'description: "Every event a webhook can subscribe to, by area, with what it means."',
+    '---',
+    '',
+    '{/* Generated by scripts/sync-contract.mjs from tetrafi-rfq docs/api/openapi.json (x-tetrafi-webhook-event-catalogue). Edit the source, then run npm run sync. */}',
+    ...(withheldRows.length ? [`{/* Withheld by the leak rules until the API changes its text: ${withheldRows.join(', ')} */}`] : []),
+    '',
+    'Choose events when you add a webhook. Every event arrives in the same envelope, `{id, type, apiVersion, createdAt, data}`, signed with Standard Webhooks: [Webhooks](/trade/webhooks) shows how to verify and handle it. More events can be added: answer one you do not handle with a `2xx`.',
+    '',
+    ...sections,
+  ].join('\n'), withheld: null, hits, unexplained };
+}
+const webhookEvents = webhookEventsPage();
+
 const outputs = [['compatibility.mdx', compatibilityPage()]];
 if (reference.spec) outputs.push([path.join('api-reference', 'openapi.json'), reference.spec]);
 if (errorCodes.page) outputs.push([path.join('reference', 'error-codes.mdx'), errorCodes.page]);
+if (webhookEvents.page) outputs.push([path.join('reference', 'webhook-events.mdx'), webhookEvents.page]);
 
 const staleReference = !reference.spec && existsSync(path.join(root, 'api-reference', 'openapi.json'));
 const staleErrorCodes = !errorCodes.page && existsSync(path.join(root, 'reference', 'error-codes.mdx'));
+const staleWebhookEvents = !webhookEvents.page && existsSync(path.join(root, 'reference', 'webhook-events.mdx'));
 function reportWithheld() {
   if (reference.withheld) console.log(`REFERENCE_WITHHELD ${reference.withheld}`);
   if (errorCodes.withheld) console.log(`ERROR_CODES_WITHHELD ${errorCodes.withheld}`);
   for (const hit of errorCodes.hits) console.log(`ERROR_CODE_ROW_WITHHELD ${hit.row} ${hit.rule}`);
   for (const row of errorCodes.unexplained ?? []) console.log(`ERROR_CODE_ROW_UNEXPLAINED ${row} (record why in samples/withheld-rows.json, or fix the API text)`);
+  if (webhookEvents.withheld) console.log(`WEBHOOK_EVENTS_WITHHELD ${webhookEvents.withheld}`);
+  for (const hit of webhookEvents.hits) console.log(`WEBHOOK_EVENT_ROW_WITHHELD ${hit.row} ${hit.rule}`);
+  for (const row of webhookEvents.unexplained ?? []) console.log(`WEBHOOK_EVENT_ROW_UNEXPLAINED ${row} (record why in samples/withheld-rows.json, or fix the API text)`);
 }
 const drift = outputs.filter(([file, content]) => !existsSync(path.join(root, file)) || readFileSync(path.join(root, file), 'utf8') !== content);
 if (check) {
   for (const [file] of drift) console.log(`CONTRACT_DRIFT ${file}`);
   if (staleReference) console.log('CONTRACT_DRIFT api-reference/openapi.json (present while the reference is withheld)');
   if (staleErrorCodes) console.log('CONTRACT_DRIFT reference/error-codes.mdx (present while the error codes are withheld)');
+  if (staleWebhookEvents) console.log('CONTRACT_DRIFT reference/webhook-events.mdx (present while the webhook events are withheld)');
   reportWithheld();
   console.log(`sync-contract --check: ${outputs.length} files, ${drift.length} drifted`);
-  process.exit(drift.length || staleReference || errorCodes.withheld || staleErrorCodes || errorCodes.unexplained?.length ? 1 : 0);
+  process.exit(drift.length || staleReference || errorCodes.withheld || staleErrorCodes || errorCodes.unexplained?.length || staleWebhookEvents || webhookEvents.unexplained?.length ? 1 : 0);
 }
 for (const [file, content] of outputs) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
