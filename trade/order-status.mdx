@@ -1,0 +1,68 @@
+---
+title: "Order status"
+description: "Follow an order to the end: one read for every order, what each status means, when it is final, and how often to poll."
+---
+
+import OrderStatus from '/snippets/samples/order-status.mdx';
+
+`POST /api/v1/orders` answers as soon as the order is accepted. To follow it to the end, read it at the `statusUrl` the answer gives: `GET /api/v1/orders/{id}`. The read answers the same envelope as the order answer, for Basic and Advanced orders alike, so one parser reads both.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+If you lost the order answer, [recover the order by its quote](/trade/idempotency#recover-an-order-by-its-quote): it returns the same `statusUrl`. The key needs **Read orders**. Any member or key of the order's workspace with that permission can read it, not only the one that placed it. An order that does not exist, or that belongs to another workspace, answers `404 ORDER_NOT_FOUND`.
+
+## The envelope
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | `basicTrade`, a trade TetraFi executes for you on a venue, or `advancedTrade`, an on-chain order. |
+| `status` | Where the order is (below). |
+| `terminal` | `true` when the order can no longer change. Stop polling on this, not on a particular `status`. |
+| `next` | Present only while there is something to do in the meantime (below). |
+| `statusUrl` | Where to read the order again. |
+| `quoteId` | The quote it was placed from, when known. |
+| `operation` or `order` | The venue trade's or on-chain order's own detail, for `basicTrade` or `advancedTrade`. |
+
+## Statuses
+
+| `status` | What it means | Final |
+| --- | --- | --- |
+| `pending` | Accepted; nothing has been sent to a venue yet. | No |
+| `working` | Sent to the venue and executing. | No |
+| `filled` | Executed; settlement or delivery is still to complete. | No |
+| `settled` | Executed and settled, or there was nothing to settle. | Yes |
+| `unfilled` | The venue did not fill it. Nothing was traded. | Yes |
+| `cancelled` | Cancelled before it was sent. | Yes |
+| `failed` | Refused or failed; nothing more will happen. | Yes |
+| `refunded` | Your funds were returned. | Yes |
+| `reviewRequired` | A person must review it before it can continue. | No |
+| `outcomeUnknown` | The venue's answer is being reconciled. The trade may have filled. | No |
+
+An order can skip statuses: act on `terminal`, not on a particular sequence. More values may be added: treat one you do not recognise as "other" and keep following `terminal`.
+
+<Warning>
+`outcomeUnknown` is not a failure. The trade may have filled. Never place a new order for it: keep reading its status.
+</Warning>
+
+## While it is not final
+
+`next` says what to do while the order is not final:
+
+| `next.kind` | What to do |
+| --- | --- |
+| `wait` | Read it again after `retryAfter`, an ISO 8601 duration such as `PT15S`. TetraFi is reconciling the outcome. |
+| `contact` | Contact support with `reference`. A person has to look at the order. |
+
+Without `next`, poll every 10 to 15 seconds until `terminal` is `true`.
+
+<OrderStatus />
+
+```json Output on test networks
+{"kind":"basicTrade","status":"settled","terminal":true,"next":null}
+```
+
+## In the app
+
+The same trade appears under **Trades**, with its status.

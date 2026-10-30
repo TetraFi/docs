@@ -1,0 +1,168 @@
+---
+title: "Orders"
+description: "Preflight a quote, sign what your wallet must sign and place the order: Basic orders through your venue accounts, Advanced orders on-chain."
+---
+
+import OrderPlace from '/snippets/samples/order-place.mdx';
+
+You place an order by naming a quote you hold. TetraFi kept the quote's terms when it returned them, so the order body is the quote id plus anything only you can supply: a signature, a minimum receive or a tighter price protection.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Basic and Advanced orders
+
+Every quote names how it executes in `legs[].venue.integrationMode`:
+
+| Mode | Where it executes | What you do before ordering |
+| --- | --- | --- |
+| `basic` | TetraFi executes it for you, from one of your workspace's exchange or OTC venue accounts or from an organisation wallet granted to your API key. | Nothing. No preflight and no wallet signature. |
+| `advanced` | Your own wallet signs and settles on-chain, through escrow. | Preflight it, then sign or send what your wallet must, then order. |
+
+<Note>
+Advanced execution is not open yet: an order on an Advanced quote answers `403 ADVANCED_MODE_DISABLED`, and Advanced venues are listed in `sources` as `unavailable` with the reason `advancedModeDisabled`. The samples on this site place Basic orders only. The Advanced steps below describe the path for when it opens.
+</Note>
+
+The quote's `next` tells you the next call: `order` means place the order now; `preflight`, `sign` or `transact` mean your wallet has work to do first; `fund` means the paying account is short; `requote` means ask the venue again ([Requotes and expiry](/trade/requotes-and-expiry)).
+
+## Place an order
+
+`POST /api/v1/orders`
+
+| Field | Required | Value |
+| --- | --- | --- |
+| `quoteId` | Yes | The quote id (`q_…`) from `POST /api/v1/quotes`. |
+| `signature` | Advanced, when asked | Your wallet's signature over the quote's EIP-712 document. Refused on a Basic quote. |
+| `minReceive` | Basic: when the venue executes within your limit and the quote is not firm. Optional on other Basic quotes. | The least you accept to receive, in receive-Asset units, such as `"4.99"`. Refused on an Advanced quote. |
+| `priceProtectionBps` | No, Advanced only | 1 to 1000. Tightens the quote's price protection. Refused on a Basic quote. |
+
+An API key must send an `Idempotency-Key` header with every order. A retry with the same key and body returns the first answer instead of placing a second order ([Idempotency](/trade/idempotency)).
+
+<OrderPlace />
+
+A Basic quote answers `"kind": "basicTrade"` with the venue trade it created:
+
+```json Response (shortened)
+{
+  "kind": "basicTrade",
+  "quoteId": "q_01M5XJXR…",
+  "status": "working",
+  "terminal": false,
+  "statusUrl": "/api/v1/orders/acb84378-…",
+  "operation": {
+    "connectionId": "15862432-…",
+    "operationId": "acb84378-…"
+  }
+}
+```
+
+An Advanced quote answers `"kind": "advancedTrade"` with the order. Both kinds carry `status`, `terminal` and `statusUrl`, and [`GET /api/v1/orders/{id}`](/trade/order-status) at `statusUrl` answers the same envelope:
+
+```json Shape
+{
+  "kind": "advancedTrade",
+  "quoteId": "q_…",
+  "status": "pending",
+  "terminal": false,
+  "statusUrl": "/api/v1/orders/…",
+  "order": { "orderId": "…", "status": "…", "nextActor": "…" }
+}
+```
+
+Each quote can be ordered once. Follow the order with [Order status](/trade/order-status).
+
+## Basic orders
+
+A Basic order is executed for you, on your venue account with that account's balance, or from an organisation wallet granted to your key. You need an API key with venue trading and request signing ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)), and the account or wallet must hold what you pay. If a venue account holds less, the order is refused with `409 FUNDING_SHORTFALL` and `next.kind: "fund"`: fund the account, then get a new price.
+
+Preflight does not apply: `POST /api/v1/orders/preflight` answers `409 PREFLIGHT_NOT_APPLICABLE`. A `signature` is refused with `400 SIGNATURE_NOT_ACCEPTED`.
+
+### Venue quotes that execute within your limit
+
+Some venues execute within your limit: you name the least you accept, and the venue is asked for its price when you order. They are:
+
+- desks whose firm prices last only a few seconds, too short to confirm;
+- on-chain venues, such as bridges, that TetraFi trades for you from an organisation wallet.
+
+Their quotes are often indicative with `next.kind: "order"`. On such a venue, any quote that is not firm (`commitment.firm` is not `true`) must be ordered with `minReceive`: the order trades only if the venue delivers at least that. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent.
+
+You can also send `minReceive` on any other Basic quote to set your own floor, and the order then trades only at or above it. If the venue's held firm price already delivers less, the order is refused with `409 VENUE_QUOTE_OUTSIDE_BOUNDS` and nothing is sent.
+
+## Advanced orders
+
+An Advanced order moves funds from your wallet, so your wallet acts before TetraFi places the order. The order of calls:
+
+<Steps>
+  <Step title="Preflight the quote">
+    `POST /api/v1/orders/preflight` with `{"quoteId": "q_…"}`, and optionally `priceProtectionBps`. Preflight writes nothing, takes no idempotency key and does not use up the quote.
+
+    It returns `canSubmit` and the actions needed first, in `nextActions`. Each action has a `type`, a `purpose` and an `actor`:
+
+    - `actor: "userWallet"`: your wallet must sign or send it;
+    - `actor: "tetrafiApi"`: TetraFi does it.
+
+    `requirements` lists each check, such as `TOKEN_APPROVAL` or `TOKEN_BALANCE`, with a `status` of `ok`, `actionRequired`, `blocked` or `unknown`.
+  </Step>
+
+  <Step title="Approve tokens">
+    A token approval appears as an action with `type: "evmTransaction"` and `purpose: "tokenApproval"`; its `tx` is the transaction to send from your wallet. An approval marked `frequency: "reusableSetup"` is needed once per token, not per trade. Once it has confirmed, run preflight again to check that nothing else is left for your wallet before the signature.
+  </Step>
+
+  <Step title="Sign the EIP-712 payload">
+    When the quote's `next.kind` is `sign`, `next.typedData` is the complete EIP-712 document: domain, types, primary type and message. Preflight can also list it as a `signTypedData` action with `purpose: "orderSignature"` and its `typedData`. Sign exactly the document you are given, with the wallet that pays, and never edit it.
+  </Step>
+
+  <Step title="Place the order">
+    `POST /api/v1/orders` with `{"quoteId": "q_…", "signature": "0x…"}` and an `Idempotency-Key`. Without the signature, it is refused with `400 WALLET_SIGNATURE_REQUIRED`.
+  </Step>
+</Steps>
+
+When an order needs more than one signature, the quote says how many in `signaturesRequired`. The later ones arrive on the order, which then reads `nextActor: "taker"`.
+
+<Warning>
+An API key cannot sign with your wallet. The [samples](https://github.com/tetrafi/docs/blob/main/samples/http) place Basic orders only, and stop before any wallet signature. For an Advanced order, your application signs with the paying wallet and then calls `POST /api/v1/orders`.
+</Warning>
+
+## Price protection and minimum receive
+
+Which field applies where:
+
+| Where | Field | Range | Applies to |
+| --- | --- | --- | --- |
+| Quote request or requote | `priceProtectionBps` | 0 to 1000, 30 when omitted | Every non-firm executable quote, Basic or Advanced. It sets the quote's `minOut`, and `maxPay` on a `receiveExact` quote from a venue account ([Sort and price protection](/search/sort-and-protection#price-protection)). |
+| Preflight or order | `priceProtectionBps` | 1 to 1000 | Advanced quotes only. It may tighten the quote's protection, never loosen it: a wider value is refused with `409 PRICE_PROTECTION_CHANGED`. To loosen it, requote with the new value ([Requotes and expiry](/trade/requotes-and-expiry#change-the-price-protection)). On a Basic quote it is refused with `400 INVALID_REQUEST`. |
+| Order | `minReceive` | A positive amount | Basic quotes only. Required on a quote that is not firm from a venue that executes within your limit ([above](#venue-quotes-that-execute-within-your-limit)), optional on any other Basic quote. On an Advanced quote it is refused with `400 MIN_RECEIVE_NOT_ACCEPTED`. |
+
+If an Advanced quote's price has moved beyond your protection when you order, the order is refused with `409 QUOTE_PRICE_MOVED` and nothing is sent. Request the price again.
+
+## Refusals
+
+A refused order answers the standard error body: `error`, `message`, and `next` or `details` where present. Unless the table says otherwise, nothing was sent.
+
+| Code | Status | Why | What to do |
+| --- | --- | --- | --- |
+| `INVALID_REQUEST` | 400 | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads, such as `priceProtectionBps`, was sent on a Basic quote. `message` names it. | Fix that field. |
+| `WALLET_SIGNATURE_REQUIRED` | 400 | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
+| `SIGNATURE_NOT_ACCEPTED` | 400 | A signature was sent on a quote that takes none. | Leave out `signature`. |
+| `MIN_RECEIVE_REQUIRED` | 400 | This venue executes within your limit and the quote is not firm. | Send `minReceive`. |
+| `MIN_RECEIVE_INVALID` | 400 | `minReceive` is not a positive amount. | Send it as a positive decimal string. |
+| `MIN_RECEIVE_NOT_ACCEPTED` | 400 | The quote is Advanced: its price protection bounds delivery, so it takes no minimum receive. | Leave out `minReceive`. |
+| `ADVANCED_MODE_DISABLED` | 403 | The quote is Advanced, which is not open yet. | Order a Basic quote instead. |
+| `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_KEY_INVALID` | 400 | The `Idempotency-Key` header is missing or malformed. | See [Idempotency](/trade/idempotency). |
+| `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you. | Check the id. |
+| `QUOTE_NOT_EXECUTABLE` | 409 | The quote is a price for comparison, not executable. `next` is `requote`. | Requote it to get an executable price. |
+| `QUOTE_NOT_HELD` | 409 | The quote is no longer held. `next` is `requote`. | Search again. |
+| `QUOTE_ALREADY_ORDERED` | 409 | Another order already used this quote. | Read it with [`GET /api/v1/orders/by-quote/{quoteId}`](/trade/idempotency#recover-an-order-by-its-quote). |
+| `VENUE_QUOTE_OUTSIDE_BOUNDS` | 409 | The venue's held firm price is below your `minReceive`. | Lower `minReceive` or get a new price. |
+| `FUNDING_SHORTFALL` | 409 | The venue account holds less than the trade needs. `next` is `fund`. | Fund the account, then get a new price. |
+| `PRICE_PROTECTION_CHANGED` | 409 | `priceProtectionBps` is looser than the quote's. | Requote with the new protection. |
+| `QUOTE_PRICE_MOVED` | 409 | The price moved beyond your price protection. | Request the price again. |
+| `PREFLIGHT_NOT_APPLICABLE` | 409 | Preflight on a Basic quote. | Place the order directly. |
+| `IDEMPOTENCY_CONFLICT`, `ORDER_IN_PROGRESS` | 409 | The key was used for a different body, or an order with it is still being placed. | See [Idempotency](/trade/idempotency). |
+| `QUOTE_EXPIRED` | 410 | The quote's `expiresAt` has passed. `next` is `requote`. | [Requote it](/trade/requotes-and-expiry#refresh-an-expired-quote). |
+| `QUOTE_NOT_YET_DURABLE`, `QUOTE_STORE_UNAVAILABLE` | 503 | The quote is still being recorded, or held quotes cannot be read right now. | Send the same request with the same key after a second. |
+
+## In the app
+
+On the Trade page, choosing a quote and confirming it in Review places this same order, after your wallet signs when the quote is on-chain.

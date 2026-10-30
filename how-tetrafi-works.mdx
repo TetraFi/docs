@@ -19,7 +19,7 @@ The rails are the pipes. Netting and shared collateral are where the capital eff
 
 <Steps>
   <Step title="Quote" icon="comments-dollar">
-    Your request fans out to every eligible solver, LP, and venue. On RFQ, each answer is a firm, escrow-enforced quote; on the Router, a ranked candidate with its guarantees stated.
+    Your request fans out to every eligible solver, LP, and venue. Each answer comes back as a quote with its terms stated: firm and escrow-enforced, held to a minimum receive, or indicative.
   </Step>
 
   <Step title="Sign" icon="signature">
@@ -41,24 +41,19 @@ The rails are the pipes. Netting and shared collateral are where the capital eff
 
 ## The Rails - Live
 
-A single routing, settlement, and compliance engine underlies everything, built around [regulated stablecoins and tokenized real-world assets at institutional size](/why-tetrafi). Spreads compress through solver competition, with depth aggregated from OTC desks, CEXs, DEXs, and regulated LPs. Aggregation is the familiar half; where it settles is not. Every fill lands in **immutable contracts on-chain**, atomically and across chains, rather than on a venue's internal ledger - so no balance has to be pre-funded to a counterparty, no principal is exposed mid-trade, and the trade composes with the on-chain assets and venues it touches. On top of it, TetraFi sells you one of two distinct trading contracts, depending on what your execution needs:
+A single routing, settlement, and compliance engine underlies everything, built around [regulated stablecoins and tokenized real-world assets at institutional size](/why-tetrafi). Spreads compress through solver competition, with depth aggregated from OTC desks, CEXs, DEXs, and regulated LPs. Aggregation is the familiar half; where it settles is not. Every fill lands in **immutable contracts on-chain**, atomically and across chains, rather than on a venue's internal ledger - so no balance has to be pre-funded to a counterparty, no principal is exposed mid-trade, and the trade composes with the on-chain assets and venues it touches. On top of it, one API returns every quote your workspace can reach, and each quote states the contract it offers:
 
 <AccordionGroup>
-  <Accordion title="RFQ - firm liquidity">
-    Your request goes to every eligible solver and LP in the workspace, and each answers with a cryptographically firm, executable quote. Escrowed settlement enforces the terms exactly as quoted: deliver, or refund - a quote can disappoint you only by refunding, never by failing.
+  <Accordion title="Firm quotes - delivery or refund">
+    Your request goes to every eligible solver and LP in the workspace, and each can answer with a cryptographically firm, executable quote. Escrowed settlement enforces the terms exactly as quoted: deliver, or refund - a quote can disappoint you only by refunding, never by failing.
   </Accordion>
 
-  <Accordion title="Router - aggregated execution">
-    The router fans your request across every eligible execution source - direct DEX liquidity, the RFQ venue, bridges, issuers, and fiat rails - and returns ranked executable candidates with an explicit recommendation. Each candidate states its own firmness, atomicity, settlement guarantee, and fees. From the user's side it's one intent and one signature - routing, bridging, and settlement are the solver's problem, even across chains.
+  <Accordion title="Routes - aggregated execution">
+    The same request reaches every other eligible execution source - direct DEX liquidity, bridges, issuers, and fiat rails - and each route comes back as its own quote. Each states its own firmness, settlement path, and fees. From the user's side it's one intent and one signature - routing, bridging, and settlement are the solver's problem, even across chains.
   </Accordion>
 </AccordionGroup>
 
-The flow underneath is identical either way - quotes requested, sources compete, a winner gets your signature, the order goes in - and on-chain settlement completes it with custody never leaving your side. The key difference is **the contract you buy**:
-
-* **RFQ:** Only firm solver/LP escrow quotes - a closed source set with a delivery-or-refund guarantee
-* **Router:** Best execution across heterogeneous sources - guarantees stated per candidate, never assumed
-
-A Router trade may well be *filled* by RFQ liquidity - but the product you called is still Router. Product and execution source are independent: the product defines your guarantees, the source records how it executed. Choosing between them is covered in [Build](/build).
+The flow underneath is identical either way - quotes requested, sources compete, the quote you pick gets your signature, the order goes in - and on-chain settlement completes it with custody never leaving your side. Your guarantees come from **the quote you pick**: they are printed on each quote, never assumed. The details are in [how search works](/search/how-it-works).
 
 ## Multilateral Netting - Soon
 
@@ -98,7 +93,7 @@ Every TetraFi deployment is built institutional-first: owned, configured, and cu
 
 | Layer | Your controls |
 | --- | --- |
-| **Rails** | Your workspace's own immutable on-chain router - no custody key, no upgrade key, capability upgrades only ever *add* to an allowlist - plus which venues it may touch, which LPs and jurisdictions your RFQ requests reach, and how your compliance pipeline is composed: checks added, removed, or layered to fit your regulatory perimeter |
+| **Rails** | Your workspace's own immutable on-chain router - no custody key, no upgrade key, capability upgrades only ever *add* to an allowlist - plus which venues it may touch, which LPs and jurisdictions your quote requests reach, and how your compliance pipeline is composed: checks added, removed, or layered to fit your regulatory perimeter |
 | **Netting** | Your own policy domain on the shared clearing network: membership rules, run cadence, backstop order, and asset scope |
 | **Shared Collateral Network** | Pick the vault envelope that fits your mandate - or, as independent curation opens, deploy your own: products, qualifying assets, caps, and policy |
 
@@ -116,7 +111,7 @@ Why that model is the whole point is the story of [Why TetraFi](/why-tetrafi).
   </Card>
 
   <Card title="Build" icon="code" href="/build">
-    Pick RFQ or Router, and start integrating.
+    One API for quotes and orders - start integrating.
   </Card>
 
   <Card title="Talk to us" icon="envelope" href="/support">

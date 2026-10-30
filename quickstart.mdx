@@ -1,0 +1,219 @@
+---
+title: "Quickstart"
+description: "List assets, get quotes from every venue your workspace can use, and place an order from your terminal in about five minutes."
+---
+
+import QuickstartClient from '/snippets/samples/quickstart-client.mdx'
+import QuickstartAssets from '/snippets/samples/quickstart-assets.mdx'
+import QuickstartQuote from '/snippets/samples/quickstart-quote.mdx'
+import QuickstartPreflight from '/snippets/samples/quickstart-preflight.mdx'
+import QuickstartOrder from '/snippets/samples/quickstart-order.mdx'
+import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
+
+This guide walks through one script, [`samples/http/quickstart.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/quickstart.sh), step by step. It lists the assets your workspace can trade, asks every venue for a quote on 10 USDC to USDT, takes the best quote and places the order.
+
+Each step shows the script's code under **cURL**. The **TypeScript SDK** tab shows the same step in TetraFi's TypeScript SDK, which is not published to npm yet: it is coming soon. Its example differs from the script in two ways: it quotes USDC for ETH, and after ordering it waits until the order ends.
+
+<Warning>
+This guide places a real order: by default it trades 10 USDC from your venue account, and that cannot be undone. There is no sandbox yet. Set `TETRAFI_AMOUNT` to trade less, down to the venue's minimum. [Test safely](/test-safely) shows how to find each venue's minimum before you order.
+</Warning>
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Before you begin
+
+You need `bash`, `curl`, `jq` and `openssl`, and an exchange or OTC venue account connected to your workspace that holds the USDC you pay.
+
+### Get a key with venue trading
+
+This guide places the order with the API key alone, so it orders a Basic quote: one TetraFi executes for you on your venue account. That needs an API key with:
+
+- **Read quotes**, **Submit orders** and **Read orders**;
+- venue trading, switched on for the key by a workspace owner or an admin who manages credentials;
+- request signing, and the key's signing secret.
+
+Create the key in the app as a workspace owner or admin with permission to manage credentials, signed in with a second factor:
+
+1. Open **Settings**, find **Personal API keys** under **Your account**, then select **Open API keys** and **Create key**.
+2. In **Create API key**, enter a **Name**. Under **Permissions**, tick **Read quotes**, **Submit orders** and **Read orders**.
+3. Switch **Venue trading** on and select **Create key**.
+4. Copy **API Key** and **Request-signing secret** to your secret manager, keeping them separate. They are shown once and cannot be recovered. Tick **I have saved both credentials securely** and select **Done**.
+
+The dialog does not grant organisation wallets to the key. Exchange and OTC venue accounts need no wallet grant, but on-chain Basic venues answer `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` until an owner or admin grants a wallet. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains that separate step.
+
+The key is bound to its workspace, so the script sends no workspace id: every request works in the key's own workspace. If you need the id later, `GET /api/v1/me` returns it in `workspaceId`, and in the app a workspace owner or admin finds it as **Workspace ID** in the workspace's settings, on the **General** tab.
+
+<Note>
+On-chain (Advanced) execution is not open yet: Advanced venues are listed in `sources` as `unavailable` with the reason `advancedModeDisabled`, and are not asked. This guide and every sample on this site use Basic quotes. [Orders](/trade/orders) describes the Advanced path for when it opens.
+</Note>
+
+<Steps>
+  <Step title="Set your environment">
+    Export your base URL, key and the key's signing secret.
+
+    ```bash
+    export TETRAFI_BASE_URL=https://api.tetrafi.io
+    export TETRAFI_API_KEY=...            # from your secret manager
+    export TETRAFI_SIGNING_SECRET=...     # the key's signing secret
+    ```
+
+    The script starts with one helper, `tetrafi`, that sends a request with your key, signs it when `TETRAFI_SIGNING_SECRET` is set, and stops the script with the error body on any error status.
+
+    <QuickstartClient />
+  </Step>
+
+  <Step title="List the assets you can trade">
+    `GET /api/v1/assets` returns every asset your workspace can trade, with its variants and the chains it is deployed on. The script checks that both sides of the pair are listed.
+
+    <QuickstartAssets />
+
+    ```json Response (shortened)
+    {
+      "assets": [
+        {
+          "assetId": "USDC",
+          "symbol": "USDC",
+          "name": "USD Coin",
+          "kind": "stablecoin",
+          "variants": [
+            { "kind": "native", "name": "USDC", "deployments": [{ "chain": "eip155:8453", "decimals": 6 }] }
+          ]
+        }
+      ]
+    }
+    ```
+
+    In the app, the trade page's asset picker lists the same assets.
+  </Step>
+
+  <Step title="Request quotes and pick the best">
+    `POST /api/v1/quotes` asks every venue at once. The body names the asset you pay, the asset you receive, the amount and `"side": "payExact"`, which means the amount is what you pay. Leave out `chain` on a side to let venues quote it on any chain or off-chain.
+
+    Quotes come back best first, by what you receive net of fees. The script takes the first one whose `next` is `order` or `preflight`. If none is, it prints every venue's outcome from `sources` and stops.
+
+    <QuickstartQuote />
+
+    ```json Response (shortened)
+    {
+      "quoteRequestId": "rq_01M5…",
+      "venueAsked": true,
+      "quotes": [
+        {
+          "id": "q_01M5…",
+          "legs": [{ "venue": { "id": "binance-orderbook", "integrationMode": "basic" } }],
+          "commitment": { "kind": "executable", "firm": false },
+          "pay": { "asset": "USDC", "chain": null, "amount": "10" },
+          "receive": { "asset": "USDT", "chain": null, "amount": "10.0134" },
+          "minOut": "9.9833",
+          "next": { "kind": "order" },
+          "expiresAt": "2026-10-27T00:43:10.213Z"
+        }
+      ],
+      "sources": [
+        { "venue": { "id": "binance-orderbook" }, "status": "answered" },
+        { "venue": { "id": "across" }, "status": "unsupported", "reason": "pairNotServed" }
+      ]
+    }
+    ```
+
+    You can send one live quote request every 3 seconds per key.
+
+    To change what the script asks for, set any of these before you run it:
+
+    | Variable | Default | What it changes |
+    | --- | --- | --- |
+    | `TETRAFI_PAY` | `USDC` | The asset you pay. |
+    | `TETRAFI_RECEIVE` | `USDT` | The asset you receive. |
+    | `TETRAFI_AMOUNT` | `10` | The amount you pay. |
+    | `TETRAFI_VENUES` | every venue | A comma-separated list of venue ids to ask, sent as `filters.venues.include`. Use `sources[].venue.id` values ([Venue types and venues](/search/venues#specific-venues)). |
+    | `TETRAFI_SLIPPAGE_BPS` | `50` | How far below a quote that is not firm you accept, in basis points. |
+    | `TETRAFI_PLACE_ORDER` | not set | Set it to `1` to place the order. |
+
+    In the app, this is the quote list on the trade page.
+  </Step>
+
+  <Step title="Preflight the quote">
+    `POST /api/v1/orders/preflight` with the quote id checks an on-chain (Advanced) quote and returns the actions needed before ordering, each with its `actor`: `userWallet` means your wallet must sign or send it, `tetrafiApi` means TetraFi does it. Nothing is sent and the quote is not used up.
+
+    A venue (Basic) quote needs no preflight. TetraFi executes it through your venue account, so preflight answers `409 PREFLIGHT_NOT_APPLICABLE`. The script treats that answer as "go straight to the order".
+
+    <QuickstartPreflight />
+
+    If preflight asks your wallet to act, or says the quote cannot be submitted yet (`canSubmit` is not `true`), the script stops here and prints `"walletActionRequired": true`.
+  </Step>
+
+  <Step title="Place the order">
+    `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` header with a value you generate and keep: a retry with the same key and body returns the first answer instead of placing a second order. Each quote can be ordered once.
+
+    When `commitment.firm` is not `true`, send `minReceive`, the least you accept: the script uses the quoted receive amount less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the receive asset's decimals from `GET /api/v1/assets`.
+
+    The script places the order only when you set `TETRAFI_PLACE_ORDER=1`. Without it, it stops after preflight and prints the quote it would order.
+
+    <QuickstartOrder />
+
+    ```json Response (shortened)
+    {
+      "kind": "basicTrade",
+      "quoteId": "q_01M5…",
+      "status": "working",
+      "terminal": false,
+      "statusUrl": "/api/v1/orders/acb8…",
+      "operation": { "connectionId": "1586…", "operationId": "acb8…" }
+    }
+    ```
+
+    A Basic quote answers `"kind": "basicTrade"` with the venue trade in `operation`. An Advanced quote answers `"kind": "advancedTrade"` with the order in `order`. Either way, `status` and `terminal` say where it is, and `statusUrl` is where to read it again.
+  </Step>
+
+  <Step title="Read the status">
+    Read the order at the `statusUrl` the answer gave. The read answers the same envelope as the order answer, for every kind of order.
+
+    <QuickstartStatus />
+
+    The script reads the status once. In your own code, poll every 10 to 15 seconds until `terminal` is `true`. `outcomeUnknown` is not a failure: the trade was sent and may have filled, so keep reading it and never place a new order for it ([Order status](/trade/order-status)).
+
+    The script's last line is a one-line summary:
+
+    ```json Output
+    {"kind":"basicTrade","id":"f507…","status":"filled","idempotencyKey":"bef0…"}
+    ```
+
+    In the app, the same trade appears under **Trades**.
+  </Step>
+</Steps>
+
+## Run the whole script
+
+```bash
+TETRAFI_PLACE_ORDER=1 bash samples/http/quickstart.sh
+```
+
+Progress goes to stderr and the summary to stdout, so `| jq` works on the result. Without `TETRAFI_PLACE_ORDER=1`, the summary reads `"ordered": false`.
+
+## If nothing quotes
+
+When no quote's `next` is `order` or `preflight`, the script stops with `NO_ACTIONABLE_QUOTE` and lists each venue's `status` and `reason` from `sources`. The outcomes a new key most often sees:
+
+| `status` and `reason` | What it means | What to do |
+| --- | --- | --- |
+| `restricted`, `venueTradeScopeRequired` | The key has no venue trading, so venue accounts are not asked. | Use a key with venue trading ([Get a key with venue trading](#get-a-key-with-venue-trading)). |
+| `unavailable`, `notConnected` | Your workspace has no account at that venue. | Connect one ([Connect a venue account](/trade/wallets-and-accounts#connect-a-venue-account)), or ignore that venue. |
+| `unavailable`, `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | The venue trades from an organisation wallet, and none the key may use is granted to it. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
+| `unavailable`, `advancedModeDisabled` | The venue executes on-chain from your own wallet (Advanced), which is not open yet. | Nothing to do. Use a Basic quote. |
+| `unsupported`, `pairNotServed` | The venue does not trade this pair. | Nothing to do, or try another pair. |
+| A quote whose `next` is `fund` | The venue account holds less than you pay, so the script skipped it. `readiness.amount` is what is missing. | Fund the account, then run the script again. |
+
+[Errors and refusals](/trade/errors#source-outcomes) lists more outcomes.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Permissions, request signing, rotation and rate limits.
+  </Card>
+  <Card title="Orders" icon="list-check" href="/trade/orders">
+    Advanced orders, wallet signatures and following an order to the end.
+  </Card>
+</CardGroup>

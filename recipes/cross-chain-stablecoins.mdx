@@ -1,0 +1,166 @@
+---
+title: "Move stablecoins across chains"
+description: "Move USDC from one chain to another with an API key: find its chains, quote the move, order it from an organisation wallet and confirm it arrived."
+---
+
+import CrossChainChains from '/snippets/samples/recipe-cross-chain-chains.mdx';
+import CrossChainQuote from '/snippets/samples/recipe-cross-chain-quote.mdx';
+import CrossChainOrder from '/snippets/samples/recipe-cross-chain-order.mdx';
+import CrossChainStatus from '/snippets/samples/recipe-cross-chain-status.mdx';
+import CrossChainArrival from '/snippets/samples/recipe-cross-chain-arrival.mdx';
+
+This recipe moves USDC from one chain to the same USDC on another chain, with an API key and no wallet signature. TetraFi executes the move from one of your workspace's organisation wallets. Every step comes from one script, [`samples/http/recipe-cross-chain.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/recipe-cross-chain.sh).
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Before you begin
+
+You need `bash`, `curl`, `jq` and `openssl`, and an API key with **Read quotes**, **Submit orders** and **Read orders** ([Authentication](/authentication)).
+
+The key also needs:
+
+- **Venue trading and request signing.** A move TetraFi executes for you from an organisation wallet granted to the key is a Basic trade, so the key needs the venue trading scope, its signing secret and venue trading switched on ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
+- **An organisation wallet granted to it.** A workspace owner, or an admin who manages credentials, grants the key the organisation wallets it may use, signed in with a second factor ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)).
+- **Funds on the chain you pay from.** The organisation wallet that pays must hold the USDC you move and gas on that chain: it sends the transactions itself.
+
+Then export your environment, as in the [Quickstart](/quickstart):
+
+```bash
+export TETRAFI_BASE_URL=https://api.tetrafi.io
+export TETRAFI_API_KEY=...            # from your secret manager
+export TETRAFI_SIGNING_SECRET=...     # the key's signing secret
+export TETRAFI_FROM_CHAIN=...         # the CAIP-2 chain you pay on, from step 1
+export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from step 1
+```
+
+<Steps>
+  <Step title="Find the chains USDC is on">
+    `GET /api/v1/assets` lists every deployment of each asset. The chains of USDC's `native` variant are the chains you can move it between. The script prints them and checks that both of your chains are among them.
+
+    <CrossChainChains />
+
+    ```json Output on test networks (shortened)
+    {"asset":"USDC","chains":["eip155:11155111","eip155:11155420","eip155:84532","solana:EtWTRABZ…"]}
+    ```
+
+    The outputs on this page come from a run on test networks: Ethereum Sepolia (`eip155:11155111`), Optimism Sepolia (`eip155:11155420`), Base Sepolia (`eip155:84532`) and Solana devnet. In production you see main networks, such as Base (`eip155:8453`).
+
+    Without `TETRAFI_FROM_CHAIN` and `TETRAFI_TO_CHAIN`, the script takes the first two chains listed, which may not be where your wallet holds USDC.
+  </Step>
+
+  <Step title="Quote the move">
+    `POST /api/v1/quotes` with the same asset on both sides, each side pinned to its chain, and `filters.locations` set to `["crossChain"]` so only moves between the two chains are quoted ([Chains and routes](/search/chains-and-routes)).
+
+    Pick a quote whose `next` is `order`: TetraFi executes it from an organisation wallet, so your key can order it. Its `tradingSource` names the wallet it trades from (`financialAccountId` and `network`), and `fundingModel` says how the move is funded ([Wallets and accounts](/trade/wallets-and-accounts)). The quote's `eta` is how long delivery is expected to take.
+
+    <CrossChainQuote />
+
+    ```json Output on test networks (shortened)
+    {"venue":"across","status":"answered","reason":null}
+    {"venue":"cctp","status":"unavailable","reason":"amountBelowMinimum"}
+    {"quoteId":"q_01M5XS49…","venue":"across","next":"order","pay":"1 on eip155:84532","receive":"0.999501 on eip155:11155111","eta":"PT166S","paysFrom":"4d4670ab-…","receivesAt":"bb0c6ab1-…"}
+    ```
+
+    A venue that cannot quote says why in `sources`. `amountBelowMinimum` comes with a `detail` naming the least you can move.
+
+    You can send one live quote request every 3 seconds. The script waits `details.retryAfter` once when it gets `429 QUOTE_RATE_LIMITED`.
+  </Step>
+
+  <Step title="Place the order">
+    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` header you generate and keep. A retry with the same key and body returns the first answer instead of moving the funds twice ([Idempotency](/trade/idempotency)).
+
+    A bridge that TetraFi trades from your organisation wallet executes within your limit: an order on a quote that is not firm must carry `minReceive`, the least you accept to receive ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). Without it, the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent. Cross-chain quotes from such a venue are usually indicative (`commitment.kind` is `indicative`), and the script sends `minReceive` on an indicative quote: the quoted amount less 50 basis points. Change that with `TETRAFI_SLIPPAGE_BPS`.
+
+    The script places the order only when you set `TETRAFI_PLACE_ORDER=1`.
+
+    <CrossChainOrder />
+
+    The script prints the order response's `kind`, `quoteId` and `operation`. A Basic trade's `operation` holds the `connectionId` and `operationId` you read its status with:
+
+    ```json Output (shortened)
+    {"kind":"basicTrade","quoteId":"q_01M5XS49…","operation":{"connectionId":"…","operationId":"f1103a3a-…"}}
+    ```
+  </Step>
+
+  <Step title="Follow it until it ends">
+    The order answers as soon as it is accepted. A move executed from an organisation wallet answers `"kind": "basicTrade"`; read it at its `statusUrl` every 10 seconds until `terminal` is `true` ([Order status](/trade/order-status)).
+
+    While the funds are on their way, the status can read `working` or `outcomeUnknown`. Neither is a failure: keep reading, and never place a new order for it. When `next` says `wait`, read again after its `retryAfter`.
+
+    <CrossChainStatus />
+
+    ```json Output (shortened)
+    {"kind":"basicTrade","status":"working","terminal":false,"next":null}
+    {"kind":"basicTrade","status":"settled","terminal":true,"next":null}
+    ```
+
+    On test networks, a move from Base Sepolia to Ethereum Sepolia finished about two and a half minutes after the order.
+  </Step>
+
+  <Step title="Confirm it arrived">
+    The venue trade's own detail is under `operation`: `executionStatus` for the trade and `settlementStatus` for any later money movement. When the venue reports amounts, `dispatch.inputSpent` is what you paid and `dispatch.outputReceived` is what you received. A missing or `null` amount is unknown, not zero. `dispatch.venueOrderId`, when present, is the venue's native order id.
+
+    `bounds.maximumDebit` and `bounds.minimumReceipt` are the limits you accepted, not the amounts that settled. The public response does not document delivery transaction hashes or your organisation wallet's transaction steps.
+
+    <CrossChainArrival />
+
+    ```json Output (shortened)
+    {
+      "executionStatus": "filled",
+      "bounds": {
+        "debitAsset": "USDC",
+        "receiptAsset": "USDC",
+        "maximumDebit": "1",
+        "minimumReceipt": "0.994503"
+      },
+      "dispatch": { "inputSpent": "1", "outputReceived": "0.999501" }
+    }
+    ```
+
+    To confirm arrival independently, check the receiving wallet's balance on the destination chain in the app. Keep reading the order status if the trade or its money movement is not yet final.
+  </Step>
+</Steps>
+
+## Run the whole script
+
+```bash
+TETRAFI_PLACE_ORDER=1 bash samples/http/recipe-cross-chain.sh
+```
+
+Progress goes to stderr and the summary to stdout:
+
+```json Output
+{"from":"eip155:84532","to":"eip155:11155111","quoteId":"q_01M5XS49…","kind":"basicTrade","id":"f1103a3a-…","status":"filled","idempotencyKey":"7870…"}
+```
+
+## If no quote can be ordered
+
+When no quote's `next` is `order`, the script stops and its summary lists why, venue by venue:
+
+```json Output (shortened)
+{"from":"eip155:11155111","to":"eip155:11155420","orderable":false,"ownWallet":[],"reasons":[{"venue":"across-solver-testnet","reason":"onchainWalletNotUsable"},{"venue":"circle-cctp","reason":"onchainWalletNotUsable"},{"venue":"across","reason":"apiKeyOrganisationWalletScopeRequired"},{"venue":"cctp","reason":"apiKeyOrganisationWalletScopeRequired"}]}
+```
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | The key has no organisation wallet granted to it that this venue can use. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
+| `unavailable` with `amountBelowMinimum` | The amount is below what that venue moves. `detail` names the least. | Move at least that amount. |
+| A quote whose `next` is `preflight`, `sign` or `transact` | The move pays from your own wallet, which must sign or send a transaction first. An API key cannot do that. | Sign with your wallet in your application, then order it ([Orders](/trade/orders#advanced-orders)). |
+| `restricted` with `venueTradeScopeRequired` | The key cannot trade on venue accounts. | Set up [venue trading](/authentication#trading-on-your-venue-accounts) for the key. |
+
+## In the app
+
+On the Trade page, open **Advanced filters** and set **Route** to **Cross-chain**, with a from chain and a to chain.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Wallets and accounts" icon="wallet" href="/trade/wallets-and-accounts">
+    Choose which organisation wallet trades or receives with source and deliverTo.
+  </Card>
+  <Card title="Order status" icon="list-check" href="/trade/order-status">
+    Every status a trade can read, and how often to poll.
+  </Card>
+</CardGroup>

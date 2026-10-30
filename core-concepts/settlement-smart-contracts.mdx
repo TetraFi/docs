@@ -22,7 +22,7 @@ Your router's address is deterministic, predicted before deployment, and yours p
 
 ## Settlement Lifecycle
 
-Every quote carries its own [EIP-712](/core-concepts/execution-modes) `escrow-v0` payload. Your signature authorizes it, your router locks the input into escrow on those terms, and only a delivery proof moves the funds onward.
+Every quote carries its own [EIP-712](/trade/orders) `escrow-v0` payload. Your signature authorizes it, your router locks the input into escrow on those terms, and only a delivery proof moves the funds onward.
 
 ```mermaid
 sequenceDiagram
@@ -60,7 +60,7 @@ A settlement opted into clearing posts an **obligation**, and only the net resid
 
 ## Funding Locks
 
-Preflight selects the lock for the corridor and token; [Token Approvals](/core-concepts/token-approvals) covers the check-and-approve flow.
+Preflight selects the lock for the corridor and token; [Orders](/trade/orders) covers the check-and-approve flow.
 
 | Lock type     | Description                                                          | Requires            |
 | ------------- | -------------------------------------------------------------------- | ------------------- |
@@ -70,4 +70,4 @@ Preflight selects the lock for the corridor and token; [Token Approvals](/core-c
 
 ## Signed Payloads
 
-Each quote carries its complete typed payload in `quote.order`: for `escrow-v0`, the `StandardOrder` typed data. Sign exactly what the quote returns; the `integrityChecksum` binds your submission to the quote shown, so any mutation is rejected. Signing flows: [RFQ Order Submission guide](/rfq-api/guides/gasless-execution), [Router API quickstart](/router-api/quickstart).
+Each quote names your next step in `next`. When that step is `sign`, `next.typedData` is the complete EIP-712 document - for `escrow-v0`, the `StandardOrder` typed data - and you sign exactly what it returns, then place the order. When an order needs more than one signature, the quote says how many in `signaturesRequired` and the later ones arrive on the order. Signing flows: [Orders](/trade/orders), [Quickstart](/quickstart).

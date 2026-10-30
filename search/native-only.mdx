@@ -1,0 +1,56 @@
+---
+title: "Native only"
+description: "Keep only the native form of an Asset, with no bridged, wrapped, omnichain or test representation."
+---
+
+import SearchNativeOnly from '/snippets/samples/search-native-only.mdx';
+
+An Asset can exist in more than one form, called variants. ETH, for example, is native ETH on some chains and WETH, a wrapped token, on others. A search accepts every variant of each side unless you ask for the native one only.
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `filters.variants.pay` | `any` (default) or `nativeOnly` | With `nativeOnly`, you pay only in the native variant. |
+| `filters.variants.receive` | `any` (default) or `nativeOnly` | With `nativeOnly`, you receive only the native variant. |
+
+Set one side or both. A side you leave out stays `any`.
+
+## Variants
+
+[`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery) lists each Asset's variants, each with a `kind` and the chains it is deployed on:
+
+| `kind` | What it is |
+| --- | --- |
+| `native` | The Asset itself, as its issuer or chain defines it, such as `USDC` or `ETH`. |
+| `bridged` | A copy minted on another chain by a bridge, such as `USDC.e`. |
+| `wrapped` | A token that holds the Asset one for one, such as `WETH`. |
+| `omnichain` | One token issued across several chains by its own protocol. |
+| `test` | A test-network stand-in. |
+
+New kinds can appear. Treat a `kind` you do not recognise as "other", and as not native.
+
+Each quote states the variant on each side in `pay.variant` and `receive.variant`, for example `{"kind": "native", "name": "ETH"}`.
+
+<SearchNativeOnly />
+
+## What you see when a variant is left out
+
+The filter acts on the routes each venue could take, not on whole venues. A venue that can still trade the native variant quotes as usual. A venue whose only route for this pair uses another variant is not asked, and reads `unavailable` with reason `onchainAssetVariantFiltered`:
+
+```json
+{ "status": "unavailable", "venue": { "id": "...", "modality": "amm" }, "asked": false, "reason": "onchainAssetVariantFiltered", "detail": null }
+```
+
+For example, an on-chain pool that pays out WETH for USDC drops out of a search for ETH with `receive: "nativeOnly"`, while your venue accounts, which hold native ETH, still quote.
+
+On [`GET /api/v1/prices`](/search/prices), `variants.pay` and `variants.receive` filter the same way, and a row for a variant you left out is not returned.
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `INVALID_REQUEST` | A value is not `any` or `nativeOnly`, or `variants` has a field other than `pay` and `receive`. `message` names it. | Send `any` or `nativeOnly`. |
+| `SAME_ASSET_NEEDS_CHAIN` | The same Asset on both sides, pinned to the same chain, with `nativeOnly` on both sides. Only a swap between two variants could quote it. | Allow `any` on one side, or pin two different chains. |
+
+## In the app
+
+The trade page has no control for this. A shared link can carry it in its `native` parameter (`pay`, `receive` or `both`), and it then shows as a **Native only** chip you can remove.

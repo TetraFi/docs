@@ -1,0 +1,74 @@
+---
+title: "Sort and price protection"
+description: "Order quotes by net received or by time to delivery, and set how far a non-firm quote's delivery may move."
+---
+
+import SearchSortEta from '/snippets/samples/search-sort-eta.mdx';
+import SearchPriceProtection from '/snippets/samples/search-price-protection.mdx';
+
+Two request fields change what you get back without leaving any venue out:
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `sort` | `netReceived` (default) or `eta` | The order of `quotes`. |
+| `priceProtectionBps` | A whole number from 0 to 1000; 30 when omitted | How far a non-firm executable quote's delivery may fall below what it quotes, in basis points (100 is 1%). |
+
+## Sort
+
+| `sort` | `side` | Order of `quotes` |
+| --- | --- | --- |
+| `netReceived` | `payExact` | Most `netReceived` first. |
+| `netReceived` | `receiveExact` | Least `pay.amount` first. |
+| `eta` | either | Shortest `eta` first. |
+
+Under every order:
+
+- a quote whose value cannot be read goes after those that can: an `unavailable` `netReceived`, or no `eta`;
+- quotes that tie come first if every fee is known, then in order of venue id.
+
+`eta` is an ISO 8601 duration such as `PT10S`. Quotes on your venue accounts may carry no `eta`; with `sort: "eta"` they then come after quotes that have one, in order of venue id.
+
+<SearchSortEta />
+
+Sorting asks the same venues and returns the same quotes, in a different order.
+
+## Price protection
+
+A non-firm executable quote may deliver a little less than it quotes. `priceProtectionBps` sets the most it may fall, and the quote states the result:
+
+| Quote | Field | Value |
+| --- | --- | --- |
+| `executable` with `firm: false`, Basic or Advanced | `minOut` | The least you receive: the quoted amount less the protection, rounded down to the precision of the receive amount. |
+| `receiveExact`, from one of your venue accounts | `maxPay` | The most you pay. On a quote the venue has firmly priced, the amount it would take from your account, raised by the protection percentage and rounded up. Until then, the same as `pay.amount`. |
+| `firm: true` or `indicative` | `minOut` | `null`. A firm quote delivers exactly its amount; an indicative quote commits to nothing. |
+
+If you omit `priceProtectionBps`, 30 (0.3%) is used.
+
+<SearchPriceProtection />
+
+For example, 100 basis points on a quote to receive `0.4322` ETH gives a `minOut` of `0.4278`:
+
+```json Output
+{ "venue": "...", "receive": "0.4322", "minOut": "0.4278" }
+```
+
+Rounding is to the receive amount's own precision, so on a small amount quoted with few decimals, two protection values can give the same `minOut`.
+
+### Protection on a requote and an order
+
+- A [requote](/trade/requotes-and-expiry) can send its own `priceProtectionBps`, 0 to 1000, for the new quote's `minOut`. Without it, the new quote keeps the original's protection.
+- When you [preflight or order](/trade/orders#price-protection-and-minimum-receive) an Advanced quote, `priceProtectionBps` is 1 to 1000 and can only tighten the protection held on the quote, never loosen it. To loosen it, requote.
+- A Basic quote takes no `priceProtectionBps` when you order it: sending one is refused with `400 INVALID_REQUEST`. Set your floor with `minReceive` instead, which a venue that executes within your limit requires on a quote that is not firm.
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `INVALID_REQUEST` | `priceProtectionBps` is above 1000, negative or not a whole number, or `sort` is not `netReceived` or `eta`. `message` names the field. | Send a whole number from 0 to 1000, and a listed `sort`. |
+
+## In the app
+
+On the Trade page, open **Advanced filters**:
+
+- **Protection** sets the price protection: 0.1%, 0.3%, 0.5% or 1%, or **Custom** up to 10%. The app starts at 0.5% (50 basis points), not the API's 0.3% default.
+- **Rank by** sets the sort: **Best net** (`netReceived`) or **Fastest** (`eta`). The results list's sort select sets the same order; for receive exact, it reads **Least paid first**.

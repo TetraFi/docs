@@ -13,7 +13,7 @@ Every institutional settlement carries three costs: **principal risk**, the **gr
 
 | Primitive | The cost it removes | Status | Where you integrate |
 | --- | --- | --- | --- |
-| **Settlement rails** | Principal risk - atomic delivery-versus-payment from any chain, asset, or venue to any other | Live | [RFQ API](/rfq-api/introduction), [Router API](/router-api/introduction), [Price API](/price-api/introduction), [Trade History API](/trade-history-api/introduction) |
+| **Settlement rails** | Principal risk - atomic delivery-versus-payment from any chain, asset, or venue to any other | Live | [The TetraFi API](/overview): [quotes](/search/how-it-works), [orders](/trade/orders), [prices](/search/prices) |
 | **[Multilateral Netting](/netting)** | Gross settlement - obligations clear by **atomic multilateral set-off**, and only the net residual settles | Coming soon | [Integration](/netting-api/integration) |
 | **[Shared Collateral Network](/collateral)** | Trapped liquidity - committed once, cross-collateralised across every settlement gap | Coming soon | [Integration shape](/collateral-api/introduction) |
 
@@ -56,7 +56,7 @@ Who may sign, from which wallet, under whose approval, with what budget: the wor
     A sponsored service account inside a spending envelope, with a kill switch.
   </Card>
 
-  <Card icon="key" href="/core-concepts/authentication" title="Access & Identity">
+  <Card icon="key" href="/authentication" title="Access & Identity">
     Scoped keys checked against live permissions, request signing, MFA.
   </Card>
 </CardGroup>
@@ -64,32 +64,25 @@ Who may sign, from which wallet, under whose approval, with what budget: the wor
 ## Trade Execution
 
 <CardGroup cols={4}>
-  <Card icon="bolt" href="/rfq-api/introduction" title="RFQ API">
-    Firm quotes from competing solvers and LPs, escrow-settled.
+  <Card icon="bolt" href="/quickstart" title="Quickstart">
+    Your first quote and order through the TetraFi API.
   </Card>
 
   <Card icon="sparkles" href="/propamm/introduction" title="propAMM">
     Makers stream prices, you execute the freshest. Coming soon.
   </Card>
 
-  <Card icon="shuffle" href="/router-api/introduction" title="Router API">
-    Ranked executable routes across every eligible source.
+  <Card icon="shuffle" href="/search/how-it-works" title="How search works">
+    One request, quotes from every venue and route your workspace can reach.
   </Card>
 
-  <Card icon="coins" href="/core-concepts/monetization" title="Monetization">
+  <Card icon="coins" href="/monetize" title="Monetization">
     A partner fee on every settled trade.
   </Card>
 </CardGroup>
 
-### Picking Your Product
+### One API, every venue
 
-|                    | **RFQ API - Firm Escrow Liquidity**                          | **Router API - Aggregated Multi-Source**                             |
-| ------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------- |
-| **What you buy**   | Only firm quotes, each escrow-enforced to deliver or refund  | A ranked candidate list, each entry carrying its own guarantees      |
-| **How it settles** | Delivery-versus-payment through escrow, custody never with TetraFi | The same contract stack, custody never with TetraFi            |
-| **Reach**          | The corridors your workspace's solvers and LPs quote         | Everything eligible - DEX, bridges, issuers, fiat rails, cross-chain |
-| **The catch**      | Coverage follows the LP roster, not the whole token universe | Guarantees differ per candidate - always read the printed terms      |
+You send one quote request and get back a quote from every venue and route your workspace can reach: firm quotes from solvers and LPs, and routes through DEXs, bridges, and other sources. Each quote states its own terms - whether it is `indicative` or `executable` and firm, the `assurance` behind it, and every fee line - so always read the printed terms before you order. Settlement runs through the same contract stack either way, and custody never sits with TetraFi. Still unsure? [Get in touch](/support).
 
-Run both when core corridors deserve firm escrow and the long tail rides the router. Still unsure? [Get in touch](/support).
-
-Around the trade: the [Price API](/price-api/introduction) streams a continuous WebSocket price picture, and the [Trade History API](/trade-history-api/introduction) returns your workspace's settled history, filterable and exportable.
+Around the trade: [prices](/search/prices) give you an indicative per-venue picture for a pair before you ask for quotes, and your workspace's trade history is filterable and exportable.

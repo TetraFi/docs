@@ -1,0 +1,47 @@
+---
+title: "Test safely"
+description: "There is no sandbox at launch: test against production with small real amounts, the smallest size each venue takes, and checks that run before any money moves."
+---
+
+import TestSafelyMinimums from '/snippets/samples/test-safely-minimums.mdx';
+
+There is no sandbox at launch. You build and test against the production API, `https://api.tetrafi.io`, and **every order you place moves real assets**. A sandbox with test assets is planned for after launch: it will be announced in the [Changelog](/changelog).
+
+Testing with real money is safe when you keep orders small, read each quote before you order it, and retry without ordering twice.
+
+## Use the smallest size a venue takes
+
+Quotes cost nothing; only an order moves money. So test the whole flow with real quotes, and place your first orders at the smallest size the venue accepts.
+
+Each venue sets its own minimum, and minimums change. Find them by asking: this script, [`samples/http/test-safely.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/test-safely.sh), asks for quotes at 1, 5, 10 and 25 USDC, one request every 3 seconds, and prints the smallest amount each venue answered at. It orders nothing.
+
+<TestSafelyMinimums />
+
+```json Output on test networks, 2026-10-30 (shortened)
+{"venue":"binance-orderbook","smallest":"5"}
+{"venue":"bebop","smallest":null,"triedUpTo":"25","status":"unavailable","reason":"apiKeyOrganisationWalletScopeRequired"}
+{"venue":"keyrock-rfq","smallest":null,"triedUpTo":"25","status":"unsupported","reason":"pairNotServed"}
+```
+
+On that run, the Binance order book quoted USDC to USDT from 5 USDC and refused 1 USDC with `sizeNotEligible`. A venue that needs a larger amount reads `unsupported` or `unavailable` with a reason such as `sizeNotEligible` or `amountBelowMinimum`. Run the script with your own key and pair before you test: it shows what your workspace can reach today.
+
+The [Quickstart](/quickstart) orders 10 USDC by default. Set `TETRAFI_AMOUNT` to trade less.
+
+## Check the quote before you order
+
+Nothing moves until you place an order, so read the quote first:
+
+- `receive` and `fees` say what you get and what it costs;
+- `commitment` says whether the price is firm; when it is not, send `minReceive`, the least you accept, so the order cannot fill below it ([Placing an order](/trade/orders#price-protection-and-minimum-receive));
+- `expiresAt` says how long you can order it;
+- `tradingSource` says which account or wallet pays ([Wallets and accounts](/trade/wallets-and-accounts)).
+
+Advanced orders add a preflight, `POST /api/v1/orders/preflight`, which checks approvals and balances without sending anything. Advanced execution is not open yet.
+
+## Never order twice by accident
+
+A retry that places a second order is the costly mistake. Send an `Idempotency-Key` with every order, and on a timeout send the same body with the same key ([Idempotency](/trade/idempotency)). When you cannot tell whether an order was placed, find it by its quote before you do anything else ([Operating guide](/trade/operating-guide#an-unknown-outcome-is-not-a-failure)).
+
+## Use a key with only what it needs
+
+Give a test key only the permissions it needs: **Read quotes** alone to try searches, then **Submit orders** and **Read orders** for your first orders. Revoke it when you are done ([Authentication](/authentication)).

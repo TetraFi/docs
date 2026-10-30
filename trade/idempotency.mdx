@@ -1,0 +1,93 @@
+---
+title: "Idempotency"
+description: "Retry an order safely: one Idempotency-Key per order, replays that return the first answer, and how to find out whether an order was placed."
+---
+
+import OrderPlace from '/snippets/samples/order-place.mdx';
+import OrderIdempotentReplay from '/snippets/samples/order-idempotent-replay.mdx';
+import OrderIdempotencyConflict from '/snippets/samples/order-idempotency-conflict.mdx';
+import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
+
+A network call can fail after TetraFi received it: a timeout, a dropped connection, a crash between sending and reading the answer. An `Idempotency-Key` makes the retry safe, so you never place the same order twice.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Send a key with every order
+
+An API key must send an `Idempotency-Key` header with every `POST /api/v1/orders`. Without one, the order is refused with `400 IDEMPOTENCY_KEY_REQUIRED`.
+
+- Generate a new random value for each order, such as 32 hexadecimal characters.
+- Send exactly one value, 1 to 255 bytes, with no spaces around it. Anything else is refused with `400 IDEMPOTENCY_KEY_INVALID`.
+- Store the key with your record of the order before you send the request, so a retry after a crash can reuse it.
+
+Keys are scoped to your workspace and to the endpoint.
+
+<OrderPlace />
+
+## Replay: same key, same body
+
+Send the same body with the same key again and you get the first answer back. No second order is placed. The body is compared by its content, so whitespace and key order do not matter.
+
+<OrderIdempotentReplay />
+
+```json Output
+{"replayedSameOrder":true}
+```
+
+This holds even after the quote expired: a replay of an order that was placed returns that order, never `QUOTE_EXPIRED` or `QUOTE_ALREADY_ORDERED`.
+
+## Conflict: same key, different body
+
+Reusing a key with a different body is refused with `409 IDEMPOTENCY_CONFLICT`, and nothing is placed. Here the same quote with a `minReceive` added counts as a different body:
+
+<OrderIdempotencyConflict />
+
+```json Output
+{"reusedKeyWithNewBody":"IDEMPOTENCY_CONFLICT"}
+```
+
+A conflict means your code reused a key by mistake. Use a new key for a new order.
+
+## When to retry with the same key
+
+| Answer | What it means | What to do |
+| --- | --- | --- |
+| No answer (timeout, dropped connection) | The order may or may not have been placed. | Send the same body with the same key. |
+| `503 IDEMPOTENCY_UNAVAILABLE` | The key could not be checked, so the request did not run. | Send the same body with the same key. |
+| `409 ORDER_IN_PROGRESS` | An order with this key is still being placed. | Wait a few seconds, then send the same body with the same key. |
+| `503 QUOTE_NOT_YET_DURABLE` | The quote is still being recorded. | Send the same body with the same key after a second. |
+| `409 IDEMPOTENCY_CONFLICT` | The key was already used for a different body. | Fix your code. Do not send this body with a new key until you have [recovered by quote](#recover-an-order-by-its-quote). |
+
+If you have lost the key itself, recover by quote.
+
+## Recover an order by its quote
+
+`GET /api/v1/orders/by-quote/{quoteId}` tells you what a quote produced. It never places anything, and it answers whether or not the quote has expired. The key needs **Read orders**.
+
+<OrderRecoverByQuote />
+
+```json
+{"state":"ordered","statusUrl":"/api/v1/orders/acb84378-…"}
+{"state":"notOrdered","expired":false}
+```
+
+| `state` | What it means | What to do |
+| --- | --- | --- |
+| `ordered` | An order exists. `statusUrl` is where to read it, and `order` names its kind and ids. | Read that order's status ([Order status](/trade/order-status)). Do not order again. |
+| `notOrdered` | No order was placed with this quote. `expired` says whether it can still be ordered. | If `expired` is `false`, you can order it. If `true`, requote it or search again. |
+| `unknown` | TetraFi cannot yet prove either way. | Wait and read again. Do not order again. |
+
+An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND`. If the read itself fails, it answers `503 QUOTE_ORDER_UNAVAILABLE`: do not place another order until a read succeeds.
+
+## What never to do
+
+- **Never retry an order whose outcome is unknown with a new key.** A new key is a new order. Retry with the same key, or read by quote first.
+- **Never reuse a key for a different order.** It is refused, and it hides which order the key belongs to.
+- **Never treat `unknown` or a failed read as "not ordered".** Only `notOrdered` means nothing was placed.
+- **Never take `QUOTE_ALREADY_ORDERED` as a failure.** It means another order, sent with a different key, already used the quote. Read by quote to find it.
+
+## In the app
+
+If the connection drops while you place an order in the app, pressing again replays the same order with the same key, so it is never placed twice.

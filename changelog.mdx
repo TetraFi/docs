@@ -1,0 +1,90 @@
+---
+title: "Changelog"
+description: "Every change to the TetraFi API that a client can see, newest first, with what to do about it."
+---
+
+The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
+
+<Update label="2026-10-30" description="One order read, one 401 code, and renamed refusals">
+  An order has one read, and every refusal has one code with one status.
+
+  What to change:
+  - Read every order at the `statusUrl` its answer gives: `GET /api/v1/orders/{id}`. It answers the same envelope as `POST /api/v1/orders`, for Basic and Advanced orders alike: `kind`, `status`, `terminal`, `statusUrl`, `next` when there is something to do, and the trade's own detail under `operation` or `order`. The recovery answer of `GET /api/v1/orders/by-quote/{quoteId}` also carries `statusUrl`.
+  - Read `status` from one camelCase list: `pending`, `working`, `filled`, `settled`, `unfilled`, `cancelled`, `failed`, `refunded`, `reviewRequired` and `outcomeUnknown`. Stop polling on `terminal`. While an order is not final, `next` says `wait` (read again after `retryAfter`) or `contact` (contact support with `reference`).
+  - Stop building the Basic trade's address from your workspace, connection and operation ids.
+  - Match `401 AUTH_REQUIRED` for every authentication failure, and read the cause in `details.reason`, for example `MISSING_CREDENTIALS`, `INVALID_API_KEY` or `SIGNATURE_INVALID`.
+  - Match the renamed codes: `QUOTE_PRICE_MOVED` (was `PRICE_MOVED_BEYOND_PROTECTION`), `VENUE_FIRM_QUOTE_LIMITED` (was `FIRM_QUOTE_LIMITED`), `QUOTE_ALREADY_ORDERED`, `QUOTE_ID_INVALID` for a malformed quote id, and `WALLET_SIGNATURE_REQUIRED` for a missing wallet signature on an order.
+  - Read `docUrl` on any refusal: it links the code's entry in the [error-code reference](/reference/error-codes).
+  - Deliver trade output to an address or one of your own accounts: no trade can deliver to a payee.
+</Update>
+
+<Update label="2026-10-30" description="An API key implies its workspace">
+  An API key is bound to the workspace it was created in, and every request it sends now works in that workspace without `X-Workspace-Id`.
+
+  What to change:
+  - Stop sending `X-Workspace-Id` with an API key, or keep sending it: when present it must be the key's own workspace, or it is refused with `403 WORKSPACE_SCOPE_MISMATCH`.
+  - A signed-in member's session still sends `X-Workspace-Id`. Without it, the request is refused with `400 MISSING_WORKSPACE`.
+  - Read a placed order's status at the `statusUrl` its `POST /api/v1/orders` answer returns, instead of building the address yourself.
+  - Filter `GET /api/v1/workspaces/{id}/trades` with its camelCase parameter names only, for example `nextActor`, `dateFrom`, `amountMin` and `sortBy`. The snake_case names are refused with `400`.
+</Update>
+
+<Update label="2026-10-29" description="Trading source and funding replace bind and binding">
+  A quote request names what a trade executes with in `source`, and where its output goes in a top-level `deliverTo`. Each quote states its trading source and its funding. The old `bind`, `binding` and `bindingOptions` fields are gone, with no aliases.
+
+  What to change:
+  - Read `sourceOptions` where you read `bindingOptions`. It is listed on the quote set and on each quote. Candidates carry `financialAccountId`, `kind`, `displayName` and `isDefault` instead of `id` and `label`.
+  - Send `source.tradingWallets` (CAIP-2 chain id to `financialAccountId`) where you sent `bind.wallets`, `source.venueAccountId` where you sent `bind.account`, and `source.fundingAccountId` where you sent `bind.bankAccount`.
+  - Send `deliverTo` at the top level of the request or requote, not under `bind`. Its kinds are `financialAccount`, `payee` and `address`.
+  - Read each quote's `tradingSource`, `fundingModel`, `fundingAccount`, `settlement` and `deliverTo` where you read `binding`. A quote with no usable source carries `sourceRefusal`.
+  - Read a quote's `location` as `{ "kind": … }` only: `singleChain`, `crossChain`, `offChain` or `mixed`.
+  - On a `walletRefused` source, read `recovery.defaultWallets` and send it as `source.tradingWallets`, where you sent `recovery.defaultBinding` as `bind`.
+
+  - Match `SOURCE_NOT_OWNED` (403) where you matched `BINDING_NOT_OWNED`. It now refuses a `deliverTo` or `source.fundingAccountId` naming a wallet or account you cannot use.
+  - A trading wallet in `source.tradingWallets` that a venue account has not linked is no longer refused. That venue reads `unavailable` with the reason `tradingSourceNotLinked`, and the others still quote.
+
+  The other source refusal codes keep their names, for example `BINDING_NOT_ON_CHAIN`. [Wallets and accounts](/trade/wallets-and-accounts) covers the new fields.
+</Update>
+
+<Update label="2026-10-27" description="Consistent refusals, order status and source reasons">
+  Every refusal of a quote, price, order, preflight, asset or order-status request, at every status, is now one JSON object:
+
+  | Field | What it is |
+  |---|---|
+  | `error` | The stable code. Match on it. |
+  | `message` | A sentence for people. It can change. |
+  | `requestId` | The same value as the `X-Request-Id` response header. Quote it to support. |
+  | `timestamp` | When the refusal was made, in Unix seconds. |
+  | `next` | The way forward, when there is one. |
+  | `details` | The code's detail, when there is any. Keys are camelCase and can be added. |
+
+  What to change:
+  - Read `requestId` where you read `traceId` before.
+  - Read waits from `details.retryAfter`, an ISO 8601 duration such as `PT2S`. The `Retry-After` header still carries the same wait in seconds.
+  - Fields a refusal used to send at its top level now sit under `details`.
+  - A request body that is too large now answers JSON, `413 REQUEST_BODY_TOO_LARGE`, instead of plain text.
+  - A missing or empty `X-Workspace-Id` answers `400 MISSING_WORKSPACE` everywhere. A malformed one answers `400 INVALID_WORKSPACE_ID`.
+  - Send credentials on `GET /api/v1/orders/{orderId}`. Without them, you get `401 MISSING_CREDENTIALS` before any order lookup. This one is rolling out: until it reaches a deployment, a read without credentials answers `404 ORDER_NOT_FOUND`.
+  - Read order `status` as a string, including `"failed"`. Failure details are in `failure.phase`, `failure.code` and `failure.message`, not inside `status`.
+  - Source reasons on quotes and prices are camelCase tokens, for example `pairNotServed` instead of `pair_unsupported` and `apiKeyOrganisationWalletScopeRequired` instead of `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED`.
+  - Match `receiveExactUnsupported` when a source cannot quote a fixed receive amount. Quotes and prices now use the same token. Read it from `reason`, or from `detail` on a `filteredOut` row.
+
+  The [error-code reference](/reference/error-codes) lists every declared refusal and source reason. The `Idempotency-Key` rules for `POST /api/v1/orders` are now documented in full: see [Idempotency](/trade/idempotency).
+</Update>
+
+<Update label="2026-10-27" description="New developer docs">
+  These docs now describe one API for search, quotes, requotes and orders, with a runnable sample on every page. They start from the [Quickstart](/quickstart).
+
+  The separate RFQ API, Router API, Price API and Trade History API pages are gone. Their old addresses redirect to the pages that replace them.
+</Update>
+
+<Update label="2026-10-26" description="Venue identity on quotes">
+  Each quote leg and each entry in `sources` names the venue it comes from with `venueId` and `venueName`. Group sources and quotes by `venueId` for display. The existing `id` still identifies the route that executes, and it is the id `filters.venues` takes ([Venue types and venues](/search/venues#specific-venues)). Pools and solvers that are not a named venue leave both fields out.
+</Update>
+
+<Update label="2026-10-17" description="Quotes by asset pair, requotes, and orders by quote id">
+  A quote request names the asset you pay and the asset you receive, not chains or wallets: `POST /api/v1/quotes` with `pay`, `receive`, `amount` and `side`. Every quote states where it executes and how firm it is.
+
+  - Changing a quote's wallet, account or route, or turning an indicative price executable, is a requote: `POST /api/v1/quotes` with `requote` set to the quote id. See [Requotes and expiry](/trade/requotes-and-expiry).
+  - `POST /api/v1/orders` takes the quote id. The server holds the quote's terms, so you never send them back. See [Orders](/trade/orders).
+  - `GET /api/v1/assets` lists what your workspace can trade, and `GET /api/v1/prices` returns indicative prices without asking any venue for a quote.
+</Update>

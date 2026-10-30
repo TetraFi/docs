@@ -1,0 +1,131 @@
+---
+title: "Prices"
+description: "Read every venue's current price for a pair before you ask for quotes. No venue is asked, and it does not count against the quote limit."
+---
+
+import SearchPrices from '/snippets/samples/search-prices.mdx';
+
+`GET /api/v1/prices` returns what each venue's price for a pair is right now, from prices TetraFi already holds. No venue is asked, so it is fast, and it does not count against the [one-every-3-seconds quote limit](/search/how-it-works#rate-limit). Use it to show prices, size a trade or decide which venues to ask, then [request quotes](/search/how-it-works) when you want to trade.
+
+<SearchPrices />
+
+## Query parameters
+
+| Parameter | Required | Value |
+| --- | --- | --- |
+| `pay`, `receive` | Yes | Asset ids from [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery). |
+| `amount` and `side` | No | One amount in Asset units, with `payExact` or `receiveExact`. |
+| `sizes` | No | 1 to 8 comma-separated pay amounts, such as `100,1000,10000`. Use instead of `amount`. |
+| `pay.chain`, `receive.chain` | No | A CAIP-2 chain id to pin that side. |
+| `locations` | No | Comma-separated `singleChain`, `crossChain`, `offChain`. |
+| `modalities` | No | Comma-separated `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat`. |
+| `venues.include`, `venues.exclude` | No | Comma-separated venue ids. |
+| `variants.pay`, `variants.receive` | No | `any` or `nativeOnly`. |
+
+The filters mean what they mean in a [quote request](/search/how-it-works#the-request), and `venues.include` and `venues.exclude` take the same venue ids ([Venue types and venues](/search/venues#specific-venues)). A venue they exclude has no row.
+
+An API key needs the `prices_read` scope, which the **Read quotes** permission grants ([Permissions](/authentication#permissions)).
+
+## The response
+
+```json
+{
+  "pay": "USDC",
+  "receive": "ETH",
+  "computedAt": "2026-10-27T00:33:10.650366067Z",
+  "referenceMid": { "payUsd": "0.99965", "receiveUsd": "2323.71", "receivePerPay": "0.00043019" },
+  "payBalances": [],
+  "rows": [
+    {
+      "status": "priced",
+      "venue": { "id": "...", "modality": "rfq" },
+      "location": { "kind": "offChain" },
+      "payVariant": { "kind": "native", "name": "USDC" },
+      "receiveVariant": { "kind": "native", "name": "ETH" },
+      "commitment": { "kind": "indicative" },
+      "basis": "levels",
+      "observedAt": "2026-10-27T00:33:09.731Z",
+      "staleAfter": "2026-10-27T00:33:14.731Z",
+      "sizes": [
+        {
+          "pay": "100",
+          "receive": "0.04302555",
+          "netReceived": { "kind": "unavailable", "reason": "comparisonCostsUnavailable" },
+          "filled": "full",
+          "fees": []
+        }
+      ],
+      "levels": [{ "size": "11621", "price": "0.00043025557" }],
+      "spreadFromMidBps": { "kind": "unavailable", "reason": "comparisonCostsUnavailable" }
+    },
+    {
+      "status": "unsupported",
+      "reason": "priceSourceNone",
+      "venue": { "id": "...", "modality": "amm" },
+      "location": { "kind": "singleChain", "chain": "eip155:84532" },
+      "payVariant": { "kind": "native", "name": "USDC" },
+      "receiveVariant": { "kind": "wrapped", "name": "WETH" },
+      "sizes": [],
+      "spreadFromMidBps": { "kind": "unavailable", "reason": "noPrice" }
+    }
+  ]
+}
+```
+
+Rows are trimmed here. There is one row for each venue, location and variant pair. Rows are sorted like quotes, most received at the first size first, with rows that hold no price last.
+
+| Field | Meaning |
+| --- | --- |
+| `sizes[]` | One entry per size you asked for, in order: `pay`, `receive` (what lands after included fees, `null` when nothing could be priced), `netReceived`, `filled` (`full`, `partial` or `none`) and `fees`. |
+| `commitment` | Always `indicative`. A price is never an order you can place. |
+| `basis` | `levels` (the venue's published levels) or `model`. |
+| `observedAt`, `staleAfter` | When the price was seen, and when it is old. |
+| `levels` | The venue's own price levels, in pay units, where it publishes them. |
+| `spreadFromMidBps` | The spread from the reference mid at the first size, or `unavailable` with a reason, never 0. |
+| `referenceMid` | The pair's reference price in USD and the mid it implies. `null` when it could not be read, with the reason in `referenceMidUnavailable`. |
+| `computedAt` | When this snapshot was built. The same snapshot is reused for about a second. |
+| `payBalances` | Always empty for an API key. |
+
+## Row status
+
+| `status` | Meaning |
+| --- | --- |
+| `priced` | A current price. |
+| `stale` | The price is past `staleAfter`, or the source is still warming up. Any price it holds is kept. |
+| `unsupported` | `reason` says why: `pairNotServed` (the venue holds nothing for the pair), `priceSourceNone` (it publishes no price, so only a quote request asks it) or `receiveExactUnsupported` (it cannot price a fixed receive amount; quote sources use the same token). |
+| `belowMin` | The first size is below the venue's minimum. |
+| `insufficientDepth` | The venue cannot fill the first size. |
+| `needsWallet` | The venue prices only for a wallet. |
+| `restricted` | A permission keeps this price from you. `reason` names it. |
+| `unavailable` | A read failed, or a fee could not be worked out. `reason` says which. |
+
+Treat a status you do not recognise as "other".
+
+## When to quote instead
+
+Prices tell you what venues are showing. Request a quote when you want to trade:
+
+- only a quote has an `id` you can order;
+- a venue that publishes no price (`priceSourceNone`) answers only a quote request;
+- an executable quote holds its terms until `expiresAt`; a price holds nothing.
+
+## Caching and limits
+
+- Each response carries an `ETag`. Send it back in `If-None-Match` to get `304 Not Modified` when nothing changed.
+- Prices have their own rate limit, separate from quotes: `429 PRICES_RATE_LIMIT` with `Retry-After` in seconds.
+- `GET /api/v1/prices/stream` watches up to 25 pairs at once (`pairs=USDC:ETH,USDC:EURC` instead of `pay` and `receive`, the other parameters as above) and sends a pair's snapshot as a `snapshot` server-sent event when it changes. Each caller may hold up to 4 streams at once; another is refused with `429 PRICES_STREAM_LIMIT`.
+
+## Refusals
+
+| Status and code | Why | What to do |
+| --- | --- | --- |
+| `400 UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. | Use values from `GET /api/v1/assets`. |
+| `400 INVALID_AMOUNT` | `amount` or a size is not a positive decimal. | Send positive decimals. |
+| `400 SAME_ASSET_NEEDS_CHAIN` | `pay` and `receive` are the same Asset with no chain pinned. | Add `pay.chain` or `receive.chain`. |
+| `403 INSUFFICIENT_SCOPE` | The API key lacks `prices_read`. | Use a key with that scope. |
+| `429 PRICES_RATE_LIMIT` | Too many price reads. | Wait `Retry-After` seconds. |
+| `503 PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. | Retry after `Retry-After` (1 second). |
+
+## In the app
+
+The Trade page reads these prices for the pair you choose and matches each live quote to its venue's row.

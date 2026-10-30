@@ -1,55 +1,53 @@
-# Mintlify Starter Kit
+# TetraFi developer docs
 
-Use the starter kit to get your docs deployed and ready to customize.
+The public developer site for TetraFi, built with [Mintlify](https://mintlify.com). Pages are MDX with YAML frontmatter, and `docs.json` holds the navigation, redirects and theme.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## How it deploys
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+- **This repository is public** (`github.com/tetrafi/docs`). Every push, including a branch push, publishes its content to the world. Run the leak gate before any push.
+- The Mintlify GitHub app deploys the default branch, `main`, to [tetrafi.mintlify.app](https://tetrafi.mintlify.app). Each deploy appears as a `mintlify[bot]` deployment of ref `main` (`gh api repos/tetrafi/docs/deployments`).
+- Work happens on a branch (today `docs-publish`), opens a pull request into `main`, and is squash-merged. The merge is the release.
+- There are no pull-request preview deployments.
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
-
-```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+## Checks before a push
 
 ```
-npm i -g mint
+npm run leaks     # internal ids, internal hosts, retired API surfaces, credential-shaped strings
+npm run check     # leaks, snippets and contract pages match their sources, mint validate, broken links
+npm test          # the leak gate's own tests
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+- `npm run leaks` (`scripts/leak-gate.mjs`) scans the tree a push would publish and every commit the push carries since `origin/main`. A leak that was committed and then removed is still published by the push. A hit is a line to fix, never a line to allow.
+- A pre-push hook in `.githooks/` runs the gate against the remote's tip. Enable it once per clone with `git config core.hooksPath .githooks`.
+- The internal host and tooling names it refuses are kept outside this repository, in the private `tetrafi-docs` repository (`public-site/leak-terms.json`). The gate refuses to run without that file.
+- Field names that are internal today are allowed only while the public API spec names them as fields.
+- The API reference is copied from the API's integrator spec only when that spec passes the same rules. Until then `npm run sync` withholds it.
 
-```
-mint dev
-```
+## Code samples
 
-View your local preview at `http://localhost:3000`.
+Every request sample on the site comes from a runnable source:
 
-## Publishing changes
+- `samples/http/*.sh` holds the curl samples, owned by this repository.
+- `tetrafi-ui/packages/sdk/examples/*.ts` holds the TypeScript SDK samples, read from the sibling checkout.
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+A region `# region <name>` … `# endregion` (shell) or `// #region <name>` … `// #endregion` (TypeScript) becomes `snippets/samples/<name>.mdx` through `npm run sync`. Pages import that snippet and hold no inline request samples.
 
-## Need help?
+A live test runs every source against a TetraFi environment and fails when:
+- a page holds an unsourced sample;
+- a snippet has drifted from its source;
+- a sample exits non-zero.
 
-### Troubleshooting
+## Retiring a page
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+Never delete a page:
+1. Move it with `mv` into `.archive/<same path>`. `.archive/` is gitignored, so the file stays local and is never published.
+2. Commit the removal.
+3. Add a `redirects` entry in `docs.json` from the old URL to its replacement.
+4. Remove it from the navigation.
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+## Previewing locally
+
+Use the Mintlify CLI, pinned in `package.json`:
+
+- `npm run validate` and `npm run broken-links` are static checks.
+- `npm run dev` starts a local preview server. Use it only where local servers are allowed.
