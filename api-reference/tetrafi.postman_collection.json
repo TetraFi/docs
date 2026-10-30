@@ -1,0 +1,905 @@
+{
+  "info": {
+    "name": "TetraFi API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Generated from the TetraFi integrator specification. Set baseUrl, apiKey and signingSecret in your local collection variables. Start with GET /api/v1/assets. Replace angle-bracket placeholders with real values before sending other requests; review each write rather than running the entire collection. Never share populated credentials."
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.tetrafi.io",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "signingSecret",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "protocolProfileBehavior": {
+    "disableUrlEncoding": true
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const cryptoJs = require('crypto-js');",
+          "// Never retain headers from an earlier signed send when signing is turned off.",
+          "pm.request.headers.remove('X-Timestamp');",
+          "pm.request.headers.remove('X-Signature');",
+          "",
+          "// Resolve variables ONCE, including dynamic variables, before hashing and sending.",
+          "const resolvedUrl = pm.variables.replaceIn(pm.request.url.toString());",
+          "const parts = /^(https?:\\/\\/[^/?#]+)([^#]*)/.exec(resolvedUrl);",
+          "if (!parts) throw new Error('Set baseUrl to an absolute HTTP or HTTPS URL');",
+          "const target = parts[2].startsWith('/') ? parts[2] : '/' + parts[2];",
+          "// Encode explicitly and disable subsequent transport encoding, so the signed",
+          "// target is exactly what is sent. Keep already percent-encoded bytes unchanged.",
+          "const pathWithQuery = encodeURI(target).replace(/%25([0-9a-f]{2})/gi, '%$1').replace(/'/g, '%27');",
+          "pm.request.url.update(parts[1] + pathWithQuery);",
+          "let body = '';",
+          "if (pm.request.body && !pm.request.body.disabled) {",
+          "  if (pm.request.body.mode !== 'raw') throw new Error('Signing supports raw request bodies only');",
+          "  body = pm.variables.replaceIn(pm.request.body.raw || '');",
+          "  // JSON comments are not valid API input and Postman would strip them AFTER",
+          "  // signing. Refuse them rather than signing bytes different from the wire.",
+          "  if (body && pm.request.headers.get('Content-Type')?.includes('application/json')) JSON.parse(body);",
+          "  pm.request.body.update(body);",
+          "}",
+          "const secret = pm.variables.get('signingSecret');",
+          "if (secret) {",
+          "  if (!/^[0-9a-f]{64}$/i.test(secret)) throw new Error('signingSecret must contain 64 hexadecimal characters');",
+          "  const timestamp = String(Math.floor(Date.now() / 1000));",
+          "  const digest = cryptoJs.SHA256(body).toString(cryptoJs.enc.Hex);",
+          "  const canonical = [timestamp, pm.request.method.toUpperCase(), pathWithQuery, digest].join('\\n');",
+          "  const signature = cryptoJs.HmacSHA256(canonical, cryptoJs.enc.Hex.parse(secret)).toString(cryptoJs.enc.Hex);",
+          "  pm.request.headers.upsert({ key: 'X-Timestamp', value: timestamp });",
+          "  pm.request.headers.upsert({ key: 'X-Signature', value: signature });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "GET /api/v1/assets",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/assets`: the Assets, variants and deployments the workspace can trade.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assets"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Assets per page, 1 to 200. With only a `cursor`, the page size that cursor was issued with."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The previous page's `nextCursor`. A cursor is valid while the listing it was issued for\nis unchanged; after a change it answers 409 `CURSOR_STALE`, and the walk starts again."
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/orders",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": true,
+            "description": "Makes a retry safe. Required for API keys (a missing key answers 400 IDEMPOTENCY_KEY_REQUIRED); optional for signed-in members. 1 to 255 bytes, unique per order you mean to place; a UUID is a good choice. A retry with the same key and the same body, from the same credential's owner in the same workspace within 24 hours, returns the first answer and never places a second order. The same key with a different body answers 409 IDEMPOTENCY_CONFLICT; another principal's key answers 403 IDEMPOTENCY_AUTHORITY_REQUIRED. A retry that arrives while the first request is still running waits for it, and answers 409 ORDER_IN_PROGRESS (with Retry-After) if it is still running after 30 seconds. Refusals are not stored: after one, fix the request and send it again with the same key or a new one."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Submit a new order\nPOST /api/v1/orders - Submit an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A venue (Basic) quote becomes a venue trade (`basicTrade`); a protocol (Advanced) quote becomes a protocol order (`advancedTrade`), after POST /orders/preflight and any wallet signature or source transaction it asks for. Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quoteId\": \"<quoteId>\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/orders/{id}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Get order status by ID\nGET /api/v1/orders/:id - Get order details by ID\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. API-key clients may instead subscribe to `orders:<id>` on `/api/v1/ws?token=<api-key>&workspaceId=<id>`, but should perform this GET after an event or reconnect to obtain the complete current projection. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:id",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":id"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Order ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/orders/{id}/continuation",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/orders/{id}/continuation?funder=0x…` — read an already prepared FX continuation.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:id/continuation",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":id",
+            "continuation"
+          ],
+          "query": [
+            {
+              "key": "funder",
+              "value": "<funder>",
+              "disabled": false,
+              "description": "Funder EOA (the user's Arc wallet)"
+            }
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Route order ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/orders/{id}/continuation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Explicitly prepare or renew the continuation trade. For a DIRECT firm-RFQ order this\nre-firms the order in place once its current witness is dead on-chain (409\n`RFQ_REFIRM_NOT_YET` before that, `RFQ_REFIRM_CAP_EXCEEDED` past the venue budget).",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:id/continuation",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":id",
+            "continuation"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Route order ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"funder\": \"<funder>\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/orders/{id}/continue",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/orders/{id}/continue` — submit the user's funder signature.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:id/continue",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":id",
+            "continue"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Route order ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/orders/by-quote/{quoteId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Requires current view_orders in the selected workspace and orders_read for API keys. ordered names the native advancedTrade or basicTrade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/by-quote/:quoteId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            "by-quote",
+            ":quoteId"
+          ],
+          "variable": [
+            {
+              "key": "quoteId",
+              "value": "<quoteId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/orders/preflight",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Order readiness and source-bound signing preparation.\n\nFor a protocol (Advanced) quote you hold, check that it can be ordered now and return the wallet actions it needs (approvals, a signature or a source transaction, each with the signed minimum it protects) before POST /orders. Nothing is sent and the quote is not claimed. A venue (Basic) quote needs no preflight and answers 409 PREFLIGHT_NOT_APPLICABLE.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/preflight",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            "preflight"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quoteId\": \"<quoteId>\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/prices",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/prices`: indicative per-venue prices for one pair, from memory.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/prices",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "prices"
+          ],
+          "query": [
+            {
+              "key": "pay",
+              "value": "<pay>",
+              "disabled": false,
+              "description": "Pay Asset id (USDC)"
+            },
+            {
+              "key": "receive",
+              "value": "<receive>",
+              "disabled": false,
+              "description": "Receive Asset id (USDT)"
+            },
+            {
+              "key": "amount",
+              "value": "<amount>",
+              "disabled": true,
+              "description": "One decimal amount in Asset units, with side; exclusive with sizes"
+            },
+            {
+              "key": "side",
+              "value": "<side>",
+              "disabled": true,
+              "description": "payExact | receiveExact"
+            },
+            {
+              "key": "sizes",
+              "value": "<sizes>",
+              "disabled": true,
+              "description": "1 to 8 comma-separated positive pay amounts"
+            },
+            {
+              "key": "pay.chain",
+              "value": "<pay.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the pay side"
+            },
+            {
+              "key": "receive.chain",
+              "value": "<receive.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the receive side"
+            },
+            {
+              "key": "venues.include",
+              "value": "<venues.include>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to keep"
+            },
+            {
+              "key": "venues.exclude",
+              "value": "<venues.exclude>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to drop"
+            },
+            {
+              "key": "variants.pay",
+              "value": "<variants.pay>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "variants.receive",
+              "value": "<variants.receive>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "locations",
+              "value": "<locations>",
+              "disabled": true,
+              "description": "Comma-separated singleChain, crossChain, offChain"
+            },
+            {
+              "key": "modalities",
+              "value": "<modalities>",
+              "disabled": true,
+              "description": "Comma-separated amm, solver, bridge, rfq, orderBook, fiat"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/prices/stream",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/prices/stream`: `snapshot` events per pair on change.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/prices/stream",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "prices",
+            "stream"
+          ],
+          "query": [
+            {
+              "key": "pairs",
+              "value": "<pairs>",
+              "disabled": false,
+              "description": "1 to 25 comma-separated PAY:RECEIVE Asset pairs (USDC:USDT,USDC:ZAR)"
+            },
+            {
+              "key": "amount",
+              "value": "<amount>",
+              "disabled": true,
+              "description": "As GET /prices, applied to every pair"
+            },
+            {
+              "key": "side",
+              "value": "<side>",
+              "disabled": true,
+              "description": "payExact | receiveExact"
+            },
+            {
+              "key": "sizes",
+              "value": "<sizes>",
+              "disabled": true,
+              "description": "1 to 8 comma-separated positive pay amounts, applied to every pair; pairs × sizes at most 125"
+            },
+            {
+              "key": "pay.chain",
+              "value": "<pay.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the pay side"
+            },
+            {
+              "key": "receive.chain",
+              "value": "<receive.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the receive side"
+            },
+            {
+              "key": "venues.include",
+              "value": "<venues.include>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to keep"
+            },
+            {
+              "key": "venues.exclude",
+              "value": "<venues.exclude>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to drop"
+            },
+            {
+              "key": "variants.pay",
+              "value": "<variants.pay>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "variants.receive",
+              "value": "<variants.receive>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "locations",
+              "value": "<locations>",
+              "disabled": true,
+              "description": "Comma-separated singleChain, crossChain, offChain"
+            },
+            {
+              "key": "modalities",
+              "value": "<modalities>",
+              "disabled": true,
+              "description": "Comma-separated amm, solver, bridge, rfq, orderBook, fiat"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/quotes",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `pay` or `requote` is 400 INVALID_REQUEST naming `pay`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / BINDING_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 QUOTE_EXPIRED (10 minutes after its expiry), 429 QUOTE_RATE_LIMITED / FIRM_QUOTE_LIMITED / BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing; any other key's request still succeeds and lists the venue restricted (venueTradeScopeRequired). An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues read needsWallet until it binds one. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quotes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quotes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pay\": {\n    \"asset\": \"USDC\"\n  },\n  \"receive\": {\n    \"asset\": \"USDC\"\n  },\n  \"amount\": \"10000\",\n  \"side\": \"payExact\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/quotes/requests/{quoteRequestId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer, as recorded off the hot path. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an orders_read API key when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. requestedByYou says whether the caller asked; only then can it order these quotes.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quotes/requests/:quoteRequestId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quotes",
+            "requests",
+            ":quoteRequestId"
+          ],
+          "variable": [
+            {
+              "key": "quoteRequestId",
+              "value": "<quoteRequestId>",
+              "description": "The set's quoteRequestId (rq_…)"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{id}/trades",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/workspaces/{id}/trades\n\nMembers whose current permissions hold View or Modify compliance (an API key: its own permission set) read every workspace order with member attribution; everyone else reads only the orders they submitted. Another member's order is 403 RECORDS_OUT_OF_SCOPE. Accepts a member session or an API key with trades_read scope. Malformed or unknown filters are 400 VALIDATION_ERROR, never ignored.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:id/trades",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":id",
+            "trades"
+          ],
+          "query": [
+            {
+              "key": "kind",
+              "value": "all",
+              "disabled": true,
+              "description": "all (default), order, or venueTrade"
+            },
+            {
+              "key": "status",
+              "value": "<status>",
+              "disabled": true,
+              "description": "Filter by order status"
+            },
+            {
+              "key": "lifecycle",
+              "value": "<lifecycle>",
+              "disabled": true,
+              "description": "Comma-separated lifecycle buckets: inProgress, completed, failed, refunded, unknown"
+            },
+            {
+              "key": "nextActor",
+              "value": "<nextActor>",
+              "disabled": true,
+              "description": "Filter by next actor: taker, support, counterparty, none"
+            },
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": "Filter by either side's display asset symbol (case-insensitive)"
+            },
+            {
+              "key": "corridor",
+              "value": "<corridor>",
+              "disabled": true,
+              "description": "Filter by corridor (source-dest)"
+            },
+            {
+              "key": "walletId",
+              "value": "<walletId>",
+              "disabled": true,
+              "description": "Filter by linked wallet id (exact match on orders.linked_wallet_id)"
+            },
+            {
+              "key": "address",
+              "value": "<address>",
+              "disabled": true,
+              "description": "Filter by wallet address (custody vault or linked wallet; hex is case-normalized, base58 preserved)"
+            },
+            {
+              "key": "dateFrom",
+              "value": "<dateFrom>",
+              "disabled": true,
+              "description": "Placed at or after this RFC 3339 instant (alias date_from)"
+            },
+            {
+              "key": "dateTo",
+              "value": "<dateTo>",
+              "disabled": true,
+              "description": "Placed at or before this RFC 3339 instant (alias date_to)"
+            },
+            {
+              "key": "lp",
+              "value": "<lp>",
+              "disabled": true,
+              "description": "Filter by liquidity provider name"
+            },
+            {
+              "key": "routingPath",
+              "value": "<routingPath>",
+              "disabled": true,
+              "description": "Filter by routing path"
+            },
+            {
+              "key": "amountMin",
+              "value": "0",
+              "disabled": true,
+              "description": "Minimum USD notional"
+            },
+            {
+              "key": "amountMax",
+              "value": "0",
+              "disabled": true,
+              "description": "Maximum USD notional"
+            },
+            {
+              "key": "member",
+              "value": "<member>",
+              "disabled": true,
+              "description": "Filter by member name, email or user id (narrows the caller's own orders on the personal routes)"
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size (1-100, default 25)"
+            },
+            {
+              "key": "offset",
+              "value": "0",
+              "disabled": true,
+              "description": "Offset for pagination"
+            },
+            {
+              "key": "sortBy",
+              "value": "<sortBy>",
+              "disabled": true,
+              "description": "Sort column"
+            },
+            {
+              "key": "sortDir",
+              "value": "<sortDir>",
+              "disabled": true,
+              "description": "Sort direction (asc/desc)"
+            },
+            {
+              "key": "actionRequired",
+              "value": "false",
+              "disabled": true,
+              "description": "true: only orders whose nextAction is present (sign or retry a leg, accept a moved price, finish or review); total counts exactly those"
+            }
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{id}/venue-connections/{connection_id}/trade-preparations/{operation_id}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the initiating human's retained trade preparation\n\nCurrent Company/Broker interactive ViewOrders and ViewWallets required; for human callers, fresh trade permission or SubmitOrder verification is not required to inspect history. Scoped by workspace, connection and initiating human; foreign/unknown IDs share 404. Shows immutable preparation and any durable dispatch/outcome after quote expiry or control changes. expirySuccessor=true reads the original operation's one retained expiry successor as its initiating human only, including pending review and terminal or uncertain outcomes; absent is 404 and ambiguous history is 409, never a fallback to the original. This read does not renew consent, approve, reserve, resubmit or execute. Eligible member API keys require the mint-only workspace_venue_trade scope (durable MFA at mint), HMAC on this request, the admin switch ON and live owner IAM intersected with stored grants. Credential lifecycle, destination approval/ownership, standalone withdrawals/deposit declarations and review approve/reject remain human-only.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-connections/:connection_id/trade-preparations/:operation_id",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":id",
+            "venue-connections",
+            ":connection_id",
+            "trade-preparations",
+            ":operation_id"
+          ],
+          "query": [
+            {
+              "key": "expirySuccessor",
+              "value": "false",
+              "disabled": true,
+              "description": "Read the original operation's one durable expiry successor instead of the root.\nHuman initiator only; absent is 404, never permission to submit another trade."
+            }
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": ""
+            },
+            {
+              "key": "connection_id",
+              "value": "<connection_id>",
+              "description": ""
+            },
+            {
+              "key": "operation_id",
+              "value": "<operation_id>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
