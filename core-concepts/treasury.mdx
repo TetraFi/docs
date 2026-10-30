@@ -3,7 +3,7 @@ title: "Treasury & Custody"
 description: "The workspace's money desk - custody connections, vaults, transfers, and the policy that governs them."
 ---
 
-Custody connections, vault accounts, wallets, transfers, and the written policy every transfer must clear. All readable, and the transfer drivable, with an API key.
+Custody connections, vault accounts, wallets, transfers, and the written policy every transfer must clear. With an API key you read accounts, balances, Destinations and transfers, and you start, cancel, replace or retry a transfer; approvals stay with a person.
 
 ## What It Holds
 
@@ -17,7 +17,9 @@ The policy is written, versioned, and can run in **shadow** before it enforces: 
 
 ## Programmatic Access
 
-Two scopes, read everything and write the transfer, behind two gates re-derived per request: the scope and the acting identity's live workspace permission. A refusal names which gate refused.
+Two scopes, `treasury_read` and `treasury_write`, behind two gates re-derived per request: the scope and the acting identity's live workspace permission. A refusal names which gate refused.
+
+With a key you can list and read vault accounts and their history, refresh a balance, list and add Destinations (a person approves each one), and start, cancel, replace or retry a transfer. Every write takes an `Idempotency-Key`: send the same key again and you get the first answer back, never a second transfer. Approving a transfer or a Destination, changing policy and freezing need a person in the app. These Treasury operations join the public [API reference](/reference/introduction) with their error codes (rolling out).
 
 ## Desks and Corridors
 
