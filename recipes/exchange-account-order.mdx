@@ -24,11 +24,14 @@ You need `bash`, `curl`, `jq` and `openssl`, and:
 - **An API key that can trade on venue accounts.** Besides **Read quotes**, **Submit orders** and **Read orders**, the key needs the venue trading scope, which is granted only when the key is created, and venue trading switched on for it by a workspace owner or an admin who manages credentials ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). Without it, the venue is listed in `sources` as `restricted` with the reason `venueTradeScopeRequired`, and you get no quote from it.
 - **The key's signing secret.** A key with venue trading signs every request. The script's `tetrafi` helper signs each one when `TETRAFI_SIGNING_SECRET` is set ([Sign requests](/authentication#sign-requests)).
 
-Export your environment as in the [Quickstart](/quickstart), plus the venue id of your account if you know it:
+Export your environment as in the [Quickstart](/quickstart), plus your workspace id and, if you know it, the venue id of your account:
 
 ```bash
-export TETRAFI_VENUE=...    # optional: the venue id of your exchange account
+export TETRAFI_WORKSPACE_ID=...    # the workspace the key belongs to (see Authentication)
+export TETRAFI_VENUE=...           # optional: the venue id of your exchange account
 ```
+
+The script needs the workspace id for one step only: after it recovers the order by its quote, the trade's status address contains the workspace id.
 
 <Steps>
   <Step title="Find your account's venue">

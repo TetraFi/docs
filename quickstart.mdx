@@ -14,6 +14,10 @@ This guide walks through one script, [`samples/http/quickstart.sh`](https://gith
 
 Each step shows the script's code under **cURL**. The **TypeScript SDK** tab shows the same step in TetraFi's TypeScript SDK, which is not published to npm yet: it is coming soon. Its example differs from the script in two ways: it quotes USDC for ETH, and after ordering it waits until the order ends.
 
+<Warning>
+This guide places a real order: by default it trades 10 USDC from your venue account, and that cannot be undone. There is no sandbox yet. Set `TETRAFI_AMOUNT` to trade less, down to the venue's minimum. [Test safely](/test-safely) shows how to find each venue's minimum before you order.
+</Warning>
+
 <Note>
 The API may change until launch. Every change is listed in the [Changelog](/changelog).
 </Note>
@@ -39,11 +43,7 @@ Create the key in the app as a workspace owner or admin with permission to manag
 
 The dialog does not grant organisation wallets to the key. Exchange and OTC venue accounts need no wallet grant, but on-chain Basic venues answer `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` until an owner or admin grants a wallet. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains that separate step.
 
-### Find your workspace id
-
-`X-Workspace-Id` must name the workspace the key belongs to. `GET /api/v1/me` returns it in `workspaceId`, and it answers without that header, so you can call it with the key first. The script itself sends the header on every request.
-
-In the app, a workspace owner or admin finds it as **Workspace ID** in the workspace's settings, on the **General** tab.
+The key is bound to its workspace, so the script sends no workspace id: every request works in the key's own workspace. If you need the id later, `GET /api/v1/me` returns it in `workspaceId`, and in the app a workspace owner or admin finds it as **Workspace ID** in the workspace's settings, on the **General** tab.
 
 <Note>
 On-chain (Advanced) execution is not open yet: Advanced venues are listed in `sources` as `unavailable` with the reason `advancedModeDisabled`, and are not asked. This guide and every sample on this site use Basic quotes. [Orders](/trade/orders) describes the Advanced path for when it opens.
@@ -51,12 +51,11 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
 
 <Steps>
   <Step title="Set your environment">
-    Export your base URL, key, workspace id and the key's signing secret.
+    Export your base URL, key and the key's signing secret.
 
     ```bash
     export TETRAFI_BASE_URL=https://api.tetrafi.io
     export TETRAFI_API_KEY=...            # from your secret manager
-    export TETRAFI_WORKSPACE_ID=...       # the workspace the key belongs to (see Authentication)
     export TETRAFI_SIGNING_SECRET=...     # the key's signing secret
     ```
 

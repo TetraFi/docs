@@ -49,18 +49,18 @@ Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC
 
 ## Send the key
 
-Send two headers with every request:
+Send your key with every request:
 
 | Header | Value |
 |---|---|
 | `X-API-Key` | Your API key |
-| `X-Workspace-Id` | The workspace the key belongs to |
+| `X-Workspace-Id` | Optional with an API key: the workspace the key belongs to |
 
-The key is bound to its workspace when it is created. `X-Workspace-Id` must name that same workspace: another workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, a missing or empty header answers `400 MISSING_WORKSPACE`, and a malformed one answers `400 INVALID_WORKSPACE_ID`.
+The key is bound to its workspace when it is created, so every request it sends works in that workspace, with or without `X-Workspace-Id`. If you send the header, it must name that same workspace: another workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a malformed one answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session has no workspace of its own, so it must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
 
-Order reads need authentication too. Send your key and workspace headers on `GET /api/v1/orders/{orderId}`. A read without credentials never returns the order: it answers `401 MISSING_CREDENTIALS` before any order lookup, or `404 ORDER_NOT_FOUND` on a deployment that does not have this change yet. Authentication and workspace refusals use the same [JSON error body](/trade/errors#read-a-refusal) as other API refusals.
+Order reads need authentication too. Send your key on `GET /api/v1/orders/{orderId}`. A read without credentials never returns the order: it answers `401 MISSING_CREDENTIALS` before any order lookup, or `404 ORDER_NOT_FOUND` on a deployment that does not have this change yet. Authentication and workspace refusals use the same [JSON error body](/trade/errors#read-a-refusal) as other API refusals.
 
-To check a key, call `GET /api/v1/me`. It has no side effects and returns the key's workspace in `workspaceId`, its current permissions and scopes, its rate limits and its expiry. It also answers without `X-Workspace-Id`, so you can use it to find the workspace id of a new key. A key with request signing must still sign it.
+To check a key, call `GET /api/v1/me`. It has no side effects and returns the key's workspace in `workspaceId`, its current permissions and scopes, its rate limits and its expiry. Use it to find the workspace id of a new key: a few paths, such as a Basic trade status read after [recovering an order by its quote](/trade/idempotency#recover-an-order-by-its-quote), still contain it. A key with request signing must still sign it.
 
 ## Sign requests
 

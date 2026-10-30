@@ -5,6 +5,16 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-30" description="An API key implies its workspace">
+  An API key is bound to the workspace it was created in, and every request it sends now works in that workspace without `X-Workspace-Id`.
+
+  What to change:
+  - Stop sending `X-Workspace-Id` with an API key, or keep sending it: when present it must be the key's own workspace, or it is refused with `403 WORKSPACE_SCOPE_MISMATCH`.
+  - A signed-in member's session still sends `X-Workspace-Id`. Without it, the request is refused with `400 MISSING_WORKSPACE`.
+  - Read a placed order's status at the `statusUrl` its `POST /api/v1/orders` answer returns, instead of building the address yourself.
+  - Filter `GET /api/v1/workspaces/{id}/trades` with its camelCase parameter names only, for example `nextActor`, `dateFrom`, `amountMin` and `sortBy`. The snake_case names are refused with `400`.
+</Update>
+
 <Update label="2026-10-29" description="Trading source and funding replace bind and binding">
   A quote request names what a trade executes with in `source`, and where its output goes in a top-level `deliverTo`. Each quote states its trading source and its funding. The old `bind`, `binding` and `bindingOptions` fields are gone, with no aliases.
 
@@ -16,7 +26,10 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Read a quote's `location` as `{ "kind": … }` only: `singleChain`, `crossChain`, `offChain` or `mixed`.
   - On a `walletRefused` source, read `recovery.defaultWallets` and send it as `source.tradingWallets`, where you sent `recovery.defaultBinding` as `bind`.
 
-  Refusal codes keep their names, for example `BINDING_NOT_OWNED`. [Wallets and accounts](/trade/wallets-and-accounts) covers the new fields.
+  - Match `SOURCE_NOT_OWNED` (403) where you matched `BINDING_NOT_OWNED`. It now refuses a `deliverTo` or `source.fundingAccountId` naming a wallet or account you cannot use.
+  - A trading wallet in `source.tradingWallets` that a venue account has not linked is no longer refused. That venue reads `unavailable` with the reason `tradingSourceNotLinked`, and the others still quote.
+
+  The other source refusal codes keep their names, for example `BINDING_NOT_ON_CHAIN`. [Wallets and accounts](/trade/wallets-and-accounts) covers the new fields.
 </Update>
 
 <Update label="2026-10-27" description="Consistent refusals, order status and source reasons">

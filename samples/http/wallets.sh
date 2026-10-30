@@ -6,7 +6,7 @@
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
 #   TETRAFI_API_KEY         your API key
-#   TETRAFI_WORKSPACE_ID    the workspace the key belongs to
+#   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
 #   TETRAFI_AMOUNT  the USDC amount you pay (default 10)
@@ -18,7 +18,6 @@ set -euo pipefail
 
 : "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
 : "${TETRAFI_API_KEY:?Set TETRAFI_API_KEY}"
-: "${TETRAFI_WORKSPACE_ID:?Set TETRAFI_WORKSPACE_ID}"
 
 # tetrafi METHOD PATH [BODY] [HEADER]
 # Sends one request and prints the response body. On an error status it also prints
@@ -27,9 +26,9 @@ tetrafi() {
   local method=$1 path=$2 body=${3:-} extra=${4:-}
   local headers=(
     -H "X-API-Key: $TETRAFI_API_KEY"
-    -H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"
     -H "Accept: application/json"
   )
+  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
@@ -110,13 +109,15 @@ request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | ke
 # endregion
 
 # region trading-source-refusal
-# A wallet the key may not use is refused before any venue is asked: the code says which rule
-# applied and next, when present, says what to do. Nothing is quoted or reserved.
+# A wallet or account you may not use at all is refused before any venue is asked (for example
+# 403 SOURCE_NOT_OWNED): nothing is quoted or reserved. A trading wallet a venue account has not
+# linked is not refused: that venue reads unavailable with reason tradingSourceNotLinked.
 if ! quotes=$(quote_request "$request"); then
   jq -c '{refused: .error, message, next}' <<<"$quotes" >&2
   jq -cn --argjson q "$quotes" '{tradingWallets: true, refused: $q.error}'
   exit 0
 fi
+jq -c '[.sources[] | select(.reason == "tradingSourceNotLinked") | {venue: .venue.id, reason, detail}]' <<<"$quotes" >&2
 # endregion
 
 # region trading-source-funding

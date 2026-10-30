@@ -1,0 +1,86 @@
+---
+title: "Conventions"
+description: "The rules every TetraFi API request and response follows: amounts, times, ids, chains, paging, errors, request ids, rate limits, idempotency and versioning."
+---
+
+import ConventionsPaging from '/snippets/samples/conventions-paging.mdx';
+import ConventionsRequestId from '/snippets/samples/conventions-request-id.mdx';
+import ConventionsValues from '/snippets/samples/conventions-values.mdx';
+
+These rules hold on every endpoint, so a client can implement them once. The examples come from one script, [`samples/http/conventions.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/conventions.sh), which reads them from live answers and stops if one is broken. It only lists assets and asks for one quote: nothing is ordered.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Requests
+
+| Rule | Detail |
+| --- | --- |
+| Base URL | `https://api.tetrafi.io`. Every path starts with `/api/v1`. |
+| Credentials | `X-API-Key` on every request, plus a signature when request signing is on. The key implies its workspace, so `X-Workspace-Id` is optional; when sent, it must be the key's own. See [Authentication](/authentication). |
+| Bodies | JSON, sent with `Content-Type: application/json`. |
+
+## Values
+
+| Value | Form | Example |
+| --- | --- | --- |
+| Amounts | Decimal strings, never JSON numbers. Parse them with a decimal type, not a float. | `"10.0147"` |
+| Times | RFC 3339, in UTC. | `"2026-10-30T00:40:13.162Z"` |
+| Durations | ISO 8601. | `"PT2S"` |
+| Chains | CAIP-2 chain ids. | `"eip155:8453"` |
+| Field names | camelCase. | `expiresAt` |
+| Ids | Opaque strings. Store and compare them whole; never parse them. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
+| Enumerations | Open sets: new values may be added. Treat a value you do not recognise as "other". | `"status": "answered"` |
+
+<ConventionsValues />
+
+```json Output on test networks
+{"receive":"10.0147","receiveIsString":true,"expiresAt":"2026-10-30T00:40:13.162Z","observedAt":"2026-10-30T00:40:04.126Z"}
+```
+
+## Paging
+
+A list that pages takes `limit` and answers `nextCursor`. Send it back as `cursor` until `nextCursor` is absent. A cursor is valid while the list it came from is unchanged: after a change it answers `409 CURSOR_STALE`, and you start again from the first page.
+
+`GET /api/v1/assets` pages this way, from 1 to 200 assets a page.
+
+<ConventionsPaging />
+
+```json Output on test networks
+assets: 52 across 11 pages
+```
+
+## Errors
+
+Every refusal is one JSON body with the same fields: `error`, `message`, `requestId`, `timestamp`, and `next` and `details` when they apply. Match on `error`, never on `message`. [Errors and refusals](/trade/errors) shows how to read one, and the [error-code reference](/reference/error-codes) lists every code.
+
+## Request ids
+
+Every response carries an `X-Request-Id` header, and every refusal carries the same value as `requestId`. Quote it to support.
+
+You can send your own `X-Request-Id`, up to 64 letters, digits, `-` and `_`, to find a request in your logs and ours. The response echoes it. A value outside that form is replaced with a generated UUID, and the response carries that instead.
+
+<ConventionsRequestId />
+
+```json Output on test networks
+{"requestId":"conventions-1793320806","limit":"","remaining":"","reset":""}
+```
+
+## Rate limits
+
+You may send one live quote request every 3 seconds per API key; a requote counts as one. A request answered entirely from cached prices does not count.
+
+A request over a limit answers `429` with a `Retry-After` header in whole seconds and the same wait in `details.retryAfter`, for example `PT2S`. Wait that long, then send it once more. [Errors and refusals](/trade/errors#the-quote-rate-limit) shows a retry.
+
+When your key has a per-minute limit, quote answers also carry `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. Without one, as in the output above, those headers are empty or absent.
+
+## Idempotency
+
+Send an `Idempotency-Key` with every `POST /api/v1/orders`. A retry with the same key and body returns the first answer, with the header `Idempotent-Replayed: true`. The same key with a different body is refused. [Idempotency](/trade/idempotency) covers replays, conflicts and recovering an order.
+
+## Versioning
+
+The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes. A removal is announced in the changelog at least 6 months ahead. Until then, the affected responses carry `Deprecation` and `Sunset` headers. Before launch, a change can still remove or rename something.
+
+[Compatibility](/compatibility) is the full policy. The [Changelog](/changelog) lists every change a client can see, with what to do about it.

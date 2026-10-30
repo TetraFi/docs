@@ -5,7 +5,7 @@ description: "Read the one error body every refusal uses, know which refusals to
 
 import ErrorsParse from '/snippets/samples/errors-parse.mdx';
 import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
-import ErrorsMissingWorkspace from '/snippets/samples/errors-missing-workspace.mdx';
+import ErrorsWrongWorkspace from '/snippets/samples/errors-wrong-workspace.mdx';
 
 When TetraFi refuses a request, the answer is always the same JSON object, whatever the status and whichever call you made. One parser reads every refusal on this page.
 
@@ -108,15 +108,11 @@ The two requests carry different amounts on purpose. A signed request's signatur
 
 New codes can be added at any time. Act on the codes you know, and treat any other by its status class, as the [compatibility policy](/compatibility#what-your-client-should-do) says: retry a `429` or `503` after `Retry-After`, fix the request on any other `4xx`, and retry a `5xx` with backoff. Show `message` and log `requestId` either way.
 
-## A missing workspace
+## The wrong workspace
 
-Every request names the workspace its key belongs to in `X-Workspace-Id`. Without it, or with an empty value, any request answers `400 MISSING_WORKSPACE`. A value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`.
+An API key is bound to its workspace, so it may leave `X-Workspace-Id` out. When it sends one, it must be the key's own: any other workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
 
-<ErrorsMissingWorkspace />
-
-```json Output
-{"error":"MISSING_WORKSPACE","message":"X-Workspace-Id header is required","requestId":"710fdc9b-…"}
-```
+<ErrorsWrongWorkspace />
 
 ## Refusals by area
 
@@ -128,7 +124,7 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
-| 400 `MISSING_WORKSPACE` | `X-Workspace-Id` is missing or empty. | Send the id of the workspace the key belongs to. |
+| 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. | Send the workspace id, or use a key created in the workspace. |
 | 400 `INVALID_WORKSPACE_ID` | `X-Workspace-Id` is not a workspace id, or is sent more than once. | Send it once, as the workspace id. |
 | 401 `MISSING_CREDENTIALS` | No API key was sent. | Send `X-API-Key`. |
 | 401 `INVALID_API_KEY` | The key is unknown, or it was revoked. | Use a current key. |
@@ -169,7 +165,7 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 400 `SAME_ASSET_NEEDS_CHAIN` | Both sides are the same asset and no chain tells them apart. | Pin a chain on at least one side ([Chains and routes](/search/chains-and-routes)). |
 | 400 `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
 | 400 `BINDING_NOT_ON_CHAIN` | A wallet in `source.tradingWallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
-| 403 `BINDING_NOT_OWNED` | A wallet or account in `source` does not exist, or you cannot use it. | Choose a candidate from the answer's `sourceOptions` ([Wallets and accounts](/trade/wallets-and-accounts#binding-refusals)). |
+| 403 `SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist, or you cannot use it. | Choose a candidate from the answer's `sourceOptions` ([Wallets and accounts](/trade/wallets-and-accounts#when-tetrafi-refuses-a-source)). |
 | 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
 | 404 `QUOTE_REQUEST_NOT_FOUND` | No quote set with this id is readable by you. | Check the id. |
 | 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |
@@ -186,7 +182,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | 400 `REQUOTE_FIELDS_CONFLICT` | The body has a field that cannot go with `requote`, such as `amount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
 | 400 `CORRIDOR_NOT_OFFERED` | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
 | 400 `BINDING_NOT_ON_CHAIN` | The trading wallet you named cannot pay on that chain. | Name a trading wallet on that chain in `source.tradingWallets`. |
-| 403 `BINDING_NOT_OWNED` | The wallet or account in `source` is not one you can use. | Name a wallet or account from `sourceOptions`. |
+| 403 `SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` is not one you can use. | Name a wallet or account from `sourceOptions`. |
 | 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. | Leave out `source.venueAccountId`, or search again. |
 | 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | This key cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. Requote only quotes your own key requested. |

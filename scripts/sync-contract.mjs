@@ -86,6 +86,12 @@ function errorCodesPage() {
   // Escape table/MDX syntax; never alter the contract's wording. Rows are omitted only when withheld above.
   const cell = (value) => String(value).replace(/&/g, '&amp;').replace(/\|/g, '&#124;')
     .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;').replace(/\r?\n/g, '<br />');
+  // Each row carries its own name as an anchor: an error body's docUrl ends in #<CODE>. A name that is
+  // not a plain identifier would make a broken anchor, so it refuses the page instead.
+  const anchor = (name) => {
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) throw new Error(`ERROR_CODE_ANCHOR_INVALID ${JSON.stringify(name)}`);
+    return `<span id="${name}"></span>`;
+  };
   const sorted = (rows, key) => [...rows].sort((a, b) => a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0);
   return { page: [
     '---',
@@ -104,7 +110,7 @@ function errorCodesPage() {
     '',
     '| Code | HTTP status | Meaning | What to do | Retryable |',
     '| :--- | :--- | :--- | :--- | :--- |',
-    ...sorted(contract.codes.filter(keep('code')), 'code').map((row) => `| \`${cell(row.code)}\` | ${row.status.length ? row.status.join(', ') : 'Stream event'} | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+    ...sorted(contract.codes.filter(keep('code')), 'code').map((row) => `| ${anchor(row.code)}\`${cell(row.code)}\` | ${row.status.length ? row.status.join(', ') : 'Stream event'} | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
     '',
     '## Source reasons',
     '',
@@ -112,7 +118,7 @@ function errorCodesPage() {
     '',
     '| Reason | Meaning | What to do | Retryable |',
     '| :--- | :--- | :--- | :--- |',
-    ...sorted(contract.sourceReasons.filter(keep('reason')), 'reason').map((row) => `| \`${cell(row.reason)}\` | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+    ...sorted(contract.sourceReasons.filter(keep('reason')), 'reason').map((row) => `| ${anchor(row.reason)}\`${cell(row.reason)}\` | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
     '',
   ].join('\n'), withheld: null, hits, unexplained };
 }

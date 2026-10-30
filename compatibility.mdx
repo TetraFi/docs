@@ -80,6 +80,29 @@ second order. A different body under the same key answers `409 IDEMPOTENCY_CONFL
 Refusals are not stored, so after one, fix the request and send it again. The OpenAPI
 description of the header has the full rules.
 
+## Webhooks
+
+A workspace webhook receives a signed `POST` for each event it subscribes to.
+`order.updated` is sent on every status change of an order placed in that workspace.
+
+- **Body.** `{id, type, apiVersion, createdAt, data}`. For `order.updated`, `data` is
+  `{orderId, status, statusUrl}`; read the order at `statusUrl` for its full state. New
+  `type` values and new fields can appear without notice, so ignore what you don't know.
+  A breaking change to a body ships under a new `apiVersion`.
+- **Signature.** Standard Webhooks headers: `webhook-id`, `webhook-timestamp` (Unix seconds),
+  and `webhook-signature: v1,<base64>`. Each signature is HMAC-SHA256 over
+  `"<webhook-id>.<webhook-timestamp>.<raw request body>"`, keyed with the base64-decoded suffix
+  of the shown-once `whsec_<base64>` secret. Verify the raw body with a Standard Webhooks
+  library and reject timestamps more than five minutes from now before processing the event.
+  Rotation dual-signs with current and previous keys for 24 hours: space-separated `v1,<base64>`
+  values, either of which may verify. No legacy headers are sent.
+  Existing sealed key bytes are unchanged. For an older hex secret, use
+  `"whsec_" + Buffer.from(oldSecret, "hex").toString("base64")` in the reference library.
+- **Delivery.** At least once: a delivery that does not get a `2xx` is retried after 5 s,
+  30 s, 10 min, 1 h, 6 h and 24 h. Deduplicate on `webhook-id`, and on the body's
+  `id` for the event itself. The delivery log and the test call are in the webhook
+  endpoints.
+
 ## Deprecation
 
 When something has to go after launch:
