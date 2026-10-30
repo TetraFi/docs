@@ -80,6 +80,24 @@ second order. A different body under the same key answers `409 IDEMPOTENCY_CONFL
 Refusals are not stored, so after one, fix the request and send it again. The OpenAPI
 description of the header has the full rules.
 
+## Webhooks
+
+A workspace webhook receives a signed `POST` for each event it subscribes to.
+`order.updated` is sent on every status change of an order placed in that workspace.
+
+- **Body.** `{id, type, apiVersion, createdAt, data}`. For `order.updated`, `data` is
+  `{orderId, status, statusUrl}`; read the order at `statusUrl` for its full state. New
+  `type` values and new fields can appear without notice, so ignore what you don't know.
+  A breaking change to a body ships under a new `apiVersion`.
+- **Signature.** `TetraFi-Signature: t=<unix seconds>,v1=<hex>`. Each `v1` is
+  HMAC-SHA256 with your secret over `"<t>.<raw request body>"`. Accept the delivery when any
+  `v1` matches and `t` is within a few minutes of now. After you rotate the secret, the old
+  one also signs for 24 hours, so a delivery can carry two `v1` values.
+- **Delivery.** At least once: a delivery that does not get a `2xx` is retried after 5 s,
+  30 s, 10 min, 1 h, 6 h and 24 h. Deduplicate on `TetraFi-Delivery-Id`, and on the body's
+  `id` for the event itself. The delivery log and the test call are in the webhook
+  endpoints.
+
 ## Deprecation
 
 When something has to go after launch:

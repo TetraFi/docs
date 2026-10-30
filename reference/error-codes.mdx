@@ -28,6 +28,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `AGGREGATION_TIMEOUT` | 504 | No venue returned a valid quote before the deadline. | Retry the same request shortly, with backoff. | Yes |
 | `ALL_SOLVERS_FAILED` | 400 | Every venue asked refused or failed to price the request. | Change the pair, amount or filters, then request quotes again. | No |
 | `API_KEY_EXPIRED` | 401 | The API key has expired. | Create a new API key and use it. | No |
+| `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` | 409 | The API key was not granted the organisation wallet the venue would use. A quote source answers unavailable with it; an order or requote on that source is refused. | Grant the key that wallet, or bind a wallet it holds. | No |
 | `API_KEY_UNAVAILABLE` | 401, 503 | The request's API key could not be identified or confirmed as current. | Retry shortly; if it persists, check the key is still active. | Yes |
 | `ASSETS_WORKSPACE_TYPE` | 403 | This workspace type cannot read taker assets. | Use a Company, Broker or Direct-user workspace, or finish taker onboarding for this workspace. | No |
 | `ASSET_CATALOGUE_UNAVAILABLE` | 503 | The asset catalogue is not loaded just now. | Retry the same request shortly, with backoff. | Yes |
@@ -106,8 +107,11 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `DELEGATED_SOURCE_STATE_UNAVAILABLE` | 503 | The order's source submission record could not be read or written; nothing was sent. | Retry the same request shortly, with backoff. | Yes |
 | `DELEGATED_SOURCE_UNAVAILABLE` | 409 | Server-side source execution is not available for this order now. | Sign and send the source transaction yourself, or choose another quote. | No |
 | `DELEGATED_SOURCE_UNSUPPORTED` | 400 | This source cannot be executed server-side. | Sign and send the source transaction yourself. | No |
+| `DELIVER_TO_AMBIGUOUS` | 409 | The deliverTo address matches more than one withdrawal destination. A quote source answers unavailable with it; an order or requote on that source is refused. | Name the destination exactly, including its tag or memo. | No |
+| `DELIVER_TO_NOT_A_WORKSPACE_WALLET` | 409 | deliverTo is not one of the workspace's own wallets. A quote source answers unavailable with it; an order or requote on that source is refused. | Deliver to a workspace wallet. | No |
 | `DEPOSIT_SCREENING_PENDING` | 503 | Screening of the sending address is still running. | Retry the same request shortly, with backoff. | Yes |
 | `DEPOSIT_SCREENING_UNSUPPORTED_CHAIN` | 403 | Wallet screening does not cover the sending chain, so the order is refused. | Send from a chain that screening covers. | No |
+| `DESTINATION_NOT_APPROVED` | 409 | deliverTo is not an approved withdrawal destination of the venue account. A quote source answers unavailable with it; an order or requote on that source is refused. | Approve the destination on the venue account, or deliver elsewhere. | No |
 | `DIRECT_DEX_EVIDENCE_UNAVAILABLE` | 503 | The swap route's preflight record could not be read. | Retry the same request shortly, with backoff. | Yes |
 | `DIRECT_DEX_PREFLIGHT_REQUIRED` | 400 | This swap route needs a matching preflight before the order. | Call POST /orders/preflight for this quote, then place the order. | No |
 | `DIRECT_DEX_ROUTE_INVALID` | 400 | The swap route does not match the expected shape. | Request a new quote, then place the order on it. | No |
@@ -403,6 +407,8 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | `WALLET_LINK_REQUIRED` | 403 | The signing wallet must be linked and verified first. | Link and verify the wallet, then place the order. | No |
 | `WALLET_NOT_LINKED` | 422 | The funding wallet is not linked to the order's owner. | Link the wallet to the owner, or use a linked one. | No |
 | `WALLET_SIGNATURE_REQUIRED` | 400 | The order is missing the wallet signature the quote requires. | Sign the quote's terms in the paying wallet and include the signature. | No |
+| `WITHDRAWAL_CHAIN_UNSUPPORTED` | 409 | The venue has no withdrawal network for that chain. A quote source answers unavailable with it; an order or requote on that source is refused. | Deliver on a chain the venue withdraws to. | No |
+| `WITHDRAWAL_FEE_EXCEEDS_AMOUNT` | 409 | The venue's withdrawal fee is larger than the amount received. A quote source answers unavailable with it; an order or requote on that source is refused. | Use a larger amount. | No |
 | `WITHDRAWAL_FEE_UNVERIFIED` | 409 | The venue's withdrawal fee could not be read, so the minimum receive cannot be set. | Request a new quote, then place the order on it. | No |
 | `WORKFLOW_UNAVAILABLE` | 503 | The workspace's compliance workflow could not be read; the order was not admitted. | Retry the same request shortly, with backoff. | Yes |
 | `WORKSPACE_CONTEXT_REQUIRED` | 400 | A workspace context is required to act on this order. | Send the request with the workspace's credential. | No |
@@ -441,18 +447,20 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `amountUnreadable` | The venue's amounts could not be read. | Request quotes again. | No |
 | `amountsUnreadable` | The route's amounts could not be read. | Request quotes again. | No |
 | `apiKeyOrganisationWalletNotAllowlisted` | The organisation wallet the venue would use is not granted to this API key. | A workspace owner adds the wallet to the key's organisation wallets, then request quotes again. | No |
-| `apiKeyOrganisationWalletScopeRequired` | The API key was not granted the organisation wallet the venue would use. | Grant the key that wallet, or bind a wallet it holds. | No |
 | `askFirst` | The venue prices only when asked directly. | Name the venue in filters.venues.include, or requote its card. | No |
+| `askLimitReached` | The venue's ask limit for this workspace is reached; `fix` names when it reopens. | Request quotes again after the time the fix names. | Yes |
 | `authorityUnavailable` | The caller's trading authority could not be read. | Request quotes again shortly. | Yes |
 | `automationNeverAsks` | Automated callers do not trigger a live ask to this venue. | Requote the card to ask it. | No |
 | `availabilityUnreadable` | The venue's availability could not be read. | Request quotes again shortly. | Yes |
 | `backgroundNeverAsks` | A background request does not ask this venue live. | Ask in a foreground request or requote. | No |
 | `balanceAvailabilityUnconfirmed` | The venue has not confirmed whether its balance is available to trade. | Request quotes again once the venue reports its balance. | Yes |
+| `balanceMeaningUnconfirmed` | The venue has not confirmed whether its reported balance is available to trade. | Request quotes again once the venue reports its balance. | Yes |
 | `balanceUnreadable` | The paying wallet's balance could not be read. | Request quotes again shortly. | Yes |
 | `bankDestinationUnavailable` | The venue account's registered bank accounts could not be read. | Request quotes again shortly. | Yes |
 | `basicVenueAccountsUnavailable` | The workspace's venue accounts could not be read. | Request quotes again shortly. | Yes |
 | `bebopJamKeyNotEnabled` | Bebop does not price this pair on its solver route for TetraFi yet. | Choose a pair Bebop's RFQ route prices, or another venue. | No |
 | `bebopJamQuoteDeclined` | Bebop's solver route returned no price for this wallet. | Choose a pair Bebop's RFQ route prices, or another venue. | No |
+| `bebopJamWalletUnsupported` | This wallet cannot sign Bebop's solver-route orders. | Choose a pair Bebop's RFQ route prices, or a wallet that supports it. | No |
 | `bebopTokenUnavailable` | Bebop is not trading one of this pair's tokens right now. | Choose another venue, or request quotes again later. | No |
 | `billingPaymentOverdue` | The organisation's TetraFi bill is more than 30 days overdue, so no venue was asked for a new quote. | Pay the overdue statement in Settings, Billing, then request quotes again. | No |
 | `bindingDefaultsUnavailable` | Default wallet bindings could not be read. | Request quotes again shortly. | Yes |
@@ -471,17 +479,18 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `comparisonCostsUnavailable` | The costs used to compare this price could not be read. | Read prices again shortly. | Yes |
 | `connectionChanged` | The venue connection changed during the request. | Request quotes again. | Yes |
 | `connectionListingUnavailable` | The venue account's connections could not be read. | Request quotes again shortly. | Yes |
+| `connectionNotConfigured` | The venue connection is not configured for this workspace. | A credentials manager configures the venue connection, then request quotes again. | No |
 | `connectionRevoked` | The workspace's key for this venue was revoked. | Reconnect the venue account. | No |
 | `corridorInvalid` | The route's corridor could not be read. | Request quotes again. | No |
 | `credential` | The credential cannot use this venue. | Use a member session or a key with venue trading. | No |
 | `deadlineExceeded` | The route did not answer in time. | Request quotes again. | Yes |
 | `defaultsLoading` | Default wallet bindings are still loading. | Request quotes again shortly. | Yes |
-| `deliverToAmbiguous` | The deliverTo address matches more than one withdrawal destination. | Name the destination exactly, including its tag or memo. | No |
 | `deliverToCalldataUnsupported` | A venue withdrawal cannot carry calldata. | Deliver to a plain address. | No |
-| `deliverToNotAWorkspaceWallet` | deliverTo is not one of the workspace's own wallets. | Deliver to a workspace wallet. | No |
 | `deliverToNotPermitted` | deliverTo needs a member session that can view wallets. | Remove deliverTo, or quote in a member session. | No |
 | `deliverToUnreadable` | The delivery destination could not be read. | Request quotes again shortly. | Yes |
-| `destinationNotApproved` | deliverTo is not an approved withdrawal destination of the venue account. | Approve the destination on the venue account, or deliver elsewhere. | No |
+| `deliveryAccountNetworkUnavailable` | The network of the account receiving the trade could not be resolved. | Choose another receiving account, then request quotes again. | No |
+| `deliveryAccountUnavailable` | The account receiving the trade could not be resolved for this venue. | Choose another receiving account, then request quotes again. | No |
+| `dexReferencePriceUnavailable` | The reference price that bounds this pool quote could not be read, so it was withheld. | Request quotes again shortly. | Yes |
 | `directPatienceHarvest` | The route was stopped to return direct quotes in time. | Request quotes again. | Yes |
 | `economicallyInferior` | A direct quote now delivers more than this route. | Use the better quote. | No |
 | `exactAmountConflictsWithCard` | The exact amount asked conflicts with the venue's card. | Request quotes again with the other side fixed. | No |
@@ -497,10 +506,14 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `feeUnverified` | The venue's fee has not been verified. | Choose another venue. | No |
 | `filteredOut` | The venue is excluded by the request's filters. | Relax the filters to include it. | No |
 | `firmAskRefused` | The venue refused the firm ask. | Choose another quote. | No |
+| `firmQuoteLimited` | The venue limits how often it answers firm quotes; `fix` names when it reopens. | Request quotes again after the time the fix names. | Yes |
 | `freshnessUnknown` | How fresh the venue's price is could not be read. | Request quotes again. | No |
+| `fundingAccountNetworkUnavailable` | The network of the account paying for the trade could not be resolved. | Choose another trading source, then request quotes again. | No |
+| `fundingAccountUnavailable` | The account paying for the trade could not be resolved for this venue. | Request quotes again shortly, or choose another trading source. | Yes |
 | `fundingWindow` | The venue is inside a funding window. | Request quotes again after the window. | Yes |
 | `grantCapExceeded` | The amount exceeds the paying organisation wallet's approved signing-grant cap. | Lower the amount or ask the wallet owner to approve a larger grant. | No |
 | `indicative` | A priced indicative card from a venue read or estimate, not a firm-price ask. | Read the card's firmAsk: onRequest offers a firm ask; atExecution fixes the price only when the order executes. | No |
+| `insufficientDepth` | The amount is above the depth the venue has available right now. | Lower the amount, or request quotes again later. | Yes |
 | `insufficientLiquidity` | The venue lacks liquidity for this amount. | Try a smaller amount. | No |
 | `jurisdictionUnproven` | The requester's identity country is not on record, so the quote was withheld. | Complete the identity country, then request quotes again. | No |
 | `kybUnavailable` | The workspace's business verification could not be read. | Request quotes again shortly. | Yes |
@@ -508,7 +521,10 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `mfaEnrolmentRequired` | The workspace requires a second factor and the member has none. | Enrol an authenticator. | No |
 | `mfaRequired` | The venue needs a session that completed its second factor. | Complete the second factor. | No |
 | `minimumUnverified` | The venue's minimum amount is not verified. | Choose another venue. | No |
+| `missingPermission` | The caller lacks the workspace permission this venue's quote needs; `fix` names it. | Ask a workspace admin for the permission the fix names. | No |
 | `mixedNetworks` | The pair mixes test and production networks. | Choose chains on the same network. | No |
+| `needsNativeGas` | The paying wallet needs native gas before this venue can trade; detail names the amount. | Fund the wallet with the named gas, then request quotes again. | No |
+| `needsWallet` | The venue needs a bound wallet before it can quote. | Bind a wallet for this venue, then request quotes again. | No |
 | `netReceivedUnavailable` | The amount received net of fees could not be computed. | Request quotes again. | No |
 | `networkUnrecorded` | Whether the chain is a test network is not recorded. | Choose another chain. | No |
 | `noAddress` | The paying wallet has no address to read a balance from. | Bind a wallet with an address. | No |
@@ -528,6 +544,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `notEligible` | The venue is not eligible for this request, so it was not asked. | Change the request, or choose another venue. | No |
 | `notExecutable` | The venue's card is not executable for this caller. | Read the card's detail for why. | No |
 | `notFilled` | The source's levels do not fill this size. | Choose a smaller size. | No |
+| `notPriced` | A reference price for one of the assets is not available, so the spread from mid is not shown. | Request quotes again later. | Yes |
 | `notYetPublished` | The source publishes this pair but no price is cached yet. | Read prices again shortly. | Yes |
 | `onboardedVenuesUnavailable` | The workspace's connected venues could not be read for this asset list. | Read the list again shortly. | Yes |
 | `onchainAccountDefaultWalletRequired` | The venue account needs a default organisation wallet on the paying network; `network` names it. | Choose the default wallet for that network. | No |
@@ -558,8 +575,11 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `pairNotServed` | The venue does not serve this pair. | Choose another venue. | No |
 | `pairUnmapped` | The venue does not map this pair. | Choose another venue. | No |
 | `payChainInvalid` | The pay chain could not be read. | Request quotes again. | No |
+| `payInTermsUnavailable` | The venue's bank pay-in terms for this quote could not be read. | Request quotes again. | No |
 | `permissionsUnreadable` | The caller's permissions could not be read. | Request quotes again shortly. | Yes |
+| `pilotTradeCapExceeded` | The amount is above the venue's pilot trade cap. | Lower the amount. | No |
 | `placeOrderNotPermitted` | The caller cannot place orders. | Use a credential with Place orders. | No |
+| `platformFeeRateUnavailable` | The TetraFi fee rate for this trade could not be read, so the quote was withheld. | Request quotes again shortly. | Yes |
 | `prefundingMarkerUnreadable` | Whether the route needs prefunding could not be read. | Request quotes again. | No |
 | `prefundingRequired` | The venue needs a prefunded balance before it can quote. | Prefund the venue account. | No |
 | `priceArithmetic` | The source's price could not be computed. | Choose another venue. | No |
@@ -568,6 +588,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `priceProtectionInvalid` | The price protection asked is above the allowed limit. | Ask for less price protection. | No |
 | `priceSourceNone` | This venue publishes no price and must be asked directly. | Request a quote naming this venue. | No |
 | `pricingBookOnly` | The venue offers order-book prices only here. | Trade on its book price. | No |
+| `pricingBookPairUnserved` | The venue's pricing book does not serve this pair. | Choose another venue or pair. | No |
 | `productNotQuoted` | The venue no longer quotes this product. | Request fresh quotes. | No |
 | `protocolChainMissing` | The route has no chain for its protocol leg. | Request quotes again. | No |
 | `providerFeeTreatmentUnknown` | How the venue's fee is applied could not be read. | Request quotes again. | No |
@@ -591,6 +612,8 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `routeLegUnplanned` | A route leg was not planned. | Request quotes again. | No |
 | `routeUnavailable` | The venue has no executable route for this exact pair right now. | Request quotes again later. | No |
 | `secondFactorUnreadable` | The member's second-factor state could not be read. | Request again shortly. | Yes |
+| `settlementDeclarationUnavailable` | The venue's settlement declaration could not be read. | Request quotes again shortly. | Yes |
+| `settlementNotAvailable` | The venue declares no settlement for this pair and network. | Choose another venue or network. | No |
 | `settlementPrecisionUnavailable` | The settlement asset's precision could not be read. | Read prices again shortly. | Yes |
 | `shortfallUnmeasured` | The funding shortfall could not be measured. | Request quotes again. | No |
 | `shortfallUnreadable` | The funding shortfall could not be read. | Request quotes again. | No |
@@ -609,10 +632,14 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `takerOnboardingIncomplete` | The workspace has not finished taker onboarding. | Finish taker onboarding. | No |
 | `tetrafiSolverCallbackNotAuthorized` | TetraFi has not yet enabled delivery to this receiving wallet on that network. | Choose an enabled receiving wallet, or ask TetraFi support to enable this one. | No |
 | `tierNotQuoted` | The venue no longer quotes this size tier. | Request fresh quotes. | No |
+| `timedOut` | The venue did not answer in time. | Request quotes again. | Yes |
+| `timedOutBeforeSend` | The venue timed out before anything was sent to it. | Request quotes again. | Yes |
 | `tradePaused` | Trading on the venue account is paused. | Request quotes again after it resumes. | Yes |
 | `tradingLinkSnapshotChanged` | The venue account's trading links changed while the quote was qualified. | Request quotes again. | Yes |
 | `tradingLinkSnapshotUnavailable` | The venue account's trading links could not be read. | Request quotes again shortly. | Yes |
 | `tradingPermissionRequired` | Firm prices from this venue need Request quotes and Place orders. | Use a credential with both permissions. | No |
+| `tradingSourceNetworkUnavailable` | The network of the selected trading source could not be resolved. | Choose another trading source, then request quotes again. | No |
+| `tradingSourceNotLinked` | The selected trading source is not linked to this venue's account. | Choose a linked trading source, or link it on the venue account. | No |
 | `uniswapChainReadUnavailable` | The chain could not be read to price the Uniswap v3 pool. | Request quotes again shortly. | Yes |
 | `uniswapInsufficientDepth` | The amount is above the depth Uniswap v3 has available right now. | Lower the amount, or request quotes again later. | Yes |
 | `uniswapQuoteUnreadable` | Uniswap v3's pool quote could not be read. | Request quotes again shortly. | Yes |
@@ -620,10 +647,13 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `venueConnectionStorageUnavailable` | The venue account's quote-admission records could not be read or written. | Request quotes again shortly. | Yes |
 | `venueDataStale` | The venue could not read its own balances or prices just now. | Request quotes again shortly. | Yes |
 | `venueDeclined` | The venue declined to quote. | Choose another venue. | No |
+| `venueEnablementUnavailable` | The workspace's venue enablements could not be read. | Request quotes again shortly. | Yes |
+| `venueListingTimedOut` | The workspace's venue list could not be read in time. | Request quotes again. | Yes |
 | `venueNotConnected` | The venue's account is not connected for this workspace. | Connect the venue account. | No |
 | `venueNotEnabled` | The venue is not enabled on the selected trading source's venue account; `fix` names who can enable it. | A credentials manager enables the venue, then request quotes again. | No |
 | `venueNotEnabledForWorkspace` | The venue is not enabled for this workspace. | Enable the venue for the workspace. | No |
 | `venueNotListed` | The venue no longer quotes this pair. | Request fresh quotes. | No |
+| `venuePoliciesUnavailable` | The venue quote policies could not be read. | Request quotes again shortly. | Yes |
 | `venueRelationship` | The workspace's relationship with this venue does not allow trading. | Resolve the relationship with the venue. | No |
 | `venueRelationshipUnavailable` | The workspace's relationship with this venue could not be read. | Request quotes again shortly. | Yes |
 | `venueTradeKeyUnavailable` | The API key's venue-trading settings could not be read. | Request quotes again shortly. | Yes |
@@ -635,5 +665,4 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | `walletNotWhitelisted` | The saved wallet is not approved for this venue account. | Approve the wallet on the venue account, or choose another. | No |
 | `walletRefused` | The bound wallet cannot trade on this venue. | Bind another wallet. | No |
 | `withdrawalChainUnsupported` | The venue has no withdrawal network for that chain. | Deliver on a chain the venue withdraws to. | No |
-| `withdrawalFeeExceedsAmount` | The venue's withdrawal fee is larger than the amount received. | Use a larger amount. | No |
 | `withdrawalFeeUnread` | The venue's withdrawal fee could not be read. | Request quotes again. | No |
