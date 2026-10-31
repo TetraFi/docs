@@ -257,10 +257,10 @@ results=$(jq -c --argjson q "$quote_events" --argjson s "$source_events" \
 # region search-prices
 # Prices for the pair from memory: no venue is asked, so it costs no quote request.
 # Each row is one venue, location and variant pair. Rows are indicative, never orderable.
-path="/api/v1/prices?pay=$sell&receive=$buy&amount=$amount&side=payExact"
+path="/api/v1/prices?sell=$sell&buy=$buy&sellAmount=$amount"
 prices=$(tetrafi GET "$path")
-jq -c '{referenceMid: .referenceMid.receivePerPay, rows: [.rows[] | {venue: .venue.id,
-  location: .location.kind, status, receive: .sizes[0].receive}]}' <<<"$prices" >&2
+jq -c '{referenceMid: .referenceMid.buyPerSell, rows: [.rows[] | {venue: .venue.id,
+  location: .location.kind, status, buy: .sizes[0].buy}]}' <<<"$prices" >&2
 # endregion
 prices_summary=$(jq -c '{request: "prices", rows: (.rows | length),
   referenceMid: (.referenceMid != null), statuses: (reduce .rows[] as $r ({}; .[$r.status] += 1))}' <<<"$prices")
