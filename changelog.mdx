@@ -5,6 +5,16 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-31" description="Advanced order detail in sell and buy">
+  An Advanced order's detail, the `order` of a `kind` `advancedTrade` answer, states its amounts as sell and buy, in decimals.
+
+  What to change:
+  - Read `order.route.sell` and `order.route.buy`, where you read the route's pay and receive sides. Each carries its asset, chain and `decimalAmount`. When TetraFi cannot work out the decimals, the side carries `unresolved` (`assetNotInRegistry` or `amountUnavailable`) and no `decimalAmount`: decimals are never guessed.
+  - Stop reading `order.inputAmounts` and `order.outputAmounts`. Outputs that pay a fee are listed in `order.feeOutputs`, in decimals.
+  - Read each of `order.legs[]` as `sell`, `buy` (the leg's estimate) and `measuredBuy`, with `measuredBuySource`, where you read `inputAsset`, `inputAmount`, `outputAsset`, `outputAmount` and `measuredOutputAmount`.
+  - Read what was delivered from `order.deliveredBuy`, with `deliveredBuyProvenance`.
+</Update>
+
 <Update label="2026-10-31" description="Prices in sell and buy">
   `GET /api/v1/prices`, `GET /api/v1/prices/stream` and every `referenceMid` use sell and buy too. The old names are gone, with no aliases.
 
