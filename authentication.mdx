@@ -3,6 +3,8 @@ title: "Authentication"
 description: "Create an API key, choose its permissions, send it with every request and sign requests when the key trades on your venue accounts."
 ---
 
+import MeOrganisationWallets from '/snippets/samples/me-organisation-wallets.mdx';
+
 Your backend authenticates with an API key. A key belongs to you and to one workspace, and it can never do more than you can do in that workspace.
 
 <Note>
@@ -46,6 +48,26 @@ Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC
 <Note>
 **Create API key** with venue trading grants the key your workspace's default organisation wallets that you hold a Trade right on, and says which it granted. Until a wallet is granted, on-chain Basic venues answer `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. Grant or revoke wallets later from the key's **Wallets** tab ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)).
 </Note>
+
+### Check what a key can trade from
+
+`GET /api/v1/me` with a workspace key also answers `organisationWallets`, so the key can see its own setup before it orders:
+
+| Field | What it says |
+| --- | --- |
+| `venueTradeScope` | The key has the venue trading scope. |
+| `venueTradeEnabled` | Venue trading is switched on for the key. |
+| `requestSigningRequired` | Every request with the key must be signed. |
+| `grants` | The organisation wallets granted to the key, each with its `financialAccountId`, the id `source.tradingWallets` takes. |
+| `blockedBy` | When present, the code an order from an organisation wallet would be refused with right now, such as `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` when no wallet is granted. |
+
+When TetraFi cannot read the key's grants, `/me` answers `503 API_KEY_ORGANISATION_WALLET_AUTHORITY_UNAVAILABLE`, never an empty list: retry shortly. A key reads only its own grants.
+
+<MeOrganisationWallets />
+
+```json Output on test networks
+{"venueTradeScope":true,"venueTradeEnabled":true,"requestSigningRequired":true,"grants":[],"blockedBy":"API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED"}
+```
 
 ## Send the key
 

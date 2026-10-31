@@ -5,6 +5,11 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-31" description="A key reads its own organisation wallets; fuller filtered order pages">
+  - `GET /api/v1/me` with a workspace key answers `organisationWallets`: `venueTradeScope`, `venueTradeEnabled`, `requestSigningRequired`, the `grants` with each wallet's `financialAccountId`, and `blockedBy`, the code an organisation-wallet order would be refused with right now ([Check what a key can trade from](/authentication#check-what-a-key-can-trade-from)).
+  - `GET /api/v1/orders` with a `status` filter fills its page before answering, up to a scan limit. A short page with a `nextCursor` says `scanLimitReached: true`; a filter that matches nothing answers one page with no `nextCursor`.
+</Update>
+
 <Update label="2026-10-31" description="The last pay and receive words become sell and buy">
   What to change:
   - Match the source reason `buyAmountUnsupported` where you matched `receiveExactUnsupported`, on quote sources, quote cards, price rows and `netReceived`.
