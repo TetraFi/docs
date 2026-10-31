@@ -102,7 +102,7 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you buy on, from step 1
   <Step title="Confirm it arrived">
     The venue trade's own detail is under `operation`: `executionStatus` for the trade and `settlementStatus` for any later money movement. When the venue reports amounts, `dispatch.inputSpent` is what you paid and `dispatch.outputReceived` is what you received. A missing or `null` amount is unknown, not zero. `dispatch.venueOrderId`, when present, is the venue's native order id.
 
-    `bounds.maximumDebit` and `bounds.minimumReceipt` are the limits you accepted, not the amounts that settled. The public response does not document delivery transaction hashes or your organisation wallet's transaction steps.
+    `bounds.sell.amount` is the most the trade spends, every fee charged in it included, and `bounds.buy.amount` the least it delivers: the limits you accepted, not the amounts that settled. The public response does not document delivery transaction hashes or your organisation wallet's transaction steps.
 
     <CrossChainArrival />
 
@@ -110,10 +110,8 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you buy on, from step 1
     {
       "executionStatus": "filled",
       "bounds": {
-        "debitAsset": "USDC",
-        "receiptAsset": "USDC",
-        "maximumDebit": "1",
-        "minimumReceipt": "0.994503"
+        "sell": { "asset": "USDC", "amount": "1" },
+        "buy": { "asset": "USDC", "amount": "0.994503" }
       },
       "dispatch": { "inputSpent": "1", "outputReceived": "0.999501" }
     }

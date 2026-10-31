@@ -117,10 +117,10 @@ The script needs the workspace id for one step only: after it recovers the order
 
     ```json Output
     {"status":"settled","terminal":true,"next":null}
-    {"executionStatus":"filled","settlementStatus":null,"bounds":{"debitAsset":"USDC","receiptAsset":"USDT","maximumDebit":"5","minimumReceipt":"4.99172"},"dispatch":{"inputSpent":"5","outputReceived":"5.00675","venueOrderId":"229377"}}
+    {"executionStatus":"filled","settlementStatus":null,"bounds":{"sell":{"asset":"USDC","amount":"5"},"buy":{"asset":"USDT","amount":"4.99172"}},"dispatch":{"inputSpent":"5","outputReceived":"5.00675","venueOrderId":"229377"}}
     ```
 
-    When the venue reports them, `dispatch.inputSpent` and `dispatch.outputReceived` are what the trade took from and added to the account. A missing or `null` amount is unknown, never zero. `bounds.maximumDebit` and `bounds.minimumReceipt` are your accepted limits, not fill amounts. `dispatch.venueOrderId`, when present, is the venue's native order id.
+    When the venue reports them, `dispatch.inputSpent` and `dispatch.outputReceived` are what the trade took from and added to the account. A missing or `null` amount is unknown, never zero. `bounds.sell.amount` (the most it spends) and `bounds.buy.amount` (the least it delivers) are your accepted limits, not fill amounts. `dispatch.venueOrderId`, when present, is the venue's native order id.
 
     Check `settlementStatus` for any later money movement. To confirm the balance independently, open the account under **Treasury** in the app.
   </Step>

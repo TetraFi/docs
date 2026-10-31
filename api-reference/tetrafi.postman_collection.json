@@ -137,7 +137,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic and Advanced orders using the same envelope as GET /orders/{id}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. Each request examines at most 20 candidates after kind, date and Asset filters, then applies the canonical public status. Pages can contain fewer than limit items, including none; follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
+        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic and Advanced orders using the same envelope as GET /orders/{id}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -585,46 +585,46 @@
           ],
           "query": [
             {
-              "key": "pay",
-              "value": "<pay>",
+              "key": "sell",
+              "value": "<sell>",
               "disabled": false,
-              "description": "Pay Asset id (USDC)"
+              "description": "Sell Asset id (USDC)"
             },
             {
-              "key": "receive",
-              "value": "<receive>",
+              "key": "buy",
+              "value": "<buy>",
               "disabled": false,
-              "description": "Receive Asset id (USDT)"
+              "description": "Buy Asset id (USDT)"
             },
             {
-              "key": "amount",
-              "value": "<amount>",
+              "key": "sellAmount",
+              "value": "<sellAmount>",
               "disabled": true,
-              "description": "One decimal amount in Asset units, with side; exclusive with sizes"
+              "description": "The exact sell amount, a decimal in Asset units; send exactly one of sellAmount, buyAmount or sizes"
             },
             {
-              "key": "side",
-              "value": "<side>",
+              "key": "buyAmount",
+              "value": "<buyAmount>",
               "disabled": true,
-              "description": "payExact | receiveExact"
+              "description": "The exact buy amount, a decimal in Asset units"
             },
             {
               "key": "sizes",
               "value": "<sizes>",
               "disabled": true,
-              "description": "1 to 8 comma-separated positive pay amounts"
+              "description": "1 to 8 comma-separated positive sell amounts"
             },
             {
-              "key": "pay.chain",
-              "value": "<pay.chain>",
+              "key": "sell.chain",
+              "value": "<sell.chain>",
               "disabled": true,
-              "description": "CAIP-2 pin for the pay side"
+              "description": "CAIP-2 pin for the sell side"
             },
             {
-              "key": "receive.chain",
-              "value": "<receive.chain>",
+              "key": "buy.chain",
+              "value": "<buy.chain>",
               "disabled": true,
-              "description": "CAIP-2 pin for the receive side"
+              "description": "CAIP-2 pin for the buy side"
             },
             {
               "key": "venues.include",
@@ -639,14 +639,14 @@
               "description": "Comma-separated venue ids to drop"
             },
             {
-              "key": "variants.pay",
-              "value": "<variants.pay>",
+              "key": "variants.sell",
+              "value": "<variants.sell>",
               "disabled": true,
               "description": "any | nativeOnly"
             },
             {
-              "key": "variants.receive",
-              "value": "<variants.receive>",
+              "key": "variants.buy",
+              "value": "<variants.buy>",
               "disabled": true,
               "description": "any | nativeOnly"
             },
@@ -694,37 +694,37 @@
               "key": "pairs",
               "value": "<pairs>",
               "disabled": false,
-              "description": "1 to 25 comma-separated PAY:RECEIVE Asset pairs (USDC:USDT,USDC:ZAR)"
+              "description": "1 to 25 comma-separated SELL:BUY Asset pairs (USDC:USDT,USDC:ZAR)"
             },
             {
-              "key": "amount",
-              "value": "<amount>",
+              "key": "sellAmount",
+              "value": "<sellAmount>",
               "disabled": true,
               "description": "As GET /prices, applied to every pair"
             },
             {
-              "key": "side",
-              "value": "<side>",
+              "key": "buyAmount",
+              "value": "<buyAmount>",
               "disabled": true,
-              "description": "payExact | receiveExact"
+              "description": "As GET /prices, applied to every pair"
             },
             {
               "key": "sizes",
               "value": "<sizes>",
               "disabled": true,
-              "description": "1 to 8 comma-separated positive pay amounts, applied to every pair; pairs × sizes at most 125"
+              "description": "1 to 8 comma-separated positive sell amounts, applied to every pair; pairs × sizes at most 125"
             },
             {
-              "key": "pay.chain",
-              "value": "<pay.chain>",
+              "key": "sell.chain",
+              "value": "<sell.chain>",
               "disabled": true,
-              "description": "CAIP-2 pin for the pay side"
+              "description": "CAIP-2 pin for the sell side"
             },
             {
-              "key": "receive.chain",
-              "value": "<receive.chain>",
+              "key": "buy.chain",
+              "value": "<buy.chain>",
               "disabled": true,
-              "description": "CAIP-2 pin for the receive side"
+              "description": "CAIP-2 pin for the buy side"
             },
             {
               "key": "venues.include",
@@ -739,14 +739,14 @@
               "description": "Comma-separated venue ids to drop"
             },
             {
-              "key": "variants.pay",
-              "value": "<variants.pay>",
+              "key": "variants.sell",
+              "value": "<variants.sell>",
               "disabled": true,
               "description": "any | nativeOnly"
             },
             {
-              "key": "variants.receive",
-              "value": "<variants.receive>",
+              "key": "variants.buy",
+              "value": "<variants.buy>",
               "disabled": true,
               "description": "any | nativeOnly"
             },
@@ -781,7 +781,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `pay` or `requote` is 400 INVALID_REQUEST naming `pay`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / BINDING_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 QUOTE_EXPIRED (10 minutes after its expiry), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (commitment.kind indicative) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
+        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `sell` or `requote` is 400 INVALID_REQUEST naming `sell`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / BINDING_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 QUOTE_EXPIRED (10 minutes after its expiry), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (commitment.kind indicative) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes",
           "host": [
@@ -795,7 +795,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"pay\": {\n    \"asset\": \"USDC\"\n  },\n  \"receive\": {\n    \"asset\": \"USDC\"\n  },\n  \"amount\": \"10000\",\n  \"side\": \"payExact\"\n}",
+          "raw": "{\n  \"sell\": {\n    \"asset\": \"USDC\"\n  },\n  \"buy\": {\n    \"asset\": \"USDC\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
