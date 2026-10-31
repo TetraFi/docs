@@ -74,6 +74,15 @@ quote_request() {
 
 amount=${TETRAFI_AMOUNT:-10}
 
+# region me-organisation-wallets
+# What this key can trade from: its venue trading setup and the organisation wallets granted to it.
+# blockedBy, when present, is the code an organisation-wallet order would be refused with right now.
+me=$(tetrafi GET /api/v1/me)
+jq -c '.organisationWallets | {venueTradeScope, venueTradeEnabled, requestSigningRequired,
+  grants: [.grants[] | .financialAccountId], blockedBy}' <<<"$me" >&2
+# endregion
+me_summary=$(jq -c '.organisationWallets | {grants: (.grants | length), blocked: (.blockedBy != null)}' <<<"$me")
+
 # USDC's EVM chains, from the asset list.
 usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.assets[] | select(.assetId == "USDC") | .variants[]
   | select(.kind == "native") | .deployments[].chain | select(startswith("eip155:"))] | unique')
@@ -146,6 +155,6 @@ else
 fi
 # endregion
 
-jq -cn --argjson q "$quotes" --arg deliver "$deliver_outcome" '{tradingWallets: true,
+jq -cn --argjson q "$quotes" --arg deliver "$deliver_outcome" --argjson me "$me_summary" '{tradingWallets: true, me: $me,
   quotes: ($q.quotes | length), fromNamedWallet: ([$q.quotes[] | select(.tradingSource.kind == "wallet")] | length),
   requoteDeliverTo: $deliver}'

@@ -79,7 +79,7 @@ Without `next`, poll every 10 to 15 seconds until `terminal` is `true`.
 | `limit` | Up to 20 orders a page; 20 when left out. |
 | `cursor` | The previous page's `nextCursor`. |
 
-A page can hold fewer than `limit` orders, even none, while there are more: keep following `nextCursor` until it is `null`. A cursor belongs to the key and the exact filters it came with; any other answers `400 INVALID_CURSOR`. The script [`samples/http/orders-list.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/orders-list.sh) lists the last 30 days:
+A page with a `status` filter keeps reading until it has `limit` orders or your orders end, up to a limit on how many orders it examines. When it stops at that limit, the page can hold fewer than `limit` orders, even none, with `scanLimitReached: true` and a `nextCursor`: more orders remain to examine. A filter that matches nothing answers one page with `nextCursor` `null`. Either way, keep following `nextCursor` until it is `null`. A cursor belongs to the key and the exact filters it came with; any other answers `400 INVALID_CURSOR`. The script [`samples/http/orders-list.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/orders-list.sh) lists the last 30 days:
 
 <OrdersList />
 
