@@ -118,6 +118,36 @@ A few paths name a workspace, such as `GET /api/v1/workspaces/{id}/webhooks`. A 
 
 <ErrorsWrongWorkspace />
 
+## A workspace that cannot trade yet
+
+A company, broker or liquidity provider workspace can request quotes, place orders and connect to counterparties once its company details are on file: legal name, country of incorporation, registration number and registered address. Until then, those requests answer `403 CAPABILITY_BLOCKED`. Each entry in `details.capabilityBlockers` names one thing to fix:
+
+```json Refusal
+{
+  "error": "CAPABILITY_BLOCKED",
+  "message": "Add your company details (legal name, country of incorporation, registration number and registered address) in the TetraFi app under Company profile to start trading",
+  "details": {
+    "capabilityBlockers": [
+      {
+        "code": "BASE_PROFILE_INCOMPLETE",
+        "unlockStep": "company_details",
+        "currentlyDue": ["legalName", "jurisdiction", "registrationNumber", "registeredAddress"],
+        "message": "Add your company details (…) in the TetraFi app under Company profile to start trading"
+      }
+    ]
+  }
+}
+```
+
+| What is missing | Blocker `code` | What to do |
+| --- | --- | --- |
+| Company details. `currentlyDue` lists the missing ones. | `BASE_PROFILE_INCOMPLETE` | Add them in the TetraFi app under **Company profile**, then send the same request again. |
+| In a direct user's own workspace, the user's identity verification. | `KYC_NOT_VERIFIED` | Complete identity verification in the TetraFi app. |
+
+Both are done in the app, not through the API. When TetraFi cannot read the company details just now, the request answers `503 CAPABILITY_UNAVAILABLE` with the blocker `BASE_PROFILE_UNREADABLE`: send it again shortly. Treat a blocker code you do not recognise by its `message` and `unlockStep`.
+
+To check before you quote, read `GET /api/v1/workspaces/{id}/capabilities`: each capability, such as `request_quotes` or `submit_order`, says whether it is `allowed`, with the same `blockers` when it is not.
+
 ## Refusals by area
 
 Each table lists the codes you can get from that part of the API with an API key. Unless a row says otherwise, nothing was placed or sent.
@@ -134,6 +164,8 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 403 `WORKSPACE_SCOPE_MISMATCH` | `X-Workspace-Id` names a different workspace from the key's. | Send the key's own workspace. |
 | 404 `WORKSPACE_NOT_FOUND` | A path names a workspace that does not exist or is not yours. Both read the same. | Use your own workspace id in the path. |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
+| 403 `CAPABILITY_BLOCKED` | The workspace cannot do this yet, such as trading before its company details are on file. `details.capabilityBlockers` names each cause. | Fix each blocker in the app ([A workspace that cannot trade yet](#a-workspace-that-cannot-trade-yet)). |
+| 503 `CAPABILITY_UNAVAILABLE` | TetraFi could not read whether the workspace can do this. | Send it again shortly. |
 | 403 `IP_NOT_ALLOWED` | The key has an IP allowlist and the request came from elsewhere. | Send from an allowed address, or change the key's allowlist. |
 | 403 `INSUFFICIENT_SCOPE` | The key lacks the permission this call needs. | Create a key with that permission ([Permissions](/authentication#permissions)). |
 | 403 `INSUFFICIENT_PERMISSION` | You, the key's owner, no longer hold the permission in the workspace. A key never does more than you can. | Ask a workspace admin for the permission. |
