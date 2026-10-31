@@ -29,17 +29,17 @@ The amount is a positive decimal string in Asset units: `"10"` is ten USDC and `
 
 <SearchBuyExact />
 
-Not every venue can quote a fixed buy amount. A venue that only prices the amount you sell is listed in `sources` with the token `receiveExactUnsupported`, and is not asked. An on-chain protocol or bridge shows it as an `unsupported` row with the token in `reason`:
+Not every venue can quote a fixed buy amount. A venue that only prices the amount you sell is listed in `sources` with the token `buyAmountUnsupported`, and is not asked. An on-chain protocol or bridge shows it as an `unsupported` row with the token in `reason`:
 
 ```json
-{ "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "receiveExactUnsupported", "detail": null }
+{ "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "buyAmountUnsupported", "detail": null }
 ```
 
 A venue you trade through your own exchange or OTC account can show the same limit as a `filteredOut` row, with the token in `detail`. An on-chain venue that cannot deliver an exact amount uses `exactOutputDeliveryUnsupported`. Check both `reason` and `detail` for these tokens.
 
 In practice, on-chain protocols, bridges and some exchanges quote only the amount you sell, so a buy-exact search usually returns fewer quotes. When no venue can quote it, you get an empty `quotes` list and every venue's reason in `sources`. Send `sellAmount` instead, sized from a [price](/search/prices).
 
-On [`GET /api/v1/prices`](/search/prices), the same limit uses the same `receiveExactUnsupported` reason on an `unsupported` row.
+On [`GET /api/v1/prices`](/search/prices), the same limit uses the same `buyAmountUnsupported` reason on an `unsupported` row.
 
 ## What filters do to venues
 
