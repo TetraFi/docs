@@ -13,14 +13,14 @@ import SearchPrices from '/snippets/samples/search-prices.mdx';
 
 | Parameter | Required | Value |
 | --- | --- | --- |
-| `pay`, `receive` | Yes | Asset ids from [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery). |
-| `amount` and `side` | No | One amount in Asset units, with `payExact` or `receiveExact`. |
-| `sizes` | No | 1 to 8 comma-separated pay amounts, such as `100,1000,10000`. Use instead of `amount`. |
-| `pay.chain`, `receive.chain` | No | A CAIP-2 chain id to pin that side. |
+| `sell`, `buy` | Yes | Asset ids from [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery). |
+| `sellAmount` or `buyAmount` | One of these or `sizes` | One amount in Asset units: the amount you sell, or the amount you buy. |
+| `sizes` | One of these or an amount | 1 to 8 comma-separated sell amounts, such as `100,1000,10000`. |
+| `sell.chain`, `buy.chain` | No | A CAIP-2 chain id to pin that side. |
 | `locations` | No | Comma-separated `singleChain`, `crossChain`, `offChain`. |
 | `modalities` | No | Comma-separated `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat`. |
 | `venues.include`, `venues.exclude` | No | Comma-separated venue ids. |
-| `variants.pay`, `variants.receive` | No | `any` or `nativeOnly`. |
+| `variants.sell`, `variants.buy` | No | `any` or `nativeOnly`. |
 
 The filters mean what they mean in a [quote request](/search/how-it-works#the-request), and `venues.include` and `venues.exclude` take the same venue ids ([Venue types and venues](/search/venues#specific-venues)). A venue they exclude has no row.
 
@@ -30,26 +30,26 @@ An API key needs the `prices_read` scope, which the **Read quotes** permission g
 
 ```json
 {
-  "pay": "USDC",
-  "receive": "ETH",
+  "sell": "USDC",
+  "buy": "ETH",
   "computedAt": "2026-10-27T00:33:10.650366067Z",
-  "referenceMid": { "payUsd": "0.99965", "receiveUsd": "2323.71", "receivePerPay": "0.00043019" },
-  "payBalances": [],
+  "referenceMid": { "sellUsd": "0.99965", "buyUsd": "2323.71", "buyPerSell": "0.00043019" },
+  "sellBalances": [],
   "rows": [
     {
       "status": "priced",
       "venue": { "id": "...", "modality": "rfq" },
       "location": { "kind": "offChain" },
-      "payVariant": { "kind": "native", "name": "USDC" },
-      "receiveVariant": { "kind": "native", "name": "ETH" },
+      "sellVariant": { "kind": "native", "name": "USDC" },
+      "buyVariant": { "kind": "native", "name": "ETH" },
       "commitment": { "kind": "indicative" },
       "basis": "levels",
       "observedAt": "2026-10-27T00:33:09.731Z",
       "staleAfter": "2026-10-27T00:33:14.731Z",
       "sizes": [
         {
-          "pay": "100",
-          "receive": "0.04302555",
+          "sell": "100",
+          "buy": "0.04302555",
           "netReceived": { "kind": "unavailable", "reason": "comparisonCostsUnavailable" },
           "filled": "full",
           "fees": []
@@ -63,8 +63,8 @@ An API key needs the `prices_read` scope, which the **Read quotes** permission g
       "reason": "priceSourceNone",
       "venue": { "id": "...", "modality": "amm" },
       "location": { "kind": "singleChain", "chain": "eip155:84532" },
-      "payVariant": { "kind": "native", "name": "USDC" },
-      "receiveVariant": { "kind": "wrapped", "name": "WETH" },
+      "sellVariant": { "kind": "native", "name": "USDC" },
+      "buyVariant": { "kind": "wrapped", "name": "WETH" },
       "sizes": [],
       "spreadFromMidBps": { "kind": "unavailable", "reason": "noPrice" }
     }
@@ -76,15 +76,15 @@ Rows are trimmed here. There is one row for each venue, location and variant pai
 
 | Field | Meaning |
 | --- | --- |
-| `sizes[]` | One entry per size you asked for, in order: `pay`, `receive` (what lands after included fees, `null` when nothing could be priced), `netReceived`, `filled` (`full`, `partial` or `none`) and `fees`. |
+| `sizes[]` | One entry per size you asked for, in order: `sell`, `buy` (what lands after included fees, `null` when nothing could be priced), `netReceived`, `filled` (`full`, `partial` or `none`) and `fees`. |
 | `commitment` | Always `indicative`. A price is never an order you can place. |
 | `basis` | `levels` (the venue's published levels) or `model`. |
 | `observedAt`, `staleAfter` | When the price was seen, and when it is old. |
-| `levels` | The venue's own price levels, in pay units, where it publishes them. |
+| `levels` | The venue's own price levels, in sell units, where it publishes them. |
 | `spreadFromMidBps` | The spread from the reference mid at the first size, or `unavailable` with a reason, never 0. |
 | `referenceMid` | The pair's reference price in USD and the mid it implies. `null` when it could not be read, with the reason in `referenceMidUnavailable`. |
 | `computedAt` | When this snapshot was built. The same snapshot is reused for about a second. |
-| `payBalances` | Always empty for an API key. |
+| `sellBalances` | Always empty for an API key. |
 
 ## Row status
 
@@ -92,7 +92,7 @@ Rows are trimmed here. There is one row for each venue, location and variant pai
 | --- | --- |
 | `priced` | A current price. |
 | `stale` | The price is past `staleAfter`, or the source is still warming up. Any price it holds is kept. |
-| `unsupported` | `reason` says why: `pairNotServed` (the venue holds nothing for the pair), `priceSourceNone` (it publishes no price, so only a quote request asks it) or `receiveExactUnsupported` (it cannot price a fixed receive amount; quote sources use the same token). |
+| `unsupported` | `reason` says why: `pairNotServed` (the venue holds nothing for the pair), `priceSourceNone` (it publishes no price, so only a quote request asks it) or `receiveExactUnsupported` (it cannot price a fixed buy amount; quote sources use the same token). |
 | `belowMin` | The first size is below the venue's minimum. |
 | `insufficientDepth` | The venue cannot fill the first size. |
 | `needsWallet` | The venue prices only for a wallet. |
@@ -113,15 +113,16 @@ Prices tell you what venues are showing. Request a quote when you want to trade:
 
 - Each response carries an `ETag`. Send it back in `If-None-Match` to get `304 Not Modified` when nothing changed.
 - Prices have their own rate limit, separate from quotes: `429 PRICES_RATE_LIMIT` with `Retry-After` in seconds.
-- `GET /api/v1/prices/stream` watches up to 25 pairs at once (`pairs=USDC:ETH,USDC:EURC` instead of `pay` and `receive`, the other parameters as above) and sends a pair's snapshot as a `snapshot` server-sent event when it changes. Each caller may hold up to 4 streams at once; another is refused with `429 PRICES_STREAM_LIMIT`.
+- `GET /api/v1/prices/stream` watches up to 25 pairs at once (`pairs=USDC:ETH,USDC:EURC` instead of `sell` and `buy`, the other parameters as above) and sends a pair's snapshot as a `snapshot` server-sent event when it changes. Each caller may hold up to 4 streams at once; another is refused with `429 PRICES_STREAM_LIMIT`.
 
 ## Refusals
 
 | Status and code | Why | What to do |
 | --- | --- | --- |
 | `400 UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. | Use values from `GET /api/v1/assets`. |
-| `400 INVALID_AMOUNT` | `amount` or a size is not a positive decimal. | Send positive decimals. |
-| `400 SAME_ASSET_NEEDS_CHAIN` | `pay` and `receive` are the same Asset with no chain pinned. | Add `pay.chain` or `receive.chain`. |
+| `400 INVALID_AMOUNT` | `sellAmount`, `buyAmount` or a size is not a positive decimal. | Send positive decimals. |
+| `400 SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same Asset with no chain pinned. | Add `sell.chain` or `buy.chain`. |
+| `400 INVALID_REQUEST` | Both `sellAmount` and `buyAmount`, `sizes` with either, none of the three, or a parameter it does not know, such as the old `pay`, `receive`, `amount` or `side`. The message names it. | Send `sell`, `buy` and one of `sellAmount`, `buyAmount` or `sizes`. |
 | `403 INSUFFICIENT_SCOPE` | The API key lacks `prices_read`. | Use a key with that scope. |
 | `429 PRICES_RATE_LIMIT` | Too many price reads. | Wait `Retry-After` seconds. |
 | `503 PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. | Retry after `Retry-After` (1 second). |

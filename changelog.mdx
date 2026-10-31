@@ -5,6 +5,27 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-31" description="Advanced order detail in sell and buy">
+  An Advanced order's detail, the `order` of a `kind` `advancedTrade` answer, states its amounts as sell and buy, in decimals.
+
+  What to change:
+  - Read `order.route.sell` and `order.route.buy`, where you read the route's pay and receive sides. Each carries its asset, chain and `decimalAmount`. When TetraFi cannot work out the decimals, the side carries `unresolved` (`assetNotInRegistry` or `amountUnavailable`) and no `decimalAmount`: decimals are never guessed.
+  - Stop reading `order.inputAmounts` and `order.outputAmounts`. Outputs that pay a fee are listed in `order.feeOutputs`, in decimals.
+  - Read each of `order.legs[]` as `sell`, `buy` (the leg's estimate) and `measuredBuy`, with `measuredBuySource`, where you read `inputAsset`, `inputAmount`, `outputAsset`, `outputAmount` and `measuredOutputAmount`.
+  - Read what was delivered from `order.deliveredBuy`, with `deliveredBuyProvenance`.
+</Update>
+
+<Update label="2026-10-31" description="Prices in sell and buy">
+  `GET /api/v1/prices`, `GET /api/v1/prices/stream` and every `referenceMid` use sell and buy too. The old names are gone, with no aliases.
+
+  What to change:
+  - Query prices with `sell`, `buy` and exactly one of `sellAmount`, `buyAmount` or `sizes`, where you sent `pay`, `receive`, `amount` and `side`. Pin chains with `sell.chain` and `buy.chain`, and filter variants with `variants.sell` and `variants.buy`. An old parameter is refused with `400 INVALID_REQUEST` naming it.
+  - Read the price response's `sell`, `buy` and `sellBalances`, each row's `sellVariant` and `buyVariant`, and each size's `sell` and `buy`, where you read the pay and receive names.
+  - Read `referenceMid` as `sellUsd`, `buyUsd` and `buyPerSell`, on prices and on quote sets, where you read `payUsd`, `receiveUsd` and `receivePerPay`.
+
+  [Prices](/search/prices) covers the request.
+</Update>
+
 <Update label="2026-10-31" description="Company details before trading">
   A company, broker or liquidity provider workspace trades once its company details are on file: legal name, country of incorporation, registration number and registered address. TetraFi's business verification and members' identity verification no longer hold such a workspace back.
 
@@ -33,7 +54,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Read each quote's `sell` and `buy` (`asset`, `chain`, `variant`, `amount`) where you read `pay` and `receive`. `buy.amount` is what lands at `deliverTo`.
   - Stop sending `pay`, `receive`, `amount` and `side` on `POST /api/v1/quotes`: they are unknown fields now, refused with `400 INVALID_REQUEST`.
 
-  `GET /api/v1/prices` and `referenceMid` keep their `pay` and `receive` names for now. Requote and order bodies, and order answers, do not change. [Sell exact or buy exact](/search/sell-or-buy-exact) covers the new fields.
+  Requote and order bodies, and order answers, do not change. [Sell exact or buy exact](/search/sell-or-buy-exact) covers the new fields.
 </Update>
 
 <Update label="2026-10-30" description="List and cancel orders">
