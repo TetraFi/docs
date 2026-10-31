@@ -4,15 +4,14 @@
 
 ```bash cURL
 # Ask only the venues you name. Every other venue is listed in sources as filteredOut.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg venue "$venue" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {venues: {include: [$venue]}}
 }')
 only=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, receive: .receive.amount}]' <<<"$only" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, buy: .buy.amount}]' <<<"$only" >&2
 jq -c '[.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status}]' <<<"$only" >&2
 ```
 

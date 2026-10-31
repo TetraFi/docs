@@ -7,14 +7,14 @@
 #   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
-#   TETRAFI_PAY, TETRAFI_RECEIVE   the pair (default USDC for ETH); both must be listed by GET /assets
-#   TETRAFI_AMOUNT                 the amount you pay (default 10)
+#   TETRAFI_SELL, TETRAFI_BUY      the pair (default USDC for ETH); both must be listed by GET /assets
+#   TETRAFI_AMOUNT                 the amount you sell (default 10)
 #   TETRAFI_MODALITIES             comma-separated venue types to keep (default orderBook)
 #   TETRAFI_VENUE                  the venue id to keep or drop (default: the first venue that
 #                                  answers a plain search)
 #   TETRAFI_PROTECTION_BPS         price protection in basis points, 0 to 1000 (default 100)
-#   TETRAFI_PROTECTION_AMOUNT      the amount you pay in the price protection search (default 1000)
-#   TETRAFI_RECEIVE_AMOUNT         the amount you receive in its receive-exact search (default 0.001)
+#   TETRAFI_PROTECTION_AMOUNT      the amount you sell in the price protection search (default 1000)
+#   TETRAFI_BUY_AMOUNT             the amount you buy in its buy-exact search (default 0.001)
 #
 # Every search asks for quotes only: nothing is ordered. The last line printed is one JSON
 # summary of every request. An API error prints its error body and exits 1.
@@ -94,18 +94,18 @@ outcome() {
   results=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$results")
 }
 
-pay=${TETRAFI_PAY:-USDC}
-receive=${TETRAFI_RECEIVE:-ETH}
+sell=${TETRAFI_SELL:-USDC}
+buy=${TETRAFI_BUY:-ETH}
 amount=${TETRAFI_AMOUNT:-10}
 modalities=${TETRAFI_MODALITIES:-orderBook}
 protection_bps=${TETRAFI_PROTECTION_BPS:-100}
 protection_amount=${TETRAFI_PROTECTION_AMOUNT:-1000}
-receive_amount=${TETRAFI_RECEIVE_AMOUNT:-0.001}
+buy_amount=${TETRAFI_BUY_AMOUNT:-0.001}
 
 # Discover the pair from GET /assets: every Asset your workspace can reach, each variant with
 # the chains it is deployed on (CAIP-2) and the off-chain venues that hold it.
 assets=$(tetrafi GET /api/v1/assets)
-for asset in "$pay" "$receive"; do
+for asset in "$sell" "$buy"; do
   if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     jq -nc --arg a "$asset" '{error: "ASSET_NOT_LISTED", asset: $a}' >&2
     exit 1
@@ -114,11 +114,10 @@ done
 
 # A plain search first. The venues that answer it give the venue id the venue filters use:
 # venue ids come from sources[].venue.id (or GET /api/v1/prices rows), never from a fixed list.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact"
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount
 }')
 plain=$(quote_request "$request")
 outcome plain "$plain"
@@ -131,45 +130,42 @@ fi
 # region search-modalities
 # Keep only venues of the types you list: amm, solver, bridge, rfq, orderBook or fiat.
 # Every venue of another type is listed in sources as filteredOut and is not asked.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg types "$modalities" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg types "$modalities" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {modalities: ($types | split(","))}
 }')
 by_type=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, modality: .legs[0].venue.modality, receive: .receive.amount}]' <<<"$by_type" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, modality: .legs[0].venue.modality, buy: .buy.amount}]' <<<"$by_type" >&2
 jq -c '[.sources[] | select(.status == "filteredOut") | {venue: .venue.id, modality: .venue.modality}]' <<<"$by_type" >&2
 # endregion
 outcome modalities "$by_type"
 
 # region search-venue-include
 # Ask only the venues you name. Every other venue is listed in sources as filteredOut.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg venue "$venue" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {venues: {include: [$venue]}}
 }')
 only=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, receive: .receive.amount}]' <<<"$only" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, buy: .buy.amount}]' <<<"$only" >&2
 jq -c '[.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status}]' <<<"$only" >&2
 # endregion
 outcome venueInclude "$only"
 
 # region search-venue-exclude
 # Ask every venue except the ones you name. The excluded venue is listed as filteredOut.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg venue "$venue" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {venues: {exclude: [$venue]}}
 }')
 without=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, receive: .receive.amount}]' <<<"$without" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, buy: .buy.amount}]' <<<"$without" >&2
 jq -c --arg v "$venue" '.sources[] | select(.venue.id == $v)' <<<"$without" >&2
 # endregion
 outcome venueExclude "$without"
@@ -177,17 +173,16 @@ outcome venueExclude "$without"
 # region search-native-only
 # Keep only the native variant of each side: no bridged, wrapped, omnichain or test
 # representation. GET /assets lists each Asset's variants and their kind.
-jq -c --arg p "$pay" --arg r "$receive" '[.assets[] | select(.assetId == $p or .assetId == $r)
+jq -c --arg p "$sell" --arg r "$buy" '[.assets[] | select(.assetId == $p or .assetId == $r)
   | {asset: .assetId, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
-  filters: {variants: {pay: "nativeOnly", receive: "nativeOnly"}}
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
+  filters: {variants: {sell: "nativeOnly", buy: "nativeOnly"}}
 }')
 native=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, pay: .pay.variant, receive: .receive.variant}]' <<<"$native" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, sell: .sell.variant, buy: .buy.variant}]' <<<"$native" >&2
 jq -c '[.sources[] | select(.status != "answered") | {venue: .venue.id, status, reason}]' <<<"$native" >&2
 # endregion
 outcome nativeOnly "$native"
@@ -195,11 +190,10 @@ outcome nativeOnly "$native"
 # region search-executable-only
 # Keep only executable quotes. Indicative quotes are dropped once venues answer, so a venue
 # whose only quote was indicative still reads answered in sources, with no quote in quotes.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {commitment: "executableOnly"}
 }')
 executable=$(quote_request "$request")
@@ -211,11 +205,10 @@ outcome executableOnly "$executable"
 
 # region search-sort-eta
 # Order quotes by expected time to delivery, fastest first, instead of by net received.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   sort: "eta"
 }')
 by_eta=$(quote_request "$request")
@@ -225,44 +218,42 @@ outcome sortEta "$by_eta"
 
 # region search-price-protection
 # Set how far a non-firm executable quote's delivery may fall below what it quotes. It sets
-# minOut on pay-exact quotes, and maxPay on receive-exact quotes from your venue accounts.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$protection_amount" \
+# minOut on sell-exact quotes, and maxPay on buy-exact quotes from your venue accounts.
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$protection_amount" \
   --argjson bps "$protection_bps" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   priceProtectionBps: $bps
 }')
 protected=$(quote_request "$request")
-jq -c '[.quotes[] | select(.minOut != null) | {venue: .legs[0].venue.id, receive: .receive.amount, minOut}]' <<<"$protected" >&2
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$receive_amount" \
+jq -c '[.quotes[] | select(.minOut != null) | {venue: .legs[0].venue.id, buy: .buy.amount, minOut}]' <<<"$protected" >&2
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" \
   --argjson bps "$protection_bps" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "receiveExact",
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  buyAmount: $amount,
   priceProtectionBps: $bps
 }')
 protected_exact=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, pay: .pay.amount, maxPay}]' <<<"$protected_exact" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, sell: .sell.amount, maxPay}]' <<<"$protected_exact" >&2
 # endregion
 outcome priceProtection "$protected"
-outcome priceProtectionReceiveExact "$protected_exact"
+outcome priceProtectionBuyExact "$protected_exact"
 
 # Extra detail for the summary: which venue the venue filters named, how it read, and what
 # each filter left behind.
-jq -nc --arg pay "$pay" --arg receive "$receive" --arg venue "$venue" \
+jq -nc --arg sell "$sell" --arg buy "$buy" --arg venue "$venue" \
   --argjson assets "$(jq '.assets | length' <<<"$assets")" --argjson results "$results" \
   --argjson include "$(jq -c '[.quotes[].legs[0].venue.id] | unique' <<<"$only")" \
   --argjson excluded "$(jq -c --arg v "$venue" '[.sources[] | select(.venue.id == $v) | .status]' <<<"$without")" \
-  --argjson variants "$(jq -c '[.quotes[] | [.pay.variant.kind, .receive.variant.kind]] | unique' <<<"$native")" \
+  --argjson variants "$(jq -c '[.quotes[] | [.sell.variant.kind, .buy.variant.kind]] | unique' <<<"$native")" \
   --argjson variantReasons "$(jq -c '[.sources[] | select(.status != "answered") | .reason] | unique' <<<"$native")" \
   --argjson etaOrder "$(jq -c '[.quotes[] | .eta]' <<<"$by_eta")" \
-  --argjson minOut "$(jq -c '[.quotes[] | select(.minOut != null) | {receive: .receive.amount, minOut}]' <<<"$protected")" \
-  --argjson maxPay "$(jq -c '[.quotes[] | {commitment: .commitment.kind, pay: .pay.amount, maxPay}]' <<<"$protected_exact")" \
+  --argjson minOut "$(jq -c '[.quotes[] | select(.minOut != null) | {buy: .buy.amount, minOut}]' <<<"$protected")" \
+  --argjson maxPay "$(jq -c '[.quotes[] | {commitment: .commitment.kind, sell: .sell.amount, maxPay}]' <<<"$protected_exact")" \
   --argjson bps "$protection_bps" \
-  '{pair: {pay: $pay, receive: $receive}, assetsListed: $assets, venue: $venue,
+  '{pair: {sell: $sell, buy: $buy}, assetsListed: $assets, venue: $venue,
     detail: {includeQuotedBy: $include, excludedVenueStatus: $excluded, nativeOnlyVariants: $variants,
       nativeOnlyReasons: $variantReasons, etaOrder: $etaOrder, protectionBps: $bps,
       minOut: $minOut, maxPay: $maxPay},

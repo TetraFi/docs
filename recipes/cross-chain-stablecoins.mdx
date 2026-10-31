@@ -23,7 +23,7 @@ The key also needs:
 
 - **Venue trading and request signing.** A move TetraFi executes for you from an organisation wallet granted to the key is a Basic trade, so the key needs the venue trading scope, its signing secret and venue trading switched on ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)).
 - **An organisation wallet granted to it.** A workspace owner, or an admin who manages credentials, grants the key the organisation wallets it may use, signed in with a second factor ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)).
-- **Funds on the chain you pay from.** The organisation wallet that pays must hold the USDC you move and gas on that chain: it sends the transactions itself.
+- **Funds on the chain you sell from.** The organisation wallet that sells must hold the USDC you move and gas on that chain: it sends the transactions itself.
 
 Then export your environment, as in the [Quickstart](/quickstart):
 
@@ -31,8 +31,8 @@ Then export your environment, as in the [Quickstart](/quickstart):
 export TETRAFI_BASE_URL=https://api.tetrafi.io
 export TETRAFI_API_KEY=...            # from your secret manager
 export TETRAFI_SIGNING_SECRET=...     # the key's signing secret
-export TETRAFI_FROM_CHAIN=...         # the CAIP-2 chain you pay on, from step 1
-export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from step 1
+export TETRAFI_FROM_CHAIN=...         # the CAIP-2 chain you sell on, from step 1
+export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you buy on, from step 1
 ```
 
 <Steps>
@@ -60,7 +60,7 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you receive on, from st
     ```json Output on test networks (shortened)
     {"venue":"across","status":"answered","reason":null}
     {"venue":"cctp","status":"unavailable","reason":"amountBelowMinimum"}
-    {"quoteId":"q_01M5XS49…","venue":"across","next":"order","pay":"1 on eip155:84532","receive":"0.999501 on eip155:11155111","eta":"PT166S","paysFrom":"4d4670ab-…","receivesAt":"bb0c6ab1-…"}
+    {"quoteId":"q_01M5XS49…","venue":"across","next":"order","sell":"1 on eip155:84532","buy":"0.999501 on eip155:11155111","eta":"PT166S","tradesFrom":{"kind":"wallet","financialAccountId":"4d4670ab-…","network":"eip155:84532"},"fundingModel":"prefunded"}
     ```
 
     A venue that cannot quote says why in `sources`. `amountBelowMinimum` comes with a `detail` naming the least you can move.

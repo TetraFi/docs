@@ -9,7 +9,7 @@
 #   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on
 # Optional:
-#   TETRAFI_PAY, TETRAFI_RECEIVE   the pair (default USDC for USDT)
+#   TETRAFI_SELL, TETRAFI_BUY      the pair (default USDC for USDT)
 #   TETRAFI_AMOUNTS                the amounts you try, smallest first (default "1 5 10 25")
 #
 # Nothing is ordered. The last line printed is one JSON summary.
@@ -51,8 +51,8 @@ tetrafi() {
   fi
 }
 
-pay=${TETRAFI_PAY:-USDC}
-receive=${TETRAFI_RECEIVE:-USDT}
+sell=${TETRAFI_SELL:-USDC}
+buy=${TETRAFI_BUY:-USDT}
 amounts=${TETRAFI_AMOUNTS:-1 5 10 25}
 
 # region test-safely-minimums
@@ -62,8 +62,8 @@ amounts=${TETRAFI_AMOUNTS:-1 5 10 25}
 # or amountBelowMinimum. Venues change their limits, so read them again before you test.
 results='{}'
 for amount in $amounts; do
-  answer=$(tetrafi POST /api/v1/quotes "$(jq -cn --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" \
-    '{pay: {asset: $pay}, receive: {asset: $receive}, amount: $amount, side: "payExact"}')")
+  answer=$(tetrafi POST /api/v1/quotes "$(jq -cn --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
+    '{sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount}')")
   results=$(jq -cn --arg amount "$amount" --argjson answer "$answer" --argjson seen "$results" 'reduce ($answer.sources[]
     | select(.status != "filteredOut")) as $s ($seen;
       if .[$s.venue.id].smallest then . else

@@ -7,7 +7,7 @@
 #   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
-#   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 10 USDC for USDT)
+#   TETRAFI_SELL, TETRAFI_BUY, TETRAFI_AMOUNT  the pair and the amount you sell (default 10 USDC for USDT)
 #   TETRAFI_VENUES          comma-separated venue ids to ask, instead of every venue
 #   TETRAFI_SLIPPAGE_BPS    how far below a quote that is not firm you accept, in basis points (default 50)
 #   TETRAFI_PLACE_ORDER=1 places the order; without it the script stops before ordering
@@ -52,28 +52,27 @@ tetrafi() {
 }
 # endregion
 
-pay=${TETRAFI_PAY:-USDC}
-receive=${TETRAFI_RECEIVE:-USDT}
+sell=${TETRAFI_SELL:-USDC}
+buy=${TETRAFI_BUY:-USDT}
 amount=${TETRAFI_AMOUNT:-10}
 
 # region quickstart-assets
 assets=$(tetrafi GET /api/v1/assets)
-for asset in "$pay" "$receive"; do
+for asset in "$sell" "$buy"; do
   if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
     exit 1
   fi
 done
-echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $pay for $receive" >&2
+echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $sell for $buy" >&2
 # endregion
 
 # region quickstart-quote
-request=$(jq -n --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" \
+request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   --arg venues "${TETRAFI_VENUES:-}" '{
-    pay: {asset: $pay},
-    receive: {asset: $receive},
-    amount: $amount,
-    side: "payExact"
+    sell: {asset: $sell},
+    buy: {asset: $buy},
+    sellAmount: $amount
   } + (if $venues == "" then {} else {filters: {venues: {include: ($venues | split(","))}}} end)')
 quotes=$(tetrafi POST /api/v1/quotes "$request")
 
@@ -86,7 +85,7 @@ if [[ -z $quote ]]; then
 fi
 quote_id=$(jq -r '.id' <<<"$quote")
 jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode,
-  pay: .pay.amount, receive: .receive.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2
+  sell: .sell.amount, buy: .buy.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2
 # endregion
 
 # region quickstart-preflight
@@ -116,16 +115,16 @@ fi
 # region quickstart-order
 order_body=$(jq -c '{quoteId: .id}' <<<"$quote")
 if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
-  # The quote says when it needs minReceive: the least you accept, here the quoted receive less
+  # The quote says when it needs minReceive: the least you accept, here the quoted buy amount less
   # slippage (default 50 bps), rounded down.
-  # Without a receive chain, use the lowest precision listed for the native asset.
-  decimals=$(jq -er --arg a "$(jq -r '.receive.asset' <<<"$quote")" \
-    --arg c "$(jq -r '.receive.chain // empty' <<<"$quote")" '[.assets[] | select(.assetId == $a)
+  # Without a buy chain, use the lowest precision listed for the native asset.
+  decimals=$(jq -er --arg a "$(jq -r '.buy.asset' <<<"$quote")" \
+    --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.assets[] | select(.assetId == $a)
       | .variants[] | select(.kind == "native") | .deployments[]
       | select($c == "" or .chain == $c) | .decimals]
       | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets")
   order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id,
-    minReceive: ((.receive.amount | tonumber) * (10000 - $bps) / 10000
+    minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)}' <<<"$quote")
 fi
 # One Idempotency-Key per order. Keep it: retrying with the same key and body

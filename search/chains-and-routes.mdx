@@ -9,15 +9,15 @@ import SearchOffChain from '/snippets/samples/search-off-chain.mdx';
 
 An Asset such as `USDC` carries no chain. Left open, a search asks every venue for every place the Asset can be: on any chain it is deployed on, and on your connected venue accounts. You narrow that in two ways:
 
-- **pin a side** to one chain with `pay.chain` or `receive.chain`;
+- **pin a side** to one chain with `sell.chain` or `buy.chain`;
 - **choose where quotes execute** with `filters.locations`.
 
 | Field | Value | Effect |
 | --- | --- | --- |
-| `pay.chain` | A CAIP-2 chain id, such as `eip155:8453` | You pay on that chain. The pay side is on-chain. |
-| `receive.chain` | A CAIP-2 chain id | You receive on that chain. The receive side is on-chain. |
+| `sell.chain` | A CAIP-2 chain id, such as `eip155:8453` | You sell on that chain. The sell side is on-chain. |
+| `buy.chain` | A CAIP-2 chain id | You buy on that chain. The buy side is on-chain. |
 | `filters.locations` | Any of `singleChain`, `crossChain`, `offChain` | Keeps only quotes that execute there. Omitted, all three are kept. |
-| `filters.variants` | `{"pay": "nativeOnly"}`, `{"receive": "nativeOnly"}` | Keeps only `native` variants on that side, so no `bridged`, `wrapped`, `omnichain` or `test` representation such as `USDC.e`. Default `any`. |
+| `filters.variants` | `{"sell": "nativeOnly"}`, `{"buy": "nativeOnly"}` | Keeps only `native` variants on that side, so no `bridged`, `wrapped`, `omnichain` or `test` representation such as `USDC.e`. Default `any`. |
 
 Take chain ids from the deployments that [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery) lists for each Asset, never from a fixed list.
 
@@ -25,8 +25,8 @@ Take chain ids from the deployments that [`GET /api/v1/assets`](/search/how-it-w
 
 | `location.kind` | Meaning | Its sides |
 | --- | --- | --- |
-| `singleChain` | Swapped on one chain. | `pay.chain` and `receive.chain` are the same chain. |
-| `crossChain` | Moved from one chain to another, by a bridge or a solver. | `pay.chain` and `receive.chain` differ. |
+| `singleChain` | Swapped on one chain. | `sell.chain` and `buy.chain` are the same chain. |
+| `crossChain` | Moved from one chain to another, by a bridge or a solver. | `sell.chain` and `buy.chain` differ. |
 | `offChain` | Traded on one of your venue accounts, such as an exchange or OTC desk. | `chain` is `null` on a side held on the venue account. |
 | `mixed` | A route of several legs that execute in different places. | Each entry in `legs` has its own location. |
 
@@ -66,7 +66,7 @@ So a single-chain search lists your venue accounts and bridges as `filteredOut`,
 
 | Code | Why | What to do |
 | --- | --- | --- |
-| `SAME_ASSET_NEEDS_CHAIN` | `pay.asset` and `receive.asset` are the same and no chain is pinned. | Pin a chain on at least one side. |
+| `SAME_ASSET_NEEDS_CHAIN` | `sell.asset` and `buy.asset` are the same and no chain is pinned. | Pin a chain on at least one side. |
 | `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
 | `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that side's Asset. `details.value` is the chain. | Pin a chain the Asset is deployed on, or leave the side open. |
 | `UNKNOWN_CHAIN` | The chain id is not one TetraFi knows. `details.value` is the chain. | Use a chain from `GET /api/v1/assets`. |

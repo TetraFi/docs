@@ -5,7 +5,7 @@
 ```bash cURL
 # Prices for the pair from memory: no venue is asked, so it costs no quote request.
 # Each row is one venue, location and variant pair. Rows are indicative, never orderable.
-path="/api/v1/prices?pay=$pay&receive=$receive&amount=$amount&side=payExact"
+path="/api/v1/prices?pay=$sell&receive=$buy&amount=$amount&side=payExact"
 prices=$(tetrafi GET "$path")
 jq -c '{referenceMid: .referenceMid.receivePerPay, rows: [.rows[] | {venue: .venue.id,
   location: .location.kind, status, receive: .sizes[0].receive}]}' <<<"$prices" >&2

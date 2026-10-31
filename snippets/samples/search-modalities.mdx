@@ -5,25 +5,23 @@
 ```bash cURL
 # Keep only venues of the types you list: amm, solver, bridge, rfq, orderBook or fiat.
 # Every venue of another type is listed in sources as filteredOut and is not asked.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg types "$modalities" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg types "$modalities" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {modalities: ($types | split(","))}
 }')
 by_type=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, modality: .legs[0].venue.modality, receive: .receive.amount}]' <<<"$by_type" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, modality: .legs[0].venue.modality, buy: .buy.amount}]' <<<"$by_type" >&2
 jq -c '[.sources[] | select(.status == "filteredOut") | {venue: .venue.id, modality: .venue.modality}]' <<<"$by_type" >&2
 ```
 
 ```typescript TypeScript SDK
 // One ask per modality. Venues of any other kind come back in sources as `filteredOut`.
 const ask = (modality: 'orderBook' | 'rfq') => client.quote({
-  pay: { asset: usdc.assetId },
-  receive: { asset: eth.assetId },
-  amount: '10',
-  side: 'payExact',
+  sell: { asset: usdc.assetId },
+  buy: { asset: eth.assetId },
+  sellAmount: '10',
   filters: { locations: ['offChain'], modalities: [modality] },
 });
 const orderBook = await ask('orderBook');

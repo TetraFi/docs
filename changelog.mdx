@@ -5,6 +5,37 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-31" description="Company details before trading">
+  A company, broker or liquidity provider workspace trades once its company details are on file: legal name, country of incorporation, registration number and registered address. TetraFi's business verification and members' identity verification no longer hold such a workspace back.
+
+  What to change:
+  - Expect `403 CAPABILITY_BLOCKED` on quotes, orders and new counterparty connections while company details are missing. Its `details.capabilityBlockers` holds `BASE_PROFILE_INCOMPLETE`, with the missing fields in `currentlyDue`. Add them in the TetraFi app under **Company profile**.
+  - Retry `503 CAPABILITY_UNAVAILABLE` with the blocker `BASE_PROFILE_UNREADABLE`: the details could not be read just now.
+  - `KYC_NOT_VERIFIED` now blocks only a direct user's own workspace.
+
+  [A workspace that cannot trade yet](/trade/errors#a-workspace-that-cannot-trade-yet) covers the refusal.
+</Update>
+
+<Update label="2026-10-31" description="Venue account fields renamed">
+  What to change:
+  - On a venue account order (`kind` `basicTrade`), read `operation.label` where you read `operation.accountLabel`.
+  - On a venue connection, read `label` and `venueEnablementId` where you read `accountLabel` and `accountBindingId`.
+</Update>
+
+<Update label="2026-10-31" description="Sell and buy">
+  A quote request names what you sell and what you buy, and fixes exactly one amount. The old `pay`, `receive`, `amount` and `side` fields are gone, with no aliases.
+
+  What to change:
+  - Send `sell` where you sent `pay`, and `buy` where you sent `receive`. Each is still `{asset, chain?}`.
+  - Send `sellAmount` where you sent `amount` with `side: "payExact"`, and `buyAmount` where you sent `amount` with `side: "receiveExact"`. Both are decimal strings in Asset units.
+  - Send exactly one of `sellAmount` and `buyAmount`. A body with both, or with neither, is refused with `400 INVALID_REQUEST` naming them.
+  - Send `filters.variants` as `{"sell": …, "buy": …}`, where it was `{"pay": …, "receive": …}`.
+  - Read each quote's `sell` and `buy` (`asset`, `chain`, `variant`, `amount`) where you read `pay` and `receive`. `buy.amount` is what lands at `deliverTo`.
+  - Stop sending `pay`, `receive`, `amount` and `side` on `POST /api/v1/quotes`: they are unknown fields now, refused with `400 INVALID_REQUEST`.
+
+  `GET /api/v1/prices` and `referenceMid` keep their `pay` and `receive` names for now. Requote and order bodies, and order answers, do not change. [Sell exact or buy exact](/search/sell-or-buy-exact) covers the new fields.
+</Update>
+
 <Update label="2026-10-30" description="List and cancel orders">
   - List your orders with `GET /api/v1/orders`: newest first, in the order envelope, filtered by `status`, `kind`, `sellAsset`, `buyAsset`, `from` and `to`, and paged with `cursor`. A page can hold fewer than `limit` orders, even none: follow `nextCursor` until it is `null`.
   - Cancel an order before it is sent to a venue, or a pay-in waiting for funds, with `POST /api/v1/orders/{id}/cancel` and an `Idempotency-Key`. Afterwards it answers `409 ORDER_NOT_CANCELLABLE` with `details.status`. TetraFi never cancels at the venue or refunds.

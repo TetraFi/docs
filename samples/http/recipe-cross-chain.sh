@@ -10,9 +10,9 @@
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
 #   TETRAFI_ASSET           the asset to move (default USDC)
-#   TETRAFI_FROM_CHAIN      CAIP-2 chain you pay on (default: the first chain GET /assets lists)
-#   TETRAFI_TO_CHAIN        CAIP-2 chain you receive on (default: the next chain GET /assets lists)
-#   TETRAFI_AMOUNT          the amount you pay (default 1)
+#   TETRAFI_FROM_CHAIN      CAIP-2 chain you sell on (default: the first chain GET /assets lists)
+#   TETRAFI_TO_CHAIN        CAIP-2 chain you buy on (default: the next chain GET /assets lists)
+#   TETRAFI_AMOUNT          the amount you sell (default 1)
 #   TETRAFI_SLIPPAGE_BPS    how far below an indicative quote you accept, in basis points (default 50)
 #   TETRAFI_PLACE_ORDER=1   places the order (yes also works); without it the script stops before ordering
 #
@@ -92,10 +92,9 @@ done
 # region recipe-cross-chain-quote
 # The same asset on both sides, each side pinned to its chain, and only cross-chain quotes kept.
 request=$(jq -nc --arg asset "$asset" --arg amount "$amount" --arg from "$from_chain" --arg to "$to_chain" '{
-  pay: {asset: $asset, chain: $from},
-  receive: {asset: $asset, chain: $to},
-  amount: $amount,
-  side: "payExact",
+  sell: {asset: $asset, chain: $from},
+  buy: {asset: $asset, chain: $to},
+  sellAmount: $amount,
   filters: {locations: ["crossChain"]}
 }')
 quotes=$(quote "$request")
@@ -107,7 +106,7 @@ jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status
 # next "order": TetraFi executes the move from an organisation wallet, so the key can order it.
 # next "preflight", "sign" or "transact": your own wallet has to act first, which a key cannot do.
 jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
-  pay: "\(.pay.amount) on \(.pay.chain)", receive: "\(.receive.amount) on \(.receive.chain)",
+  sell: "\(.sell.amount) on \(.sell.chain)", buy: "\(.buy.amount) on \(.buy.chain)",
   eta, tradesFrom: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
 # endregion
@@ -133,7 +132,7 @@ fi
 decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.assets[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[] | select(.chain == $c) | .decimals][0]' <<<"$assets")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id}
-  + (if .minReceiveRequired == true then {minReceive: ((.receive.amount | tonumber) * (10000 - $bps) / 10000
+  + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)} else {} end)' <<<"$quote")
 # One Idempotency-Key per order, stored before you send it: a retry with the same key and body
 # returns the first answer instead of moving the funds twice.

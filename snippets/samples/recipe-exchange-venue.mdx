@@ -7,8 +7,8 @@
 # connected venue accounts answer it.
 venue=${TETRAFI_VENUE:-}
 if [[ -z $venue ]]; then
-  found=$(quote "$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-    pay: {asset: $pay}, receive: {asset: $receive}, amount: $amount, side: "payExact",
+  found=$(quote "$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+    sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
     filters: {locations: ["offChain"]}}')")
   jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$found" >&2
   venue=$(jq -r 'first(.quotes[] | select(.legs[0].venue.integrationMode == "basic") | .legs[0].venue.id) // empty' <<<"$found")

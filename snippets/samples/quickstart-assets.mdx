@@ -4,13 +4,13 @@
 
 ```bash cURL
 assets=$(tetrafi GET /api/v1/assets)
-for asset in "$pay" "$receive"; do
+for asset in "$sell" "$buy"; do
   if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
     exit 1
   fi
 done
-echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $pay for $receive" >&2
+echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $sell for $buy" >&2
 ```
 
 ```typescript TypeScript SDK

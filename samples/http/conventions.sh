@@ -82,8 +82,8 @@ echo "assets: ${#listed[@]} across $pages pages" >&2
 # The rate-limit headers say how many requests this key has left before a 429.
 request_id="conventions-$(date +%s)"
 headers_file=$(mktemp)
-quotes=$(tetrafi POST /api/v1/quotes "$(jq -cn '{pay: {asset: "USDC"}, receive: {asset: "USDT"},
-  amount: "10", side: "payExact"}')" "X-Request-Id: $request_id" "$headers_file")
+quotes=$(tetrafi POST /api/v1/quotes "$(jq -cn '{sell: {asset: "USDC"}, buy: {asset: "USDT"},
+  sellAmount: "10"}')" "X-Request-Id: $request_id" "$headers_file")
 header() { awk -v name="$1" 'tolower($1) == tolower(name ":") { sub(/\r$/, "", $2); print $2 }' "$headers_file" | tail -1; }
 echo "{\"requestId\":\"$(header x-request-id)\",\"limit\":\"$(header x-ratelimit-limit)\",\"remaining\":\"$(header x-ratelimit-remaining)\",\"reset\":\"$(header x-ratelimit-reset)\"}" >&2
 # endregion
@@ -92,11 +92,11 @@ echo "{\"requestId\":\"$(header x-request-id)\",\"limit\":\"$(header x-ratelimit
 # region conventions-values
 # Amounts are decimal strings, never JSON numbers: parse them with a decimal type, not a float.
 # Times are RFC 3339 in UTC. Field names are camelCase.
-jq -c '.quotes[0] // empty | {receive: .receive.amount, receiveIsString: (.receive.amount | type == "string"),
+jq -c '.quotes[0] // empty | {buy: .buy.amount, buyIsString: (.buy.amount | type == "string"),
   expiresAt, observedAt}' <<<"$quotes" >&2
 # endregion
 if [[ $(jq '.quotes | length' <<<"$quotes") -gt 0 ]]; then
-  jq -e '.quotes[0].receive.amount | type == "string"' <<<"$quotes" >/dev/null || fail AMOUNT_NOT_STRING
+  jq -e '.quotes[0].buy.amount | type == "string"' <<<"$quotes" >/dev/null || fail AMOUNT_NOT_STRING
   jq -e '.quotes[0].expiresAt | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+(Z|[+-][0-9:]+)$")' <<<"$quotes" >/dev/null \
     || fail TIME_NOT_RFC3339
 fi

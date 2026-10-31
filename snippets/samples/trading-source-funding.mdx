@@ -7,7 +7,7 @@
 # fundingAccount) and how it settles. Read them; never assume them from the venue's name.
 jq -c '.quotes[] | {quoteId: .id, venue: ([.legs[].venue.id] | join(" + ")), location: .location.kind,
   tradingSource: (.tradingSource | {kind, financialAccountId, network}), fundingModel,
-  fundingAccount: (.fundingAccount | {kind, financialAccountId}), receive: .receive.amount, next: .next.kind}' <<<"$quotes" >&2
+  fundingAccount: (.fundingAccount | {kind, financialAccountId}), buy: .buy.amount, next: .next.kind}' <<<"$quotes" >&2
 ```
 
 ```typescript TypeScript SDK
@@ -21,7 +21,7 @@ const quotes = set.quotes.map((quote) => ({
   fundingModel: quote.fundingModel,
   fundingAccount: quote.fundingAccount,
   settlement: quote.settlement,
-  receive: quote.receive.amount,
+  receive: quote.buy.amount,
   next: quote.next.kind,
 }));
 ```

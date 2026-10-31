@@ -4,11 +4,10 @@
 
 ```bash cURL
 # Order quotes by expected time to delivery, fastest first, instead of by net received.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   sort: "eta"
 }')
 by_eta=$(quote_request "$request")

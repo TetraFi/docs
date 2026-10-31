@@ -8,7 +8,7 @@
 #   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
-#   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 5 USDC for USDT)
+#   TETRAFI_SELL, TETRAFI_BUY, TETRAFI_AMOUNT  the pair and the amount you sell (default 5 USDC for USDT)
 #   TETRAFI_VENUES          comma-separated venue ids to ask, instead of every venue
 #   TETRAFI_PLACE_ORDER=1   places one order, replays it and recovers it by quote (yes also works)
 #   TETRAFI_EXPIRED=yes     waits for the first quote to expire, tries to order it, then requotes it
@@ -69,14 +69,14 @@ quote() {
 # error_of RESPONSE: the error code of a refusal body, or nothing.
 error_of() { jq -r '.error // empty' <<<"$1" 2>/dev/null; }
 
-pay=${TETRAFI_PAY:-USDC}
-receive=${TETRAFI_RECEIVE:-USDT}
+sell=${TETRAFI_SELL:-USDC}
+buy=${TETRAFI_BUY:-USDT}
 amount=${TETRAFI_AMOUNT:-5}
 summary='{}'
 
-request=$(jq -n --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" \
+request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   --arg venues "${TETRAFI_VENUES:-}" '{
-    pay: {asset: $pay}, receive: {asset: $receive}, amount: $amount, side: "payExact"
+    sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount
   } + (if $venues == "" then {} else {filters: {venues: {include: ($venues | split(","))}}} end)')
 quotes=$(quote "$request")
 first=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
@@ -85,14 +85,14 @@ if [[ -z $first ]]; then
   exit 1
 fi
 quote_id=$(jq -r '.id' <<<"$first")
-jq -c '{quoteId: .id, venue: .legs[0].venue.id, commitment, receive: .receive.amount, minOut, expiresAt}' <<<"$first" >&2
+jq -c '{quoteId: .id, venue: .legs[0].venue.id, commitment, buy: .buy.amount, minOut, expiresAt}' <<<"$first" >&2
 
 # region requote-again
-# Ask the same venue again for the same pair, amount and side. The answer is a new quote whose
+# Ask the same venue again for the same pair and amount. The answer is a new quote whose
 # requoteOf names the original. The original stays orderable until its own expiresAt.
 requoted=$(quote "{\"requote\":\"$quote_id\"}")
 fresh=$(jq -c '.quotes[0]' <<<"$requoted")
-jq -c '{quoteId: .id, requoteOf, commitment, receive: .receive.amount, minOut, expiresAt}' <<<"$fresh" >&2
+jq -c '{quoteId: .id, requoteOf, commitment, buy: .buy.amount, minOut, expiresAt}' <<<"$fresh" >&2
 # endregion
 summary=$(jq -c --argjson q "$fresh" '. + {requote: {id: $q.id, requoteOf: $q.requoteOf}}' <<<"$summary")
 
@@ -100,7 +100,7 @@ summary=$(jq -c --argjson q "$fresh" '. + {requote: {id: $q.id, requoteOf: $q.re
 # Change the price protection for the new quote. A wider protection lowers minOut, the least
 # a non-firm quote may deliver.
 protected=$(quote "{\"requote\":\"$quote_id\",\"priceProtectionBps\":50}")
-jq -c '.quotes[0] | {quoteId: .id, requoteOf, receive: .receive.amount, minOut}' <<<"$protected" >&2
+jq -c '.quotes[0] | {quoteId: .id, requoteOf, buy: .buy.amount, minOut}' <<<"$protected" >&2
 # endregion
 # Quotes expire within seconds, so the order below uses the newest quote.
 order_quote=$(jq -r '.quotes[0].id' <<<"$protected")
@@ -181,7 +181,7 @@ if [[ ${TETRAFI_EXPIRED:-} == yes ]]; then
   jq -c '{error, next}' <<<"$lapsed" >&2
   if [[ $(error_of "$lapsed") == QUOTE_EXPIRED ]]; then
     refreshed=$(quote "{\"requote\":\"$quote_id\"}")
-    jq -c '.quotes[0] | {quoteId: .id, requoteOf, receive: .receive.amount, expiresAt}' <<<"$refreshed" >&2
+    jq -c '.quotes[0] | {quoteId: .id, requoteOf, buy: .buy.amount, expiresAt}' <<<"$refreshed" >&2
   fi
   # endregion
   summary=$(jq -c --arg e "$(error_of "$lapsed")" --argjson n "$(jq -c '.next' <<<"$lapsed")" \

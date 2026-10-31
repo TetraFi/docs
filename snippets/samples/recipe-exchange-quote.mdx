@@ -4,8 +4,8 @@
 
 ```bash cURL
 # Ask that venue only. Its quote trades on your account there: tradingSource names it (kind venueAccount).
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg venue "$venue" '{
-  pay: {asset: $pay}, receive: {asset: $receive}, amount: $amount, side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
   filters: {venues: {include: [$venue]}}
 }')
 quotes=$(quote "$request")
@@ -16,7 +16,7 @@ if [[ -z $quote ]]; then
   exit 0
 fi
 jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode, commitment: .commitment.kind,
-  pay: .pay.amount, receive: .receive.amount, minOut, next: .next.kind, expiresAt}' <<<"$quote" >&2
+  sell: .sell.amount, buy: .buy.amount, minOut, next: .next.kind, expiresAt}' <<<"$quote" >&2
 quote_id=$(jq -r '.id' <<<"$quote")
 ```
 

@@ -5,10 +5,9 @@
 ```bash cURL
 # The same asset on both sides, each side pinned to its chain, and only cross-chain quotes kept.
 request=$(jq -nc --arg asset "$asset" --arg amount "$amount" --arg from "$from_chain" --arg to "$to_chain" '{
-  pay: {asset: $asset, chain: $from},
-  receive: {asset: $asset, chain: $to},
-  amount: $amount,
-  side: "payExact",
+  sell: {asset: $asset, chain: $from},
+  buy: {asset: $asset, chain: $to},
+  sellAmount: $amount,
   filters: {locations: ["crossChain"]}
 }')
 quotes=$(quote "$request")
@@ -20,7 +19,7 @@ jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status
 # next "order": TetraFi executes the move from an organisation wallet, so the key can order it.
 # next "preflight", "sign" or "transact": your own wallet has to act first, which a key cannot do.
 jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
-  pay: "\(.pay.amount) on \(.pay.chain)", receive: "\(.receive.amount) on \(.receive.chain)",
+  sell: "\(.sell.amount) on \(.sell.chain)", buy: "\(.buy.amount) on \(.buy.chain)",
   eta, tradesFrom: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
 ```

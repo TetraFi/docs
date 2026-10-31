@@ -118,6 +118,36 @@ A few paths name a workspace, such as `GET /api/v1/workspaces/{id}/webhooks`. A 
 
 <ErrorsWrongWorkspace />
 
+## A workspace that cannot trade yet
+
+A company, broker or liquidity provider workspace can request quotes, place orders and connect to counterparties once its company details are on file: legal name, country of incorporation, registration number and registered address. Until then, those requests answer `403 CAPABILITY_BLOCKED`. Each entry in `details.capabilityBlockers` names one thing to fix:
+
+```json Refusal
+{
+  "error": "CAPABILITY_BLOCKED",
+  "message": "Add your company details (legal name, country of incorporation, registration number and registered address) in the TetraFi app under Company profile to start trading",
+  "details": {
+    "capabilityBlockers": [
+      {
+        "code": "BASE_PROFILE_INCOMPLETE",
+        "unlockStep": "company_details",
+        "currentlyDue": ["legalName", "jurisdiction", "registrationNumber", "registeredAddress"],
+        "message": "Add your company details (…) in the TetraFi app under Company profile to start trading"
+      }
+    ]
+  }
+}
+```
+
+| What is missing | Blocker `code` | What to do |
+| --- | --- | --- |
+| Company details. `currentlyDue` lists the missing ones. | `BASE_PROFILE_INCOMPLETE` | Add them in the TetraFi app under **Company profile**, then send the same request again. |
+| In a direct user's own workspace, the user's identity verification. | `KYC_NOT_VERIFIED` | Complete identity verification in the TetraFi app. |
+
+Both are done in the app, not through the API. When TetraFi cannot read the company details just now, the request answers `503 CAPABILITY_UNAVAILABLE` with the blocker `BASE_PROFILE_UNREADABLE`: send it again shortly. Treat a blocker code you do not recognise by its `message` and `unlockStep`.
+
+To check before you quote, read `GET /api/v1/workspaces/{id}/capabilities`: each capability, such as `request_quotes` or `submit_order`, says whether it is `allowed`, with the same `blockers` when it is not.
+
 ## Refusals by area
 
 Each table lists the codes you can get from that part of the API with an API key. Unless a row says otherwise, nothing was placed or sent.
@@ -134,6 +164,8 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 403 `WORKSPACE_SCOPE_MISMATCH` | `X-Workspace-Id` names a different workspace from the key's. | Send the key's own workspace. |
 | 404 `WORKSPACE_NOT_FOUND` | A path names a workspace that does not exist or is not yours. Both read the same. | Use your own workspace id in the path. |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
+| 403 `CAPABILITY_BLOCKED` | The workspace cannot do this yet, such as trading before its company details are on file. `details.capabilityBlockers` names each cause. | Fix each blocker in the app ([A workspace that cannot trade yet](#a-workspace-that-cannot-trade-yet)). |
+| 503 `CAPABILITY_UNAVAILABLE` | TetraFi could not read whether the workspace can do this. | Send it again shortly. |
 | 403 `IP_NOT_ALLOWED` | The key has an IP allowlist and the request came from elsewhere. | Send from an allowed address, or change the key's allowlist. |
 | 403 `INSUFFICIENT_SCOPE` | The key lacks the permission this call needs. | Create a key with that permission ([Permissions](/authentication#permissions)). |
 | 403 `INSUFFICIENT_PERMISSION` | You, the key's owner, no longer hold the permission in the workspace. A key never does more than you can. | Ask a workspace admin for the permission. |
@@ -173,7 +205,7 @@ More reasons may be added: treat one you do not recognise as "fix the credential
 | 400 `UNKNOWN_ASSET` | An asset id is not in the catalogue. `details.value` is the id. | Use an `assetId` from `GET /api/v1/assets`. |
 | 400 `UNKNOWN_CHAIN` | A chain id is not one TetraFi knows. `details.value` is the chain. | Use a chain from `GET /api/v1/assets`. |
 | 400 `UNKNOWN_VENUE` | A venue id in `filters.venues` is not one TetraFi knows. `details.value` is the id. | Use an id from `sources[].venue.id`. |
-| 400 `INVALID_AMOUNT` | `amount` is not a positive decimal string. | Send it as a string, such as `"10"`. |
+| 400 `INVALID_AMOUNT` | `sellAmount` or `buyAmount` is not a positive decimal string. | Send it as a string, such as `"10"`. |
 | 400 `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that side's asset. | Pin a chain the asset is deployed on, or leave the side open. |
 | 400 `SAME_ASSET_NEEDS_CHAIN` | Both sides are the same asset and no chain tells them apart. | Pin a chain on at least one side ([Chains and routes](/search/chains-and-routes)). |
 | 400 `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
@@ -192,7 +224,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
-| 400 `REQUOTE_FIELDS_CONFLICT` | The body has a field that cannot go with `requote`, such as `amount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
+| 400 `REQUOTE_FIELDS_CONFLICT` | The body has a field that cannot go with `requote`, such as `sellAmount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
 | 400 `CORRIDOR_NOT_OFFERED` | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
 | 400 `BINDING_NOT_ON_CHAIN` | The trading wallet you named cannot pay on that chain. | Name a trading wallet on that chain in `source.tradingWallets`. |
 | 403 `SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` is not one you can use. | Name a wallet or account from `sourceOptions`. |
@@ -282,7 +314,7 @@ A quote request that succeeds lists every venue it considered in `sources`, each
 | --- | --- |
 | `answered` | The venue quoted. Its quotes are in `quotes`. |
 | `filteredOut` | Your filters left it out, or the venue cannot serve this request. It was not asked. `detail` names the token. |
-| `unsupported` | It does not serve this request, such as this pair or a receive-exact amount. |
+| `unsupported` | It does not serve this request, such as this pair or a buy-exact amount. |
 | `unavailable` | It could not quote now. `reason` and `detail` say why, such as `advancedModeDisabled` for an Advanced venue while Advanced execution is not open. |
 | `restricted` | A permission keeps it from you. `reason` names it. |
 | `needsWallet` | It quotes only once you name a trading wallet. |
@@ -294,7 +326,7 @@ Some reasons you may see:
 
 | `reason` | What to do |
 | --- | --- |
-| `pairNotServed`, `receiveExactUnsupported` | The venue does not trade this pair, or cannot quote a fixed receive amount. Choose another pair or switch to `payExact`. Quotes and prices use the same tokens. A venue you trade through your own account can show `receiveExactUnsupported` on a `filteredOut` row, in `detail`. |
+| `pairNotServed`, `receiveExactUnsupported` | The venue does not trade this pair, or cannot quote a fixed buy amount. Choose another pair or send `sellAmount` instead of `buyAmount`. Quotes and prices use the same tokens. A venue you trade through your own account can show `receiveExactUnsupported` on a `filteredOut` row, in `detail`. |
 | `venueTradeScopeRequired` | Use a key with venue trading ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
 | `notConnected` | Connect your account at that venue ([Wallets and accounts](/trade/wallets-and-accounts#connect-a-venue-account)). |
 | `apiKeyOrganisationWalletScopeRequired` | The key has no organisation wallet granted for this venue. Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |

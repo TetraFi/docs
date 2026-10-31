@@ -5,8 +5,8 @@
 ```bash cURL
 # Every answer's sourceOptions lists, per network, the trading wallets this key may name, each by its
 # financialAccountId; isDefault marks the one used when you name none.
-first=$(quote_request "$(jq -cn --arg amount "$amount" '{pay: {asset: "USDC"}, receive: {asset: "ETH"},
-  amount: $amount, side: "payExact"}')") || { printf '%s\n' "$first" >&2; exit 1; }
+first=$(quote_request "$(jq -cn --arg amount "$amount" '{sell: {asset: "USDC"}, buy: {asset: "ETH"},
+  sellAmount: $amount}')") || { printf '%s\n' "$first" >&2; exit 1; }
 trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
   | select(.chain as $c | $chains | index($c))
   | {key: .chain, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
@@ -27,13 +27,13 @@ const walletsIn = (set: QuoteSet): Record<string, string> => {
   }
   return found;
 };
-let tradingWallets = walletsIn(await client.quote({ pay: { asset: 'USDC' }, receive: { asset: 'ETH' }, amount: '10', side: 'payExact' }));
+let tradingWallets = walletsIn(await client.quote({ sell: { asset: 'USDC' }, buy: { asset: 'ETH' }, sellAmount: '10' }));
 // To move USDC between chains, ask each corridor from a wallet's chain until one has a wallet on both sides.
 const home = Object.keys(tradingWallets).sort()[0];
 for (const other of [...usdcChains].sort()) {
   if (!home || other === home || Object.keys(tradingWallets).length >= 2) break;
   await pause();
-  const both = walletsIn(await client.quote({ pay: { asset: 'USDC', chain: home }, receive: { asset: 'USDC', chain: other }, amount: '10', side: 'payExact' }));
+  const both = walletsIn(await client.quote({ sell: { asset: 'USDC', chain: home }, buy: { asset: 'USDC', chain: other }, sellAmount: '10' }));
   if (both[home] && both[other]) tradingWallets = { [home]: both[home], [other]: both[other] };
 }
 const chains = Object.keys(tradingWallets).sort((a, b) => (a === home ? -1 : b === home ? 1 : a.localeCompare(b)));

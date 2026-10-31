@@ -1,0 +1,57 @@
+---
+title: "Sell exact or buy exact"
+description: "Fix the amount you sell, or the amount you buy. Venues quote the other side."
+---
+
+import SearchSellExact from '/snippets/samples/search-sell-exact.mdx';
+import SearchBuyExact from '/snippets/samples/search-buy-exact.mdx';
+
+Every quote request fixes one side of the trade with exactly one amount: `sellAmount` or `buyAmount`. Each venue quotes the other side.
+
+| You send | It is | Each quote states | Quotes are sorted by default |
+| --- | --- | --- | --- |
+| `sellAmount` | What you sell, in units of `sell.asset` | `buy.amount`, what you would buy | Most bought first, by `netReceived` |
+| `buyAmount` | What you buy, in units of `buy.asset` | `sell.amount`, what you would sell | Least sold first |
+
+The amount is a positive decimal string in Asset units: `"10"` is ten USDC and `"0.001"` is a thousandth of an ETH, never base units. Send it as a string so no digits are lost. Send one of the two: a body with both, or with neither, is refused with `400 INVALID_REQUEST`.
+
+## How amounts are read
+
+- A venue may price a slightly smaller amount than you sent, rounded down to the precision it trades in. The quote states the amount it actually used: a request to sell `"100"` can come back with `sell.amount` of `"99.99994"`.
+- `buy.amount` is what lands at `deliverTo` after every fee the quote includes. `netReceived` also subtracts fees you pay separately, such as a network fee, so you can compare quotes fairly. It reads `{"kind": "unavailable", "reason": ...}` when a fee could not be read, never 0.
+- With `sort: "eta"`, quotes are ordered by expected time to delivery instead.
+
+## Sell exact
+
+<SearchSellExact />
+
+## Buy exact
+
+<SearchBuyExact />
+
+Not every venue can quote a fixed buy amount. A venue that only prices the amount you sell is listed in `sources` with the token `receiveExactUnsupported`, and is not asked. An on-chain protocol or bridge shows it as an `unsupported` row with the token in `reason`:
+
+```json
+{ "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "receiveExactUnsupported", "detail": null }
+```
+
+A venue you trade through your own exchange or OTC account can show the same limit as a `filteredOut` row, with the token in `detail`. An on-chain venue that cannot deliver an exact amount uses `exactOutputDeliveryUnsupported`. Check both `reason` and `detail` for these tokens.
+
+In practice, on-chain protocols, bridges and some exchanges quote only the amount you sell, so a buy-exact search usually returns fewer quotes. When no venue can quote it, you get an empty `quotes` list and every venue's reason in `sources`. Send `sellAmount` instead, sized from a [price](/search/prices).
+
+On [`GET /api/v1/prices`](/search/prices), the same limit uses the same `receiveExactUnsupported` reason on an `unsupported` row.
+
+## What filters do to venues
+
+Which amount you fix excludes no venue by itself: a venue that cannot serve it reads `unsupported`, as above. Venues your [filters](/search/how-it-works#the-request) exclude read `filteredOut` and are not asked.
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `INVALID_AMOUNT` | `sellAmount` or `buyAmount` is not a positive decimal: zero, negative or not a number. | Send a positive decimal string such as `"10"`. |
+| `INVALID_REQUEST` | The body has both `sellAmount` and `buyAmount`, or neither, or the amount is not a string. `message` names the field. | Send exactly one amount, as a string. |
+
+## In the app
+
+On the Trade page, choose in the trade ticket whether the amount you type is the amount you sell or the amount you buy.

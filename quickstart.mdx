@@ -24,7 +24,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 
 ## Before you begin
 
-You need `bash`, `curl`, `jq` and `openssl`, and an exchange or OTC venue account connected to your workspace that holds the USDC you pay.
+You need `bash`, `curl`, `jq` and `openssl`, and an exchange or OTC venue account connected to your workspace that holds the USDC you sell.
 
 ### Get a key with venue trading
 
@@ -89,9 +89,9 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
   </Step>
 
   <Step title="Request quotes and pick the best">
-    `POST /api/v1/quotes` asks every venue at once. The body names the asset you pay, the asset you receive, the amount and `"side": "payExact"`, which means the amount is what you pay. Leave out `chain` on a side to let venues quote it on any chain or off-chain.
+    `POST /api/v1/quotes` asks every venue at once. The body names the asset you sell (`sell`), the asset you buy (`buy`) and `sellAmount`, the exact amount you sell. To fix the amount you buy instead, send `buyAmount`. Leave out `chain` on a side to let venues quote it on any chain or off-chain.
 
-    Quotes come back best first, by what you receive net of fees. The script takes the first one whose `next` is `order` or `preflight`. If none is, it prints every venue's outcome from `sources` and stops.
+    Quotes come back best first, by what you buy net of fees. The script takes the first one whose `next` is `order` or `preflight`. If none is, it prints every venue's outcome from `sources` and stops.
 
     <QuickstartQuote />
 
@@ -104,8 +104,8 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
           "id": "q_01M5…",
           "legs": [{ "venue": { "id": "binance-orderbook", "integrationMode": "basic" } }],
           "commitment": { "kind": "executable", "firm": false },
-          "pay": { "asset": "USDC", "chain": null, "amount": "10" },
-          "receive": { "asset": "USDT", "chain": null, "amount": "10.0134" },
+          "sell": { "asset": "USDC", "chain": null, "amount": "10" },
+          "buy": { "asset": "USDT", "chain": null, "amount": "10.0134" },
           "minOut": "9.9833",
           "next": { "kind": "order" },
           "expiresAt": "2026-10-27T00:43:10.213Z"
@@ -124,9 +124,9 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
 
     | Variable | Default | What it changes |
     | --- | --- | --- |
-    | `TETRAFI_PAY` | `USDC` | The asset you pay. |
-    | `TETRAFI_RECEIVE` | `USDT` | The asset you receive. |
-    | `TETRAFI_AMOUNT` | `10` | The amount you pay. |
+    | `TETRAFI_SELL` | `USDC` | The asset you sell. |
+    | `TETRAFI_BUY` | `USDT` | The asset you buy. |
+    | `TETRAFI_AMOUNT` | `10` | The amount you sell, sent as `sellAmount`. |
     | `TETRAFI_VENUES` | every venue | A comma-separated list of venue ids to ask, sent as `filters.venues.include`. Use `sources[].venue.id` values ([Venue types and venues](/search/venues#specific-venues)). |
     | `TETRAFI_SLIPPAGE_BPS` | `50` | How far below the quoted amount you accept when the quote needs `minReceive`, in basis points. |
     | `TETRAFI_PLACE_ORDER` | not set | Set it to `1` to place the order. |
@@ -147,7 +147,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` header with a value you generate and keep: a retry with the same key and body returns the first answer instead of placing a second order. Each quote can be ordered once.
 
-    When the quote's `minReceiveRequired` is `true`, send `minReceive`, the least you accept: the script uses the quoted receive amount less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the receive asset's decimals from `GET /api/v1/assets`.
+    When the quote's `minReceiveRequired` is `true`, send `minReceive`, the least you accept: the script uses the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the bought asset's decimals from `GET /api/v1/assets`.
 
     The script places the order only when you set `TETRAFI_PLACE_ORDER=1`. Without it, it stops after preflight and prints the quote it would order.
 
@@ -204,7 +204,7 @@ When no quote's `next` is `order` or `preflight`, the script stops with `NO_ACTI
 | `unavailable`, `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | The venue trades from an organisation wallet, and none the key may use is granted to it. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
 | `unavailable`, `advancedModeDisabled` | The venue executes on-chain from your own wallet (Advanced), which is not open yet. | Nothing to do. Use a Basic quote. |
 | `unsupported`, `pairNotServed` | The venue does not trade this pair. | Nothing to do, or try another pair. |
-| A quote whose `next` is `fund` | The venue account holds less than you pay, so the script skipped it. `readiness.amount` is what is missing. | Fund the account, then run the script again. |
+| A quote whose `next` is `fund` | The venue account holds less than you sell, so the script skipped it. `readiness.amount` is what is missing. | Fund the account, then run the script again. |
 
 [Errors and refusals](/trade/errors#source-outcomes) lists more outcomes.
 

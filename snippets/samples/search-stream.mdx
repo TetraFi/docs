@@ -6,11 +6,10 @@
 # The same request as a stream: each quote and each venue's outcome arrives as its own event,
 # then `complete` carries the whole set. One live quote request every 3 seconds, so wait first.
 sleep 3
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact"
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount
 }')
 event="" complete="" quote_events=0 source_events=0 other=""
 while IFS= read -r line; do
