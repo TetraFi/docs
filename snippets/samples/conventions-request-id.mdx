@@ -8,8 +8,8 @@
 # The rate-limit headers say how many requests this key has left before a 429.
 request_id="conventions-$(date +%s)"
 headers_file=$(mktemp)
-quotes=$(tetrafi POST /api/v1/quotes "$(jq -cn '{pay: {asset: "USDC"}, receive: {asset: "USDT"},
-  amount: "10", side: "payExact"}')" "X-Request-Id: $request_id" "$headers_file")
+quotes=$(tetrafi POST /api/v1/quotes "$(jq -cn '{sell: {asset: "USDC"}, buy: {asset: "USDT"},
+  sellAmount: "10"}')" "X-Request-Id: $request_id" "$headers_file")
 header() { awk -v name="$1" 'tolower($1) == tolower(name ":") { sub(/\r$/, "", $2); print $2 }' "$headers_file" | tail -1; }
 echo "{\"requestId\":\"$(header x-request-id)\",\"limit\":\"$(header x-ratelimit-limit)\",\"remaining\":\"$(header x-ratelimit-remaining)\",\"reset\":\"$(header x-ratelimit-reset)\"}" >&2
 ```

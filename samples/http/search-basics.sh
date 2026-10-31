@@ -7,12 +7,12 @@
 #   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
-#   TETRAFI_PAY, TETRAFI_RECEIVE   the pair (default USDC for ETH); both must be listed by GET /assets
-#   TETRAFI_AMOUNT                 the amount you pay (default 10)
-#   TETRAFI_RECEIVE_AMOUNT         the amount you receive, for the receive-exact search (default 0.001)
+#   TETRAFI_SELL, TETRAFI_BUY      the pair (default USDC for ETH); both must be listed by GET /assets
+#   TETRAFI_AMOUNT                 the amount you sell (default 10)
+#   TETRAFI_BUY_AMOUNT             the amount you buy, for the buy-exact search (default 0.001)
 #   TETRAFI_CROSS_AMOUNT           the amount you move between chains (default 1)
 #   TETRAFI_FROM_CHAIN, TETRAFI_TO_CHAIN  CAIP-2 chains for the cross-chain search (default: the
-#                                  first two chains GET /assets lists for the pay asset)
+#                                  first two chains GET /assets lists for the sell asset)
 #
 # Every search asks for quotes only: nothing is ordered. The last line printed is one JSON
 # summary of every request. An API error prints its error body and exits 1.
@@ -114,94 +114,90 @@ outcome() {
   results=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$results")
 }
 
-pay=${TETRAFI_PAY:-USDC}
-receive=${TETRAFI_RECEIVE:-ETH}
+sell=${TETRAFI_SELL:-USDC}
+buy=${TETRAFI_BUY:-ETH}
 amount=${TETRAFI_AMOUNT:-10}
-receive_amount=${TETRAFI_RECEIVE_AMOUNT:-0.001}
+buy_amount=${TETRAFI_BUY_AMOUNT:-0.001}
 cross_amount=${TETRAFI_CROSS_AMOUNT:-1}
 
 # Discover the pair from GET /assets: every Asset your workspace can reach, each variant with
 # the chains it is deployed on (CAIP-2) and the off-chain venues that hold it.
 assets=$(tetrafi GET /api/v1/assets)
-for asset in "$pay" "$receive"; do
+for asset in "$sell" "$buy"; do
   if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     jq -nc --arg a "$asset" '{error: "ASSET_NOT_LISTED", asset: $a}' >&2
     exit 1
   fi
 done
 chains_of() { jq -c --arg a "$1" '[.assets[] | select(.assetId == $a) | .variants[].deployments[].chain] | unique' <<<"$assets"; }
-pay_chains=$(chains_of "$pay")
-shared_chains=$(jq -c --argjson r "$(chains_of "$receive")" 'map(select(. as $c | $r | index($c)))' <<<"$pay_chains")
+sell_chains=$(chains_of "$sell")
+shared_chains=$(jq -c --argjson r "$(chains_of "$buy")" 'map(select(. as $c | $r | index($c)))' <<<"$sell_chains")
 
-# region search-pay-exact
-# Pay exactly `amount` of the pay asset. Each quote states what you would receive.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact"
+# region search-sell-exact
+# Sell exactly `amount` of the sell asset. Each quote states what you would buy.
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount
 }')
-pay_exact=$(quote_request "$request")
+sell_exact=$(quote_request "$request")
 jq -c '.quotes[] | {venue: .legs[0].venue.id, location: .location.kind,
-  commitment: .commitment.kind, pay: .pay.amount, receive: .receive.amount, expiresAt}' <<<"$pay_exact" >&2
+  commitment: .commitment.kind, sell: .sell.amount, buy: .buy.amount, expiresAt}' <<<"$sell_exact" >&2
 # endregion
-outcome payExact "$pay_exact"
+outcome sellExact "$sell_exact"
 
-# region search-receive-exact
-# Receive exactly `receive_amount` of the receive asset. Each quote states what you would pay.
-# A venue that only prices the amount you pay is listed in sources as unsupported.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$receive_amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "receiveExact"
+# region search-buy-exact
+# Buy exactly `buy_amount` of the buy asset. Each quote states what you would sell.
+# A venue that only prices the amount you sell is listed in sources as unsupported.
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  buyAmount: $amount
 }')
-receive_exact=$(quote_request "$request")
-jq -c '.quotes[] | {venue: .legs[0].venue.id, pay: .pay.amount, receive: .receive.amount}' <<<"$receive_exact" >&2
-jq -c '[.sources[] | select(.status == "unsupported") | {venue: .venue.id, reason}]' <<<"$receive_exact" >&2
+buy_exact=$(quote_request "$request")
+jq -c '.quotes[] | {venue: .legs[0].venue.id, sell: .sell.amount, buy: .buy.amount}' <<<"$buy_exact" >&2
+jq -c '[.sources[] | select(.status == "unsupported") | {venue: .venue.id, reason}]' <<<"$buy_exact" >&2
 # endregion
-outcome receiveExact "$receive_exact"
+outcome buyExact "$buy_exact"
 
 # region search-single-chain
 # Pin both sides to one chain and keep only quotes that execute on it.
 # The chain comes from discovery: one both assets are deployed on, preferring one a venue just quoted.
-chain=$(jq -r '[.quotes[] | select(.location.kind == "singleChain") | .pay.chain][0] // empty' <<<"$pay_exact")
+chain=$(jq -r '[.quotes[] | select(.location.kind == "singleChain") | .sell.chain][0] // empty' <<<"$sell_exact")
 if [[ -z $chain ]]; then chain=$(jq -r '.[0] // empty' <<<"$shared_chains"); fi
 if [[ -z $chain ]]; then
-  jq -nc --arg p "$pay" --arg r "$receive" '{error: "NO_SHARED_CHAIN", pay: $p, receive: $r}' >&2
+  jq -nc --arg p "$sell" --arg r "$buy" '{error: "NO_SHARED_CHAIN", sell: $p, buy: $r}' >&2
   exit 1
 fi
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg chain "$chain" '{
-  pay: {asset: $pay, chain: $chain},
-  receive: {asset: $receive, chain: $chain},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg chain "$chain" '{
+  sell: {asset: $sell, chain: $chain},
+  buy: {asset: $buy, chain: $chain},
+  sellAmount: $amount,
   filters: {locations: ["singleChain"]}
 }')
 single_chain=$(quote_request "$request")
-jq -c '{chain: $c, quotes: [.quotes[] | {venue: .legs[0].venue.id, receive: .receive.amount}]}' \
+jq -c '{chain: $c, quotes: [.quotes[] | {venue: .legs[0].venue.id, buy: .buy.amount}]}' \
   --arg c "$chain" <<<"$single_chain" >&2
 # endregion
 outcome singleChain "$single_chain"
 
 # region search-cross-chain
-# Move the pay asset from one chain to another. The same asset on both sides needs a chain pin,
+# Move the sell asset from one chain to another. The same asset on both sides needs a chain pin,
 # or the request is refused with SAME_ASSET_NEEDS_CHAIN.
-from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$pay_chains")}
-to_chain=${TETRAFI_TO_CHAIN:-$(jq -r '.[1] // empty' <<<"$pay_chains")}
+from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$sell_chains")}
+to_chain=${TETRAFI_TO_CHAIN:-$(jq -r '.[1] // empty' <<<"$sell_chains")}
 if [[ -z $to_chain ]]; then
-  jq -nc --arg a "$pay" '{error: "ONE_CHAIN_ONLY", asset: $a}' >&2
+  jq -nc --arg a "$sell" '{error: "ONE_CHAIN_ONLY", asset: $a}' >&2
   exit 1
 fi
-request=$(jq -nc --arg asset "$pay" --arg amount "$cross_amount" --arg from "$from_chain" --arg to "$to_chain" '{
-  pay: {asset: $asset, chain: $from},
-  receive: {asset: $asset, chain: $to},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg asset "$sell" --arg amount "$cross_amount" --arg from "$from_chain" --arg to "$to_chain" '{
+  sell: {asset: $asset, chain: $from},
+  buy: {asset: $asset, chain: $to},
+  sellAmount: $amount,
   filters: {locations: ["crossChain"]}
 }')
 cross_chain=$(quote_request "$request")
-jq -c '{from: $f, to: $t, quotes: [.quotes[] | {venue: .legs[0].venue.id, receive: .receive.amount, eta}]}' \
+jq -c '{from: $f, to: $t, quotes: [.quotes[] | {venue: .legs[0].venue.id, buy: .buy.amount, eta}]}' \
   --arg f "$from_chain" --arg t "$to_chain" <<<"$cross_chain" >&2
 # endregion
 outcome crossChain "$cross_chain"
@@ -209,15 +205,14 @@ outcome crossChain "$cross_chain"
 # region search-off-chain
 # Keep only quotes that execute on a venue account (an exchange or desk). No chain pins:
 # a pinned chain with only offChain allowed is refused with CHAIN_PIN_NEEDS_ON_CHAIN.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {locations: ["offChain"]}
 }')
 off_chain=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, receive: .receive.amount}]' <<<"$off_chain" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, buy: .buy.amount}]' <<<"$off_chain" >&2
 jq -c '[.sources[] | select(.status == "filteredOut") | .venue.id]' <<<"$off_chain" >&2
 # endregion
 outcome offChain "$off_chain"
@@ -226,11 +221,10 @@ outcome offChain "$off_chain"
 # The same request as a stream: each quote and each venue's outcome arrives as its own event,
 # then `complete` carries the whole set. One live quote request every 3 seconds, so wait first.
 sleep 3
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact"
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount
 }')
 event="" complete="" quote_events=0 source_events=0 other=""
 while IFS= read -r line; do
@@ -263,7 +257,7 @@ results=$(jq -c --argjson q "$quote_events" --argjson s "$source_events" \
 # region search-prices
 # Prices for the pair from memory: no venue is asked, so it costs no quote request.
 # Each row is one venue, location and variant pair. Rows are indicative, never orderable.
-path="/api/v1/prices?pay=$pay&receive=$receive&amount=$amount&side=payExact"
+path="/api/v1/prices?pay=$sell&receive=$buy&amount=$amount&side=payExact"
 prices=$(tetrafi GET "$path")
 jq -c '{referenceMid: .referenceMid.receivePerPay, rows: [.rows[] | {venue: .venue.id,
   location: .location.kind, status, receive: .sizes[0].receive}]}' <<<"$prices" >&2
@@ -271,6 +265,6 @@ jq -c '{referenceMid: .referenceMid.receivePerPay, rows: [.rows[] | {venue: .ven
 prices_summary=$(jq -c '{request: "prices", rows: (.rows | length),
   referenceMid: (.referenceMid != null), statuses: (reduce .rows[] as $r ({}; .[$r.status] += 1))}' <<<"$prices")
 
-jq -nc --arg pay "$pay" --arg receive "$receive" --argjson assets "$(jq '.assets | length' <<<"$assets")" \
+jq -nc --arg sell "$sell" --arg buy "$buy" --argjson assets "$(jq '.assets | length' <<<"$assets")" \
   --argjson results "$results" --argjson prices "$prices_summary" \
-  '{pair: {pay: $pay, receive: $receive}, assetsListed: $assets, requests: ($results + [$prices])}'
+  '{pair: {sell: $sell, buy: $buy}, assetsListed: $assets, requests: ($results + [$prices])}'

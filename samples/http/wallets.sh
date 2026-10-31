@@ -9,7 +9,7 @@
 #   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
-#   TETRAFI_AMOUNT  the USDC amount you pay (default 10)
+#   TETRAFI_AMOUNT  the USDC amount you sell (default 10)
 #
 # Every request asks for quotes only: nothing is ordered. The last line printed is one JSON
 # summary. An API error on the first quote request prints its error body and exits 1; a refused
@@ -81,8 +81,8 @@ usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.assets[] | select(.assetId =
 # region trading-source-options
 # Every answer's sourceOptions lists, per network, the trading wallets this key may name, each by its
 # financialAccountId; isDefault marks the one used when you name none.
-first=$(quote_request "$(jq -cn --arg amount "$amount" '{pay: {asset: "USDC"}, receive: {asset: "ETH"},
-  amount: $amount, side: "payExact"}')") || { printf '%s\n' "$first" >&2; exit 1; }
+first=$(quote_request "$(jq -cn --arg amount "$amount" '{sell: {asset: "USDC"}, buy: {asset: "ETH"},
+  sellAmount: $amount}')") || { printf '%s\n' "$first" >&2; exit 1; }
 trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
   | select(.chain as $c | $chains | index($c))
   | {key: .chain, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
@@ -103,9 +103,9 @@ fi
 # gave: two chains move USDC between them, one chain swaps USDC for ETH on it.
 request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | keys) as $chains
   | (if ($chains | length) > 1
-      then {pay: {asset: "USDC", chain: $chains[0]}, receive: {asset: "USDC", chain: $chains[1]}}
-      else {pay: {asset: "USDC", chain: $chains[0]}, receive: {asset: "ETH", chain: $chains[0]}} end)
-  + {amount: $amount, side: "payExact", source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
+      then {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "USDC", chain: $chains[1]}}
+      else {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "ETH", chain: $chains[0]}} end)
+  + {sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
 # endregion
 
 # region trading-source-refusal
@@ -125,7 +125,7 @@ jq -c '[.sources[] | select(.reason == "tradingSourceNotLinked") | {venue: .venu
 # fundingAccount) and how it settles. Read them; never assume them from the venue's name.
 jq -c '.quotes[] | {quoteId: .id, venue: ([.legs[].venue.id] | join(" + ")), location: .location.kind,
   tradingSource: (.tradingSource | {kind, financialAccountId, network}), fundingModel,
-  fundingAccount: (.fundingAccount | {kind, financialAccountId}), receive: .receive.amount, next: .next.kind}' <<<"$quotes" >&2
+  fundingAccount: (.fundingAccount | {kind, financialAccountId}), buy: .buy.amount, next: .next.kind}' <<<"$quotes" >&2
 # endregion
 
 # region wallets-deliver-to

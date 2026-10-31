@@ -11,7 +11,7 @@
 # Optional:
 #   TETRAFI_VENUE           the venue id of your exchange account (default: the venue of the best
 #                           off-chain quote a plain search returns)
-#   TETRAFI_PAY, TETRAFI_RECEIVE, TETRAFI_AMOUNT  the pair and the amount you pay (default 5 USDC for USDT)
+#   TETRAFI_SELL, TETRAFI_BUY, TETRAFI_AMOUNT  the pair and the amount you sell (default 5 USDC for USDT)
 #   TETRAFI_SLIPPAGE_BPS    how far below an indicative quote you accept, in basis points (default 50)
 #   TETRAFI_PLACE_ORDER=1   places the order (yes also works); without it the script stops before ordering
 #
@@ -69,8 +69,8 @@ quote() {
   tetrafi POST /api/v1/quotes "$1"
 }
 
-pay=${TETRAFI_PAY:-USDC}
-receive=${TETRAFI_RECEIVE:-USDT}
+sell=${TETRAFI_SELL:-USDC}
+buy=${TETRAFI_BUY:-USDT}
 amount=${TETRAFI_AMOUNT:-5}
 
 # region recipe-exchange-venue
@@ -78,8 +78,8 @@ amount=${TETRAFI_AMOUNT:-5}
 # connected venue accounts answer it.
 venue=${TETRAFI_VENUE:-}
 if [[ -z $venue ]]; then
-  found=$(quote "$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-    pay: {asset: $pay}, receive: {asset: $receive}, amount: $amount, side: "payExact",
+  found=$(quote "$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+    sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
     filters: {locations: ["offChain"]}}')")
   jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$found" >&2
   venue=$(jq -r 'first(.quotes[] | select(.legs[0].venue.integrationMode == "basic") | .legs[0].venue.id) // empty' <<<"$found")
@@ -92,8 +92,8 @@ fi
 
 # region recipe-exchange-quote
 # Ask that venue only. Its quote trades on your account there: tradingSource names it (kind venueAccount).
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg venue "$venue" '{
-  pay: {asset: $pay}, receive: {asset: $receive}, amount: $amount, side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
   filters: {venues: {include: [$venue]}}
 }')
 quotes=$(quote "$request")
@@ -104,7 +104,7 @@ if [[ -z $quote ]]; then
   exit 0
 fi
 jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode, commitment: .commitment.kind,
-  pay: .pay.amount, receive: .receive.amount, minOut, next: .next.kind, expiresAt}' <<<"$quote" >&2
+  sell: .sell.amount, buy: .buy.amount, minOut, next: .next.kind, expiresAt}' <<<"$quote" >&2
 quote_id=$(jq -r '.id' <<<"$quote")
 # endregion
 
@@ -127,7 +127,7 @@ fi
 # When the quote's minReceiveRequired is true, the venue executes within your limit: send minReceive,
 # here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to 8 decimal places.
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" '{quoteId: .id}
-  + (if .minReceiveRequired == true then {minReceive: ((.receive.amount | tonumber) * (10000 - $bps) / 10000
+  + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * 100000000 | floor | . / 100000000 | tostring)} else {} end)' <<<"$quote")
 # Store the Idempotency-Key with your record of the order before you send it.
 idempotency_key=$(openssl rand -hex 16)

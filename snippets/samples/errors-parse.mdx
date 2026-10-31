@@ -6,7 +6,7 @@
 # Every refusal is one JSON body: {error, message, requestId, timestamp, docUrl, next?, details?}.
 # Match on `error`, never on `message`. Keep `requestId` for support; docUrl links the code's entry.
 if refusal=$(tetrafi POST /api/v1/quotes \
-  '{"pay":{"asset":"NOT_AN_ASSET"},"receive":{"asset":"USDT"},"amount":"10","side":"payExact"}' 2>/dev/null); then
+  '{"sell":{"asset":"NOT_AN_ASSET"},"buy":{"asset":"USDT"},"sellAmount":"10"}' 2>/dev/null); then
   echo '{"error":"EXPECTED_A_REFUSAL"}' >&2
   exit 1
 fi

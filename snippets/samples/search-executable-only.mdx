@@ -5,11 +5,10 @@
 ```bash cURL
 # Keep only executable quotes. Indicative quotes are dropped once venues answer, so a venue
 # whose only quote was indicative still reads answered in sources, with no quote in quotes.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   filters: {commitment: "executableOnly"}
 }')
 executable=$(quote_request "$request")
@@ -20,10 +19,9 @@ jq -c '[.quotes[].legs[0].venue.id] as $quoted
 
 ```typescript TypeScript SDK
 const executable = await client.quote({
-  pay: { asset: usdc.assetId },
-  receive: { asset: eth.assetId },
-  amount: '10',
-  side: 'payExact',
+  sell: { asset: usdc.assetId },
+  buy: { asset: eth.assetId },
+  sellAmount: '10',
   filters: { locations: ['offChain'], commitment: 'executableOnly' },
 });
 ```

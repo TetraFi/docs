@@ -15,7 +15,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 
 ## When to requote
 
-- **To change how the quote executes.** Pick another trading wallet or venue account (`source`), another destination for the output (`deliverTo`), another corridor the quote offered (`corridor`), or a different price protection (`priceProtectionBps`). A corridor is the pair of chains a cross-chain quote moves between, from the chain you pay on to the chain you receive on; a quote lists the other corridors its venue offers in `corridors`.
+- **To change how the quote executes.** Pick another trading wallet or venue account (`source`), another destination for the output (`deliverTo`), another corridor the quote offered (`corridor`), or a different price protection (`priceProtectionBps`). A corridor is the pair of chains a cross-chain quote moves between, from the chain you sell on to the chain you buy on; a quote lists the other corridors its venue offers in `corridors`.
 - **To get an executable price.** An indicative quote is the venue's price, not a commitment. A requote asks the venue for a quote you can order. For a desk whose card reads `next.kind: "requote"`, this is how you get its firm price.
 - **To refresh a price that expired.** An executable quote can be ordered only until its `expiresAt`. After that, requote it for a new price from the same venue.
 
@@ -42,7 +42,7 @@ These four fields are the whole body. The pair, the amount, the side and the fil
       "id": "q_01M5XJXN…",
       "requoteOf": "q_01M5XJXM…",
       "commitment": { "kind": "executable", "firm": false },
-      "receive": { "asset": "USDT", "amount": "5.00685" },
+      "buy": { "asset": "USDT", "amount": "5.00685" },
       "minOut": "4.99182",
       "expiresAt": "2026-10-27T02:27:15.792Z",
       "next": { "kind": "order" }
@@ -97,7 +97,7 @@ Ordering a quote after its `expiresAt` is refused with `410 QUOTE_EXPIRED` and n
 
 ```json Output
 {"error":"QUOTE_EXPIRED","next":{"kind":"requote","needs":[]}}
-{"quoteId":"q_01M5XJNK…","requoteOf":"q_01M5XJNB…","receive":"5.0068","expiresAt":"2026-10-27T02:22:49.076Z"}
+{"quoteId":"q_01M5XJNK…","requoteOf":"q_01M5XJNB…","buy":"5.0068","expiresAt":"2026-10-27T02:22:49.076Z"}
 ```
 
 ## Refusals
@@ -106,7 +106,7 @@ A refused requote answers the standard error body: `error` is the code, `message
 
 | Code | Status | Why | What to do |
 | --- | --- | --- | --- |
-| `REQUOTE_FIELDS_CONFLICT` | 400 | The body has a field that cannot go with `requote`, such as `amount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
+| `REQUOTE_FIELDS_CONFLICT` | 400 | The body has a field that cannot go with `requote`, such as `sellAmount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
 | `CORRIDOR_NOT_OFFERED` | 400 | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
 | `BINDING_NOT_ON_CHAIN` | 400 | The trading wallet you named is not an account on that chain. | Name a trading wallet on that chain in `source.tradingWallets`. |
 | `SOURCE_NOT_OWNED` | 403 | A wallet or account in `source` or `deliverTo` is not one you can use. | Name a wallet or account from `sourceOptions`. |

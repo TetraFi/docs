@@ -3,12 +3,11 @@
 <CodeGroup>
 
 ```bash cURL
-request=$(jq -n --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" \
+request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   --arg venues "${TETRAFI_VENUES:-}" '{
-    pay: {asset: $pay},
-    receive: {asset: $receive},
-    amount: $amount,
-    side: "payExact"
+    sell: {asset: $sell},
+    buy: {asset: $buy},
+    sellAmount: $amount
   } + (if $venues == "" then {} else {filters: {venues: {include: ($venues | split(","))}}} end)')
 quotes=$(tetrafi POST /api/v1/quotes "$request")
 
@@ -21,16 +20,15 @@ if [[ -z $quote ]]; then
 fi
 quote_id=$(jq -r '.id' <<<"$quote")
 jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode,
-  pay: .pay.amount, receive: .receive.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2
+  sell: .sell.amount, buy: .buy.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2
 ```
 
 ```typescript TypeScript SDK
-// Ask every venue at once: pay exactly 10 USDC, receive ETH. Each quote is held by its id.
+// Ask every venue at once: sell exactly 10 USDC, buy ETH. Each quote is held by its id.
 const set = await client.quote({
-  pay: { asset: usdc.assetId },
-  receive: { asset: eth.assetId },
-  amount: '10',
-  side: 'payExact',
+  sell: { asset: usdc.assetId },
+  buy: { asset: eth.assetId },
+  sellAmount: '10',
 });
 // Every venue that was considered says what happened, including the ones that gave no quote and why.
 const notQuoted = set.sources.filter((source) => source.status !== 'answered')

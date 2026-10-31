@@ -15,10 +15,10 @@ Two request fields change what you get back without leaving any venue out:
 
 ## Sort
 
-| `sort` | `side` | Order of `quotes` |
+| `sort` | Amount you send | Order of `quotes` |
 | --- | --- | --- |
-| `netReceived` | `payExact` | Most `netReceived` first. |
-| `netReceived` | `receiveExact` | Least `pay.amount` first. |
+| `netReceived` | `sellAmount` | Most `netReceived` first. |
+| `netReceived` | `buyAmount` | Least `sell.amount` first. |
 | `eta` | either | Shortest `eta` first. |
 
 Under every order:
@@ -38,21 +38,21 @@ A non-firm executable quote may deliver a little less than it quotes. `priceProt
 
 | Quote | Field | Value |
 | --- | --- | --- |
-| `executable` with `firm: false`, Basic or Advanced | `minOut` | The least you receive: the quoted amount less the protection, rounded down to the precision of the receive amount. |
-| `receiveExact`, from one of your venue accounts | `maxPay` | The most you pay. On a quote the venue has firmly priced, the amount it would take from your account, raised by the protection percentage and rounded up. Until then, the same as `pay.amount`. |
+| `executable` with `firm: false`, Basic or Advanced | `minOut` | The least you receive: the quoted amount less the protection, rounded down to the precision of the buy amount. |
+| `buyAmount`, from one of your venue accounts | `maxPay` | The most you sell. On a quote the venue has firmly priced, the amount it would take from your account, raised by the protection percentage and rounded up. Until then, the same as `sell.amount`. |
 | `firm: true` or `indicative` | `minOut` | `null`. A firm quote delivers exactly its amount; an indicative quote commits to nothing. |
 
 If you omit `priceProtectionBps`, 30 (0.3%) is used.
 
 <SearchPriceProtection />
 
-For example, 100 basis points on a quote to receive `0.4322` ETH gives a `minOut` of `0.4278`:
+For example, 100 basis points on a quote to buy `0.4322` ETH gives a `minOut` of `0.4278`:
 
 ```json Output
-{ "venue": "...", "receive": "0.4322", "minOut": "0.4278" }
+{ "venue": "...", "buy": "0.4322", "minOut": "0.4278" }
 ```
 
-Rounding is to the receive amount's own precision, so on a small amount quoted with few decimals, two protection values can give the same `minOut`.
+Rounding is to the buy amount's own precision, so on a small amount quoted with few decimals, two protection values can give the same `minOut`.
 
 ### Protection on a requote and an order
 
@@ -71,4 +71,4 @@ Rounding is to the receive amount's own precision, so on a small amount quoted w
 On the Trade page, open **Advanced filters**:
 
 - **Protection** sets the price protection: 0.1%, 0.3%, 0.5% or 1%, or **Custom** up to 10%. The app starts at 0.5% (50 basis points), not the API's 0.3% default.
-- **Rank by** sets the sort: **Best net** (`netReceived`) or **Fastest** (`eta`). The results list's sort select sets the same order; for receive exact, it reads **Least paid first**.
+- **Rank by** sets the sort: **Best net** (`netReceived`) or **Fastest** (`eta`). The results list's sort select sets the same order; when you fix the amount you buy, it reads **Least paid first**.

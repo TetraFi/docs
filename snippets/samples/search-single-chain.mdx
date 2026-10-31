@@ -5,31 +5,29 @@
 ```bash cURL
 # Pin both sides to one chain and keep only quotes that execute on it.
 # The chain comes from discovery: one both assets are deployed on, preferring one a venue just quoted.
-chain=$(jq -r '[.quotes[] | select(.location.kind == "singleChain") | .pay.chain][0] // empty' <<<"$pay_exact")
+chain=$(jq -r '[.quotes[] | select(.location.kind == "singleChain") | .sell.chain][0] // empty' <<<"$sell_exact")
 if [[ -z $chain ]]; then chain=$(jq -r '.[0] // empty' <<<"$shared_chains"); fi
 if [[ -z $chain ]]; then
-  jq -nc --arg p "$pay" --arg r "$receive" '{error: "NO_SHARED_CHAIN", pay: $p, receive: $r}' >&2
+  jq -nc --arg p "$sell" --arg r "$buy" '{error: "NO_SHARED_CHAIN", sell: $p, buy: $r}' >&2
   exit 1
 fi
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$amount" --arg chain "$chain" '{
-  pay: {asset: $pay, chain: $chain},
-  receive: {asset: $receive, chain: $chain},
-  amount: $amount,
-  side: "payExact",
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg chain "$chain" '{
+  sell: {asset: $sell, chain: $chain},
+  buy: {asset: $buy, chain: $chain},
+  sellAmount: $amount,
   filters: {locations: ["singleChain"]}
 }')
 single_chain=$(quote_request "$request")
-jq -c '{chain: $c, quotes: [.quotes[] | {venue: .legs[0].venue.id, receive: .receive.amount}]}' \
+jq -c '{chain: $c, quotes: [.quotes[] | {venue: .legs[0].venue.id, buy: .buy.amount}]}' \
   --arg c "$chain" <<<"$single_chain" >&2
 ```
 
 ```typescript TypeScript SDK
 // Single chain: pay USDC and receive ETH, both on the same chain.
 const single = await client.quote({
-  pay: { asset: 'USDC', chain: from },
-  receive: { asset: 'ETH', chain: from },
-  amount: '10',
-  side: 'payExact',
+  sell: { asset: 'USDC', chain: from },
+  buy: { asset: 'ETH', chain: from },
+  sellAmount: '10',
   filters: { locations: ['singleChain'] },
 });
 ```

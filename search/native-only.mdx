@@ -9,8 +9,8 @@ An Asset can exist in more than one form, called variants. ETH, for example, is 
 
 | Field | Value | Effect |
 | --- | --- | --- |
-| `filters.variants.pay` | `any` (default) or `nativeOnly` | With `nativeOnly`, you pay only in the native variant. |
-| `filters.variants.receive` | `any` (default) or `nativeOnly` | With `nativeOnly`, you receive only the native variant. |
+| `filters.variants.sell` | `any` (default) or `nativeOnly` | With `nativeOnly`, you sell only the native variant. |
+| `filters.variants.buy` | `any` (default) or `nativeOnly` | With `nativeOnly`, you buy only the native variant. |
 
 Set one side or both. A side you leave out stays `any`.
 
@@ -28,7 +28,7 @@ Set one side or both. A side you leave out stays `any`.
 
 New kinds can appear. Treat a `kind` you do not recognise as "other", and as not native.
 
-Each quote states the variant on each side in `pay.variant` and `receive.variant`, for example `{"kind": "native", "name": "ETH"}`.
+Each quote states the variant on each side in `sell.variant` and `buy.variant`, for example `{"kind": "native", "name": "ETH"}`.
 
 <SearchNativeOnly />
 
@@ -40,7 +40,7 @@ The filter acts on the routes each venue could take, not on whole venues. A venu
 { "status": "unavailable", "venue": { "id": "...", "modality": "amm" }, "asked": false, "reason": "onchainAssetVariantFiltered", "detail": null }
 ```
 
-For example, an on-chain pool that pays out WETH for USDC drops out of a search for ETH with `receive: "nativeOnly"`, while your venue accounts, which hold native ETH, still quote.
+For example, an on-chain pool that pays out WETH for USDC drops out of a search for ETH with `buy: "nativeOnly"`, while your venue accounts, which hold native ETH, still quote.
 
 On [`GET /api/v1/prices`](/search/prices), `variants.pay` and `variants.receive` filter the same way, and a row for a variant you left out is not returned.
 
@@ -48,7 +48,7 @@ On [`GET /api/v1/prices`](/search/prices), `variants.pay` and `variants.receive`
 
 | Code | Why | What to do |
 | --- | --- | --- |
-| `INVALID_REQUEST` | A value is not `any` or `nativeOnly`, or `variants` has a field other than `pay` and `receive`. `message` names it. | Send `any` or `nativeOnly`. |
+| `INVALID_REQUEST` | A value is not `any` or `nativeOnly`, or `variants` has a field other than `sell` and `buy`. `message` names it. | Send `any` or `nativeOnly`. |
 | `SAME_ASSET_NEEDS_CHAIN` | The same Asset on both sides, pinned to the same chain, with `nativeOnly` on both sides. Only a swap between two variants could quote it. | Allow `any` on one side, or pin two different chains. |
 
 ## In the app

@@ -38,7 +38,7 @@ Read these fields on every quote. Two quotes from the same venue can trade from 
 <TradingSourceFunding />
 
 ```json Output shape with a granted wallet (ids shortened)
-{"quoteId":"q_01M5…","venue":"across","location":"crossChain","tradingSource":{"kind":"wallet","financialAccountId":"4d46…","network":"eip155:84532"},"fundingModel":"prefunded","fundingAccount":{"kind":"wallet","financialAccountId":"4d46…"},"receive":"9.98","next":"order"}
+{"quoteId":"q_01M5…","venue":"across","location":"crossChain","tradingSource":{"kind":"wallet","financialAccountId":"4d46…","network":"eip155:84532"},"fundingModel":"prefunded","fundingAccount":{"kind":"wallet","financialAccountId":"4d46…"},"buy":"9.98","next":"order"}
 ```
 
 ## Quote with your defaults
@@ -65,7 +65,7 @@ Every quote set, and every quote in it, lists in `sourceOptions` what you may na
 | `fundingAccount` | Accounts that can fund the trade, such as a bank account for a pay-in. |
 | `deliverTo` | Where the output can go. |
 
-Each candidate carries its `financialAccountId`, `kind`, `displayName` and `isDefault`. A wallet also carries its `address` and `network`. When present, `balance` is the pay asset held there (`"kind": "known"`) or `"kind": "unavailable"`. A balance that could not be read is never shown as 0, and `null` means it was not observed.
+Each candidate carries its `financialAccountId`, `kind`, `displayName` and `isDefault`. A wallet also carries its `address` and `network`. When present, `balance` is the sold asset held there (`"kind": "known"`) or `"kind": "unavailable"`. A balance that could not be read is never shown as 0, and `null` means it was not observed.
 
 An empty list means there is nothing else to choose. The script reads the trading wallets for each USDC chain, preferring the candidate marked `isDefault`:
 
@@ -108,7 +108,7 @@ The script names the wallets it read. With two chains it moves USDC between them
 <TradingSourceRequest />
 
 ```json Request sent (shortened)
-{"pay":{"asset":"USDC","chain":"eip155:84532"},"receive":{"asset":"USDC","chain":"eip155:11155111"},"amount":"10","side":"payExact","source":{"tradingWallets":{"eip155:84532":"4d46…","eip155:11155111":"9b07…"}}}
+{"sell":{"asset":"USDC","chain":"eip155:84532"},"buy":{"asset":"USDC","chain":"eip155:11155111"},"sellAmount":"10","source":{"tradingWallets":{"eip155:84532":"4d46…","eip155:11155111":"9b07…"}}}
 ```
 
 `preferredWallets` is a softer choice. It is keyed the same way, but it is only a preference. A venue account uses that wallet only when it is one of the account's linked wallets on the venue's network; otherwise it quotes from its own default. A preference never makes a venue refuse. `source.tradingWallets` is the explicit choice and wins on its chain.
@@ -149,7 +149,7 @@ The shape also has a `payee` kind, but no trade can deliver to a payee yet: deli
 
 `destinationTag` is the tag or memo an address needs, such as an XRP destination tag, a Stellar memo or an exchange deposit memo. Leaving it out means no tag: TetraFi never fills one in for you.
 
-On a venue quote, delivering to a wallet asks TetraFi to withdraw the output from your venue account once the order fills. The wallet must be one of your workspace's wallets, approved as a withdrawal destination of that venue account for the asset you receive, with exactly the tag it was approved with. The quote then carries a network fee line for the venue's withdrawal fee (the most the order will pay) and a `receive` amount net of it.
+On a venue quote, delivering to a wallet asks TetraFi to withdraw the output from your venue account once the order fills. The wallet must be one of your workspace's wallets, approved as a withdrawal destination of that venue account for the asset you buy, with exactly the tag it was approved with. The quote then carries a network fee line for the venue's withdrawal fee (the most the order will pay) and a `buy.amount` net of it.
 
 Delivering a venue quote to a wallet needs a signed-in member who can view the workspace's wallets. With an API key, a venue quote's output stays on the venue account: a requote that names another destination is refused with the reason `deliverToNotPermitted`.
 
@@ -189,7 +189,7 @@ Some venues can only quote once they know which wallet trades. You can see this 
 
 **A quote's next step is a requote.** `next` reads `{"kind": "requote", "needs": [...]}`. Each entry in `needs` is a slot to fill: `wallet:evm`, `wallet:solana`, `wallet:tron`, `account`, `bankAccount` or `deliverTo`. Requote the quote with `source` or `deliverTo` filling those slots, choosing from `sourceOptions`. An empty `needs` means requote it as it is.
 
-**A venue reads `needsWallet` in `sources`.** It has no wallet of that `family` (`evm`, `solana` or `tron`) to ask with. Send the request again with `source.tradingWallets` naming a wallet on the chain you pay from, or set a default for that family.
+**A venue reads `needsWallet` in `sources`.** It has no wallet of that `family` (`evm`, `solana` or `tron`) to ask with. Send the request again with `source.tradingWallets` naming a wallet on the chain you sell from, or set a default for that family.
 
 **A venue reads `walletRefused` in `sources`.** The wallet in `wallet` cannot trade there, for example because it was revoked or screening confirmed a sanctions match. `reason` says why when TetraFi can. Sometimes the refused wallet is an organisation wallet you chose that is not linked to the venue account. Then `recovery` carries the `wallet`, a `linkHref` where it can be linked, and `defaultWallets`: the account's default wallet for each chain, which you can send as `source.tradingWallets` for this request instead.
 

@@ -4,34 +4,32 @@
 
 ```bash cURL
 # Set how far a non-firm executable quote's delivery may fall below what it quotes. It sets
-# minOut on pay-exact quotes, and maxPay on receive-exact quotes from your venue accounts.
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$protection_amount" \
+# minOut on sell-exact quotes, and maxPay on buy-exact quotes from your venue accounts.
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$protection_amount" \
   --argjson bps "$protection_bps" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "payExact",
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  sellAmount: $amount,
   priceProtectionBps: $bps
 }')
 protected=$(quote_request "$request")
-jq -c '[.quotes[] | select(.minOut != null) | {venue: .legs[0].venue.id, receive: .receive.amount, minOut}]' <<<"$protected" >&2
-request=$(jq -nc --arg pay "$pay" --arg receive "$receive" --arg amount "$receive_amount" \
+jq -c '[.quotes[] | select(.minOut != null) | {venue: .legs[0].venue.id, buy: .buy.amount, minOut}]' <<<"$protected" >&2
+request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" \
   --argjson bps "$protection_bps" '{
-  pay: {asset: $pay},
-  receive: {asset: $receive},
-  amount: $amount,
-  side: "receiveExact",
+  sell: {asset: $sell},
+  buy: {asset: $buy},
+  buyAmount: $amount,
   priceProtectionBps: $bps
 }')
 protected_exact=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, pay: .pay.amount, maxPay}]' <<<"$protected_exact" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, sell: .sell.amount, maxPay}]' <<<"$protected_exact" >&2
 ```
 
 ```typescript TypeScript SDK
 // Accept at most 0.5% (50 basis points) less than quoted. Compare `minOut` with `receive.amount`.
 const protectedSet = await client.quote({ ...base, priceProtectionBps: 50 });
 const protection = protectedSet.quotes.map((quote) => ({ quoteId: quote.id, venue: quote.legs.map((leg) => leg.venue.id).join(' + '),
-  commitment: quote.commitment.kind, receive: quote.receive.amount, minOut: quote.minOut }));
+  commitment: quote.commitment.kind, receive: quote.buy.amount, minOut: quote.minOut }));
 ```
 
 </CodeGroup>
