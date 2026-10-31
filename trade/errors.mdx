@@ -211,7 +211,7 @@ More reasons may be added: treat one you do not recognise as "fix the credential
 | 400 `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
 | 400 `BINDING_NOT_ON_CHAIN` | A wallet in `source.tradingWallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
 | 403 `SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist, or you cannot use it. | Choose a candidate from the answer's `sourceOptions` ([Wallets and accounts](/trade/wallets-and-accounts#when-tetrafi-refuses-a-source)). |
-| 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
+| 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation-scope wallet. |
 | 404 `QUOTE_REQUEST_NOT_FOUND` | No quote set with this id is readable by you. | Check the id. |
 | 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |
 | 503 `QUOTE_CATALOGUE_UNAVAILABLE`, `QUOTE_ID_UNAVAILABLE`, `QUOTE_REQUEST_UNAVAILABLE` | Something the search needs could not be read just now. | Send it again after a second or two. |
@@ -231,7 +231,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. | Leave out `source.venueAccountId`, or search again. |
 | 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | This key cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. Requote only quotes your own key requested. |
-| 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Bind a workspace wallet. |
+| 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Bind an organisation-scope wallet. |
 | 409 `REQUOTE_REFUSED` | The venue declined. `details.reason` carries a token, such as `venueNotListed`. | Show `message`. The original quote holds until its expiry. Treat a reason you do not recognise as "other". |
 | 409 `REQUOTE_NEEDS_WALLET` | The venue quotes only once you choose a wallet. | Requote with `source.tradingWallets`. |
 | 410 `QUOTE_EXPIRED` | More than 10 minutes have passed since the quote expired. | Search again. |
@@ -326,7 +326,7 @@ Some reasons you may see:
 
 | `reason` | What to do |
 | --- | --- |
-| `pairNotServed`, `receiveExactUnsupported` | The venue does not trade this pair, or cannot quote a fixed buy amount. Choose another pair or send `sellAmount` instead of `buyAmount`. Quotes and prices use the same tokens. A venue you trade through your own account can show `receiveExactUnsupported` on a `filteredOut` row, in `detail`. |
+| `pairNotServed`, `buyAmountUnsupported` | The venue does not trade this pair, or cannot quote a fixed buy amount. Choose another pair or send `sellAmount` instead of `buyAmount`. Quotes and prices use the same tokens. A venue you trade through your own account can show `buyAmountUnsupported` on a `filteredOut` row, in `detail`. |
 | `venueTradeScopeRequired` | Use a key with venue trading ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
 | `notConnected` | Connect your account at that venue ([Wallets and accounts](/trade/wallets-and-accounts#connect-a-venue-account)). |
 | `apiKeyOrganisationWalletScopeRequired` | The key has no organisation wallet granted for this venue. Ask a workspace owner to grant the key an organisation wallet ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). |

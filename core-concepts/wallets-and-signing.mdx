@@ -1,29 +1,73 @@
 ---
 title: "Wallets & Signing"
-description: "Sign without holding keys in your backend - owner-authorized, bounded, revocable."
+description: "Who owns a wallet, who can authorise its signatures, and what TetraFi can and cannot do with it."
 ---
 
-An external wallet signature is the baseline. Everything below removes the need to hold keys in your backend, without TetraFi ever holding the owner's factor.
+Every wallet stays under its owners' control. TetraFi never moves funds without the owners' approval, or a limited grant they approved. TetraFi describes each wallet with the same few fields, so you can see at a glance who controls it and what it can do.
 
-## Ownership Scopes
+## The fields on every wallet
 
-A **personal** wallet belongs to a person; a **workspace** wallet belongs to the institution, shared by its authorised operators. Owners can hold several wallets and provider connections. Per-chain defaults are preferences, never authority: ownership is re-verified before every dispatch.
-
-## Four Ways to Sign
-
-| Way | How it works | Status |
+| Field | Answers | Values |
 | --- | --- | --- |
-| **External wallet** | Sign the EIP-712 order, or broadcast the prepared transaction yourself. | Live |
-| **Owner-authorized embedded signing** | Preflight prepares the exact authorization, with typed data to inspect; the owner's tooling approves, the provider signs, TetraFi submits. No root key or provider token reaches TetraFi. | Rolling out |
-| **Session-signer grants** | A bounded, owner-approved permission with an expiry. Revocation refuses new dispatch; an operation in flight stays recoverable. | Rolling out |
-| **Organisation wallets** | The co-signer model: every proposed member accepts with their own factor, the quorum is customer-defined (1-of-1 included), and a policy change needs the current quorum. | Rolling out |
+| **Scope** | Who owns it | **Organisation**: the company's wallet, the one that faces LPs and brokers. **Personal**: one member's wallet. |
+| **Shared** | Who else may use it | Organisation wallets are always workspace-wide. Sharing a personal wallet with chosen members (view and request, nothing more) is not yet available. |
+| **Control** | Who can authorise a signature | **Governed**, **Embedded**, **Self-managed** or **Custodian** (below). |
+| **Key technology** | How the key signs | MPC, secure enclave, HSM, threshold network, a custodian-managed key, or an external key TetraFi knows nothing about. A contract account has no key of its own; each of its owners has one. |
+| **Account type** | What the chain sees | An ordinary address, an address with EIP-7702 smart features (shown as **Smart (7702)**), a multisig contract, a modular smart account, or a custodian ledger. |
+| **Wallet type** | The label you see | The smart-account kind for a contract account, otherwise the key technology and provider, such as "MPC · Fireblocks". |
+| **TetraFi role** | What TetraFi can do | **None**, or **bounded delegate** (below). |
+| **Verification** | Is ownership proven | **Verified**, or **Unverified**: a registered or imported wallet before its signature proof. An unverified wallet can't send. |
 
-## The Rule That Holds Everywhere
+Scope and control are independent. A personal wallet can be governed, and a company can hold an embedded wallet, though Treasury warns against it: a single login controls it, so use a governed wallet for company money.
 
-An API key, an admin session, a provider connection, or a gas sponsor never creates wallet authority. Delegated authority is enforced by the wallet provider itself, with TetraFi's compliance and treasury controls on top; a clause the provider cannot enforce fails closed, with the reason. Every wallet or grant request carries a request ID you generate, so a lost response reconciles under it and nothing is created twice.
+## Control: who authorises a signature
 
-## Gas
+| Control | Who signs | What TetraFi does with it |
+| --- | --- | --- |
+| **Governed** | A quorum of approvers or factors, enforced by the provider or a contract. You set the quorum, 1 of 1 included. | Prepares requests; your quorum approves them. |
+| **Embedded** | One person's login on a provider-hosted wallet. | Acts in that person's own session, or through a limited grant they approve. |
+| **Self-managed** | You, by connecting your wallet and signing. | Sends only when you connect and sign. Everything else is monitored only. |
+| **Custodian** | A regulated custodian. | Sends instructions and reads balances. The custodian's own approvals still apply. |
 
-API-submitted escrow orders and delegated-source legs already land with no gas from the user's wallet. Gas sponsorship, the payer selected per order and reported by preflight, is coming soon.
+Exchange and OTC venue accounts and bank accounts are separate kinds of account, not wallets.
+
+## TetraFi's role
+
+TetraFi is infrastructure: it never signs, sends or acts for you on its own.
+
+- **None.** TetraFi can read the wallet and prepare requests. Every signature needs the owners.
+- **Bounded delegate.** The owners approve a limited signer, for example for an automation or an agent. The provider enforces its limits; a limit the provider can't enforce is refused, with the reason. Revoking it stops new sends.
+
+TetraFi checks who holds a wallet's native owner roles. If any owner role is held by a TetraFi key, the wallet reads **Control changed** and every send from it is refused. The fix is in the provider: remove TetraFi's signing rights there.
+
+A recovery share is the one other role TetraFi will ever accept, and it is not yet available. With it, TetraFi would hold one share of a wallet key for recovery only: it never signs alone, never counts toward a quorum, and the wallet stays self-custodied. You would opt in per wallet.
+
+## What each provider supports today
+
+**Yes**: the provider enforces it. **Partial**: part of it works. **Monitored**: TetraFi checks it and refuses what breaks it, but the provider doesn't enforce it. **No**: not available today.
+
+| Capability | Turnkey | Privy | Fireblocks | BitGo |
+| --- | --- | --- | --- | --- |
+| Create the wallet from TetraFi | Yes | Yes | No | No |
+| Send and sign by API | Yes | Yes | Yes | Yes |
+| Sign typed data | Yes | Yes | Yes | Partial |
+| Owner quorum | Yes | Yes | Partial | Partial |
+| Approve inside TetraFi | Yes | Yes | No | No |
+| Per-transaction caps | Yes | Yes | Yes | Yes |
+| Rolling spend limits | Monitored | Monitored | Yes | Yes |
+| Allow-list of destinations | Yes | Yes | Yes | Yes |
+| Bounded delegate (automations, agents) | Yes | Yes | No | No |
+| Expiry on a delegation | Yes | Yes | No | No |
+| Install a policy from TetraFi | Yes | Yes | No | No |
+| Read back the enforced policy | Yes | Yes | Yes | Partial |
+| Freeze | Yes | Yes | Yes | Yes |
+| Outcome updates | Partial | Partial | Yes | Yes |
+| Recovery | Provider | Provider | Provider recovery kit | Backup key |
+
+Wallet gas sponsorship and transaction batching are not yet available for any provider. API-submitted escrow orders already land with no gas from your wallet. Safe multisigs and modular smart accounts are not yet available. Providers that are not yet available appear greyed out when you add a wallet.
+
+## The rule that holds everywhere
+
+An API key, an admin session, a provider connection or a gas sponsor never creates wallet authority. Per-chain defaults are preferences, never authority: ownership is checked again before every send. Every wallet or grant request carries a request ID you generate, so a lost response reconciles under it and nothing is created twice.
 
 Where delegated signing enters the loop is on [Orders](/trade/orders); the same wallets move funds under policy on [Treasury & Custody](/core-concepts/treasury).

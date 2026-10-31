@@ -18,7 +18,7 @@ Every quote names how it executes in `legs[].venue.integrationMode`:
 
 | Mode | Where it executes | What you do before ordering |
 | --- | --- | --- |
-| `basic` | TetraFi executes it for you, from one of your workspace's exchange or OTC venue accounts or from an organisation wallet granted to your API key. | Nothing. No preflight and no wallet signature. |
+| `basic` | TetraFi executes it for you, from one of your workspace's exchange or OTC venue accounts or from an organisation wallet granted to your API key, only inside the limited grant that wallet's owners approved. | Nothing. No preflight and no wallet signature. |
 | `advanced` | Your own wallet signs and settles on-chain, through escrow. | Preflight it, then sign or send what your wallet must, then order. |
 
 <Note>
@@ -75,9 +75,11 @@ An Advanced quote answers `"kind": "advancedTrade"` with the order. Both kinds c
 
 Each quote can be ordered once. Follow the order with [Order status](/trade/order-status).
 
+The answer comes as soon as the order is recorded, not when it completes. A Basic order on an on-chain venue answers `working` before its wallet signs. If the wallet then refuses to sign, nothing is sent and the order ends `unfilled`, with the cause in `operation.dispatch.notSentCause`, rather than as a refusal of the request. Follow every order to `terminal`, by polling `statusUrl` or with [webhooks](/trade/webhooks). A `2xx` answer only means the order exists.
+
 ## Basic orders
 
-A Basic order is executed for you, on your venue account with that account's balance, or from an organisation wallet granted to your key. You need an API key with venue trading and request signing ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)), and the account or wallet must hold what you sell. If a venue account holds less, the order is refused with `409 FUNDING_SHORTFALL` and `next.kind: "fund"`: fund the account, then get a new price.
+A Basic order is executed for you, on your venue account with that account's balance, or from an organisation wallet granted to your key, only inside the limited grant that wallet's owners approved. You need an API key with venue trading and request signing ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)), and the account or wallet must hold what you sell. If a venue account holds less, the order is refused with `409 FUNDING_SHORTFALL` and `next.kind: "fund"`: fund the account, then get a new price.
 
 Preflight does not apply: `POST /api/v1/orders/preflight` answers `409 PREFLIGHT_NOT_APPLICABLE`. A `signature` is refused with `400 SIGNATURE_NOT_ACCEPTED`.
 
@@ -86,7 +88,7 @@ Preflight does not apply: `POST /api/v1/orders/preflight` answers `409 PREFLIGHT
 Some venues execute within your limit: you name the least you accept, and the venue is asked for its price when you order. They are:
 
 - desks whose firm prices last only a few seconds, too short to confirm;
-- on-chain venues, such as bridges, that TetraFi trades for you from an organisation wallet.
+- on-chain venues, such as bridges, that TetraFi trades for you from an organisation wallet, inside the limited grant its owners approved.
 
 Their quotes are often indicative with `next.kind: "order"`. On such a venue, a quote that is not firm reads `minReceiveRequired: true` and must be ordered with `minReceive`: the order trades only if the venue delivers at least that. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED`, with `details.field` `minReceive`, and nothing is sent. Read the flag rather than working it out from `commitment`.
 

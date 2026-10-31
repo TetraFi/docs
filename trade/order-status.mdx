@@ -32,15 +32,16 @@ If you lost the order answer, [recover the order by its quote](/trade/idempotenc
 | `status` | What it means | Final |
 | --- | --- | --- |
 | `pending` | Accepted; nothing has been sent to a venue yet. | No |
-| `working` | Sent to the venue and executing. | No |
+| `working` | Sent to the venue and executing, including an on-chain trade waiting for its transaction to confirm. | No |
 | `filled` | Executed; settlement or delivery is still to complete. | No |
 | `settled` | Executed and settled, or there was nothing to settle. | Yes |
-| `unfilled` | The venue did not fill it. Nothing was traded. | Yes |
+| `unfilled` | The venue did not fill it, or it was never sent, for example because the wallet refused to sign (`operation.dispatch.notSentCause` says why). Nothing was traded. | Yes |
+| `refused` | A pre-trade check refused it before anything was sent. `operation.complianceRefusal` names why. The order is final: to trade once the cause is cleared, request a new quote and place a new order. | Yes |
 | `cancelled` | Cancelled before it was sent. | Yes |
 | `failed` | Refused or failed; nothing more will happen. | Yes |
 | `refunded` | Your funds were returned. | Yes |
-| `reviewRequired` | A person must review it before it can continue. | No |
-| `outcomeUnknown` | The venue's answer is being reconciled. The trade may have filled. | No |
+| `reviewRequired` | A person must review it before it can continue, such as a compliance hold. | No |
+| `outcomeUnknown` | TetraFi lost track of the outcome, for example a trade whose settlement was not seen in time. It is being reconciled, and the trade may have filled. | No |
 
 An order can skip statuses: act on `terminal`, not on a particular sequence. More values may be added: treat one you do not recognise as "other" and keep following `terminal`.
 

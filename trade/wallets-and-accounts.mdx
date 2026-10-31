@@ -50,7 +50,7 @@ Leave `source` out and every venue prices with your defaults. TetraFi fills each
 3. your own defaults: an API key's own defaults, or a signed-in member's;
 4. the workspace's defaults.
 
-A workspace always has a default organisation wallet: the first organisation wallet created or linked in it. Saved defaults are organisation wallets and workspace-registered addresses, never personal wallets.
+An organisation wallet is a governed wallet at organisation scope: a provider wallet whose signatures your company's own approvers authorise ([Wallets and signing](/core-concepts/wallets-and-signing) explains scope and control). A workspace always has a default organisation wallet: the first organisation wallet created or linked in it. Saved defaults are organisation-scope wallets, meaning organisation wallets and self-managed wallets registered to the company, never personal wallets.
 
 A quote's `walletSelection` says, per chain, why each wallet was chosen. Its `reason` is `accountDefault`, `preference` or `explicit`. It is a record of the choice and grants nothing.
 
@@ -113,7 +113,7 @@ The script names the wallets it read. With two chains it moves USDC between them
 
 `preferredWallets` is a softer choice. It is keyed the same way, but it is only a preference. A venue account uses that wallet only when it is one of the account's linked wallets on the venue's network; otherwise it quotes from its own default. A preference never makes a venue refuse. `source.tradingWallets` is the explicit choice and wins on its chain.
 
-An API key uses your workspace's wallets and the organisation wallets an owner has granted to that key. It cannot use or link a personal wallet: only a signed-in member can link one. In the app, a member can choose a personal wallet for a single request on the trade page while **Advanced filters** is open. Despite its name, **Advanced filters** only opens more search filters: it is not Advanced execution.
+An API key uses your company's registered wallets and the organisation wallets an owner has granted to that key. It cannot use or link a personal wallet: only a signed-in member can link one. In the app, a member can choose a personal wallet for a single request on the trade page while **Advanced filters** is open. Despite its name, **Advanced filters** only opens more search filters: it is not Advanced execution.
 
 ### When TetraFi refuses a source
 
@@ -129,7 +129,7 @@ A wallet or account you may not use at all is refused before any venue is asked,
 | --- | --- | --- |
 | `403 SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist, or you cannot use it, for example another workspace's bank account. Both cases read the same. | Choose a candidate from `sourceOptions`. A key needs an owner to grant the organisation wallet. Otherwise, ask a wallet manager to register or share it. |
 | `400 BINDING_NOT_ON_CHAIN` | The wallet is registered on another chain, so it cannot trade on the chain you keyed it under. | Choose a candidate listed for that chain. |
-| `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation or workspace wallet. |
+| `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation-scope wallet. |
 | `unavailable`, `tradingSourceNotLinked` (on the venue, not a refusal) | The trading wallet you named is not linked to that venue's account. The other venues still quote. | Name a wallet that venue's account has linked, or link it on the venue account. |
 | `403 ACCOUNT_NOT_AVAILABLE` | The venue account is not one this quote can trade on. | Leave `venueAccountId` out, or name a candidate from the `venueAccount` option. |
 | `409 REQUOTE_NEEDS_WALLET` | The venue quotes only once a wallet is chosen. `details.reason` names the family. | Requote with `source.tradingWallets` naming a wallet of that family. |

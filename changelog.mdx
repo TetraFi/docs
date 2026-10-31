@@ -5,6 +5,20 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-10-31" description="The last pay and receive words become sell and buy">
+  What to change:
+  - Match the source reason `buyAmountUnsupported` where you matched `receiveExactUnsupported`, on quote sources, quote cards, price rows and `netReceived`.
+  - Match `sellChainInvalid` and `buyChainInvalid` where you matched `payChainInvalid` and `receiveChainInvalid`.
+  - Read `sizeLimits.fixedAmount` (`sellAmount` or `buyAmount`, the request field the limits bound) where you read `sizeLimits.amountSide` (`payExact` or `receiveExact`).
+</Update>
+
+<Update label="2026-10-31" description="Refused orders, and on-chain orders that answer before signing">
+  What to change:
+  - Handle the order `status` `refused`, which is final (`terminal: true`). A pre-trade check refused the order before anything was sent, and `operation.complianceRefusal` names why. Such an order used to read `pending`. It cannot be confirmed, continued or cancelled: once the cause is cleared, request a new quote and place a new order. `GET /api/v1/orders/by-quote/{quoteId}` still answers `ordered` for its quote.
+  - A Basic order on an on-chain venue now answers `working` as soon as it is recorded, before its wallet signs. A wallet that then refuses to sign ends the order `unfilled`, with `operation.dispatch.notSentCause`, instead of answering `409`. Follow the order or its webhook to `terminal`.
+  - Read `outcomeUnknown` only as a lost outcome. An on-chain trade waiting for its transaction to confirm reads `working`, not `outcomeUnknown`.
+</Update>
+
 <Update label="2026-10-31" description="Advanced order detail in sell and buy">
   An Advanced order's detail, the `order` of a `kind` `advancedTrade` answer, states its amounts as sell and buy, in decimals.
 
