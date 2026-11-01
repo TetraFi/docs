@@ -32,6 +32,15 @@ Exits go through a withdrawal delay - the same window that caps how long any obl
 
 Each product brings its own drawers to the same capital: market makers and solvers filling [redemptions](/collateral/instant-redemption), desks and issuers being fronted a [deferred leg](/collateral/instant-settlement), PSPs executing across [venues](/collateral/venue-prefunding), solvers funding [cross-chain fills](/collateral/solver-credit). Drawers instruct draws; the vault performs every movement itself, so a drawer never custodies vault capital.
 
+## Bring Your Own Vault
+
+Many allocators are mandated to keep capital inside a specific vault framework. They don't have to move it to join the network. A vault on another framework commits a line instead: its curator sets how much the network may draw, a cap and a minimum yield for each use case, and keeps back whatever its own depositors may need. The money stays where it is, earning that vault's own yield, and is pulled only at the moment a verified draw needs it - then returned to the same vault when it repays.
+
+* **No custody handover** - capital leaves the host vault only for a live, verified draw, inside the caps its curator set
+* **Losses stay with the source** - each draw records which vault funded it, so exposure never pools across mandates
+* **One network across frameworks** - every use case can draw from every committed vault, our own included, so idle capital in each still backs all of them
+* **Your exits, your rules** - depositors in the host vault keep exiting through that vault's own withdrawal process
+
 ## Who Gates Whom
 
 Every role passes compliance checks appropriate to it - KYB, sanctions, jurisdiction - against the vault's own policy, and draws re-check standing at execution time. Compliance is configuration, per vault: the same primitive can run a tightly-scoped regulated vault and a broader one side by side. Every vault names its own regulated operator facing depositors and drawers - TetraFi stays infrastructure.
