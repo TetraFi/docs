@@ -29,7 +29,7 @@ The lifecycle has four calls:
 | Order | `POST /api/v1/orders` with `{"quoteId": "<quote id>"}` | Places the order on the held terms. You send the quote id, never a copy of the quote, so the terms cannot change in transit. |
 | Status | `GET` the order the response names | Follow the order until it ends. |
 
-Each quote also says what you do next in its `next` field: `order` (order it now), `preflight` (check it first), `sign`, `transact`, `fund` or `requote`.
+Each quote also says what you do next in its `next` field: `order` (order it now), `fund` (the paying account is short) or `requote` (ask the venue again). `preflight`, `sign` and `transact` appear only on Advanced quotes.
 
 ## Basic and Advanced execution
 
@@ -40,7 +40,7 @@ Every venue offers one or both ways to execute. A quote tells you which in `legs
     TetraFi executes the trade for you, from one of your workspace's exchange or OTC venue accounts or from an organisation wallet granted to your API key, and only inside the limited grant that wallet's owners approved. You place the order with the key and TetraFi does the rest. The order answers `"kind": "basicTrade"`.
   </Card>
   <Card title="Advanced" icon="file-signature">
-    Your own wallet signs and settles on-chain through TetraFi's settlement contracts. Preflight returns the exact signature or transaction your wallet must provide, and you send it with the order. The order answers `"kind": "advancedTrade"`.
+    Your own wallet signs and settles on-chain through TetraFi's settlement contracts. Not open yet: it will be documented here when it opens.
   </Card>
 </CardGroup>
 

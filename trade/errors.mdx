@@ -59,9 +59,7 @@ A refusal that you can recover from in a known way carries `next`. Its `kind` is
 | --- | --- |
 | `requote` | Send `POST /api/v1/quotes` with `{"requote": "<quote id>"}`. `next.needs` lists what the new quote needs from you, such as a trading wallet to name; an empty list means requote as it is. See [Requotes and expiry](/trade/requotes-and-expiry). |
 | `fund` | The paying account holds too little. Fund it, then get a new price. |
-| `preflight` | Preflight the quote before ordering. See [Orders](/trade/orders#advanced-orders). |
-| `sign` | Your wallet must sign the quote's EIP-712 document first. |
-| `transact` | Your wallet must send a transaction first. |
+| `preflight`, `sign`, `transact` | Your own wallet would act on-chain (Advanced), which is not open yet. Order a Basic quote instead. |
 | `order` | The quote can be ordered as it is. |
 
 More kinds can be added. Treat a `kind` you do not recognise as a step you cannot take automatically: show `message` and stop.
@@ -241,24 +239,21 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | 503 `QUOTE_STORE_UNAVAILABLE` | Held quotes cannot be read just now. | Try again shortly. |
 | 504 `REQUOTE_TIMED_OUT` | The venue did not answer in time. | Try again, or order the original while it holds. |
 
-### Preflight and order
+### Orders
 
-`POST /api/v1/orders/preflight`, `POST /api/v1/orders` and the order reads. [Orders](/trade/orders) covers the request.
+`POST /api/v1/orders` and the order reads. [Orders](/trade/orders) covers the request.
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
 | 400 `INVALID_CURSOR` | The order list's `cursor` is not one this key got for these filters. | Start again without `cursor`, or send the `nextCursor` you were given. |
 | 409 `ORDER_NOT_CANCELLABLE` | The order was already sent, its funding or delivery moved, or it ended. `details.status` is its status. | Read the order; it can no longer be cancelled. |
-| 400 `INVALID_REQUEST` | A field is unknown or malformed, `priceProtectionBps` is outside 1 to 1000, or a field only an Advanced order reads was sent on a Basic quote. `message` names it. | Fix that field. |
-| 400 `WALLET_SIGNATURE_REQUIRED` | The quote needs your wallet's signature. | Sign `next.typedData` and send `signature`. |
+| 400 `INVALID_REQUEST` | A field is unknown or malformed, or `priceProtectionBps` was sent on a Basic quote. `message` names it. | Fix that field. |
 | 400 `SIGNATURE_NOT_ACCEPTED` | A signature was sent on a quote that takes none. | Leave out `signature`. |
 | 400 `MIN_RECEIVE_REQUIRED` | This venue executes within your limit and the quote is not firm. | Send `minReceive` ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). |
 | 400 `MIN_RECEIVE_INVALID` | `minReceive` is not a positive amount. | Send it as a positive decimal string. |
-| 400 `MIN_RECEIVE_NOT_ACCEPTED` | The quote is Advanced: its price protection bounds delivery, so it takes no minimum receive. | Leave out `minReceive`. |
 | 403 `ADVANCED_MODE_DISABLED` | The quote executes on-chain from your own wallet (Advanced), which is not open yet. | Order a Basic quote instead. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. | Check the id. |
 | 404 `ORDER_NOT_FOUND` | No order with this id is readable by you. | Check the id, or [read it by its quote](/trade/idempotency#recover-an-order-by-its-quote). |
-| 409 `PREFLIGHT_NOT_APPLICABLE` | Preflight on a Basic quote. | Place the order directly. |
 | 409 `QUOTE_NOT_EXECUTABLE` | The quote is a price for comparison, not executable. `next` is `requote`. | Requote it to get an executable price. |
 | 409 `QUOTE_NOT_HELD` | The quote is no longer held. `next` is `requote`. | Search again. |
 | 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. | Lower `minReceive` or get a new price. |

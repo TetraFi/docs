@@ -29,7 +29,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 | `source` | No | A different trading wallet per chain (`source.tradingWallets`), venue account (`source.venueAccountId`) or funding account (`source.fundingAccountId`), each by the `financialAccountId` the answer's `sourceOptions` gave. Leave it out to keep the original's. |
 | `deliverTo` | No | Where the output goes, for example `{"kind": "financialAccount", "financialAccountId": "..."}`. With an API key, a venue account's output stays on the account. |
 | `corridor` | No | `{"from": "<chain>", "to": "<chain>"}`: another corridor the original quote listed in `corridors`. |
-| `priceProtectionBps` | No | 0 to 1000. The price protection for the new quote's `minOut`, on a Basic or Advanced quote that is not firm. Leave it out to keep the original's. When you order, `priceProtectionBps` only applies to Advanced quotes and is 1 to 1000 ([Orders](/trade/orders#price-protection-and-minimum-receive)). |
+| `priceProtectionBps` | No | 0 to 1000. The price protection for the new quote's `minOut`, on a quote that is not firm. Leave it out to keep the original's. |
 
 These four fields are the whole body. The pair, the amount, the side and the filters come from the original quote and cannot change: sending any of them with `requote` is refused with `400 REQUOTE_FIELDS_CONFLICT`. For a different pair or amount, search again.
 
@@ -87,7 +87,7 @@ You can requote a quote until 10 minutes after it expired (its `expiresAt`, or `
 | `executable`, `firm: false` | May move, but never below `minOut`. | set |
 | `indicative` | Not a commitment. | `null` |
 
-`next` says what you do with the quote: `order`, `preflight`, `sign`, `transact`, `fund`, or `requote`. When it is `requote`, `next.needs` lists what the new quote needs from you, such as a trading wallet to name. Some desks' indicative quotes read `next.kind: "order"`: you order them with a minimum receive instead, as [Orders](/trade/orders#venue-quotes-that-execute-within-your-limit) explains.
+`next` says what you do with the quote: `order`, `fund`, or `requote` (`preflight`, `sign` and `transact` appear only on Advanced quotes, which are not open yet). When it is `requote`, `next.needs` lists what the new quote needs from you, such as a trading wallet to name. Some desks' indicative quotes read `next.kind: "order"`: you order them with a minimum receive instead, as [Orders](/trade/orders#venue-quotes-that-execute-within-your-limit) explains.
 
 ## Refresh an expired quote
 
