@@ -11,6 +11,8 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Turning signing off on a key that can trade venues answers `409 VENUE_TRADE_KEY_SIGNING_REQUIRED`; the key is unchanged.
   - A service account's organisation-wallet trades stop with `409 SERVICE_ACCOUNT_SPONSOR_NOT_CURRENT` when its sponsor is no longer a current member ([Its sponsor](/service-accounts#its-sponsor)).
   - Every answer to a key with a per-minute limit carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`, refusals included. A deprecated operation's answers will carry `Deprecation`, `Sunset` and `Link`; none is deprecated ([Conventions](/reference/conventions#versioning)).
+  - Reading a quote set with `GET /api/v1/quotes/requests/{quoteRequestId}` moments after it was returned answers `503 QUOTE_REQUEST_NOT_READY` instead of `404`: read it again after about a second.
+  - A venue-trading key that is revoked, expired or no longer current for its workspace is refused with `VENUE_TRADE_KEY_NOT_CURRENT`, and nothing is placed ([Error codes](/reference/error-codes#VENUE_TRADE_KEY_NOT_CURRENT)).
 </Update>
 
 <Update label="2026-10-31" description="A key reads its own organisation wallets; fuller filtered order pages">
