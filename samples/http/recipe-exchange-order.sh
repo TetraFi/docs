@@ -164,7 +164,7 @@ for _ in $(seq 1 30); do
 done
 # The venue's own detail is under operation. Amounts can be null when the venue has not reported
 # them. Bounds are limits, not a fill.
-jq -c '.operation | {executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
+jq -c '.operation | {executionStatus, settlementStatus, bounds: (.bounds | {sell, buy}),
   dispatch: (.dispatch | if . == null then null else {inputSpent, outputReceived, venueOrderId} end)}' <<<"$trade" >&2
 # endregion
 

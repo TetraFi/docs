@@ -162,7 +162,7 @@ done
 # A missing amount is unknown, never zero. Confirm arrival in the destination wallet's app balance.
 # A move TetraFi executes for you keeps its detail under operation.
 if [[ $(jq -r '.kind' <<<"$state") == basicTrade ]]; then
-  jq -c '.operation | {executionStatus, settlementStatus, bounds: (.bounds | {debitAsset, receiptAsset, maximumDebit, minimumReceipt}),
+  jq -c '.operation | {executionStatus, settlementStatus, bounds: (.bounds | {sell, buy}),
     dispatch: (.dispatch | if . == null then null else {inputSpent, outputReceived, venueOrderId} end)}' <<<"$state" >&2
 fi
 # endregion
