@@ -44,8 +44,9 @@ jq -c '{token_type, expires_in, scope}' <<<"$token_body" >&2
 # endregion
 
 # region oauth-me
-# Send the token as a bearer. GET /api/v1/me names the service account (userId) and the one
-# workspace the token works in; the token's scope, above, is what it may do there.
+# Send the token as a bearer. GET /api/v1/me answers for the key the token was exchanged from:
+# its id, its workspace, the scopes the token may use now and, under organisationWallets,
+# blockedBy: the code an organisation-wallet order would be refused with right now.
 me=$(curl -sS "$TETRAFI_BASE_URL/api/v1/me" \
   -H "Authorization: Bearer $access_token" \
   -H "Accept: application/json" \
@@ -56,7 +57,7 @@ if [[ $me_status != 200 ]]; then
   printf '%s\n' "$me" >&2
   exit 1
 fi
-jq -c '{authKind, userId, workspaceIds}' <<<"$me" >&2
+jq -c '{auth, keyId, workspaceId, scopes, blockedBy: .organisationWallets.blockedBy}' <<<"$me" >&2
 # endregion
 
 # region oauth-call
@@ -92,4 +93,4 @@ fi
 # endregion
 
 jq -cn --argjson token "$token_body" --argjson me "$me" --arg signed "$signed" '{tokenType: $token.token_type,
-  expiresIn: $token.expires_in, workspaces: ($me.workspaceIds | length), signedKey: $signed}'
+  expiresIn: $token.expires_in, auth: $me.auth, scopes: ($me.scopes | length), signedKey: $signed}'

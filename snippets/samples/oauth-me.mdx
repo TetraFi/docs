@@ -3,8 +3,9 @@
 <CodeGroup>
 
 ```bash cURL
-# Send the token as a bearer. GET /api/v1/me names the service account (userId) and the one
-# workspace the token works in; the token's scope, above, is what it may do there.
+# Send the token as a bearer. GET /api/v1/me answers for the key the token was exchanged from:
+# its id, its workspace, the scopes the token may use now and, under organisationWallets,
+# blockedBy: the code an organisation-wallet order would be refused with right now.
 me=$(curl -sS "$TETRAFI_BASE_URL/api/v1/me" \
   -H "Authorization: Bearer $access_token" \
   -H "Accept: application/json" \
@@ -15,7 +16,7 @@ if [[ $me_status != 200 ]]; then
   printf '%s\n' "$me" >&2
   exit 1
 fi
-jq -c '{authKind, userId, workspaceIds}' <<<"$me" >&2
+jq -c '{auth, keyId, workspaceId, scopes, blockedBy: .organisationWallets.blockedBy}' <<<"$me" >&2
 ```
 
 </CodeGroup>
