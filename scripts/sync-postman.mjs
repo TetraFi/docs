@@ -115,14 +115,30 @@ export function collectionFromSpec(spec) {
           }) } : {}),
         },
       };
+      // An empty requirement is the spec's "no credential" (the OAuth token exchange
+      // carries its key in the form), so the request must not inherit X-API-Key.
+      if (operation.security?.length && operation.security.every((entry) => !Object.keys(entry).length)) {
+        request.auth = { type: 'noauth' };
+      }
       if (operation.requestBody) {
         const body = resolve(spec, operation.requestBody);
         const media = body.content?.['application/json'];
-        if (!media) throw new Error(`POSTMAN_BODY_UNSUPPORTED ${method.toUpperCase()} ${route}`);
-        const firstExample = Object.values(media.examples ?? {})[0];
-        const value = media.example ?? (firstExample ? resolve(spec, firstExample).value : undefined) ?? example(spec, media.schema);
-        request.header.push({ key: 'Content-Type', value: 'application/json' });
-        request.body = { mode: 'raw', raw: JSON.stringify(value, null, 2), options: { raw: { language: 'json' } } };
+        const form = body.content?.['application/x-www-form-urlencoded'];
+        if (media) {
+          const firstExample = Object.values(media.examples ?? {})[0];
+          const value = media.example ?? (firstExample ? resolve(spec, firstExample).value : undefined) ?? example(spec, media.schema);
+          request.header.push({ key: 'Content-Type', value: 'application/json' });
+          request.body = { mode: 'raw', raw: JSON.stringify(value, null, 2), options: { raw: { language: 'json' } } };
+        } else if (form) {
+          // Raw, not Postman's urlencoded mode: the signing script hashes raw bytes only.
+          // A form is flat, so every field is shown, not just the required ones.
+          const schema = resolve(spec, form.schema);
+          const fields = Object.entries(schema.properties ?? {}).map(([key, property]) => `${key}=${example(spec, property, key)}`);
+          request.header.push({ key: 'Content-Type', value: 'application/x-www-form-urlencoded' });
+          request.body = { mode: 'raw', raw: fields.join('&') };
+        } else {
+          throw new Error(`POSTMAN_BODY_UNSUPPORTED ${method.toUpperCase()} ${route}`);
+        }
       }
       items.push({ name: `${method.toUpperCase()} ${route}`, request, response: [] });
     }

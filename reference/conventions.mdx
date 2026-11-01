@@ -73,7 +73,15 @@ You may send one live quote request every 3 seconds per API key; a requote count
 
 A request over a limit answers `429` with a `Retry-After` header in whole seconds and the same wait in `details.retryAfter`, for example `PT2S`. Wait that long, then send it once more. [Errors and refusals](/trade/errors#the-quote-rate-limit) shows a retry.
 
-When your key has a per-minute limit, quote answers also carry `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`. Without one, as in the output above, those headers are empty or absent.
+When your key has a per-minute limit, every answer to it, successes and refusals alike, carries three headers:
+
+| Header | Meaning |
+| --- | --- |
+| `X-RateLimit-Limit` | Requests per minute this key may send. |
+| `X-RateLimit-Remaining` | Requests it may still send now. |
+| `X-RateLimit-Reset` | Seconds until its full allowance is back. |
+
+Without a per-key limit, as in the output above, the headers are absent; `X-RateLimit-Remaining` alone can still appear when a limit on your address counted the request. Treat an absent header as "no count", never as zero.
 
 ## Idempotency
 
@@ -81,6 +89,14 @@ Send an `Idempotency-Key` with every `POST /api/v1/orders`. A retry with the sam
 
 ## Versioning
 
-The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes. A removal is announced in the changelog at least 6 months ahead. Until then, the affected responses carry `Deprecation` and `Sunset` headers. Before launch, a change can still remove or rename something.
+The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes. A removal is announced in the changelog at least 6 months ahead. Until it happens, every answer of the affected operation, successes and refusals alike, carries three headers:
+
+| Header | Meaning |
+| --- | --- |
+| `Deprecation` | When the operation was deprecated: `@` and Unix seconds, such as `@1735689600` ([RFC 9745](https://www.rfc-editor.org/rfc/rfc9745)). |
+| `Sunset` | When it stops working, as an HTTP date such as `Tue, 01 Jul 2025 00:00:00 GMT` ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)). |
+| `Link` | The notice that says what to move to, marked `rel="deprecation"`. |
+
+No operation is deprecated today, so no answer carries them yet. Log any answer that does. Before launch, a change can still remove or rename something.
 
 [Compatibility](/compatibility) is the full policy. The [Changelog](/changelog) lists every change a client can see, with what to do about it.

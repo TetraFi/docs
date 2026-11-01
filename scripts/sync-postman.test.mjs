@@ -88,6 +88,17 @@ test('default source reads committed HEAD and ignores uncommitted source edits',
 test('unresolved references and unsupported request bodies fail closed', () => {
   assert.throws(() => collectionFromSpec({ ...spec, paths: { '/x': { $ref: '#/missing' } } }), /POSTMAN_REFERENCE_MISSING/);
   assert.throws(() => collectionFromSpec({ ...spec, paths: { '/x': { post: { requestBody: { content: {} } } } } }), /POSTMAN_BODY_UNSUPPORTED/);
+  assert.throws(() => collectionFromSpec({ ...spec, paths: { '/x': { post: { requestBody: { content: { 'multipart/form-data': { schema: { type: 'object' } } } } } } } }), /POSTMAN_BODY_UNSUPPORTED/);
+});
+
+test('a form-encoded anonymous operation sends a raw form of every field without the API key', () => {
+  const form = { ...spec, paths: { '/api/v1/oauth/token': { post: { security: [{}], requestBody: { content: {
+    'application/x-www-form-urlencoded': { schema: { type: 'object', properties: {
+      client_id: { type: ['string', 'null'] }, grant_type: { type: 'string', example: 'client_credentials' } } } } } } } } } };
+  const [item] = collectionFromSpec(form).item;
+  assert.deepEqual(item.request.auth, { type: 'noauth' });
+  assert.deepEqual(item.request.body, { mode: 'raw', raw: 'client_id=<client_id>&grant_type=client_credentials' });
+  assert.ok(item.request.header.some(({ key, value }) => key === 'Content-Type' && value === 'application/x-www-form-urlencoded'));
 });
 
 function sign({ secret = 'ab'.repeat(32), method = 'post', url = 'https://api.example.test/api/v1/orders?limit=2&cursor=a%2Fb', body = '{\n  "quoteId": "{{quoteId}}", "note": "café"\n}', mode = 'raw', disabled = false } = {}) {

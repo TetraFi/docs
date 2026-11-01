@@ -128,6 +128,68 @@
       "response": []
     },
     {
+      "name": "GET /api/v1/me",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Report the identity and current capability envelope for the presented\ncredential. Unrestricted keys return the complete scope list, narrowed by\ncurrent workspace IAM and qualifying native resource-read envelopes. A read\nenvelope does not grant visibility into unrelated Treasury resources.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/oauth/token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "description": "RFC 6749 client-credentials grant for active service accounts. Supply grant_type=client_credentials, client_id=<service-account UUID>, and client_secret=<full tfk_live_... or tfk_test_... service-account API key>. Client credentials may instead be sent with HTTP Basic authentication. Tokens use the configured auth.jwtExpirySeconds capped at 900 seconds and carry the service account's current workspace role, effective permissions, and effective API scopes.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/oauth/token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "oauth",
+            "token"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "client_id=<client_id>&client_secret=<client_secret>&grant_type=<grant_type>"
+        }
+      },
+      "response": []
+    },
+    {
       "name": "GET /api/v1/orders",
       "request": {
         "method": "GET",
@@ -320,142 +382,6 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders/{id}/continuation",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`GET /api/v1/orders/{id}/continuation?funder=0x…` — read an already prepared FX continuation.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:id/continuation",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            ":id",
-            "continuation"
-          ],
-          "query": [
-            {
-              "key": "funder",
-              "value": "<funder>",
-              "disabled": false,
-              "description": "Funder EOA (the user's Arc wallet)"
-            }
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Route order ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/orders/{id}/continuation",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "description": "Explicitly prepare or renew the continuation trade. For a DIRECT firm-RFQ order this\nre-firms the order in place once its current witness is dead on-chain (409\n`RFQ_REFIRM_NOT_YET` before that, `RFQ_REFIRM_CAP_EXCEEDED` past the venue budget).",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:id/continuation",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            ":id",
-            "continuation"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Route order ID"
-            }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"funder\": \"<funder>\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/orders/{id}/continue",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "description": "`POST /api/v1/orders/{id}/continue` — submit the user's funder signature.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:id/continue",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            ":id",
-            "continue"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Route order ID"
-            }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "response": []
-    },
-    {
       "name": "GET /api/v1/orders/{id}/funding",
       "request": {
         "method": "GET",
@@ -519,45 +445,6 @@
               "description": ""
             }
           ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/orders/preflight",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "description": "Order readiness and source-bound signing preparation.\n\nFor a protocol (Advanced) quote you hold, check that it can be ordered now and return the wallet actions it needs (approvals, a signature or a source transaction, each with the signed minimum it protects) before POST /orders. Nothing is sent and the quote is not claimed. A venue (Basic) quote needs no preflight and answers 409 PREFLIGHT_NOT_APPLICABLE.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/preflight",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            "preflight"
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"quoteId\": \"<quoteId>\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
         }
       },
       "response": []

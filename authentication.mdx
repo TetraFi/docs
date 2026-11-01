@@ -5,7 +5,7 @@ description: "Create an API key, choose its permissions, send it with every requ
 
 import MeOrganisationWallets from '/snippets/samples/me-organisation-wallets.mdx';
 
-Your backend authenticates with an API key. A key belongs to you and to one workspace, and it can never do more than you can do in that workspace.
+Your backend authenticates with an API key. A key belongs to you and to one workspace, and it can never do more than you can do in that workspace. For software that should not depend on one person's account, use a [service account](/service-accounts): its keys work the same way, and can also be exchanged for short-lived bearer tokens.
 
 <Note>
 The API may change until launch. Every change is listed in the [Changelog](/changelog).
@@ -16,7 +16,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 1. In the app, open **Settings**.
 2. Under **Your account**, find **Personal API keys** and select **Open API keys**.
 3. Select **Create key**.
-4. In **Create API key**, give the key a **Name**. **Description**, **Expiration** and **IP allowlist** are optional, unless your workspace requires keys to expire.
+4. In **Create API key**, give the key a **Name**. **Description**, **Expiration** and **IP allowlist** are optional, unless your workspace requires keys to expire. A key created without an **Expiration** has none: it works until you revoke it.
 5. Under **Permissions**, tick what the key may do (see below). For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read orders**.
 6. To trade through your venue accounts, switch **Venue trading** on, then select **Create key**. You must be a workspace owner or admin with permission to manage credentials, signed in with a second factor.
 7. Copy **API Key** and, if you switched venue trading on, **Request-signing secret**. Store them in your secret manager, keeping the signing secret separate from the key. Tick **I have saved both credentials securely** (or **I have saved this key securely** for a key without venue trading), then select **Done**.
@@ -30,7 +30,7 @@ You choose permissions when you create the key. A key can only receive permissio
 | Permission in the app | What the key can do |
 | --- | --- |
 | **Read quotes** | List the assets your workspace can trade and read prices. Together with **Submit orders**, request quotes. |
-| **Submit orders** | Preflight and place orders. Needed, with **Read quotes**, to request quotes. |
+| **Submit orders** | Place and cancel orders. Needed, with **Read quotes**, to request quotes. |
 | **Read orders** | Read an order's status. |
 | **Read trades** | Read your workspace's trade history. |
 
@@ -41,7 +41,7 @@ For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read 
 Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC venue accounts or from an organisation wallet (only inside the limited grant that wallet's owners approved), need more than the permissions above. A key without the setup below gets those venues in the quote response as `restricted` with the reason `venueTradeScopeRequired`. A key that trades Basic quotes needs:
 
 - **The venue trading scope.** It can only be given when the key is created, together with **Read quotes** and **Submit orders**, by the key's owner signed in with a second factor. It cannot be added to an existing key.
-- **Request signing.** A key created with venue trading always signs its requests. Its signing secret, in hexadecimal, is shown once when the key is created. Every request with the key must then be signed (see below).
+- **Request signing.** A key created with venue trading always signs its requests. Its signing secret, in hexadecimal, is shown once when the key is created. Every request with the key must then be signed (see below). Signing cannot be turned off on a key that can trade venues: that answers `409 VENUE_TRADE_KEY_SIGNING_REQUIRED`, and the key and its secret stay unchanged. For unsigned requests, use a key without venue trading.
 - **Venue trading switched on for the key.** A workspace owner or admin with permission to manage credentials switches **Venue trading** on while signed in with a second factor. Switching it on in **Create API key** creates the key with venue trading and request signing enabled.
 - **Organisation wallets, to trade from them.** The key may use only the organisation wallets granted to it ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). Trades on exchange and OTC venue accounts do not need this.
 

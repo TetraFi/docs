@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Quickstart: list assets, request quotes, preflight the best quote, place an order and read its status.
+# Quickstart: list assets, request quotes, place an order on the best quote and read its status.
 #
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
@@ -76,8 +76,8 @@ request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   } + (if $venues == "" then {} else {filters: {venues: {include: ($venues | split(","))}}} end)')
 quotes=$(tetrafi POST /api/v1/quotes "$request")
 
-# Quotes arrive best first (most received, net of fees). Take the best one you can act on now.
-quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order" or .next.kind == "preflight")) // empty' <<<"$quotes")
+# Quotes arrive best first (most received, net of fees). Take the best one you can order now.
+quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
 if [[ -z $quote ]]; then
   # Every venue asked is listed in sources with its outcome, so an empty result says why.
   jq -c '{error: "NO_ACTIONABLE_QUOTE", sources: [.sources[] | {venue: .venue.id, status, reason}]}' <<<"$quotes" >&2
@@ -88,27 +88,9 @@ jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integration
   sell: .sell.amount, buy: .buy.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2
 # endregion
 
-# region quickstart-preflight
-# Preflight checks an on-chain (Advanced) quote and lists what must happen before ordering.
-# A venue (Basic) quote needs no preflight: it answers 409 PREFLIGHT_NOT_APPLICABLE.
-needs_wallet=false
-if preflight=$(tetrafi POST /api/v1/orders/preflight "{\"quoteId\":\"$quote_id\"}" 2>/dev/null); then
-  jq -c '{canSubmit, nextActions: [.nextActions[]? | {type, purpose, actor}]}' <<<"$preflight" >&2
-  if jq -e 'any(.nextActions[]?; .actor == "userWallet") or (.canSubmit != true)' <<<"$preflight" >/dev/null; then
-    needs_wallet=true
-  fi
-elif [[ $(jq -r '.error // empty' <<<"$preflight" 2>/dev/null) == PREFLIGHT_NOT_APPLICABLE ]]; then
-  echo "preflight: not applicable, this is a venue quote" >&2
-else
-  printf '%s\n' "$preflight" >&2
-  exit 1
-fi
-# endregion
-
-if [[ $needs_wallet == true || ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
-  # Stop before ordering: your wallet must act first, or you did not ask to place the order.
-  jq -c -n --arg q "$quote_id" --argjson w "$needs_wallet" \
-    '{quoteId: $q, ordered: false, walletActionRequired: $w}'
+if [[ ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
+  # Stop before ordering: you did not ask to place the order.
+  jq -c -n --arg q "$quote_id" '{quoteId: $q, ordered: false}'
   exit 0
 fi
 
