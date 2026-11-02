@@ -69,6 +69,28 @@ if [[ -n $cursor ]]; then
 fi
 # endregion
 
+# region trade-detail
+# GET …/trades/{tradeId} reads one trade through the same view. An order's settlement says how it
+# ended: status pending, settled, failed, refunded or unknown, and failureReason, a sentence
+# saying why, when it failed or was refunded.
+failed=$(tetrafi GET "/api/v1/workspaces/$workspace/trades?kind=order&status=failed&limit=1")
+trade_id=$(jq -r '.items[0].tradeId // empty' <<<"$failed")
+if [[ -z $trade_id ]]; then
+  trade_id=$(tetrafi GET "/api/v1/workspaces/$workspace/trades?kind=order&limit=1" | jq -r '.items[0].tradeId // empty')
+fi
+if [[ -n $trade_id ]]; then
+  trade=$(tetrafi GET "/api/v1/workspaces/$workspace/trades/$trade_id")
+  jq -c '{tradeId, kind, settlement: (.settlement | if . == null then null else {status, failureReason} end)}' <<<"$trade" >&2
+fi
+# endregion
+
 jq -e '(.items | all(has("tradeId") and has("kind") and has("projection")))' <<<"$page" >/dev/null \
   || fail TRADE_ROW_MISSING_IDENTITY
+if [[ -n ${trade:-} ]]; then
+  jq -e 'has("tradeId") and has("kind")' <<<"$trade" >/dev/null || fail TRADE_DETAIL_MISSING_IDENTITY
+  jq -e '(.settlement == null) or (.settlement | has("status"))' <<<"$trade" >/dev/null || fail SETTLEMENT_STATUS_MISSING
+  # Fields an API key never reads on a trade.
+  jq -e '[paths | .[-1] | select(. == "compliance" or . == "snapshotCompliance" or . == "complianceProofs"
+    or . == "travelRuleTransmission" or . == "intent")] | length == 0' <<<"$trade" >/dev/null || fail TRADE_DETAIL_WITHHELD_FIELD
+fi
 jq -c '{total, rows: (.items | length), kinds: ([.items[].kind] | unique), more: (.nextCursor != null), partial: ((.coverage // []) | length > 0)}' <<<"$page"

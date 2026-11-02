@@ -137,7 +137,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Report the identity and current capabilities of the presented credential.\n\nUnrestricted keys return the complete scope list, narrowed by\ncurrent workspace IAM and qualifying native resource-read envelopes. A read\nenvelope does not grant visibility into unrelated Treasury resources.",
+        "description": "GET /api/v1/me",
         "url": {
           "raw": "{{baseUrl}}/api/v1/me",
           "host": [
@@ -147,6 +147,14 @@
             "api",
             "v1",
             "me"
+          ],
+          "query": [
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "Comma-separated: profile, permissions, verification. An interactive session only, except permissions, which an API key's answer always carries"
+            }
           ]
         }
       },
@@ -668,7 +676,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `sell` or `requote` is 400 INVALID_REQUEST naming `sell`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / BINDING_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 REQUOTE_WINDOW_CLOSED (10 minutes after its expiry, past retainUntil; next search: request quotes again), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (commitment.kind indicative) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
+        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `sell` or `requote` is 400 INVALID_REQUEST naming `sell`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / BINDING_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 REQUOTE_WINDOW_CLOSED (10 minutes after its expiry, past retainUntil; next search: request quotes again), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (firm false, expiresAt null) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes",
           "host": [
@@ -788,6 +796,108 @@
               "key": "id",
               "value": "<id>",
               "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/balances",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/balances",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":id",
+            "venue-accounts",
+            ":venueAccountId",
+            "balances"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/deposit-history",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/deposit-history",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":id",
+            "venue-accounts",
+            ":venueAccountId",
+            "deposit-history"
+          ],
+          "query": [
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": false,
+              "description": ""
+            },
+            {
+              "key": "chainRef",
+              "value": "<chainRef>",
+              "disabled": false,
+              "description": ""
+            },
+            {
+              "key": "lookbackDays",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
             }
           ]
         }
@@ -1281,6 +1391,270 @@
               "key": "webhookId",
               "value": "<webhookId>",
               "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/trades",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/workspaces/{workspaceId}/trades\n\nThe one trade history. Projections: scope=workspace (default) reads the workspace's taker orders and venue trades; a member without view_compliance reads only their own, whatever the scope. scope=mine reads the caller's own (a member session only). scope=umbrella reads a broker's clients' orders with each client category's field visibility (view_umbrella_compliance). perspective=maker reads an LP workspace's fills with pseudonymised counterparties (view_settlements); with settlementStage or minAgeSeconds, its unsettled orders by stage (view_bilateral_documents). The default perspective is taker in every workspace. Every row carries tradeId, kind (order or venueTrade) and projection. Page with limit and cursor; format=csv returns the same filtered rows. Accepts a member session or an API key with trades_read; CSV is a member session only.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "trades"
+          ],
+          "query": [
+            {
+              "key": "scope",
+              "value": "mine",
+              "disabled": true,
+              "description": "mine, workspace or umbrella. Default: workspace. umbrella needs a broker\nworkspace and view_umbrella_compliance; mine needs a member session."
+            },
+            {
+              "key": "perspective",
+              "value": "taker",
+              "disabled": true,
+              "description": "taker (default, in every workspace) or maker. maker needs an LP workspace and\nview_settlements."
+            },
+            {
+              "key": "kind",
+              "value": "all",
+              "disabled": true,
+              "description": "all, order or venueTrade. Default: all for taker and umbrella; for maker the\nfills default (on-chain orders); umbrella has orders only."
+            },
+            {
+              "key": "status",
+              "value": "<status>",
+              "disabled": true,
+              "description": "Settlement status filter, as the projection names it."
+            },
+            {
+              "key": "lp",
+              "value": "<lp>",
+              "disabled": true,
+              "description": "Liquidity provider name (taker only)."
+            },
+            {
+              "key": "counterpartyId",
+              "value": "<counterpartyId>",
+              "disabled": true,
+              "description": "Counterparty: the client workspace (umbrella) or the taker (maker)."
+            },
+            {
+              "key": "client",
+              "value": "<client>",
+              "disabled": true,
+              "description": "The member or client who placed the order: member (taker), user id (umbrella),\nentity (maker)."
+            },
+            {
+              "key": "settlementStage",
+              "value": "<settlementStage>",
+              "disabled": true,
+              "description": "Settlement stage of an unsettled order (maker only)."
+            },
+            {
+              "key": "minAgeSeconds",
+              "value": "0",
+              "disabled": true,
+              "description": "Only orders at least this many seconds old (maker only, with settlementStage)."
+            },
+            {
+              "key": "from",
+              "value": "<from>",
+              "disabled": true,
+              "description": "Placed at or after this RFC 3339 instant (umbrella: a UTC midnight)."
+            },
+            {
+              "key": "to",
+              "value": "<to>",
+              "disabled": true,
+              "description": "Placed at or before this RFC 3339 instant (umbrella: a UTC midnight)."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size; the projection's own bounds apply (default 25)."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The nextCursor of the previous page."
+            },
+            {
+              "key": "format",
+              "value": "json",
+              "disabled": true,
+              "description": "json (default) or csv. csv returns the projection's export of the same filters."
+            },
+            {
+              "key": "lifecycle",
+              "value": "<lifecycle>",
+              "disabled": true,
+              "description": "Taker: comma-separated lifecycle buckets (inProgress, completed, failed, refunded, unknown). Maker: the fills lifecycle filter"
+            },
+            {
+              "key": "nextActor",
+              "value": "<nextActor>",
+              "disabled": true,
+              "description": "Taker: taker, support, counterparty or none"
+            },
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": "Taker: either side's display asset symbol (case-insensitive)"
+            },
+            {
+              "key": "corridor",
+              "value": "<corridor>",
+              "disabled": true,
+              "description": "Corridor (source-dest)"
+            },
+            {
+              "key": "walletId",
+              "value": "<walletId>",
+              "disabled": true,
+              "description": "Taker: linked wallet id"
+            },
+            {
+              "key": "address",
+              "value": "<address>",
+              "disabled": true,
+              "description": "Taker: wallet address (custody vault or linked wallet)"
+            },
+            {
+              "key": "routingPath",
+              "value": "<routingPath>",
+              "disabled": true,
+              "description": "Routing path"
+            },
+            {
+              "key": "amountMin",
+              "value": "0",
+              "disabled": true,
+              "description": "Minimum USD notional"
+            },
+            {
+              "key": "amountMax",
+              "value": "0",
+              "disabled": true,
+              "description": "Maximum USD notional"
+            },
+            {
+              "key": "sortBy",
+              "value": "<sortBy>",
+              "disabled": true,
+              "description": "Sort column, as the projection names it"
+            },
+            {
+              "key": "sortDir",
+              "value": "<sortDir>",
+              "disabled": true,
+              "description": "Taker: asc or desc"
+            },
+            {
+              "key": "actionRequired",
+              "value": "false",
+              "disabled": true,
+              "description": "Taker: only orders whose nextAction is present"
+            },
+            {
+              "key": "solverId",
+              "value": "<solverId>",
+              "disabled": true,
+              "description": "Maker: one of the LP's solvers"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}\n\nOne trade through the same projection as the list: the workspace's or the caller's own taker order or venue trade, a broker umbrella record with the client category's field visibility, or an LP's fill with pseudonymised counterparties. Taker orders keep their detail fields at the top level. Accepts a member session or an API key with trades_read.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "trades",
+            ":tradeId"
+          ],
+          "query": [
+            {
+              "key": "scope",
+              "value": "mine",
+              "disabled": true,
+              "description": "mine, workspace (default) or umbrella, as on the list"
+            },
+            {
+              "key": "perspective",
+              "value": "taker",
+              "disabled": true,
+              "description": "taker (default) or maker, as on the list"
+            },
+            {
+              "key": "solverId",
+              "value": "<solverId>",
+              "disabled": true,
+              "description": "Maker: the solver that filled it"
+            },
+            {
+              "key": "flow",
+              "value": "<flow>",
+              "disabled": true,
+              "description": "Maker: protocol, venueAccount or all"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "tradeId",
+              "value": "<tradeId>",
+              "description": "The trade's tradeId: an order id, or a venue trade's operation id"
             }
           ]
         }

@@ -4,6 +4,7 @@ description: "One list of your workspace's trades: the orders you placed and the
 ---
 
 import TradesList from '/snippets/samples/trades-list.mdx';
+import TradeDetail from '/snippets/samples/trade-detail.mdx';
 
 `GET /api/v1/workspaces/{workspaceId}/trades` is your workspace's one trade history. It lists the orders placed through the API or the app and the trades on your connected exchange accounts together, newest first. Use it for reconciliation and reporting; to follow one order to the end, read it at its `statusUrl` instead ([Order status](/trade/order-status)).
 
@@ -40,6 +41,23 @@ To read every row, pass `nextCursor` back as `cursor` with the same filters unti
 {"page":2,"rows":5}
 ```
 
+## Read one trade
+
+`GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one row of the list through the same view, with its detail. An order's `settlement` says how it ended:
+
+| Field | Meaning |
+| --- | --- |
+| `settlement.status` | `pending`, `settled`, `failed`, `refunded` or `unknown`. New values may be added: treat one you do not recognise as `unknown`. |
+| `settlement.failureReason` | A sentence saying why, when `status` is `failed` or `refunded`. `null` otherwise. Show it to a person; branch on `status`, never on this text. |
+
+An unknown `tradeId`, or one from another workspace, answers `404`.
+
+<TradeDetail />
+
+```json Output on test networks
+{"tradeId":"673828c6…","kind":"order","settlement":{"status":"failed","failureReason":"Profitability validation failed: Bad Request: Accepted output differs from the priced post-fill payload"}}
+```
+
 ## When a page is partial
 
 Two fields say when the list holds less than it could:
@@ -51,4 +69,4 @@ A `503 TRADE_PROJECTION_UNAVAILABLE` means the trade history cannot be read on t
 
 ## Exchange account balances
 
-Balances and deposit history of your exchange accounts are not yet available to API keys. They will be listed in the [Changelog](/changelog) when they are.
+What your exchange accounts hold, and the deposits their venues credited, are read with the same key: see [Exchange account balances](/trade/venue-balances).

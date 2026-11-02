@@ -109,8 +109,9 @@ quote_id=$(jq -r '.id' <<<"$quote")
 # endregion
 
 # region recipe-exchange-funds
-# An API key cannot read the account's balances, but each quote says whether the account holds
-# enough to trade it: readiness "funded", or "shortfall" with the amount missing and next "fund".
+# Each quote says whether the account holds enough to trade it: readiness "funded", or
+# "shortfall" with the amount missing and next "fund". GET …/venue-accounts/{id}/balances reads
+# what the account holds.
 jq -c '{readiness}' <<<"$quote" >&2
 if [[ $(jq -r '.next.kind' <<<"$quote") != order ]]; then
   jq -c '{quoteId: .id, orderable: false, next: .next.kind, readiness}' <<<"$quote"

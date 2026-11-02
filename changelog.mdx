@@ -5,11 +5,13 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
-<Update label="2026-11-02" description="What an order did, and one trade history">
+<Update label="2026-11-02" description="What an order did, one trade history, and exchange account balances">
   - Every order, Basic and Advanced, carries what it actually did: `fills`, `quotedBuyAmount` and `settledBuyAmount`, the fees actually charged in `fees` (each with `includedInPrice`), the kinds whose amount was not recorded in `unrecordedFees`, and `settlesBy` ([What the order did](/trade/order-status#what-the-order-did)). Show an unrecorded fee as "not recorded", never as 0.
   - The search filter `filters.commitment` is replaced by `filters.executableOnly`, a boolean: send `true` to leave indicative quotes out ([Executable quotes only](/search/executable-only)). A request still sending `filters.commitment` is refused with `400 INVALID_REQUEST`, `details.field` `filters.commitment`.
   - `GET /api/v1/prices` rows no longer carry `commitment`: they carry `firm` and `lastLook`, both always `false` ([Prices before you quote](/search/prices)).
   - `GET /api/v1/workspaces/{workspaceId}/trades` lists the workspace's orders and exchange-account trades in one history, with cursor paging and CSV export. The key needs **Read trades** ([Trade history](/trade/trade-history)).
+  - `GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one trade. A failed or refunded order's `settlement.failureReason` says why ([Read one trade](/trade/trade-history#read-one-trade)). A trade read with an API key no longer carries the compliance records attached to it: read those in the app.
+  - An API key with **Read treasury** reads an exchange account's balances, deposit instructions and deposit history at `…/venue-accounts/{venueAccountId}/balances`, `/deposit-instructions` and `/deposit-history`; these used to answer `403 JWT_REQUIRED`. A read whose authority is withdrawn while it runs answers `403 VENUE_READ_AUTHORITY_REFUSED` ([Exchange account balances](/trade/venue-balances)).
 </Update>
 
 <Update label="2026-11-01" description="Service-account tokens, key rules and response headers">
