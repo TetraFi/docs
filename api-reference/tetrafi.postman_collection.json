@@ -812,7 +812,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND.",
+        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/balances",
           "host": [
@@ -853,7 +853,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key.",
+        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. A bounded window, not a paged list: each answer is one live read of the venue's own credit history for `lookbackDays` (1 to 30, default 7) ending now, returned whole with its `since`, `until`, `observedAt` and `expiresAt`. A window holding more than 1,000 venue records answers no credits, with reasonCode DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. No cursor is offered because the venues' histories have no position that stays stable from one live read to the next, so a cursor could skip or repeat a credit. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/deposit-history",
           "host": [
@@ -914,7 +914,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key.",
+        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/deposit-instructions",
           "host": [
@@ -965,6 +965,54 @@
               "key": "venueAccountId",
               "value": "<venueAccountId>",
               "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{id}/venue-enablements",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-enablements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":id",
+            "venue-enablements"
+          ],
+          "query": [
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque `nextCursor` from the previous page of the same list and filters."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, default 20, clamped to 1..=100."
+            }
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Current company or broker workspace"
             }
           ]
         }
@@ -1563,7 +1611,7 @@
               "key": "sortBy",
               "value": "<sortBy>",
               "disabled": true,
-              "description": "Sort column, as the projection names it"
+              "description": "Field to sort by, as the projection names it"
             },
             {
               "key": "sortDir",

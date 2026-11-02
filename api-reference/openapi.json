@@ -38,7 +38,7 @@
             ]
           },
           "isCompliant": {
-            "description": "Whether the account itself admits trading: true exactly when\n[`Self::blockers`] is empty. It is the verdict the trading capabilities\n(`request_quotes`, `submit_order`) apply to the acting account (its own\nKYC standing, a sanctions match, its name screening), so it never\ndisagrees with them. Workspace facts (KYB, role) live in the workspace\ncapability response; settlement-wallet attestation in [`Self::wallets`].",
+            "description": "Whether the account itself admits trading: true exactly when\n`blockers` is empty. It is the verdict the trading capabilities\n(`request_quotes`, `submit_order`) apply to the acting account (its own\nKYC standing, a sanctions match, its name screening), so it never\ndisagrees with them. Workspace facts (KYB, role) live in the workspace\ncapability response; settlement-wallet attestation in `wallets`.",
             "type": "boolean"
           },
           "jurisdiction": {
@@ -116,7 +116,7 @@
         "type": "object"
       },
       "AceAttestationProof": {
-        "description": "ACE (Attested Compliance Engine) attestation reference: the on-chain\nrecord that the originator counterparty passed KYC at a given tier in\na given jurisdiction, with the vendor payload hash bound into the\nattestation. Read from `counterparties.attestation_*` (migration 040).",
+        "description": "ACE (Attested Compliance Engine) attestation reference: the on-chain\nrecord that the originator counterparty passed KYC at a given tier in\na given jurisdiction, with the vendor payload hash bound into the\nattestation.",
         "properties": {
           "expiresAt": {
             "description": "Attestation expiry.",
@@ -169,7 +169,7 @@
         "description": "How the ACE engine treated the call at the moment a policy run completed.\n\n`PolicyEngine.run` emits the SAME `PolicyRunComplete`, with the same\nfields, whether (a) the policy chain was EMPTY and the target default\nallowed, (b) a policy returned `Allowed`, or (c) every policy returned\n`Continue` and the default allowed. So the event proves the target was\nattached, `run` was called, and the call was not rejected — it does NOT\nprove that any policy evaluated anything. Without this field the three\ncollapse onto one \"a policy run exists\" label, and a fail-open gate reads\nas screened.\n\nThe vocabulary is deliberately the one the router provisioner already uses\nfor the same question (`workspace_routers::onchain::AceEntryGate`), minus\n`Refused`: a refused call reverts and emits no `PolicyRunComplete`, so it\nis structurally impossible for a RECORDED run and is not representable\nhere by construction.\n\nNew values may be added; treat unknown values as other.",
         "oneOf": [
           {
-            "description": "This many policies ran ahead of an allowing default. Always > 0: zero\npolicies is [`Self::Open`], which is a different fact.",
+            "description": "This many policies ran ahead of an allowing default. Always > 0: zero\npolicies is reported as `open`, which is a different fact.",
             "properties": {
               "gate": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -548,7 +548,7 @@
         "type": "string"
       },
       "AssetKind": {
-        "description": "Classification of an asset registered in the deployment registry.\n\nDrives directional logic in LP adapters (which side of a pair is the\nstablecoin / which is the crypto base) without any in-code symbol\nmatching. Every adapter that needs to know \"is this a stablecoin?\"\nreads `AssetKind` from `adapter_metadata.assets.<key>.kind`, populated\nby the registry's per-venue projection — never from a string-list\nmatcher.\n\nSerialises as a lowercase string (`\"stablecoin\"`, `\"crypto\"`, `\"fiat\"`).\n\nNew values may be added; treat unknown values as other.",
+        "description": "Classification of an asset registered in the deployment registry: `stablecoin`,\n`crypto` or `fiat`. It decides which side of a pair is the stablecoin and which\nis the crypto base.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "stablecoin",
           "crypto",
@@ -713,32 +713,6 @@
         ],
         "type": "string",
         "x-extensible-enum": true
-      },
-      "AuditTrailMetadata": {
-        "description": "Audit trail metadata.",
-        "properties": {
-          "evidenceChainHash": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "firstSeenAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "lastUpdatedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "firstSeenAt"
-        ],
-        "type": "object"
       },
       "BankAccountSuffix": {
         "description": "An already-qualified masked account suffix of 1 to 4 ASCII letters/digits, not external account ownership proof. Never truncate a full account number.",
@@ -940,7 +914,7 @@
         "x-extensible-enum": true
       },
       "BondUnbondableReason": {
-        "description": "Why an order was never bond-ELIGIBLE. The vocabulary covers EVERY branch on\nwhich the escrow's verifier opener degrades an open to unbondable:\nthe two beneficiary-resolution branches where `_bondBeneficiary` returns\n`address(0)` (predictable at order construction, so the RFQ stamps them\nthere), plus the hub's free-bond capacity cap, which is only discovered at\nopen time. Populated only alongside [`BondReservationStatus::NotEligible`].\n\nNew values may be added; treat unknown values as other.",
+        "description": "Why an order was never bond-ELIGIBLE: there is no EVM address the hub could pay\ncompensation to (`crossVmCarrier`, `routerCloneBeneficiary`), or the solver's bond\nhad no free capacity when the order opened (`insufficientFreeBond`).\nPresent only when the bond status is `notEligible`.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "crossVmCarrier",
           "routerCloneBeneficiary",
@@ -1201,6 +1175,15 @@
         ],
         "type": "object"
       },
+      "CatalogueVenueKind": {
+        "description": "A Venue's kind: where its money sits. Each Venue declares its kind in the\nvenue-desk catalogue (`catalogue::Venue.kind`), which re-exports this type.\nPublished as `CatalogueVenueKind`: the `VenueKind` component is the solver\nclassifier (`solvers::VenueKind`, solver-operated or direct venue).\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "accountBased",
+          "walletBased"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "CexDepositConfirmation": {
         "properties": {
           "forwardTransaction": {
@@ -1351,10 +1334,10 @@
         "properties": {
           "fees": {
             "$ref": "#/components/schemas/FeesSection",
-            "description": "Fee breakdown: gas, protocol fee, solver fee, relayer tips. Sourced\nfrom the `trade_fees` table (Phase 5). Empty vec when the order\npredates fee capture."
+            "description": "Fee breakdown: gas, protocol fee, solver fee, relayer tips. Absent\nwhen the order predates fee capture."
           },
           "legs": {
-            "description": "Uniform per-leg execution model for multi-leg route orders; `None` for\nsingle-leg escrow / deferred orders. Mirrors `OrderResponse.legs`.",
+            "description": "Uniform per-leg execution model for multi-leg route orders; absent for\nsingle-leg escrow / deferred orders. Mirrors `OrderResponse.legs`.",
             "items": {
               "$ref": "#/components/schemas/OrderLegInfo"
             },
@@ -1411,7 +1394,7 @@
               },
               {
                 "$ref": "#/components/schemas/TradeActionRequired",
-                "description": "Set when the order is waiting on a person rather than on a chain or a solver:\na composite parked until its taker re-quotes and signs the next leg. Its coarse\n`status` still reads `executing`, identical to a leg in flight, so this is the\nonly list field that tells the two apart. `None` for every other order."
+                "description": "Set when the order is waiting on a person rather than on a chain or a solver:\na composite parked until its taker re-quotes and signs the next leg. Its coarse\n`status` still reads `executing`, identical to a leg in flight, so this is the\nonly list field that tells the two apart. Absent for every other order."
               }
             ]
           },
@@ -1448,7 +1431,7 @@
             "type": "string"
           },
           "custodyVaultAddress": {
-            "description": "Order custody vault address (`orders.custody_vault_address`) when the order\nsettled through a custody vault. `None` for self-custody orders.",
+            "description": "Custody vault address when the order settled through a custody vault.\nAbsent for self-custody orders.",
             "type": [
               "string",
               "null"
@@ -1474,11 +1457,18 @@
           "executionPrice": {
             "$ref": "#/components/schemas/ExecutionPriceDisplay"
           },
+          "failureReason": {
+            "description": "Why the order failed or was refunded, as the detail's `settlement.failureReason`\nreports it: absent while the order has no recorded failure.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "lifecycleStatus": {
             "$ref": "#/components/schemas/TradeLifecycleStatus"
           },
           "linkedWalletId": {
-            "description": "Account-linked wallet id that placed the trade (`orders.linked_wallet_id`).\nEnables per-wallet client filtering + display. `None` for router-executed\nor unattributed orders that carry no linked wallet.",
+            "description": "Account-linked wallet id that placed the trade, for per-wallet filtering\nand display. Absent for router-executed or unattributed orders that carry\nno linked wallet.",
             "type": [
               "string",
               "null"
@@ -1523,7 +1513,7 @@
             "type": "string"
           },
           "orderKind": {
-            "description": "Canonical route-aware order kind (`cctp-v0` / `composite-v0` / `fx-v0` / …)\nfor list clients + API-key parity with the detail. `None` for non-route\norders where `order_type` suffices.",
+            "description": "Canonical route-aware order kind (`cctp-v0` / `composite-v0` / `fx-v0` / …)\nfor list clients + API-key parity with the detail. Absent for non-route\norders, where `orderType` suffices.",
             "type": [
               "string",
               "null"
@@ -1768,27 +1758,6 @@
         ],
         "type": "object"
       },
-      "ComplianceAuditTrail": {
-        "description": "Section E: Compliance audit trail.",
-        "properties": {
-          "metadata": {
-            "$ref": "#/components/schemas/AuditTrailMetadata",
-            "description": "Audit metadata (timestamps, actors)."
-          },
-          "settlementCompliance": {
-            "description": "Settlement-time compliance checks.",
-            "items": {
-              "$ref": "#/components/schemas/SettlementCompliance"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "settlementCompliance",
-          "metadata"
-        ],
-        "type": "object"
-      },
       "ComplianceCheckGroup": {
         "description": "Why a check belongs in a trade's applied, inapplicable or not-run group.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
@@ -1995,7 +1964,7 @@
         "type": "object"
       },
       "ContinuationRepricingOffer": {
-        "description": "The fresh price a continuation was refused at, left for the taker to accept once.\n\nStored at [`CONTINUATION_REPRICING_KEY`] and carried by the 409 `QUOTE_PRICE_MOVED`\nbody. It binds one attempt of one leg and expires; accepting it rebaselines only that\nattempt.",
+        "description": "The fresh price a continuation was refused at, left for the taker to accept once.\n\nCarried by the 409 `QUOTE_PRICE_MOVED` body. It binds one attempt of one leg and\nexpires; accepting it rebaselines only that attempt.",
         "properties": {
           "acceptedAmount": {
             "description": "The reference the order held the leg to (the price accepted at quote time, or a\nre-price accepted earlier in this attempt), in base units.",
@@ -2013,7 +1982,7 @@
             ]
           },
           "attempt": {
-            "description": "The attempt this offer belongs to; see [`LegAttempt::attempt`].",
+            "description": "The attempt this offer belongs to, numbered as in the order's `legAttempts`.",
             "format": "int32",
             "minimum": 0,
             "type": "integer"
@@ -2057,7 +2026,7 @@
         "type": "object"
       },
       "CounterpartyKycStatus": {
-        "description": "KYC workflow status for a counterparty.\n\nIntentionally distinct from [`tetrafi_core_contracts::core::statuses::VerificationStatus`]: carries\ndomain-specific states (`RenewalPending` for a verification renewal, `Frozen` for a freeze)\nthat don't generalize to a universal verification lifecycle. Use\n`trade_query::resolve_kyc_status` / `service::company_member` bridge\nfunctions to project onto the entity-level `KycStatus` when needed.\n\nNew values may be added; treat unknown values as other.",
+        "description": "KYC workflow status for a counterparty. Besides the usual review states it has\n`renewal_pending` (a verification renewal is due) and `frozen` (the counterparty\nis frozen).\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "pending",
           "under_review",
@@ -2556,7 +2525,7 @@
             "type": "number"
           },
           "protocolFeeUsd": {
-            "description": "The TetraFi platform fee, in USD. `None` when a platform fee row has no USD value\nrecorded (an invoiced fee before it is billed): unpriced is not the same as free.",
+            "description": "The TetraFi platform fee, in USD. `null` when the platform fee has no USD value\nrecorded (an invoiced fee before it is billed): unpriced is not the same as free.",
             "format": "double",
             "type": [
               "number",
@@ -2564,7 +2533,7 @@
             ]
           },
           "solverGasUsd": {
-            "description": "Gas the solver absorbed, in USD. `None` when no priced gas row was\nrecorded for the solver.",
+            "description": "Gas the solver absorbed, in USD. `null` when no priced gas was\nrecorded for the solver.",
             "format": "double",
             "type": [
               "number",
@@ -2577,7 +2546,7 @@
             "type": "number"
           },
           "userGasUsd": {
-            "description": "Gas the taker paid, in USD. `None` when no priced gas row was recorded\nfor the taker: unrecorded is not the same as free.",
+            "description": "Gas the taker paid, in USD. `null` when no priced gas was recorded\nfor the taker: unrecorded is not the same as free.",
             "format": "double",
             "type": [
               "number",
@@ -2648,264 +2617,6 @@
         "type": "string",
         "x-extensible-enum": true
       },
-      "FillComplianceSummary": {
-        "description": "Section C: Compliance summary.\n\nSchema is exposed in OpenAPI as `FillComplianceSummary` to disambiguate from\n`tetrafi_types::company::trade::ComplianceSummary`, which has a different shape.",
-        "properties": {
-          "kycVerified": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "preTradeChecks": {
-            "description": "Pre-trade checks run before the fill.",
-            "items": {
-              "$ref": "#/components/schemas/PreTradeCheck"
-            },
-            "type": "array"
-          },
-          "sanctionsClear": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "travelRuleSatisfied": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "preTradeChecks"
-        ],
-        "type": "object"
-      },
-      "FillDetail": {
-        "description": "Full fill detail with 6 sections.",
-        "properties": {
-          "auditTrail": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ComplianceAuditTrail",
-                "description": "Section E: Compliance audit trail.\nNone means not supplied by this view, never a negative compliance finding."
-              }
-            ]
-          },
-          "complianceSummary": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/FillComplianceSummary",
-                "description": "Section C: Compliance summary.\nNone means not supplied by this view, never a negative compliance finding."
-              }
-            ]
-          },
-          "lifecycleStatus": {
-            "$ref": "#/components/schemas/TradeLifecycleStatus",
-            "description": "The order lifecycle the rest of the platform shows for this order (Trade History, order status).\n`status` below is the settlement leg only."
-          },
-          "postTrade": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PostTradeCompliance",
-                "description": "Section F: Post-trade compliance status.\nNone means not supplied by this view, never a negative compliance finding."
-              }
-            ]
-          },
-          "settlement": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/OnChainSettlement",
-                "description": "Section B: On-chain settlement information.\nNull for an account execution, which proves no protocol settlement."
-              }
-            ]
-          },
-          "source": {
-            "$ref": "#/components/schemas/FillSource"
-          },
-          "stalledSince": {
-            "description": "When set, the fill has been in progress without an update since this time\n(see the server's stall rule); absent means not stalled.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "trade": {
-            "$ref": "#/components/schemas/TradeDetails",
-            "description": "Section A: Core trade data."
-          },
-          "travelRule": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/TravelRuleData",
-                "description": "Section D: Authorized Travel Rule evidence; None does not imply an exemption."
-              }
-            ]
-          },
-          "venueTrade": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillTrade"
-              }
-            ]
-          }
-        },
-        "required": [
-          "trade",
-          "lifecycleStatus",
-          "complianceSummary",
-          "travelRule",
-          "auditTrail",
-          "postTrade"
-        ],
-        "type": "object"
-      },
-      "FillListItem": {
-        "description": "A single fill item in the list response.",
-        "properties": {
-          "counterpartyLabel": {
-            "description": "Recorded counterparty label; business type comes only from the recorded workspace kind.",
-            "type": "string"
-          },
-          "counterpartyWorkspaceId": {
-            "description": "The taker company's workspace id when the counterparty is a company workspace;\nabsent for a direct user or an unattributed taker.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "deliveredBuyProvenance": {
-            "description": "Where the buy amount came from: `\"measured\"` means the settle\ntransition read the delivery back, `\"quoted\"` means it is the\nquote carried forward, and `None` means the row predates\ndelivery recording, a different fact from having no delivery at all.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "lifecycleStatus": {
-            "$ref": "#/components/schemas/TradeLifecycleStatus",
-            "description": "The order lifecycle the rest of the platform shows for this order (Trade History, order status).\n`status` below is the settlement leg only."
-          },
-          "lpDisplayName": {
-            "description": "The LP name to show for this fill: the catalogue name for a venue fill, the registered solver name for a protocol fill, else \"Unknown LP\"; never an id. Absent only where a reader does not resolve LP names.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "orderId": {
-            "type": "string"
-          },
-          "route": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/TradeRouteDisplay",
-                "description": "The two sides: asset, chain, base units and decimal amount. Missing metadata\nleaves a decimal amount absent, never guessed by clients."
-              }
-            ]
-          },
-          "routingPath": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/RoutingPath"
-              }
-            ]
-          },
-          "settledAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "solverId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "source": {
-            "$ref": "#/components/schemas/FillSource"
-          },
-          "stalledSince": {
-            "description": "When set, the fill has been in progress without an update since this time\n(see the server's stall rule); absent means not stalled.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "status": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/FillSettlementStatus",
-                "description": "The settlement leg, kept for API compatibility; `lifecycle_status` is the status to show."
-              }
-            ]
-          },
-          "venueTrade": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillTrade"
-              }
-            ]
-          }
-        },
-        "required": [
-          "orderId",
-          "lifecycleStatus",
-          "counterpartyLabel",
-          "createdAt"
-        ],
-        "type": "object"
-      },
-      "FillSettlementStatus": {
-        "description": "Settlement status for a fill.\n\nSchema is exposed in OpenAPI as `FillSettlementStatus` to avoid collision\nwith `tetrafi_types::trading::settlements::SettlementStatus`, which has different\nvariants (Settled/Pending/Flagged/Disputed) and is transitively registered\nvia `SettlementDetail`.\n\nNew values may be added; treat unknown values as other.",
-        "enum": [
-          "pending",
-          "settled",
-          "failed",
-          "refunded",
-          "unknown"
-        ],
-        "type": "string",
-        "x-extensible-enum": true
-      },
       "FillSource": {
         "description": "New values may be added; treat unknown values as other.",
         "enum": [
@@ -2914,55 +2625,6 @@
         ],
         "type": "string",
         "x-extensible-enum": true
-      },
-      "FillTxReference": {
-        "description": "A blockchain transaction reference.",
-        "properties": {
-          "blockNumber": {
-            "format": "int64",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "chain": {
-            "description": "Original persisted chain reference, including non-EVM or unknown references.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "chainId": {
-            "format": "int64",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "confirmedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "explorerUrl": {
-            "description": "Block explorer URL (e.g. `https://etherscan.io/tx/0xabc`).\n`None` if the chain ID is not mapped to a known explorer.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "txHash": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "txHash"
-        ],
-        "type": "object"
       },
       "FirmAsk": {
         "description": "When a venue gives its binding price (`PairQuote.firmAsk`), as its venue spec declares.\n\nNew values may be added; treat unknown values as other.",
@@ -3396,7 +3058,7 @@
             "type": "object"
           },
           {
-            "description": "In a platform contract (a router, an arrival module or an escrow), pending a\nrelease the platform or an operator performs.",
+            "description": "In a platform contract (a router, an arrival contract or an escrow), pending a\nrelease the platform or an operator performs.",
             "properties": {
               "contract": {
                 "type": [
@@ -3528,7 +3190,7 @@
         "x-extensible-enum": true
       },
       "GeoSourceKind": {
-        "description": "Where the request-geo fact comes from. `None` means no trusted source is\nconfigured in this zone, so no geo restriction is enforced (and nothing\nmay claim it is).\n\nNew values may be added; treat unknown values as other.",
+        "description": "Where the request-geo fact comes from. `none` means no trusted source is\nconfigured in this zone, so no geo restriction is enforced (and nothing\nmay claim it is).\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "edge_header",
           "none"
@@ -3537,7 +3199,7 @@
         "x-extensible-enum": true
       },
       "IntegrationMode": {
-        "description": "Integration modes. API and mutable storage use only these two spellings.\n\nNew values may be added; treat unknown values as other.",
+        "description": "How a venue is integrated: `basic` or `advanced`.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "basic",
           "advanced"
@@ -4173,7 +3835,7 @@
         "x-extensible-enum": true
       },
       "LedgerLagRef": {
-        "description": "Per-chain ACE event-listener position, mirroring the in-process state\n`/health.compliance.aceEventListeners` exposes.\n\n`listener_present: false` is the \"this chain has no listener at all\"\ncase — distinct from a present-but-lagging listener, and never folded\nonto `lag_blocks: 0`.",
+        "description": "How far the platform's ACE event listener for one chain trails that\nchain's head, the same position `/health.compliance.aceEventListeners`\nreports.\n\n`listenerPresent: false` means this chain has no listener at all, which\nis distinct from a present but lagging listener and is never reported as\n`lagBlocks: 0`.",
         "properties": {
           "chainId": {
             "format": "int64",
@@ -4225,7 +3887,7 @@
         "type": "object"
       },
       "LegAttempt": {
-        "description": "One ended attempt at a leg, stored under [`LEG_ATTEMPTS_KEY`].\n\nThe attempt in progress is implicit: it is the number of ended attempts plus one.",
+        "description": "One ended attempt at a leg.\n\nThe attempt in progress is implicit: it is the number of ended attempts plus one.",
         "properties": {
           "acceptedReference": {
             "description": "A re-price the taker accepted during this attempt, in base units.",
@@ -4664,34 +4326,6 @@
         ],
         "type": "object"
       },
-      "MakerTradeSection": {
-        "description": "The LP's side of a trade. Counterparties are named by their recorded label, never\nby identity.",
-        "properties": {
-          "fill": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/FillListItem",
-                "description": "The fill row (perspective maker)."
-              }
-            ]
-          },
-          "settlement": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PipelineQueueRow",
-                "description": "The unsettled order's stage (perspective maker with settlementStage or minAgeSeconds)."
-              }
-            ]
-          }
-        },
-        "type": "object"
-      },
       "MeResponse": {
         "properties": {
           "createdAt": {
@@ -4787,7 +4421,7 @@
         "type": "object"
       },
       "NativePairQuoteRequest": {
-        "description": "The native fresh request: the engine's and stored conversion plans' spelling of a\n[`QuoteRequestBody`]. Never a public body; its serialized form is what stored plans hold, so\nits fields and their names stay byte-stable.",
+        "description": "A fresh pair-quote request as TetraFi records it with the quote: the pair, side,\namount and options the quote answered.",
         "properties": {
           "amount": {
             "$ref": "#/components/schemas/DecimalAmount",
@@ -5279,7 +4913,7 @@
         "description": "On-chain (ACE policy run) coverage for one order.\n\nEvaluated in this order, so a POSITIVE observation always wins over an\nexplanation: `PolicyRun` → `ProviderLedger` → `NoTxRecorded` →\n`LedgerBehind` → `NoPolicyRun`.\n\nNew values may be added; treat unknown values as other.",
         "oneOf": [
           {
-            "description": "At least one `ace_policy_run_events` row joins one of the order's\ndeclared transactions AND that run is [`AcePolicyGate::Enforced`] —\na policy actually evaluated the call.\n\n`runs` carries EVERY joined run, enforced or not, and `open_runs` /\n`unknown_runs` count the ones that are not evidence of screening.\nThose counts are redundant with `runs` on purpose: an `Open` run is a\nfail-open gate that must stay visible even when a sibling run on the\nsame transaction covered the trade, and a reader that has to fold over\n`runs` to notice it is a reader that will not.",
+            "description": "At least one recorded ACE policy run matches one of the order's\ndeclared transactions AND that run's gate is `enforced`: a policy\nactually evaluated the call.\n\n`runs` carries EVERY joined run, enforced or not, and `open_runs` /\n`unknown_runs` count the ones that are not evidence of screening.\nThose counts are redundant with `runs` on purpose: an `Open` run is a\nfail-open gate that must stay visible even when a sibling run on the\nsame transaction covered the trade, and a reader that has to fold over\n`runs` to notice it is a reader that will not.",
             "properties": {
               "openRuns": {
                 "format": "int32",
@@ -5315,7 +4949,7 @@
             "type": "object"
           },
           {
-            "description": "Runs join the order's transactions, NONE is enforced, and at least one\npassed unchecked: the engine's policy chain for that\n`(target, selector)` was empty and the default allowed it.\n\nDeliberately NOT [`Self::PolicyRun`]. `PolicyEngine.run` emits the\nsame event whether a policy allowed the call or no policy existed at\nall, so collapsing this onto \"a policy run exists\" reports a fail-open\ngate as screened.",
+            "description": "Runs join the order's transactions, NONE is enforced, and at least one\npassed unchecked: the engine's policy chain for that\n`(target, selector)` was empty and the default allowed it.\n\nDeliberately NOT `policyRun`. `PolicyEngine.run` emits the\nsame event whether a policy allowed the call or no policy existed at\nall, so collapsing this onto \"a policy run exists\" reports a fail-open\ngate as screened.",
             "properties": {
               "runs": {
                 "items": {
@@ -5363,7 +4997,7 @@
             "type": "object"
           },
           {
-            "description": "The order's venue is DECLARED by the contract registry as a deferred\nprovider-ledger venue (the registry's own OTC path set: `venueType`\n`otc` / `cex_spot`, or a solver/adapter id the registry classifies\nthere). Such a venue settles on the provider's books and TetraFi\nbroadcasts nothing on its behalf, so an absent policy run is correct\nby design rather than a gap.\n\n`declared_by` records the declaration that decided it, so the claim\nis auditable and cannot drift into a hard-coded solver-id list.\n\nNOT the same thing as the catalogued scenario's `external_venue`\nsub-class, which describes a TetraFi-BROADCAST transaction landing on\nregistry-declared third-party infrastructure (Circle's\n`tokenMessengerV2`, Across's `spokePool`, Circle's `fxEscrow`). The\ntwo are disjoint by construction — this one broadcasts nothing at\nall — and they are deliberately not given one shared label.\n\nLIMIT, recorded deliberately: the registry declares no property that\nseparates a venue whose execution reaches a TetraFi contract (e.g.\n`octarine-rwa`, an `onchain` DirectVenue that executes through a\nTetraFi swap module) from one whose execution does not (e.g. a\n`circle-cctp` taker burn straight to Circle's TokenMessengerV2).\nThose land in [`Self::NoPolicyRun`] and are sub-classified by the\ncatalogued scenario's RPC probe, which reads the receipt.",
+            "description": "The order's venue is DECLARED by the contract registry as a deferred\nprovider-ledger venue (the registry's own OTC path set: `venueType`\n`otc` / `cex_spot`, or a solver or venue id the registry classifies\nthere). Such a venue settles on the provider's books and TetraFi\nbroadcasts nothing on its behalf, so an absent policy run is correct\nby design rather than a gap.\n\n`declaredBy` records the declaration that decided it, so the claim\nis auditable.\n\nNOT the same thing as the catalogued scenario's `external_venue`\nsub-class, which describes a TetraFi-BROADCAST transaction landing on\nregistry-declared third-party infrastructure (Circle's\n`tokenMessengerV2`, Across's `spokePool`, Circle's `fxEscrow`). The\ntwo are disjoint by construction — this one broadcasts nothing at\nall — and they are deliberately not given one shared label.\n\nLimit: the registry declares no property that separates a venue whose\nexecution reaches a TetraFi contract (e.g. `octarine-rwa`, an `onchain`\ndirect venue that executes through a TetraFi swap contract) from one\nwhose execution does not (e.g. a `circle-cctp` taker burn straight to\nCircle's TokenMessengerV2). Those are reported as `noPolicyRun`.",
             "properties": {
               "declaredBy": {
                 "type": "string"
@@ -5384,7 +5018,7 @@
             "type": "object"
           },
           {
-            "description": "The order declares no transaction hash in any column or settlement\nfield, so there is nothing to join.",
+            "description": "The order declares no transaction hash in any of its own or its\nsettlement's fields, so there is nothing to match.",
             "properties": {
               "state": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -5450,53 +5084,6 @@
           }
         ],
         "x-extensible-enum": true
-      },
-      "OnChainSettlement": {
-        "description": "Section B: On-chain settlement.",
-        "properties": {
-          "buyTx": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/FillTxReference",
-                "description": "The transaction on the buy chain."
-              }
-            ]
-          },
-          "failureReason": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "sellTx": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/FillTxReference",
-                "description": "The transaction on the sell chain."
-              }
-            ]
-          },
-          "settledAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/FillSettlementStatus"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "type": "object"
       },
       "OnChainSettlementSection": {
         "description": "Section B: On-chain settlement data.\n\nModels the four-step lifecycle of an intent on-chain: `submit_tx` (user\ndeposit / intent creation), `fill_tx` (solver fill on destination chain),\n`proof_tx` (cross-chain proof submission), `finalise_tx` (claim/settle on\norigin). Oracle + settlement_stage describe the proof-relay layer.",
@@ -5797,7 +5384,7 @@
         "x-extensible-enum": true
       },
       "OrderComplianceSection": {
-        "description": "Order-scoped compliance section — see the module docs.",
+        "description": "The order's own compliance verdict and every check that ran for it, split into\non-chain and off-chain checks.",
         "properties": {
           "attestation": {
             "oneOf": [
@@ -5862,7 +5449,7 @@
               },
               {
                 "$ref": "#/components/schemas/OnChainCoverage",
-                "description": "Whether an on-chain ACE policy run covers this order's transactions,\nfrom the same owner the workspace order-coverage audit uses\n(`trade_query::order_audit::coverage`), so a single order and the\nrollup can never disagree about it.\n\n`None` and `Some(NoTxRecorded)` are DIFFERENT facts and must stay so:\n`None` means the projection did not determine coverage (the read\nfailed, or the order row was unavailable), while\n`Some(NoTxRecorded)` means it determined the order declares no\ntransaction at all. Folding the first onto the second would report a\nfailed query as a finding about the order."
+                "description": "Whether an on-chain ACE policy run covers this order's transactions; it\nalways agrees with the workspace order-coverage audit.\n\n`null` and `noTxRecorded` are DIFFERENT facts: `null` means coverage could\nnot be determined for this response, while `noTxRecorded` means the order\ndeclares no transaction at all. Never read `null` as a finding about the order."
               }
             ]
           },
@@ -6205,7 +5792,7 @@
               },
               {
                 "$ref": "#/components/schemas/LegCounterparty",
-                "description": "Per-leg counterparty compliance posture — WHO filled this leg and their\nregulatory standing. `None` on the generic `OrderResponse`; populated only\non the admin company trade-detail. Lets a composite show \"leg 1 = KYB'd\nSolver X (Cayman Islands), leg 2 = CCTP protocol\" instead of one collapsed\ncounterparty."
+                "description": "Per-leg counterparty compliance posture — WHO filled this leg and their\nregulatory standing. Absent on the generic `OrderResponse`; populated only\non the admin company trade-detail. Lets a composite show \"leg 1 = KYB'd\nSolver X (Cayman Islands), leg 2 = CCTP protocol\" instead of one collapsed\ncounterparty."
               }
             ]
           },
@@ -6262,7 +5849,7 @@
               },
               {
                 "$ref": "#/components/schemas/AssetAmountDisplay",
-                "description": "What this leg was OBSERVED to deliver, from the receipt its own settlement\nobserver recorded, in the leg's buy asset. Absent until that observer has\nconfirmed the leg, which a client must render as \"not measured\": never as\nzero, and never by silently showing `buy` in its place.\n\nThis is the only place an INTERMEDIATE leg's real delivery appears. On a\n`StableFX -> CCTP` composite the FX leg settles a different asset on a\ndifferent chain from the order's own output, so the order-level delivery\ncannot describe it."
+                "description": "What this leg was OBSERVED to deliver, from the settlement receipt TetraFi\nrecorded for this leg, in the leg's buy asset. Absent until that receipt has\nconfirmed the leg, which a client must render as \"not measured\": never as\nzero, and never by silently showing `buy` in its place.\n\nThis is the only place an INTERMEDIATE leg's real delivery appears. On a\n`StableFX -> CCTP` composite the FX leg settles a different asset on a\ndifferent chain from the order's own output, so the order-level delivery\ncannot describe it."
               }
             ]
           },
@@ -6403,7 +5990,7 @@
               },
               {
                 "$ref": "#/components/schemas/OrderComplianceSection",
-                "description": "The order's own compliance verdict and every check that ran, split\non-chain / off-chain. Readable by whoever may read the order; workspace\nBI stays on the trade-detail endpoint. Handler-populated; absent when\nthe enrichment could not run."
+                "description": "The order's own compliance verdict and every check that ran, split\non-chain / off-chain. Readable by whoever may read the order; workspace\nBI stays on the trade-detail endpoint. Absent when the compliance\nverdict could not be read for this response."
               }
             ]
           },
@@ -6424,14 +6011,14 @@
             "type": "string"
           },
           "custodySigningError": {
-            "description": "Operator-/user-facing failure reason when `custody_signing_status` is\n`failed` / `failed_unreachable`; absent otherwise. Same handler-populated,\norders-row-sourced projection as `custody_signing_status`.",
+            "description": "Why custody signing failed, readable by the user and operators, when\n`custodySigningStatus` is `failed` / `failed_unreachable`; absent otherwise.",
             "type": [
               "string",
               "null"
             ]
           },
           "custodySigningStatus": {
-            "description": "Custody-signing lifecycle status for backend-signed (Fireblocks / BitGo /\nDFNS / Copper) orders, mirroring the durable `orders.custody_signing_status`\ncolumn (migration 187): `pending` (submitted to the provider, awaiting the\nasync signature), `signed`, `failed`, or `failed_unreachable` (no webhook\nor reconciliation-poll response inside the sweep window). OMITTED for\nnon-custody orders (the column's `none` default) so their responses stay\nbyte-identical. Populated by the API handler from the orders row — the pure\n`Order` conversion cannot read the DB and leaves it `None`.",
+            "description": "Custody-signing status for orders a custody provider signs (Fireblocks / BitGo /\nDFNS / Copper): `pending` (submitted to the provider, awaiting its signature),\n`signed`, `failed`, or `failed_unreachable` (the provider neither called back nor\nanswered a status check in time). Absent for orders that are not custody-signed.",
             "type": [
               "string",
               "null"
@@ -6456,7 +6043,7 @@
             ]
           },
           "deliveredBuyProvenance": {
-            "description": "Where `deliveredBuy` came from: `\"measured\"` when it was read\nback from settlement evidence (a receipt-backed bridge delivery, a\nrealized DEX output, a Circle-settled FX output, a deferred settlement's\nexecuted amount), `\"quoted\"` when a quote-time value was carried forward\nbecause nothing measured the delivery.\n\nThis field is the whole point of the pair. The lifecycle falls back to\nthe quoted output when no measurement exists, which makes \"measured,\nzero slippage\" and \"never measured\" byte-identical — `realizedSlippageBps`\nreads 0 for both and the delivered column repeats the quote. A client\nthat renders a delivered amount without reading this is reporting a\nquote as a receipt.",
+            "description": "Where `deliveredBuy` came from: `\"measured\"` when it was read\nback from settlement evidence (a receipt-backed bridge delivery, a\nrealized DEX output, a Circle-settled FX output, a deferred settlement's\nexecuted amount), `\"quoted\"` when a quote-time value was carried forward\nbecause nothing measured the delivery.\n\nThis field is the whole point of the pair. The lifecycle falls back to\nthe quoted output when no measurement exists, which makes \"measured,\nzero slippage\" and \"never measured\" byte-identical — `realizedSlippageBps`\nreads 0 for both and `deliveredBuy` repeats the quote. A client\nthat renders a delivered amount without reading this is reporting a\nquote as a receipt.",
             "type": [
               "string",
               "null"
@@ -6561,7 +6148,7 @@
             ]
           },
           "linkedWalletId": {
-            "description": "Linked wallet used for settlement (None for legacy orders).",
+            "description": "Linked wallet used for settlement. Absent for older orders.",
             "type": [
               "string",
               "null"
@@ -6601,7 +6188,7 @@
             "type": "string"
           },
           "orderKind": {
-            "description": "Canonical, route-aware order kind for status/history + SDK clients\n(`cctp-v0` / `across-v4` / `relay-v0` / `fx-v0` / `composite-v0` / `escrow-v0` /\n`deferred` / …). Always present. Prefer this over `order_type`, which collapses\nroutes to `generic-v0`. See [`crate::orders::Order::order_kind`].",
+            "description": "Canonical, route-aware order kind for status/history + SDK clients\n(`cctp-v0` / `across-v4` / `relay-v0` / `fx-v0` / `composite-v0` / `escrow-v0` /\n`deferred` / …). Always present. Prefer this over `order_type`, which collapses\nroutes to `generic-v0`.",
             "type": "string"
           },
           "orderType": {
@@ -6609,7 +6196,7 @@
             "type": "string"
           },
           "pairQuoteId": {
-            "description": "The held pair-quote id (`q_…`) the order was placed by (`POST /orders {quoteId}`):\nthe id Review and the quote card showed. `quoteId` above stays the internal route or\nsolver quote it executed. Recorded server-side from the held quote, never from the\nrequest; absent for orders placed with a full quote body and for orders placed before\nit was recorded.",
+            "description": "The held pair-quote id (`q_…`) the order was placed by (`POST /orders {quoteId}`):\nthe id Review and the quote card showed. `quoteId` above is the executable quote the\norder ran on, which can differ. Recorded server-side from the held quote, never from the\nrequest; absent for orders placed with a full quote body and for orders placed before\nit was recorded.",
             "type": [
               "string",
               "null"
@@ -6623,7 +6210,7 @@
             ]
           },
           "realizedSlippageBps": {
-            "description": "Realized adverse slippage in basis points, computed at settlement as\n`10000 * (quoted_output - delivered_output) / quoted_output`. Negative\nmeans the delivery beat the quote.\n\nDeliberately NOT named `slippageBps`: this struct already carries\n`slippageToleranceBps`, which is the tolerance the order was SUBMITTED\nwith — a quote-time input, not an outcome. Two fields one word apart\nthat mean \"what I allowed\" and \"what I got\" is how a caller ends up\ncharting the limit as the result, so the outcome names itself.\n\nOnly meaningful alongside `deliveredBuyProvenance == \"measured\"`; a\n`\"quoted\"` provenance makes this structurally 0.",
+            "description": "Realized adverse slippage in basis points, computed at settlement as\n`10000 * (quoted_output - delivered_output) / quoted_output`. Negative\nmeans the delivery beat the quote.\n\nDeliberately NOT named `slippageBps`: this response already carries\n`slippageToleranceBps`, which is the tolerance the order was SUBMITTED\nwith — a quote-time input, not an outcome. Two fields one word apart\nthat mean \"what I allowed\" and \"what I got\" is how a caller ends up\ncharting the limit as the result, so the outcome names itself.\n\nOnly meaningful alongside `deliveredBuyProvenance == \"measured\"`; a\n`\"quoted\"` provenance makes this structurally 0.",
             "format": "int32",
             "type": [
               "integer",
@@ -6650,10 +6237,10 @@
           },
           "route": {
             "$ref": "#/components/schemas/TradeRouteDisplay",
-            "description": "What the order sells (`route.sell`) and buys (`route.buy`): the asset's\nsymbol, name, decimals and chain, the base-unit amount and the amount\nscaled by those decimals (`decimalAmount`). These are the amounts the\naccepted quote committed; `deliveredBuy` reports delivery.\n\nWhen the backend cannot resolve a side, `decimalAmount` is absent and\n`unresolved` names why (`assetNotInRegistry`, `amountUnavailable`), so a\nclient renders an explicit unresolved state and never scales base units\nitself. `#[serde(default)]` only so a payload written before this field\nexisted still deserializes."
+            "description": "What the order sells (`route.sell`) and buys (`route.buy`): the asset's\nsymbol, name, decimals and chain, the base-unit amount and the amount\nscaled by those decimals (`decimalAmount`). These are the amounts the\naccepted quote committed; `deliveredBuy` reports delivery.\n\nWhen TetraFi cannot resolve a side, `decimalAmount` is absent and\n`unresolved` names why (`assetNotInRegistry`, `amountUnavailable`), so a\nclient renders an explicit unresolved state and never scales base units\nitself."
           },
           "senderAddress": {
-            "description": "Wallet that funds the order: the signed intent's depositor (escrow /\neip3009 message `sponsor` / `user` / `signer` / `from`), the route\npreview's input owner, or the StableFX taker. Handler-populated from\nthe durable row; absent when nothing recorded it.",
+            "description": "Wallet that funds the order: the signed intent's depositor (escrow /\neip3009 message `sponsor` / `user` / `signer` / `from`), the route\npreview's input owner, or the StableFX taker. Absent when the order\nrecorded none.",
             "type": [
               "string",
               "null"
@@ -6766,7 +6353,7 @@
             ]
           },
           "workspaceId": {
-            "description": "Workspace that placed this order (None for legacy/API-key orders).",
+            "description": "Workspace that placed this order. Absent for older orders and for orders placed\nwith an API key.",
             "type": [
               "string",
               "null"
@@ -6919,7 +6506,7 @@
         "x-extensible-enum": true
       },
       "OrderTransactionInfo": {
-        "description": "Transaction reference for an order lifecycle stage.\n\nThe trailing `leg_index` / `label` / `explorer_url` fields are additive,\nserialize-skipped when `None`, and populated only at response-projection time\n(never by observers / storage / adapters), so every internal construction site\nleaves them `None`. They enrich the wire timeline for programmatic (SDK) consumers:\nwhich route leg a tx belongs to, a human role label, and a ready-to-open explorer URL.",
+        "description": "A transaction in an order's timeline, for one lifecycle stage.\n\n`legIndex`, `label` and `explorerUrl` are optional: they tell a client which route\nleg the transaction belongs to, a human role label, and a ready-to-open explorer URL.",
         "properties": {
           "actor": {
             "$ref": "#/components/schemas/OrderTransactionActor"
@@ -6933,7 +6520,7 @@
             "$ref": "#/components/schemas/OrderTransactionChainRole"
           },
           "explorerUrl": {
-            "description": "Block-explorer URL for `hash` on `chain_id` when the backend maps the chain;\n`None` → the client falls back to its own per-chain explorer registry.",
+            "description": "Block-explorer URL for `hash` on `chainId` when TetraFi knows the chain's explorer;\nwhen absent, the client falls back to its own per-chain explorer list.",
             "type": [
               "string",
               "null"
@@ -6943,7 +6530,7 @@
             "type": "string"
           },
           "label": {
-            "description": "Human-friendly role label (e.g. \"Bridge burn\", \"Fill\", \"Claim\"); when `None`\nthe client derives it from `stage`.",
+            "description": "Human-friendly role label (e.g. \"Bridge burn\", \"Fill\", \"Claim\"); when absent\nthe client derives it from `stage`.",
             "type": [
               "string",
               "null"
@@ -6965,7 +6552,7 @@
             "$ref": "#/components/schemas/OrderTransactionStatus"
           },
           "timestamp": {
-            "description": "Unix seconds at which the platform OBSERVED this transaction — the wall clock\nof the observer that recorded it, never the block time (no observer reads one).\n\n`None` means the row was DERIVED at serve time from a `settlement.data` hash\nreference whose observation was never stamped, so this build genuinely does not\nknow when the transaction happened. It is deliberately absent rather than filled\nwith the enclosing order's `updated_at`: that value is not this transaction's\ntime, it renders as a plausible one, and it advances on every later order write —\nso the timeline both inverted causality (a fill dated after the bridge burn it\nfunded) and moved between two reads of the same immutable transaction. A client\nmust render \"time unknown\" for `None`, never substitute one of its own.",
+            "description": "Unix seconds at which the platform OBSERVED this transaction: when TetraFi\nrecorded it, never the block time.\n\nAbsent when TetraFi does not know when the transaction happened. A client\nmust render \"time unknown\" then, never substitute a time of its own (such as\nthe order's `updatedAt`).",
             "format": "int64",
             "minimum": 0,
             "type": [
@@ -7035,7 +6622,7 @@
         "description": "A transaction an order declares, plus WHICH field declared it.\n\n`source` is load-bearing: a hash reached through\n`settlement.data.route.legs[1].transactionHash` is a different leg of the\norder from `orders.submit_tx_hash`, and a coverage gap on one says\nnothing about the other.",
         "properties": {
           "chainId": {
-            "description": "Chain declared alongside the hash, when the declaring object also\ndeclares one. `None` means the settlement did not say — NOT \"chain\nzero\" and not \"same chain as the order\".",
+            "description": "Chain declared alongside the hash, when the declaring object also\ndeclares one. Absent means the settlement did not say — NOT \"chain\nzero\" and not \"same chain as the order\".",
             "format": "int64",
             "minimum": 0,
             "type": [
@@ -7282,7 +6869,7 @@
         "allOf": [
           {
             "$ref": "#/components/schemas/CardFirmness",
-            "description": "The card's firmness, written as `firm` and `lastLook` ([`CardFirmness`])."
+            "description": "The card's firmness, written as `firm` and `lastLook`."
           },
           {
             "anyOf": [
@@ -7437,7 +7024,7 @@
               },
               "location": {
                 "$ref": "#/components/schemas/QuoteLocation",
-                "description": "Derived from the legs ([`QuoteLocation::of_legs`])."
+                "description": "Where the quote executes, derived from its legs."
               },
               "maxPay": {
                 "oneOf": [
@@ -8077,7 +7664,7 @@
               },
               {
                 "$ref": "#/components/schemas/PayBy",
-                "description": "None means the venue declares no deadline, not an inferred duration."
+                "description": "`null` means the venue declares no deadline, not an inferred duration."
               }
             ]
           },
@@ -8256,72 +7843,6 @@
         "type": "string",
         "x-extensible-enum": true
       },
-      "PipelineQueueRow": {
-        "properties": {
-          "ageSeconds": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "amountUsd": {
-            "format": "double",
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "corridor": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "lastError": {
-            "description": "Same sanitized recorded error exposed by the independently scoped detail.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "orderId": {
-            "type": "string"
-          },
-          "recordUpdatedAt": {
-            "description": "Last order-record update, not a transaction or proof confirmation time.",
-            "format": "date-time",
-            "type": "string"
-          },
-          "retryCount": {
-            "description": "Persisted retry count; null means it was not recorded, never zero retries.",
-            "format": "int32",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "solverId": {
-            "type": "string"
-          },
-          "stage": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "orderId",
-          "solverId",
-          "stage",
-          "createdAt",
-          "ageSeconds",
-          "recordUpdatedAt",
-          "retryCount",
-          "lastError"
-        ],
-        "type": "object"
-      },
       "PlatformStatus": {
         "description": "The workspace's platform status: onboarding, active, suspended or deactivated. lifecycle tells a KYB lapse apart from a suspension.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
@@ -8358,7 +7879,7 @@
             "type": "integer"
           },
           "enforced": {
-            "description": "Whether the engine ENFORCED the policy (vs observe-only). Distinct\nfrom [`Self::gate`]: this says whether the observation BLOCKED\nadmission, that says whether any policy ran at all.",
+            "description": "Whether the engine ENFORCED the policy (vs observe-only). Distinct\nfrom `gate`: this says whether the observation BLOCKED\nadmission, that says whether any policy ran at all.",
             "type": "boolean"
           },
           "engineAddress": {
@@ -8366,7 +7887,7 @@
           },
           "gate": {
             "$ref": "#/components/schemas/AcePolicyGate",
-            "description": "Whether a policy actually evaluated this call. See [`AcePolicyGate`]."
+            "description": "Whether a policy actually evaluated this call: `enforced` (with the\nnumber of policies that ran), `open` (no policy, the default allowed it)\nor `unknown`."
           },
           "selector": {
             "type": "string"
@@ -8386,66 +7907,6 @@
           "selector",
           "enforced",
           "gate"
-        ],
-        "type": "object"
-      },
-      "PostTradeCompliance": {
-        "description": "Section F: Post-trade compliance.",
-        "properties": {
-          "monitoringActive": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "retroactiveAlert": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/RetroactiveAlertBanner"
-              }
-            ]
-          }
-        },
-        "type": "object"
-      },
-      "PreTradeCheck": {
-        "description": "A single pre-trade compliance check result.",
-        "properties": {
-          "checkType": {
-            "type": "string"
-          },
-          "checkedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "details": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "passed": {
-            "type": "boolean"
-          },
-          "verdict": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ComplianceCheckVerdict",
-                "description": "Recorded outcome; the legacy boolean cannot distinguish holds or warnings."
-              }
-            ]
-          }
-        },
-        "required": [
-          "checkType",
-          "passed",
-          "checkedAt"
         ],
         "type": "object"
       },
@@ -8509,7 +7970,7 @@
         "x-extensible-enum": true
       },
       "PreflightChainTransactionV1": {
-        "description": "Namespace-aware transaction wire for the staged preflight migration.\n\nThis type is deliberately separate from the legacy `chainId` + `tx`\nprojection on [`PreflightNextAction`]. Producers move to this tagged wire\nonly when their consumer and compatibility boundary migrate together.\nUntil then, existing EVM response bytes remain unchanged.\n\nNew values may be added; treat unknown values as other.",
+        "description": "A transaction for the client to sign and send, tagged by its chain namespace\nso EVM and non-EVM transactions each carry their own fields.\n\nNew values may be added; treat unknown values as other.",
         "oneOf": [
           {
             "properties": {
@@ -12203,7 +11664,7 @@
         "description": "A quote's, firm answer's and executed trade's settlement: the venue's declared terms and,\nfor delayed timing only, the window. `{method, firstLeg?, timing, window?}` on the wire."
       },
       "QuotesRequestBody": {
-        "description": "The `POST /quotes` request body, told apart by shape: a top-level `requote` is a\nRequote; any other object is a pair request (the legacy intent body is retired).\nSchema only; the handler validates the JSON object itself.",
+        "description": "The `POST /quotes` request body, told apart by shape: a top-level `requote` is a\nRequote; any other object is a pair request (the legacy intent body is retired).",
         "oneOf": [
           {
             "$ref": "#/components/schemas/PairQuoteRequest"
@@ -12377,7 +11838,7 @@
         "x-extensible-enum": true
       },
       "RecordedRiskTradeScope": {
-        "description": "The recorded business population and original rolling Risk window.\n`as_of` retains the source's RFC 3339 text, including microsecond precision;\nthis predicate does not retain the original database snapshot's membership.",
+        "description": "The recorded business population and original rolling Risk window.\n`asOf` keeps the source's RFC 3339 text, including microsecond precision.\nIt does not record which trades were in the population at that time.",
         "properties": {
           "asOf": {
             "type": "string"
@@ -12894,31 +12355,6 @@
         "type": "string",
         "x-extensible-enum": true
       },
-      "RetroactiveAlertBanner": {
-        "description": "A retroactive compliance alert raised after trade execution.",
-        "properties": {
-          "alertType": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "raisedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "severity": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "alertType",
-          "severity",
-          "message",
-          "raisedAt"
-        ],
-        "type": "object"
-      },
       "RfqMechanism": {
         "description": "The mechanism that actually produced the quote, never a separate venue.",
         "properties": {
@@ -13237,33 +12673,6 @@
         ],
         "x-extensible-enum": true
       },
-      "SettlementCompliance": {
-        "description": "A compliance check executed at settlement time.",
-        "properties": {
-          "checkType": {
-            "type": "string"
-          },
-          "details": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "executedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "result": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "checkType",
-          "result",
-          "executedAt"
-        ],
-        "type": "object"
-      },
       "SettlementGrace": {
         "description": "New values may be added; treat unknown values as other.",
         "oneOf": [
@@ -13495,7 +12904,7 @@
         "x-extensible-enum": true
       },
       "SolverStatus": {
-        "description": "Solver operational status and conformance lifecycle.\n\nState machine:\n```text\nRegistered → Validating\nValidating → Active | Inactive\nActive     → Validating | Paused | Disabled\nInactive   → Validating | Disabled\nPaused     → Validating | Disabled\nDisabled   → ∅ (terminal; re-enable = admin creates a new solver or reverses via direct DB op)\n```\n\nNew values may be added; treat unknown values as other.",
+        "description": "Solver operational status and conformance lifecycle.\n\nState machine:\n```text\nRegistered → Validating\nValidating → Active | Inactive\nActive     → Validating | Paused | Disabled\nInactive   → Validating | Disabled\nPaused     → Validating | Disabled\nDisabled   → ∅ (terminal; only a TetraFi administrator can re-enable it)\n```\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "registered",
           "validating",
@@ -13523,7 +12932,7 @@
               },
               {
                 "$ref": "#/components/schemas/CandidateBalance",
-                "description": "None is an unobserved balance, never a zero balance."
+                "description": "`null` is an unobserved balance, never a zero balance."
               }
             ]
           },
@@ -13815,7 +13224,7 @@
         "description": "An action a person must take before the order can progress.",
         "properties": {
           "code": {
-            "description": "Stable machine code, [`NextAction::code`](crate::orders::next_action::NextAction::code):\n`AWAITING_TAKER_SIGNATURE`, `PRICE_MOVED`, `NEXT_LEG_DID_NOT_RUN`, `FINISH_TRADE`,\n`STOPPED` or `SUPPORT_REVIEW`.",
+            "description": "Stable machine code: `AWAITING_TAKER_SIGNATURE`, `PRICE_MOVED`, `NEXT_LEG_DID_NOT_RUN`, `FINISH_TRADE`,\n`STOPPED` or `SUPPORT_REVIEW`.",
             "type": "string"
           },
           "message": {
@@ -13962,25 +13371,11 @@
               "kind": {
                 "$ref": "#/components/schemas/TradeKind"
               },
-              "maker": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/FillDetail",
-                    "description": "The LP's fill detail."
-                  }
-                ]
-              },
               "projection": {
                 "$ref": "#/components/schemas/TradeProjection"
               },
               "tradeId": {
                 "type": "string"
-              },
-              "umbrella": {
-                "description": "The broker umbrella-compliance record, with the client category's field visibility applied."
               }
             },
             "required": [
@@ -13992,117 +13387,6 @@
           }
         ],
         "description": "One trade, read through the same projection as the list."
-      },
-      "TradeDetails": {
-        "description": "Section A: Trade details.",
-        "properties": {
-          "counterpartyLabel": {
-            "type": "string"
-          },
-          "counterpartyWorkspaceId": {
-            "description": "The taker company's workspace id when the counterparty is a company workspace;\nabsent for a direct user or an unattributed taker.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "deliveredBuy": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/AssetAmountDisplay",
-                "description": "The amount actually delivered on the buy chain, as measured by the settle\ntransition. `route.buy` falls back to the QUOTE when this is absent, so the\ntwo are the same number for a measured fill and different claims for an\nunmeasured one."
-              }
-            ]
-          },
-          "deliveredBuyProvenance": {
-            "description": "Where the delivered reading came from (`\"measured\"`, `\"unrecorded\"`, ...).\nAbsent means the order has no delivered amount at all — absent is a\nquestion, 0 is an answer.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "fillTime": {
-            "description": "Fill time — when the LP committed to fill the order (alias for filled_at).",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "filledAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "orderId": {
-            "type": "string"
-          },
-          "quotePrice": {
-            "description": "Quote price at fill time (decimal string, e.g. \"0.99875\").",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "route": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/TradeRouteDisplay",
-                "description": "The two sides, the same projection as the list."
-              }
-            ]
-          },
-          "routingPath": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/RoutingPath"
-              }
-            ]
-          },
-          "settlementSpeedMs": {
-            "description": "Settlement speed in milliseconds = settled_at - filled_at.\nNone if the fill has not settled yet.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "slippageBps": {
-            "description": "Slippage in basis points between quote and execution (positive = worse for LP).\nOnly meaningful alongside `deliveredBuyProvenance == \"measured\"`: a row\nwhose delivery was never measured carries 0 by construction, not by fact.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "solverId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "orderId",
-          "counterpartyLabel",
-          "createdAt"
-        ],
-        "type": "object"
       },
       "TradeDetailsSection": {
         "description": "Section A: Trade details.",
@@ -14915,7 +14199,7 @@
         "x-extensible-enum": true
       },
       "TradeLegReviewReason": {
-        "description": "The reason a leg requires review, using migration 548's stored tokens.\n\nNew values may be added; treat unknown values as other.",
+        "description": "The reason a leg requires review.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "uncertain_send",
           "ambiguous_event",
@@ -15163,7 +14447,7 @@
         "type": "string"
       },
       "TradeProjection": {
-        "description": "The projection that answers a request, and the persona handler behind it.\n\nNew values may be added; treat unknown values as other.",
+        "description": "Which view of trades answers the request: the caller's own, the workspace's,\na broker's umbrella, an LP's fills, or an LP's unsettled orders.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "mine",
           "workspace",
@@ -15322,17 +14606,6 @@
               "kind": {
                 "$ref": "#/components/schemas/TradeKind"
               },
-              "maker": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/MakerTradeSection",
-                    "description": "The LP's side of the trade: its fill, or its unsettled settlement stage."
-                  }
-                ]
-              },
               "projection": {
                 "$ref": "#/components/schemas/TradeProjection",
                 "description": "Which projection produced the row."
@@ -15340,9 +14613,6 @@
               "tradeId": {
                 "description": "The order id, or a venue trade's operation id; the detail is `…/trades/{tradeId}`.",
                 "type": "string"
-              },
-              "umbrella": {
-                "description": "The broker umbrella-compliance record, with the client category's field\nvisibility applied (a hidden field, the nested user's included, is absent)."
               }
             },
             "required": [
@@ -15448,121 +14718,6 @@
         ],
         "x-extensible-enum": true
       },
-      "TravelRuleData": {
-        "description": "Section D: Travel rule data.",
-        "properties": {
-          "beneficiaryAddress": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "beneficiaryLegalName": {
-            "description": "Beneficiary's registered legal entity name.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "beneficiaryName": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "beneficiaryVasp": {
-            "description": "VASP identifier for the beneficiary side (receiving VASP).",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "jurisdiction": {
-            "type": "string"
-          },
-          "originatorAddress": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "originatorLegalName": {
-            "description": "Originator's registered legal entity name (may differ from wallet label).",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "originatorName": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "originatorVasp": {
-            "description": "Virtual Asset Service Provider identifier for the originator side\n(sender LP). Typically a DID or legal VASP name per FATF guidance.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "required": {
-            "type": "boolean"
-          },
-          "thresholdAmount": {
-            "format": "double",
-            "type": "number"
-          },
-          "thresholdCurrency": {
-            "type": "string"
-          },
-          "tradeAmountUsd": {
-            "format": "double",
-            "type": "number"
-          },
-          "transmission": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/TravelRuleTransmission"
-              }
-            ]
-          }
-        },
-        "required": [
-          "required",
-          "jurisdiction",
-          "thresholdCurrency",
-          "thresholdAmount",
-          "tradeAmountUsd"
-        ],
-        "type": "object"
-      },
-      "TravelRuleTransmission": {
-        "description": "Travel rule data transmission record.",
-        "properties": {
-          "protocol": {
-            "type": "string"
-          },
-          "referenceId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "transmittedAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "protocol",
-          "transmittedAt"
-        ],
-        "type": "object"
-      },
       "TxReference": {
         "description": "On-chain transaction reference with explorer URL.",
         "properties": {
@@ -15662,7 +14817,7 @@
         "x-extensible-enum": true
       },
       "VenueBalanceLine": {
-        "description": "The wire shape of one balance line: holds stay internal, so the line carries\none `available` and never the hold total or the signed headroom. The\nstored observation and every in-process reader keep [`VenueBalanceLine`].",
+        "description": "One asset's balance at the venue: its total, free and locked amounts, what is\navailable after TetraFi's open trades and withdrawals, and its USD value.",
         "properties": {
           "asset": {
             "type": "string"
@@ -15689,7 +14844,7 @@
             "type": "string"
           },
           "locked": {
-            "description": "None when credit availability prevents deriving actual locked cash.",
+            "description": "`null` when credit availability prevents deriving actual locked cash.",
             "type": [
               "string",
               "null"
@@ -15699,14 +14854,14 @@
             "type": "string"
           },
           "usdPriceSource": {
-            "description": "None when no reference price is available; never 0.",
+            "description": "`null` when no reference price is available; never 0.",
             "type": [
               "string",
               "null"
             ]
           },
           "usdValue": {
-            "description": "Unrounded total × reference USD price. None when no reference price is available; never 0.",
+            "description": "Unrounded total × reference USD price. `null` when no reference price is available;\nnever 0.",
             "type": [
               "string",
               "null"
@@ -16145,7 +15300,7 @@
             "type": "string"
           },
           "balances": {
-            "description": "None means no observation; Some([]) means an actual empty snapshot.\nInactive accounts may return historical values only with stale state and\nprovider_api_last_known provenance. These never authorize spending.",
+            "description": "`null` means no observation; `[]` means an actual empty snapshot.\nInactive accounts may return historical values only with stale state and\n`provider_api_last_known` provenance. These never authorize spending.",
             "items": {
               "$ref": "#/components/schemas/VenueBalanceLine"
             },
@@ -16240,7 +15395,7 @@
             "$ref": "#/components/schemas/VenueConnectionStatus"
           },
           "credits": {
-            "description": "None means unavailable, never an empty successful history.",
+            "description": "`null` means unavailable, never an empty successful history.",
             "items": {
               "$ref": "#/components/schemas/VenueDepositCredit"
             },
@@ -16583,6 +15738,125 @@
         ],
         "type": "object"
       },
+      "VenueEnablement": {
+        "description": "One of the workspace's venue accounts: its account at one venue and provider site. accountId is the {venueAccountId} of the venue-account balance, deposit-history and deposit-instructions reads. Only the documented fields are part of the integrator contract; undocumented fields may be sent and must be ignored.",
+        "properties": {
+          "accountId": {
+            "description": "The venue account id: pass it as `{venueAccountId}` to\n`…/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and\n`/deposit-instructions`.",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "integrationMode": {
+            "$ref": "#/components/schemas/IntegrationMode",
+            "description": "The account's base integration mode: basic or advanced."
+          },
+          "label": {
+            "type": "string"
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/VenueEnablementLifecycle"
+          },
+          "providerSite": {
+            "type": "string"
+          },
+          "revokedAt": {
+            "description": "When the account was removed, from its recorded removal event. Null while the\naccount is not revoked, and on a revoked account whose removal was never recorded\n(unknown, never derived from `updatedAt`).",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradePaused": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "venueEnablementId": {
+            "description": "The venue enablement identifier: the id of `…/venue-enablements/{venueEnablementId}`\nreads and controls. Not the venue account id.",
+            "type": "string"
+          },
+          "venueId": {
+            "description": "The venue this account belongs to, by catalogue id (for example valr). Absent only when the stored account maps to no known venue.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "venueKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CatalogueVenueKind",
+                "description": "The Venue's kind; absent when the Venue is unknown."
+              }
+            ]
+          },
+          "withdrawalPaused": {
+            "type": "boolean"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountId",
+          "createdAt",
+          "integrationMode",
+          "label",
+          "lifecycle",
+          "providerSite",
+          "tradePaused",
+          "updatedAt",
+          "venueEnablementId",
+          "withdrawalPaused",
+          "workspaceId"
+        ],
+        "type": "object"
+      },
+      "VenueEnablementLifecycle": {
+        "description": "The account lifecycle. `funding_only` belongs to the account alone: its last\ntrading venue was disabled and a funding use still binds the balance key.\nAn unknown stored value is a decode error, never a default.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "pending",
+          "configured",
+          "funding_only",
+          "disabled",
+          "revoked"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "VenueEnablementsPage": {
+        "description": "One page of the workspace's venue accounts, oldest first.",
+        "properties": {
+          "items": {
+            "description": "The workspace's venue accounts on this page. Each item's `accountId` is the\n`{venueAccountId}` of the venue-account balance and deposit reads.",
+            "items": {
+              "$ref": "#/components/schemas/VenueEnablement"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "description": "Pass as `cursor` for the next page; explicit null marks the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
       "VenueExecution": {
         "description": "A venue account's recorded execution facts, never protocol network metadata.",
         "properties": {
@@ -16746,74 +16020,6 @@
         ],
         "x-extensible-enum": true
       },
-      "VenueFillAmount": {
-        "description": "Every quantity explicitly carries its asset, unit and recorded owner.",
-        "properties": {
-          "amount": {
-            "type": "string"
-          },
-          "asset": {
-            "type": "string"
-          },
-          "provenance": {
-            "description": "`quote_snapshot` or `dispatch_result`.",
-            "type": "string"
-          },
-          "unit": {
-            "description": "Always `decimal_currency_units`.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "asset",
-          "amount",
-          "unit",
-          "provenance"
-        ],
-        "type": "object"
-      },
-      "VenueFillFee": {
-        "properties": {
-          "amount": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillAmount"
-              }
-            ]
-          },
-          "basis": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "lines": {
-            "items": {
-              "$ref": "#/components/schemas/VenueRfqQuoteFee"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          },
-          "tradeFeeReport": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "treatment": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "type": "object"
-      },
       "VenueFillFilter": {
         "description": "Exact recorded account selectors. Null axes remain unrestricted; no name,\ncase or request-direction normalization changes the selected population.",
         "properties": {
@@ -16848,32 +16054,6 @@
           "providerSite",
           "inputAsset",
           "outputAsset"
-        ],
-        "type": "object"
-      },
-      "VenueFillLifecycleRecord": {
-        "properties": {
-          "kind": {
-            "type": "string"
-          },
-          "occurredAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "outcomeCode": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "provenance": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "occurredAt",
-          "provenance"
         ],
         "type": "object"
       },
@@ -16952,187 +16132,6 @@
         ],
         "type": "object"
       },
-      "VenueFillTrade": {
-        "description": "An allowlist of the retained operation, quote and authoritative dispatch.\nNo credentials, balance policy, review rules or raw trader identity.",
-        "properties": {
-          "actualInput": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillAmount"
-              }
-            ]
-          },
-          "actualOutput": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillAmount"
-              }
-            ]
-          },
-          "connectionId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "executionStatus": {
-            "description": "not_submitted, dispatching, filled, unfilled, outcome_unknown, needs_review.",
-            "type": "string"
-          },
-          "executionTypeId": {
-            "description": "The execution type (compiled spec id), not the catalogue Venue.",
-            "type": "string"
-          },
-          "fee": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillFee"
-              }
-            ]
-          },
-          "historyCoverage": {
-            "description": "Only durable records can be projected; absent refusals are not complete.",
-            "type": "string"
-          },
-          "historyCoverageCode": {
-            "type": "string"
-          },
-          "lifecycle": {
-            "description": "Bounded record projections of this operation's lifecycle, not ledger entries.",
-            "items": {
-              "$ref": "#/components/schemas/VenueFillLifecycleRecord"
-            },
-            "type": "array"
-          },
-          "nativeQuoteId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "nativeReference": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "operationId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "outcomeCode": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "providerClientOrderId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "providerQuoteExpiresAt": {
-            "description": "Original provider RFQ deadline; absent for order-book estimates.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "providerSite": {
-            "type": "string"
-          },
-          "quoteExpiresAt": {
-            "description": "TetraFi's recorded acceptance deadline, which can precede provider expiry.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "quoteId": {
-            "format": "uuid",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "quoteIssuedAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "quoteKind": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueQuoteKind",
-                "description": "Kind of the retained quote, never inferred from the venue's name."
-              }
-            ]
-          },
-          "quotedInput": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillAmount"
-              }
-            ]
-          },
-          "quotedOutput": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueFillAmount"
-              }
-            ]
-          },
-          "traderRef": {
-            "type": "string"
-          },
-          "venueFilledAt": {
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "venueOrderId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "operationId",
-          "connectionId",
-          "executionTypeId",
-          "providerSite",
-          "executionStatus",
-          "traderRef",
-          "historyCoverage",
-          "historyCoverageCode",
-          "lifecycle"
-        ],
-        "type": "object"
-      },
       "VenueFilter": {
         "additionalProperties": false,
         "description": "Venue ids to keep or drop; each must be a known venue (`UNKNOWN_VENUE`).",
@@ -17161,15 +16160,6 @@
           "rfq",
           "orderBook",
           "fiat"
-        ],
-        "type": "string",
-        "x-extensible-enum": true
-      },
-      "VenueQuoteKind": {
-        "description": "New values may be added; treat unknown values as other.",
-        "enum": [
-          "firm_rfq",
-          "book_estimate"
         ],
         "type": "string",
         "x-extensible-enum": true
@@ -17735,7 +16725,7 @@
               },
               {
                 "$ref": "#/components/schemas/VenueTradeSettlementStatus",
-                "description": "The legs' settlement; `null` when the order has no legs.\nAlways present: `api_dto` would otherwise omit the key when `None`."
+                "description": "The legs' settlement; `null` when the order has no legs. Always present."
               }
             ]
           },
@@ -18001,7 +16991,7 @@
         "type": "object"
       },
       "WalletSigningPreparation": {
-        "description": "Prepared by the selected provider adapter for an exact backend-owned digest.\nHosted approval returns an original authorizationId for the owner to approve\nbefore order submission. Other providers use an operation-bound RPC factor\nin the existing execution.signing request fields.",
+        "description": "What the wallet's provider needs signed or approved for an exact digest TetraFi\nprepared. Hosted approval returns an original authorizationId for the owner to approve\nbefore order submission. Other providers use an operation-bound RPC factor\nin the existing execution.signing request fields.",
         "properties": {
           "authorizationId": {
             "description": "Original hosted authorization retained by preflight. Submit owner proof\nthere, then pass this identity to the existing order signing selection.",
@@ -18014,7 +17004,7 @@
             "$ref": "#/components/schemas/WalletAuthorizationKind"
           },
           "authorizationPayload": {
-            "description": "Exact serialized activity for a stamp, or the provider's canonical payload."
+            "description": "The exact activity to stamp, as the provider encodes it, or the provider's\ncanonical payload."
           },
           "expiresAt": {
             "format": "date-time",
@@ -18412,7 +17402,7 @@
         "x-extensible-enum": true
       },
       "WindowSettlementBasis": {
-        "description": "What completes a window's settlement. `clock`: the occurrence's confirmed completion time\n(`settlesBy`). `onAgreement`: the LP issues the window's statement and the trade settles\nonce that statement is agreed (Keyrock), so the window states no clock time. An unknown\nbasis fails to deserialize: it is refused, never read as a clock.\n\nNew values may be added; treat unknown values as other.",
+        "description": "What completes a window's settlement. `clock`: the occurrence's confirmed completion time\n(`settlesBy`). `onAgreement`: the LP issues the window's statement and the trade settles\nonce that statement is agreed (Keyrock), so the window states no clock time.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "clock",
           "onAgreement"
@@ -18597,7 +17587,7 @@
         "x-extensible-enum": true
       },
       "WorkspaceVenueMovement": {
-        "description": "Which movement a [`ProviderProduct::WorkspaceVenue`] edge makes at the LP account.\n\nNew values may be added; treat unknown values as other.",
+        "description": "Which movement a workspace-venue route step makes at the LP account.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "trade",
           "withdrawal",
@@ -23430,7 +22420,7 @@
                 }
               }
             },
-            "description": "Request body could not be deserialized or the quote intent is not executable for the selected router or venue state",
+            "description": "Request body could not be read or the quote intent is not executable for the selected router or venue state",
             "headers": {
               "x-ratelimit-limit": {
                 "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
@@ -24822,7 +23812,7 @@
     },
     "/api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/balances": {
       "get": {
-        "description": "Requires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND.",
+        "description": "Requires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "operationId": "get_venue_account_balances",
         "parameters": [
           {
@@ -25274,7 +24264,7 @@
     },
     "/api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/deposit-history": {
       "get": {
-        "description": "Requires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key.",
+        "description": "Requires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. A bounded window, not a paged list: each answer is one live read of the venue's own credit history for `lookbackDays` (1 to 30, default 7) ending now, returned whole with its `since`, `until`, `observedAt` and `expiresAt`. A window holding more than 1,000 venue records answers no credits, with reasonCode DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. No cursor is offered because the venues' histories have no position that stays stable from one live read to the next, so a cursor could skip or repeat a credit. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "operationId": "get_venue_account_deposit_history",
         "parameters": [
           {
@@ -25799,7 +24789,7 @@
     },
     "/api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/deposit-instructions": {
       "get": {
-        "description": "Requires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key.",
+        "description": "Requires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "operationId": "get_venue_account_deposit_instructions",
         "parameters": [
           {
@@ -26365,6 +25355,392 @@
         "summary": "Read how to deposit into the venue account",
         "tags": [
           "venue-accounts"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/venue-enablements": {
+      "get": {
+        "description": "A Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
+        "operationId": "list_venue_enablements",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "description": "Current company or broker workspace",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque `nextCursor` from the previous page of the same list and filters.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, default 20, clamped to 1..=100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueEnablementsPage"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "List the workspace's venue accounts",
+        "tags": [
+          "venue-enablements"
         ]
       }
     },
@@ -30932,7 +30308,7 @@
             }
           },
           {
-            "description": "Sort column, as the projection names it",
+            "description": "Field to sort by, as the projection names it",
             "in": "query",
             "name": "sortBy",
             "required": false,
@@ -31105,7 +30481,7 @@
                 }
               }
             },
-            "description": "scope=mine with an API key; umbrella without view_umbrella_compliance; maker without an LP workspace and view_settlements; an API key without trades_read",
+            "description": "scope=mine with an API key; umbrella without view_umbrella_compliance; maker without an LP workspace and view_settlements; the umbrella or maker projection with an API key (JWT_REQUIRED); an API key without trades_read",
             "headers": {
               "x-ratelimit-limit": {
                 "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
@@ -31555,7 +30931,7 @@
                 }
               }
             },
-            "description": "Another member's order without view_compliance (RECORDS_OUT_OF_SCOPE); scope=mine with an API key; umbrella without view_umbrella_compliance; maker without an LP workspace and view_settlements; an API key without trades_read",
+            "description": "Another member's order without view_compliance (RECORDS_OUT_OF_SCOPE); scope=mine with an API key; umbrella without view_umbrella_compliance; maker without an LP workspace and view_settlements; the umbrella or maker projection with an API key (JWT_REQUIRED); an API key without trades_read",
             "headers": {
               "x-ratelimit-limit": {
                 "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",

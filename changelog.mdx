@@ -12,6 +12,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - `GET /api/v1/workspaces/{workspaceId}/trades` lists the workspace's orders and exchange-account trades in one history, with cursor paging and CSV export. The key needs **Read trades** ([Trade history](/trade/trade-history)).
   - `GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one trade. A failed or refunded order's `settlement.failureReason` says why ([Read one trade](/trade/trade-history#read-one-trade)). A trade read with an API key no longer carries the compliance records attached to it: read those in the app.
   - An API key with **Read treasury** reads an exchange account's balances, deposit instructions and deposit history at `…/venue-accounts/{venueAccountId}/balances`, `/deposit-instructions` and `/deposit-history`; these used to answer `403 JWT_REQUIRED`. A read whose authority is withdrawn while it runs answers `403 VENUE_READ_AUTHORITY_REFUSED` ([Exchange account balances](/trade/venue-balances)).
+  - `GET /api/v1/workspaces/{workspaceId}/venue-enablements` lists your exchange accounts with the same key, with cursor paging: each item's `accountId` is the `{venueAccountId}` of those reads ([List your exchange accounts](/trade/venue-balances#list-your-exchange-accounts)). The deposit history is one bounded window, `lookbackDays` 1 to 30, with no cursor; more than 1,000 records answers `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`.
 </Update>
 
 <Update label="2026-11-01" description="Service-account tokens, key rules and response headers">
