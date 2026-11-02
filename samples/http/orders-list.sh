@@ -68,6 +68,24 @@ echo "orders: ${#orders[@]} across $pages pages" >&2
 printf '%s\n' "${orders[@]:0:3}" >&2
 # endregion
 
+# region order-execution
+# Every order also says what it actually did, on Basic and Advanced orders alike. settledBuyAmount
+# is null until it is measured, never the quote carried forward. A fee whose amount was not
+# reported is left out of fees and its kind listed in unrecordedFees: show it as not recorded,
+# never as 0. settlesBy is null when no deadline is recorded, for example a same-chain DEX swap.
+filled=""
+for status in settled filled; do
+  [[ -n $filled ]] || filled=$(tetrafi GET "/api/v1/orders?limit=1&from=$since&status=$status" | jq -r '.items[0].orderId // empty')
+done
+if [[ -n $filled ]]; then
+  filled=$(tetrafi GET "/api/v1/orders/$filled")
+  jq -c '{orderId, kind, quotedBuyAmount, settledBuyAmount, fills: [.fills[] | {amount, at, network}],
+    fees: [.fees[] | {kind, amount, asset, includedInPrice}], unrecordedFees, settlesBy}' <<<"$filled" >&2
+fi
+# endregion
+[[ -z $filled ]] || jq -e 'has("fills") and has("fees") and has("unrecordedFees") and has("settlesBy")
+  and has("quotedBuyAmount") and has("settledBuyAmount")' <<<"$filled" >/dev/null || fail EXECUTION_REPORT_MISSING
+
 # A cancelled order answers a repeated cancel with itself, unchanged; pick one that ended otherwise.
 final=$(printf '%s\n' "${orders[@]}" | jq -sc 'map(select(.terminal == true and .status != "cancelled")) | .[0] // empty')
 cancel='{"skipped":"no final order in the last 30 days"}'
@@ -87,4 +105,5 @@ if [[ -n $final ]]; then
   cancel=$(jq -c '{error, status: .details.status}' <<<"$refused")
 fi
 
-jq -cn --argjson n "${#orders[@]}" --argjson p "$pages" --argjson c "$cancel" '{orders: $n, pages: $p, cancelFinal: $c}'
+jq -cn --argjson n "${#orders[@]}" --argjson p "$pages" --argjson c "$cancel" --arg f "$(jq -r '.orderId // empty' <<<"${filled:-null}")" \
+  '{orders: $n, pages: $p, cancelFinal: $c, executionReportOf: (if $f == "" then null else $f end)}'

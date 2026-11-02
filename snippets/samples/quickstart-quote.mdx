@@ -34,7 +34,7 @@ const set = await client.quote({
 const notQuoted = set.sources.filter((source) => source.status !== 'answered')
   .map((source) => `${source.venue.id}: ${source.status}`);
 // Quotes arrive best first. Take the first one you can act on right now.
-const best: Quote | undefined = set.quotes.find((quote) => quote.next.kind === 'order' || quote.next.kind === 'preflight');
+const best: Quote | undefined = set.quotes.find((quote) => quote.next.kind === 'order');
 if (!best) throw new Error(`No quote can be ordered yet. Not quoted: ${notQuoted.join('; ') || 'none'}`);
 ```
 

@@ -5,6 +5,7 @@ description: "Follow an order to the end: one read for every order, what each st
 
 import OrderStatus from '/snippets/samples/order-status.mdx';
 import OrdersList from '/snippets/samples/orders-list.mdx';
+import OrderExecution from '/snippets/samples/order-execution.mdx';
 
 `POST /api/v1/orders` answers as soon as the order is accepted. To follow it to the end, read it at the `statusUrl` the answer gives: `GET /api/v1/orders/{id}`. The read answers the same envelope as the order answer, for Basic and Advanced orders alike, so one parser reads both.
 
@@ -64,6 +65,27 @@ Without `next`, poll every 10 to 15 seconds until `terminal` is `true`.
 
 ```json Output on test networks
 {"kind":"basicTrade","status":"settled","terminal":true,"next":null}
+```
+
+## What the order did
+
+Every order also says what it actually did, in the same keys on Basic and Advanced orders. These are recorded facts, never the quote carried forward.
+
+| Field | Meaning |
+| --- | --- |
+| `fills` | Each confirmed fill, in execution order: `amount` (what it delivered), `sellAmount`, `price`, `at`, `venue`, and `txHash` with its `network` for an on-chain fill. Empty until a fill is confirmed. A field that was not recorded is `null`. |
+| `quotedBuyAmount` | What the executed quote said would land. `null` when it is not known, for example before a venue order is sent. |
+| `settledBuyAmount` | What actually landed, read from the fills or the settlement. `null` until it is measured. Compare it with `quotedBuyAmount` to see what the trade delivered against its quote. |
+| `fees` | Each fee actually charged: `kind`, `amount`, `asset`, `chain` for an on-chain charge, and `includedInPrice`. When `includedInPrice` is `true`, the venue took the fee inside its price: the fill amounts already reflect it, so it is not charged on top. |
+| `unrecordedFees` | The kinds of fee the order incurred whose amount is not recorded, for example a venue fee taken inside the price without an amount. Show these as "not recorded", never as 0. A kind that is in neither list was not charged. |
+| `settlesBy` | The latest time the order settles, or can no longer execute, under its recorded terms. `null` when no deadline is recorded: an off-chain Basic trade on an exchange account, or a same-chain DEX swap, whose call carries no deadline. |
+
+A fee's `kind` is `trading` (the venue's fee), `relayer`, `forwarding`, `transfer`, `network` (gas the order's wallet paid) or `platform` (the TetraFi fee). New kinds may be added: show one you do not recognise generically.
+
+<OrderExecution />
+
+```json Output on test networks
+{"orderId":"9410e38e-…","kind":"basicTrade","quotedBuyAmount":"0.499751","settledBuyAmount":"0.499751","fills":[{"amount":"0.499751","at":"2026-11-02T01:37:12Z","network":"eip155:11155111"}],"fees":[{"kind":"relayer","amount":"0.000249","asset":"USDC","includedInPrice":false},{"kind":"network","amount":"0.000000332622","asset":"ETH","includedInPrice":false},{"kind":"network","amount":"0.000000438318","asset":"ETH","includedInPrice":false},{"kind":"platform","amount":"0.000049","asset":"USDC","includedInPrice":false}],"unrecordedFees":[],"settlesBy":null}
 ```
 
 ## List your orders

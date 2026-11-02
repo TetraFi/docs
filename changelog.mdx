@@ -5,6 +5,12 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-11-02" description="What an order did, and one trade history">
+  - Every order, Basic and Advanced, carries what it actually did: `fills`, `quotedBuyAmount` and `settledBuyAmount`, the fees actually charged in `fees` (each with `includedInPrice`), the kinds whose amount was not recorded in `unrecordedFees`, and `settlesBy` ([What the order did](/trade/order-status#what-the-order-did)). Show an unrecorded fee as "not recorded", never as 0.
+  - `GET /api/v1/prices` rows no longer carry `commitment`: they carry `firm` and `lastLook`, both always `false` ([Prices before you quote](/search/prices)).
+  - `GET /api/v1/workspaces/{workspaceId}/trades` lists the workspace's orders and exchange-account trades in one history, with cursor paging and CSV export. The key needs **Read trades** ([Trade history](/trade/trade-history)).
+</Update>
+
 <Update label="2026-11-01" description="Service-account tokens, key rules and response headers">
   - A service account's API key can be exchanged for a bearer token of at most 15 minutes, with the OAuth 2.0 client-credentials grant at `POST /api/v1/oauth/token`. `GET /api/v1/me` with the token answers for the key it was exchanged from: `auth` `oauthClientCredentials`, `keyId`, `workspaceId`, its live `scopes` and `organisationWallets` ([Service accounts and tokens](/service-accounts)).
   - A key that requires request signing or holds venue trading is refused by the exchange with `400 unauthorized_client`, `error_uri` ending `#SIGNED_KEY_NOT_EXCHANGEABLE`: sign each request with it instead.
@@ -14,7 +20,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Reading a quote set with `GET /api/v1/quotes/requests/{quoteRequestId}` moments after it was returned answers `503 QUOTE_REQUEST_NOT_READY` instead of `404`: read it again after about a second.
   - A venue-trading key that is revoked, expired or no longer current for its workspace is refused with `VENUE_TRADE_KEY_NOT_CURRENT`, and nothing is placed ([Error codes](/reference/error-codes#VENUE_TRADE_KEY_NOT_CURRENT)).
   - Every quote carries `firm` (the venue is bound to the price until `expiresAt`) and `lastLook`, always `false`. Read firmness from `firm` and `expiresAt`: `commitment` said the same ([How search works](/search/how-it-works#executable-and-indicative-quotes)).
-  - Quote cards no longer carry `commitment`, in `POST /quotes` and requotes alike: read `firm` and `expiresAt`. `GET /prices` rows keep their own `commitment`.
+  - Quote cards no longer carry `commitment`, in `POST /quotes` and requotes alike: read `firm` and `expiresAt`.
   - Past a quote's `retainUntil`, a requote or an order answers `410 REQUOTE_WINDOW_CLOSED` with `next.kind: "search"`: search again. `410 QUOTE_EXPIRED` now means only that the quote lapsed and can still be requoted ([Requotes and expiry](/trade/requotes-and-expiry)).
 </Update>
 

@@ -1,0 +1,54 @@
+---
+title: "Trade history"
+description: "One list of your workspace's trades: the orders you placed and the trades on your exchange accounts, with filters and cursor paging."
+---
+
+import TradesList from '/snippets/samples/trades-list.mdx';
+
+`GET /api/v1/workspaces/{workspaceId}/trades` is your workspace's one trade history. It lists the orders placed through the API or the app and the trades on your connected exchange accounts together, newest first. Use it for reconciliation and reporting; to follow one order to the end, read it at its `statusUrl` instead ([Order status](/trade/order-status)).
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+The key needs **Read trades** ([Authentication](/authentication)). The path names your workspace: the `workspaceId` that `GET /api/v1/me` answers for your key. Another workspace answers `404 WORKSPACE_NOT_FOUND`.
+
+## Read a page
+
+Every row carries:
+
+| Field | Meaning |
+| --- | --- |
+| `tradeId` | The trade's id. |
+| `kind` | `order`, an order placed through TetraFi, or `venueTrade`, a trade on one of your exchange accounts. New kinds may be added: show one you do not recognise generically. |
+| `projection` | The view the row was read through: `workspace` for an API key. |
+| `createdAt` | When the trade was placed. |
+
+The page also carries `total` (rows matching your filters), `limit` and `nextCursor`.
+
+Filter with `kind` (`all`, `order` or `venueTrade`), `status`, and `from` and `to` (RFC 3339 times, placed at or after, at or before). `limit` sets the page size, 25 by default. Send `format=csv` for the same rows as CSV.
+
+To read every row, pass `nextCursor` back as `cursor` with the same filters until it is `null`. An unknown parameter or value, or a filter the list cannot apply, answers `400 INVALID_REQUEST` naming the parameter.
+
+<TradesList />
+
+```json Output on test networks
+{"total":628,"nextCursor":true,"coverage":null,"excludedKinds":null}
+{"tradeId":"9410e38e-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-02T01:36:46.856947Z"}
+{"tradeId":"3ba8fe03…","kind":"order","projection":"workspace","createdAt":"2026-11-01T23:51:28Z"}
+{"tradeId":"de0a1b4b-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-01T22:55:48.448012Z"}
+{"page":2,"rows":5}
+```
+
+## When a page is partial
+
+Two fields say when the list holds less than it could:
+
+- `coverage` lists each kind whose rows could not be read just now, with its `state`. The page shows the other kinds and is partial, not shorter: read it again later rather than treating the missing rows as absent.
+- `excludedKinds` lists each kind a filter or sort left out, with the `filter` it could not apply. Drop that filter to see the kind again.
+
+A `503 TRADE_PROJECTION_UNAVAILABLE` means the trade history cannot be read on this deployment right now. Retry later.
+
+## Exchange account balances
+
+Balances and deposit history of your exchange accounts are not yet available to API keys. They will be listed in the [Changelog](/changelog) when they are.
