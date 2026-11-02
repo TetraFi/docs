@@ -29,7 +29,7 @@ jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, sell: .sell.amount, maxPay}
 // Accept at most 0.5% (50 basis points) less than quoted. Compare `minOut` with `receive.amount`.
 const protectedSet = await client.quote({ ...base, priceProtectionBps: 50 });
 const protection = protectedSet.quotes.map((quote) => ({ quoteId: quote.id, venue: quote.legs.map((leg) => leg.venue.id).join(' + '),
-  commitment: quote.commitment.kind, receive: quote.buy.amount, minOut: quote.minOut }));
+  firm: quote.firm, expiresAt: quote.expiresAt, receive: quote.buy.amount, minOut: quote.minOut }));
 ```
 
 </CodeGroup>
