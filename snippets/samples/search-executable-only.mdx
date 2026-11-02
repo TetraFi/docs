@@ -12,7 +12,7 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   filters: {commitment: "executableOnly"}
 }')
 executable=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, minOut, expiresAt}]' <<<"$executable" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, minOut, expiresAt}]' <<<"$executable" >&2
 jq -c '[.quotes[].legs[0].venue.id] as $quoted
   | [.sources[] | select(.status == "answered" and (.venue.id | IN($quoted[]) | not)) | .venue.id]' <<<"$executable" >&2
 ```

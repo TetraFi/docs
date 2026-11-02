@@ -42,7 +42,8 @@ You search by sending one quote request: the asset you sell, the asset you buy, 
     {
       "id": "q_...",
       "location": { "kind": "offChain" },
-      "commitment": { "kind": "executable", "firm": false },
+      "firm": false,
+      "lastLook": false,
       "sell": { "asset": "USDC", "chain": null, "variant": { "kind": "native", "name": "USDC" }, "amount": "99.99994" },
       "buy": { "asset": "ETH", "chain": null, "variant": { "kind": "native", "name": "ETH" }, "amount": "0.043" },
       "minOut": "0.042",
@@ -62,18 +63,20 @@ Quotes are trimmed here: each one also carries its `legs`, `fees`, `netReceived`
 Each quote tells you:
 
 - **where it executes**, in `location.kind`: `singleChain`, `crossChain` or `offChain`, or `mixed` for a route whose legs differ. `mixed` describes a quote only: you cannot filter on it, and `filters.locations: ["mixed"]` is refused with `400 INVALID_REQUEST`;
-- **how committed the venue is**, in `commitment`;
+- **whether the venue is bound to its price**, in `firm` with `expiresAt` ([below](#executable-and-indicative-quotes)), and `lastLook`, always `false`: an accepted price is never re-checked before it fills;
 - **what you do next**, in `next.kind`: `order`, `fund` or `requote` (`preflight`, `sign` and `transact` appear only on Advanced quotes, which are not open yet).
 
 `venueAsked` is `false` when every quote came from cached prices and no venue was contacted.
 
 ## Executable and indicative quotes
 
-| Commitment | What it means | `expiresAt` | `minOut` | `staleAfter` |
+| `firm` and `expiresAt` | What it means | `minOut` | `staleAfter` |
 | --- | --- | --- | --- | --- |
-| `executable`, `firm: true` | The venue delivers exactly this amount until expiry. | set | `null` | `null` |
-| `executable`, `firm: false` | Delivery may move, but never below `minOut`. | set | set | `null` |
-| `indicative` | The venue's price, not a commitment. | `null` | `null` | set |
+| `firm: true`, `expiresAt` set | Executable: the venue delivers exactly this amount until expiry. | `null` | `null` |
+| `firm: false`, `expiresAt` set | Executable: delivery may move, but never below `minOut`. | set | `null` |
+| `firm: false`, `expiresAt` `null` | Indicative: the venue's price, not a commitment. | `null` | set |
+
+Quotes still carry `commitment`, which says the same thing; it will be removed, so read `firm` and `expiresAt`.
 
 `expiresAt` is when an executable quote stops being orderable. Order before then, or requote it: see [Requotes and expiry](/trade/requotes-and-expiry). An indicative quote has no expiry; `staleAfter` says when its price is old.
 

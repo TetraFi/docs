@@ -87,7 +87,7 @@ outcome() {
     request: $name,
     quotes: (.quotes | length),
     locations: ([.quotes[].location.kind] | unique),
-    commitments: ([.quotes[].commitment | if .kind == "executable" then (if .firm then "firm" else "executable" end) else .kind end] | unique),
+    commitments: ([.quotes[] | if .firm then "firm" elif .expiresAt != null then "executable" else "indicative" end] | unique),
     sources: (.sources | length),
     outcomes: (reduce .sources[] as $s ({}; .[$s.status] += 1))
   }' <<<"$2")
@@ -151,7 +151,7 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --ar
   filters: {venues: {include: [$venue]}}
 }')
 only=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, buy: .buy.amount}]' <<<"$only" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, buy: .buy.amount}]' <<<"$only" >&2
 jq -c '[.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status}]' <<<"$only" >&2
 # endregion
 outcome venueInclude "$only"
@@ -197,7 +197,7 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   filters: {commitment: "executableOnly"}
 }')
 executable=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, minOut, expiresAt}]' <<<"$executable" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, minOut, expiresAt}]' <<<"$executable" >&2
 jq -c '[.quotes[].legs[0].venue.id] as $quoted
   | [.sources[] | select(.status == "answered" and (.venue.id | IN($quoted[]) | not)) | .venue.id]' <<<"$executable" >&2
 # endregion
@@ -236,7 +236,7 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" 
   priceProtectionBps: $bps
 }')
 protected_exact=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, sell: .sell.amount, maxPay}]' <<<"$protected_exact" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, sell: .sell.amount, maxPay}]' <<<"$protected_exact" >&2
 # endregion
 outcome priceProtection "$protected"
 outcome priceProtectionBuyExact "$protected_exact"
@@ -251,7 +251,7 @@ jq -nc --arg sell "$sell" --arg buy "$buy" --arg venue "$venue" \
   --argjson variantReasons "$(jq -c '[.sources[] | select(.status != "answered") | .reason] | unique' <<<"$native")" \
   --argjson etaOrder "$(jq -c '[.quotes[] | .eta]' <<<"$by_eta")" \
   --argjson minOut "$(jq -c '[.quotes[] | select(.minOut != null) | {buy: .buy.amount, minOut}]' <<<"$protected")" \
-  --argjson maxPay "$(jq -c '[.quotes[] | {commitment: .commitment.kind, sell: .sell.amount, maxPay}]' <<<"$protected_exact")" \
+  --argjson maxPay "$(jq -c '[.quotes[] | {firm, sell: .sell.amount, maxPay}]' <<<"$protected_exact")" \
   --argjson bps "$protection_bps" \
   '{pair: {sell: $sell, buy: $buy}, assetsListed: $assets, venue: $venue,
     detail: {includeQuotedBy: $include, excludedVenueStatus: $excluded, nativeOnlyVariants: $variants,

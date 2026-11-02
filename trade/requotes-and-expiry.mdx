@@ -41,7 +41,7 @@ These four fields are the whole body. The pair, the amount, the side and the fil
     {
       "id": "q_01M5XJXN…",
       "requoteOf": "q_01M5XJXM…",
-      "commitment": { "kind": "executable", "firm": false },
+      "firm": false,
       "buy": { "asset": "USDT", "amount": "5.00685" },
       "minOut": "4.99182",
       "expiresAt": "2026-10-27T02:27:15.792Z",
@@ -75,17 +75,17 @@ A non-firm executable quote carries `minOut`, the least it may deliver. `pricePr
 | `observedAt` | Indicative quotes and order-book estimates | When the venue's price or order book was read. `null` on a firm quote. |
 | `firmAskAvailableAt` | Desk quotes, when known | The workspace has reached the desk's firm-quote limit until this time, so a requote asking it for a firm price is refused before then. |
 
-You can requote a quote until 10 minutes after it expired (its `expiresAt`, or `staleAfter` for an indicative quote). After that, the requote answers `410 QUOTE_EXPIRED`: search again.
+You can requote a quote until its `retainUntil`: 10 minutes after it expired (its `expiresAt`, or `staleAfter` for an indicative quote). Before then, ordering the lapsed quote answers `410 QUOTE_EXPIRED` with `next.kind: "requote"`. After it, a requote or an order answers `410 REQUOTE_WINDOW_CLOSED` with `next.kind: "search"`: search again with a pair body.
 
 ## Firm and non-firm quotes
 
-`commitment` says how committed the venue is:
+`firm` and `expiresAt` say whether the venue is bound to its price:
 
-| Commitment | Delivery | `minOut` |
+| `firm` and `expiresAt` | Delivery | `minOut` |
 | --- | --- | --- |
-| `executable`, `firm: true` | Exactly the quoted amount, until `expiresAt`. | `null` |
-| `executable`, `firm: false` | May move, but never below `minOut`. | set |
-| `indicative` | Not a commitment. | `null` |
+| `firm: true`, `expiresAt` set | Exactly the quoted amount, until `expiresAt`. | `null` |
+| `firm: false`, `expiresAt` set | May move, but never below `minOut`. | set |
+| `firm: false`, `expiresAt` `null` | Indicative: not a commitment. | `null` |
 
 `next` says what you do with the quote: `order`, `fund`, or `requote` (`preflight`, `sign` and `transact` appear only on Advanced quotes, which are not open yet). When it is `requote`, `next.needs` lists what the new quote needs from you, such as a trading wallet to name. Some desks' indicative quotes read `next.kind: "order"`: you order them with a minimum receive instead, as [Orders](/trade/orders#venue-quotes-that-execute-within-your-limit) explains.
 
@@ -117,7 +117,7 @@ A refused requote answers the standard error body: `error` is the code, `message
 | `REQUOTE_REFUSED` | 409 | The venue declined. `message` gives its reason in words and `details.reason` a token, for example `productNotQuoted` or `venueNotListed`. | Show `message`. Your original quote still holds until its expiry. Treat a reason you do not recognise as "other". |
 | `REQUOTE_NEEDS_WALLET` | 409 | The venue quotes only once you choose a wallet. | Requote again with `source.tradingWallets`. |
 | `QUOTE_OWNER_CONTEXT_UNKNOWN` | 409 | The quote was recorded before it could be refreshed for a client. | Search again. |
-| `QUOTE_EXPIRED` | 410 | More than 10 minutes have passed since the quote expired. | Search again. |
+| `REQUOTE_WINDOW_CLOSED` | 410 | The quote is past its `retainUntil`. `next` is `search`. | Search again. |
 | `QUOTE_RATE_LIMITED` | 429 | More than one live quote request in 3 seconds. | Wait `Retry-After` seconds, then send it again. |
 | `VENUE_FIRM_QUOTE_LIMITED` | 429 | The workspace reached the venue's firm-quote limit. | Wait `Retry-After` seconds. The quote's `firmAskAvailableAt` says when, where known. |
 | `BUDGET_EXHAUSTED` | 429 | The venue's quote budget is used up for now. | Wait `Retry-After` seconds when it is set, otherwise try later. |
