@@ -1064,6 +1064,29 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "CardFirmness": {
+        "description": "How firm a card's price is, read with `expiresAt`: `firm: true` delivers exactly\n`buy.amount` until `expiresAt`; `firm: false` with `expiresAt` executes held to `minOut`;\n`firm: false` with `expiresAt` null is indicative (it lapses at `staleAfter`).",
+        "properties": {
+          "commitment": {
+            "$ref": "#/components/schemas/Commitment",
+            "description": "`indicative` (a price, never orderable except through its `next: order`, executed within the caller's\nminimum receive) or `executable` (`firm`: the venue is bound; otherwise held to `minOut`)."
+          },
+          "firm": {
+            "description": "Whether the venue is bound to this price until `expiresAt`.",
+            "type": "boolean"
+          },
+          "lastLook": {
+            "description": "Always false: no venue re-checks an accepted price before it fills, so an order inside\n`expiresAt` on a firm card trades at it or is refused unsent.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "commitment",
+          "firm",
+          "lastLook"
+        ],
+        "type": "object"
+      },
       "ChainFamily": {
         "description": "The family of wallets and addresses a chain uses.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
@@ -5332,6 +5355,10 @@
       "PairQuote": {
         "allOf": [
           {
+            "$ref": "#/components/schemas/CardFirmness",
+            "description": "The card's firmness, written as `firm` and `lastLook` ([`CardFirmness`])."
+          },
+          {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ResolvedTradingSource"
@@ -5396,10 +5423,6 @@
               "buy": {
                 "$ref": "#/components/schemas/QuoteSide",
                 "description": "What the taker buys: `buy.amount` is what lands at `deliverTo`, after every\n`included: true` fee taken in the bought Asset."
-              },
-              "commitment": {
-                "$ref": "#/components/schemas/Commitment",
-                "description": "`indicative` (a price, never orderable except through its `next: order`, executed within the caller's\nminimum receive) or `executable` (`firm`: the venue is bound; otherwise held to `minOut`)."
               },
               "corridors": {
                 "description": "The venue's other supported corridors; changing one is a Requote.",
@@ -5563,7 +5586,7 @@
                 ]
               },
               "retainUntil": {
-                "description": "The last instant this held quote can still be requoted, or ordered where its lapse\nallows it: its lapse plus the requote window (10 minutes), or the recovery window\n(30 minutes) for a protocol quote. After it, requote and order answer 410\n`QUOTE_EXPIRED`. Read from the held quote's own retention, never computed by a client;\nabsent when that instant is not representable.",
+                "description": "The last instant this held quote can still be requoted, or ordered where its lapse\nallows it: its lapse plus the requote window (10 minutes), or the recovery window\n(30 minutes) for a protocol quote. After it, requote and order answer 410\n`REQUOTE_WINDOW_CLOSED` with `next: search` (request quotes again); before it, an\norder past the quote's lapse answers 410 `QUOTE_EXPIRED` with `next: requote`. Read from the held quote's own retention, never computed by a client;\nabsent when that instant is not representable.",
                 "format": "date-time",
                 "type": [
                   "string",
@@ -5662,7 +5685,6 @@
               "assurance",
               "basis",
               "buy",
-              "commitment",
               "corridors",
               "eta",
               "expiresAt",
@@ -5746,7 +5768,9 @@
               "paidBy": "taker"
             }
           ],
+          "firm": false,
           "id": "q_01JAY7Q5M3ZK8V2N4R6T8W0XYB",
+          "lastLook": false,
           "legs": [
             {
               "expectedArrival": null,
@@ -7953,6 +7977,23 @@
             },
             "required": [
               "needs",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Search again: `POST /quotes` with a pair body. The quote is past its requote window,\nso `{requote: quoteId}` can no longer refresh it.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "search"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
               "kind"
             ],
             "type": "object"
@@ -15984,7 +16025,7 @@
                 }
               }
             },
-            "description": "QUOTE_EXPIRED: the held quote lapsed; nothing was sent (`next: requote`)",
+            "description": "QUOTE_EXPIRED: the held quote lapsed; nothing was sent (`next: requote`). REQUOTE_WINDOW_CLOSED: past its retainUntil; nothing was sent, and a requote no longer refreshes it (`next: search`)",
             "headers": {
               "x-ratelimit-limit": {
                 "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
@@ -18813,7 +18854,7 @@
     },
     "/api/v1/quotes": {
       "post": {
-        "description": "The asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `sell` or `requote` is 400 INVALID_REQUEST naming `sell`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / BINDING_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 QUOTE_EXPIRED (10 minutes after its expiry), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (commitment.kind indicative) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
+        "description": "The asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `sell` or `requote` is 400 INVALID_REQUEST naming `sell`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / BINDING_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 REQUOTE_WINDOW_CLOSED (10 minutes after its expiry, past retainUntil; next search: request quotes again), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (commitment.kind indicative) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
         "operationId": "post_quotes",
         "parameters": [
           {

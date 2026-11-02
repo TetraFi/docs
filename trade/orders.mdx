@@ -78,7 +78,7 @@ Some venues execute within your limit: you name the least you accept, and the ve
 - desks whose firm prices last only a few seconds, too short to confirm;
 - on-chain venues, such as bridges, that TetraFi trades for you from an organisation wallet, inside the limited grant its owners approved.
 
-Their quotes are often indicative with `next.kind: "order"`. On such a venue, a quote that is not firm reads `minReceiveRequired: true` and must be ordered with `minReceive`: the order trades only if the venue delivers at least that. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED`, with `details.field` `minReceive`, and nothing is sent. Read the flag rather than working it out from `commitment`.
+Their quotes are often indicative with `next.kind: "order"`. On such a venue, a quote that is not firm reads `minReceiveRequired: true` and must be ordered with `minReceive`: the order trades only if the venue delivers at least that. Without `minReceive`, it is refused with `400 MIN_RECEIVE_REQUIRED`, with `details.field` `minReceive`, and nothing is sent. Read the flag rather than working it out from `firm` and `expiresAt`.
 
 You can also send `minReceive` on any other Basic quote to set your own floor, and the order then trades only at or above it. If the venue's held firm price already delivers less, the order is refused with `409 VENUE_QUOTE_OUTSIDE_BOUNDS` and nothing is sent.
 
@@ -123,6 +123,7 @@ A refused order answers the standard error body: `error`, `message`, and `next` 
 | `FUNDING_SHORTFALL` | 409 | The venue account holds less than the trade needs. `next` is `fund`. | Fund the account, then get a new price. |
 | `IDEMPOTENCY_CONFLICT`, `ORDER_IN_PROGRESS` | 409 | The key was used for a different body, or an order with it is still being placed. | See [Idempotency](/trade/idempotency). |
 | `QUOTE_EXPIRED` | 410 | The quote's `expiresAt` has passed. `next` is `requote`. | [Requote it](/trade/requotes-and-expiry#refresh-an-expired-quote). |
+| `REQUOTE_WINDOW_CLOSED` | 410 | The quote is past its `retainUntil`, so it can no longer be requoted or ordered. `next` is `search`. | Search again. |
 | `QUOTE_NOT_YET_DURABLE`, `QUOTE_STORE_UNAVAILABLE` | 503 | The quote is still being recorded, or held quotes cannot be read right now. | Send the same request with the same key after a second. |
 
 ## In the app

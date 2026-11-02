@@ -85,14 +85,14 @@ if [[ -z $first ]]; then
   exit 1
 fi
 quote_id=$(jq -r '.id' <<<"$first")
-jq -c '{quoteId: .id, venue: .legs[0].venue.id, commitment, buy: .buy.amount, minOut, expiresAt}' <<<"$first" >&2
+jq -c '{quoteId: .id, venue: .legs[0].venue.id, firm, buy: .buy.amount, minOut, expiresAt}' <<<"$first" >&2
 
 # region requote-again
 # Ask the same venue again for the same pair and amount. The answer is a new quote whose
 # requoteOf names the original. The original stays orderable until its own expiresAt.
 requoted=$(quote "{\"requote\":\"$quote_id\"}")
 fresh=$(jq -c '.quotes[0]' <<<"$requoted")
-jq -c '{quoteId: .id, requoteOf, commitment, buy: .buy.amount, minOut, expiresAt}' <<<"$fresh" >&2
+jq -c '{quoteId: .id, requoteOf, firm, buy: .buy.amount, minOut, expiresAt}' <<<"$fresh" >&2
 # endregion
 summary=$(jq -c --argjson q "$fresh" '. + {requote: {id: $q.id, requoteOf: $q.requoteOf}}' <<<"$summary")
 

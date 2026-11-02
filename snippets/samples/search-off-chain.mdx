@@ -12,7 +12,7 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   filters: {locations: ["offChain"]}
 }')
 off_chain=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, commitment: .commitment, buy: .buy.amount}]' <<<"$off_chain" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, buy: .buy.amount}]' <<<"$off_chain" >&2
 jq -c '[.sources[] | select(.status == "filteredOut") | .venue.id]' <<<"$off_chain" >&2
 ```
 
