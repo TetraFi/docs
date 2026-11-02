@@ -6,8 +6,8 @@
 #   TETRAFI_BASE_URL          https://api.tetrafi.io in production
 #   TETRAFI_API_KEY           your API key, with Read treasury switched on
 #   TETRAFI_WORKSPACE_ID      your workspace id: the path names it
-#   TETRAFI_VENUE_ACCOUNT_ID  the exchange account's id: open the account under Treasury in the app;
-#                             the page address ends with it
+#   TETRAFI_VENUE_ACCOUNT_ID  the exchange account's id, from the workspace's venue accounts page:
+#                             open the account under Treasury; the page address ends with it
 #   TETRAFI_SIGNING_SECRET    the key's signing secret, when the key signs its requests
 #
 # The last line printed is one JSON summary. The script exits 1 when an answer breaks the contract
