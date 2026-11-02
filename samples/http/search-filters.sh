@@ -194,7 +194,7 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
-  filters: {commitment: "executableOnly"}
+  filters: {executableOnly: true}
 }')
 executable=$(quote_request "$request")
 jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, minOut, expiresAt}]' <<<"$executable" >&2

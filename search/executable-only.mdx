@@ -9,7 +9,7 @@ Each quote says whether its venue is bound to the price, in `firm` and `expiresA
 
 | Field | Value | Effect |
 | --- | --- | --- |
-| `filters.commitment` | `any` (default) or `executableOnly` | With `executableOnly`, indicative quotes are left out of `quotes`. |
+| `filters.executableOnly` | `true`, or `false` (the default) | With `true`, indicative quotes are left out of `quotes`. |
 
 ## Executable and indicative
 
@@ -19,7 +19,7 @@ Each quote says whether its venue is bound to the price, in `firm` and `expiresA
 | `firm: false`, `expiresAt` set | Executable: the venue will trade until `expiresAt`, and delivery may move a little. | At least `minOut`, set by your [price protection](/search/sort-and-protection#price-protection). |
 | `firm: false`, `expiresAt` `null` | Indicative: the venue's current price, not a commitment. `staleAfter` says when the price is old. | Nothing yet. |
 
-Ask for executable quotes only when you are about to trade and want to compare only what you can act on now, with a known expiry and a known worst case. Keep `any` when you are comparing prices, or when a desk that publishes only indicative prices may give you the best one.
+Ask for executable quotes only when you are about to trade and want to compare only what you can act on now, with a known expiry and a known worst case. Leave it out when you are comparing prices, or when a desk that publishes only indicative prices may give you the best one.
 
 To turn an indicative quote into an executable one, requote it: see [Requotes and expiry](/trade/requotes-and-expiry).
 
@@ -43,13 +43,13 @@ Indicative quotes are dropped after venues answer, so this filter does not keep 
 
 Here two venues answered and one quote is left: the `rfq` desk's quote was indicative. The sample prints those venues: an `answered` source with no quote.
 
-Because the same venues are asked, a search with `executableOnly` counts against the [quote limit](/search/how-it-works#rate-limit) exactly as it would without the filter.
+Because the same venues are asked, a search with `executableOnly: true` counts against the [quote limit](/search/how-it-works#rate-limit) exactly as it would without the filter.
 
 ## Refusals
 
 | Code | Why | What to do |
 | --- | --- | --- |
-| `INVALID_REQUEST` | The value is not `any` or `executableOnly`. `message` names it. | Send `any` or `executableOnly`. |
+| `INVALID_REQUEST` | `executableOnly` is not `true` or `false`, with `details.field` `filters.executableOnly`. | Send a boolean. |
 
 ## In the app
 

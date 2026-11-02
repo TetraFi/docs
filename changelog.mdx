@@ -7,6 +7,7 @@ The API is in preview until launch, so a change here can still remove or rename 
 
 <Update label="2026-11-02" description="What an order did, and one trade history">
   - Every order, Basic and Advanced, carries what it actually did: `fills`, `quotedBuyAmount` and `settledBuyAmount`, the fees actually charged in `fees` (each with `includedInPrice`), the kinds whose amount was not recorded in `unrecordedFees`, and `settlesBy` ([What the order did](/trade/order-status#what-the-order-did)). Show an unrecorded fee as "not recorded", never as 0.
+  - The search filter `filters.commitment` is replaced by `filters.executableOnly`, a boolean: send `true` to leave indicative quotes out ([Executable quotes only](/search/executable-only)). A request still sending `filters.commitment` is refused with `400 INVALID_REQUEST`, `details.field` `filters.commitment`.
   - `GET /api/v1/prices` rows no longer carry `commitment`: they carry `firm` and `lastLook`, both always `false` ([Prices before you quote](/search/prices)).
   - `GET /api/v1/workspaces/{workspaceId}/trades` lists the workspace's orders and exchange-account trades in one history, with cursor paging and CSV export. The key needs **Read trades** ([Trade history](/trade/trade-history)).
 </Update>
