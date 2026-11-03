@@ -207,7 +207,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic and Advanced orders using the same envelope as GET /orders/{id}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
+        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic and Advanced orders using the same envelope as GET /orders/{orderId}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -317,7 +317,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders/{id}",
+      "name": "GET /api/v1/orders/{orderId}",
       "request": {
         "method": "GET",
         "header": [
@@ -328,7 +328,7 @@
         ],
         "description": "Get order status by ID\nGET /api/v1/orders/:id - Get order details by ID\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. API-key clients may instead subscribe to `orders:<id>` on `/api/v1/ws?token=<api-key>&workspaceId=<id>`, but should perform this GET after an event or reconnect to obtain the complete current projection. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:id",
+          "raw": "{{baseUrl}}/api/v1/orders/:orderId",
           "host": [
             "{{baseUrl}}"
           ],
@@ -336,12 +336,12 @@
             "api",
             "v1",
             "orders",
-            ":id"
+            ":orderId"
           ],
           "variable": [
             {
-              "key": "id",
-              "value": "<id>",
+              "key": "orderId",
+              "value": "<orderId>",
               "description": "Order ID"
             }
           ]
@@ -350,7 +350,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/orders/{id}/cancel",
+      "name": "POST /api/v1/orders/{orderId}/cancel",
       "request": {
         "method": "POST",
         "header": [
@@ -367,7 +367,7 @@
         ],
         "description": "Cancel an order before it is dispatched to a venue.\n\nCancels an undispatched Basic order or a pay-in still awaiting funds. Returns the same order envelope as GET, with status cancelled and terminal true. Repeating cancellation leaves the order unchanged. A durable dispatch claim, a progressed funding leg, or a terminal outcome refuses with ORDER_NOT_CANCELLABLE and details.status. Requires current PlaceOrder authority; API keys need orders_write and Idempotency-Key. No venue cancellation is attempted.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:id/cancel",
+          "raw": "{{baseUrl}}/api/v1/orders/:orderId/cancel",
           "host": [
             "{{baseUrl}}"
           ],
@@ -375,14 +375,14 @@
             "api",
             "v1",
             "orders",
-            ":id",
+            ":orderId",
             "cancel"
           ],
           "variable": [
             {
-              "key": "id",
-              "value": "<id>",
-              "description": "The identifier accepted by GET /orders/{id}"
+              "key": "orderId",
+              "value": "<orderId>",
+              "description": "The identifier accepted by GET /orders/{orderId}"
             }
           ]
         }
@@ -390,7 +390,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders/{id}/funding",
+      "name": "GET /api/v1/orders/{orderId}/funding",
       "request": {
         "method": "GET",
         "header": [
@@ -399,9 +399,9 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/orders/{id}/funding` — fetch the StableFX funding `typedData` to sign.\n\nRecovery path: the order-create response normally carries the funding action in\nits `nextActions`, but if the create-time presign prefetch failed the client can\nfetch the typed data here on demand (it is re-derived server-side from the order's\n`contractTradeId`). Returns the `signTypedData` action (typed data + where to submit\nthe signature) or 404 when the order has no pending funding step.",
+        "description": "`GET /api/v1/orders/{orderId}/funding` — fetch the StableFX funding `typedData` to sign.\n\nRecovery path: the order-create response normally carries the funding action in\nits `nextActions`, but if the create-time presign prefetch failed the client can\nfetch the typed data here on demand (it is re-derived server-side from the order's\n`contractTradeId`). Returns the `signTypedData` action (typed data + where to submit\nthe signature) or 404 when the order has no pending funding step.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:id/funding",
+          "raw": "{{baseUrl}}/api/v1/orders/:orderId/funding",
           "host": [
             "{{baseUrl}}"
           ],
@@ -409,13 +409,13 @@
             "api",
             "v1",
             "orders",
-            ":id",
+            ":orderId",
             "funding"
           ],
           "variable": [
             {
-              "key": "id",
-              "value": "<id>",
+              "key": "orderId",
+              "value": "<orderId>",
               "description": "Order ID"
             }
           ]
@@ -1036,7 +1036,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in the company's own wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/balances",
           "host": [
@@ -1253,7 +1253,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/workspaces/{id}/webhooks`",
+        "description": "`GET /api/v1/workspaces/{workspaceId}/webhooks`",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
           "host": [
@@ -1297,7 +1297,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks`\n\nCreate a webhook with a shown-once whsec_<base64> secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: v1,<base64 HMAC-SHA256>, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks`\n\nCreate a webhook with a shown-once whsec_<base64> secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: v1,<base64 HMAC-SHA256>, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
           "host": [
@@ -1340,7 +1340,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}`",
+        "description": "`GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -1433,7 +1433,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`DELETE /api/v1/workspaces/{id}/webhooks/{webhookId}`\n\nDelete a webhook. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`DELETE /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`\n\nDelete a webhook. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -1473,7 +1473,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}/deliveries`",
+        "description": "`GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
           "host": [
@@ -1562,7 +1562,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/reactivate`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/reactivate`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/reactivate",
           "host": [
@@ -1603,7 +1603,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/rotate-secret`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate-secret`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate-secret",
           "host": [
@@ -1644,7 +1644,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/test`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/test`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/test",
           "host": [
