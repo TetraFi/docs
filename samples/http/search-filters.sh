@@ -187,21 +187,45 @@ jq -c '[.sources[] | select(.status != "answered") | {venue: .venue.id, status, 
 # endregion
 outcome nativeOnly "$native"
 
-# region search-executable-only
-# Keep only executable quotes. Indicative quotes are dropped once venues answer, so a venue
-# whose only quote was indicative still reads answered in sources, with no quote in quotes.
+# region search-firm-only
+# Keep only firm quotes: the venue is bound to the price until expiresAt. Indicative quotes and
+# executable estimates held to minOut (order-book and AMM quotes) are dropped once venues answer,
+# so a venue that gave only those still reads answered in sources, with no quote in quotes.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
-  filters: {executableOnly: true}
+  filters: {firmOnly: true}
 }')
-executable=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, minOut, expiresAt}]' <<<"$executable" >&2
+firm_only=$(quote_request "$request")
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, expiresAt}]' <<<"$firm_only" >&2
 jq -c '[.quotes[].legs[0].venue.id] as $quoted
-  | [.sources[] | select(.status == "answered" and (.venue.id | IN($quoted[]) | not)) | .venue.id]' <<<"$executable" >&2
+  | [.sources[] | select(.status == "answered" and (.venue.id | IN($quoted[]) | not)) | .venue.id]' <<<"$firm_only" >&2
 # endregion
-outcome executableOnly "$executable"
+outcome firmOnly "$firm_only"
+if ! jq -e 'all(.quotes[]; .firm == true)' <<<"$firm_only" >/dev/null; then
+  echo '{"error":"FIRM_ONLY_KEPT_A_NON_FIRM_QUOTE"}' >&2
+  exit 1
+fi
+
+# The filter's earlier name is refused by name, never ignored.
+old_name=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount, filters: {executableOnly: true}}')
+for _ in 1 2; do
+  if old_refusal=$(tetrafi POST /api/v1/quotes "$old_name" 2>/dev/null); then
+    echo '{"error":"OLD_FILTER_NAME_ACCEPTED"}' >&2
+    exit 1
+  fi
+  wait=$(jq -r 'select(.error == "QUOTE_RATE_LIMITED") | .details.retryAfter
+    | capture("^PT(?<s>[0-9]+)S$").s' <<<"$old_refusal" 2>/dev/null || true)
+  [[ -z $wait ]] && break
+  sleep "$wait"
+done
+if [[ $(jq -r '.error' <<<"$old_refusal") != INVALID_REQUEST ]]; then
+  echo '{"error":"OLD_FILTER_NAME_NOT_REFUSED"}' >&2
+  exit 1
+fi
+jq -c '{oldName: "filters.executableOnly", error, details}' <<<"$old_refusal" >&2
 
 # region search-sort-eta
 # Order quotes by expected time to delivery, fastest first, instead of by net received.

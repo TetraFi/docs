@@ -98,7 +98,7 @@ The script sends two quote requests at once, so one of them is refused. It waits
 retried after 3s: 2 quotes
 ```
 
-The two requests carry different amounts on purpose. A signed request's signature is accepted once, so two identical requests signed in the same second would read as a replay.
+The two requests carry different amounts on purpose. A signed write is accepted once, so two identical quote requests signed in the same second would read as a replay.
 
 ### Orders
 
@@ -189,7 +189,7 @@ Every authentication failure is the one code `401 AUTH_REQUIRED`. Its `details.r
 | The key needs signing and `X-Timestamp` or `X-Signature` is missing. | `SIGNATURE_REQUIRED` | [Sign the request](/authentication#sign-requests). |
 | The signature is malformed or does not match. | `SIGNATURE_INVALID` | Sign the exact method, path with query, and body bytes you send, with the hex-decoded secret. |
 | `X-Timestamp` is more than 300 seconds from TetraFi's clock. | `TIMESTAMP_OUT_OF_RANGE` | Sync your clock and sign again. |
-| This exact signature was already used. | `SIGNATURE_REPLAYED` | Sign each request afresh. Two identical requests in the same second need different bodies. |
+| This exact signed write (`POST`, `PUT`, `PATCH` or `DELETE`) was already accepted. | `SIGNATURE_REPLAYED` | Sign each write afresh. Two identical writes in the same second need different bodies. A repeated signed read is accepted. |
 
 More reasons may be added: treat one you do not recognise as "fix the credentials".
 
@@ -207,7 +207,7 @@ More reasons may be added: treat one you do not recognise as "fix the credential
 | 400 `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that side's asset. | Pin a chain the asset is deployed on, or leave the side open. |
 | 400 `SAME_ASSET_NEEDS_CHAIN` | Both sides are the same asset and no chain tells them apart. | Pin a chain on at least one side ([Chains and routes](/search/chains-and-routes)). |
 | 400 `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
-| 400 `BINDING_NOT_ON_CHAIN` | A wallet in `source.tradingWallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
+| 400 `WALLET_NOT_ON_CHAIN` | A wallet in `source.tradingWallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
 | 403 `SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist, or you cannot use it. | Choose a candidate from the answer's `sourceOptions` ([Wallets and accounts](/trade/wallets-and-accounts#when-tetrafi-refuses-a-source)). |
 | 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation-scope wallet. |
 | 404 `QUOTE_REQUEST_NOT_FOUND` | No quote set with this id is readable by you. | Check the id. |
@@ -225,7 +225,7 @@ A venue that cannot quote is not a refusal: the request succeeds and lists that 
 | --- | --- | --- |
 | 400 `REQUOTE_FIELDS_CONFLICT` | The body has a field that cannot go with `requote`, such as `sellAmount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
 | 400 `CORRIDOR_NOT_OFFERED` | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
-| 400 `BINDING_NOT_ON_CHAIN` | The trading wallet you named cannot pay on that chain. | Name a trading wallet on that chain in `source.tradingWallets`. |
+| 400 `WALLET_NOT_ON_CHAIN` | The trading wallet you named cannot pay on that chain. | Name a trading wallet on that chain in `source.tradingWallets`. |
 | 403 `SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` is not one you can use. | Name a wallet or account from `sourceOptions`. |
 | 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. | Leave out `source.venueAccountId`, or search again. |
 | 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | This key cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |

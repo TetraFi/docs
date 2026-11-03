@@ -91,7 +91,7 @@ When signing is on for a key, every request carries two more headers:
 | Header | Value |
 | --- | --- |
 | `X-Timestamp` | The current time in Unix seconds. It must be within 300 seconds of TetraFi's clock. |
-| `X-Signature` | Lower-case hexadecimal HMAC-SHA256 of the string below, keyed with the hex-decoded signing secret. |
+| `X-Signature` | Lower-case hexadecimal HMAC-SHA256 of the string below, keyed with the signing secret's 32 bytes: the secret is 64 hexadecimal characters, so decode it first. |
 
 The signed string is four lines joined by a newline, with no newline at the end:
 
@@ -102,7 +102,9 @@ The signed string is four lines joined by a newline, with no newline at the end:
 <lower-case hexadecimal SHA-256 of the exact body bytes>
 ```
 
-A request without a body signs the SHA-256 of zero bytes. Each signature is accepted once.
+A request without a body signs the SHA-256 of zero bytes.
+
+A signed write (`POST`, `PUT`, `PATCH` or `DELETE`) is accepted once: sending the same signed write again is refused, so a retry signs again with a fresh `X-Timestamp`. A read (`GET` or `HEAD`) changes nothing, so the same signed read is accepted again inside the 300-second window, and polling a status needs no nonce.
 
 A request that fails the signature check is refused with `401 AUTH_REQUIRED`, and `details.reason` says why:
 
@@ -111,7 +113,7 @@ A request that fails the signature check is refused with `401 AUTH_REQUIRED`, an
 | The key needs signing and a header is missing. | `SIGNATURE_REQUIRED` |
 | The signature is malformed or does not match. | `SIGNATURE_INVALID` |
 | `X-Timestamp` is more than 300 seconds from TetraFi's clock. | `TIMESTAMP_OUT_OF_RANGE` |
-| This exact signature was already used. | `SIGNATURE_REPLAYED` |
+| This exact signed write was already accepted. | `SIGNATURE_REPLAYED` |
 
 The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.
 
