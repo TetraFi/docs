@@ -1,0 +1,87 @@
+---
+title: "Venue types and venues"
+description: "Ask only some types of venue, only the venues you name, or every venue except the ones you name."
+---
+
+import SearchModalities from '/snippets/samples/search-modalities.mdx';
+import SearchVenueInclude from '/snippets/samples/search-venue-include.mdx';
+import SearchVenueExclude from '/snippets/samples/search-venue-exclude.mdx';
+
+A search asks every venue your workspace can use. You can narrow that in two ways:
+
+- **by venue type**, with `filters.modalities`;
+- **by venue**, with `filters.venues.include` and `filters.venues.exclude`.
+
+A venue these filters leave out is not asked. It stays in `sources` with `status: "filteredOut"`, so you can always see what you left out.
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `filters.modalities` | Any of `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat` | Keeps only venues of those types. Omitted, every type is kept. |
+| `filters.venues.include` | Venue ids | Asks only these venues. An empty list keeps every venue. |
+| `filters.venues.exclude` | Venue ids | Asks every venue except these. |
+
+When you send more than one filter, a venue must pass all of them to be asked.
+
+## Venue types
+
+Every venue has one type, in `venue.modality` on each `sources` entry and on each leg of a quote.
+
+| `modality` | What it is |
+| --- | --- |
+| `amm` | An on-chain pool that swaps at a price set by its reserves. |
+| `solver` | A party that fills your order on-chain, on one chain or across chains. |
+| `bridge` | Moves an Asset from one chain to another. |
+| `rfq` | A desk or exchange that quotes on request, through one of your venue accounts. |
+| `orderBook` | An exchange order book, traded through one of your venue accounts. |
+| `fiat` | Converts between bank money and digital assets. |
+
+New types can appear. Treat a `modality` you do not recognise as "other".
+
+<SearchModalities />
+
+## Specific venues
+
+Venue ids are not a fixed list: take them from `sources[].venue.id` in an earlier quote set, or from `rows[].venue.id` on [`GET /api/v1/prices`](/search/prices). The sample runs a plain search first and uses the first venue that answered.
+
+`filters.venues` matches `venue.id`, the id of the route that executes, such as `binance-orderbook`. It does not match `venue.venueId`, the named venue that route belongs to, such as `binance`: one named venue can have several routes, each with its own `id`. In this `sources` entry, send `binance-orderbook`:
+
+```json
+{ "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": true }
+```
+
+A `venueId` that is not also a route id matches no route: the request is refused with `400 UNKNOWN_VENUE`, or every venue reads `filteredOut`. To keep or drop every route of one named venue, list each route's `id`.
+
+Ask one venue only:
+
+<SearchVenueInclude />
+
+Ask every venue but one:
+
+<SearchVenueExclude />
+
+Naming a desk in `filters.venues.include` is also how you ask it for a firm price when it only quotes on request. Its `sources` entry says so in `detail` when a broad search did not ask it.
+
+## What excluded venues look like
+
+Each venue left out by these filters is listed once, not asked:
+
+```json
+{ "status": "filteredOut", "venue": { "id": "...", "modality": "rfq" }, "asked": false, "detail": null }
+```
+
+In a search kept to `orderBook`, every venue of another type reads `filteredOut`. In a search that names one venue, every other venue does. When nothing is left to answer, `quotes` is empty and `sources` shows why.
+
+A venue that passes your filters can still give no quote: it reads `unsupported`, `unavailable` or another status with its own reason. See [Sources](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote).
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `UNKNOWN_VENUE` | A venue id in `include` or `exclude` is not one TetraFi knows. `details.value` is the id. | Use an id from `sources[].venue.id` or a price row's `venue.id`. |
+| `INVALID_REQUEST` | A `modalities` value is not one of the types above, or `venues` has a field other than `include` and `exclude`. `message` names it. | Fix that value. |
+
+## In the app
+
+On the Trade page, open **Advanced filters**, then **Only or exclude** under **Venues** to keep or drop venues; each choice shows as a chip you can remove. On a price row, asking that venue for a quote searches that one venue only.
+
+The trade page has no control for venue types. A shared link can carry them in its `venueType` parameter, and they then show as a **Venue types** chip you can remove.

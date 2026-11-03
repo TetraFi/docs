@@ -21,7 +21,7 @@ description: "Five touchpoints, the same for every book: onboard, submit obligat
 
 ## Onboard
 
-* **Workspace and API key** - as for any TetraFi API ([Authentication](/core-concepts/authentication)).
+* **Workspace and API key** - as for any TetraFi API ([Authentication](/authentication)).
 * **Credentials admit you** - a verified legal entity, sanctions-clear standing, rulebook adherence, and one completed test run. Nobody hand-picks applicants.
 * **Set your policy domain** - who you net with (each pair approves the other), your deadline-tier menu, and your visibility slice.
 
@@ -33,7 +33,7 @@ An obligation is **one debt**: who owes whom, how much, in which asset on which 
 
 | Route | Use it for | How |
 | --- | --- | --- |
-| **Cleared quote** | Trades on TetraFi's rails | `mode: cleared` plus a deadline tier on the [RFQ quote request](/rfq-api/introduction) |
+| **Cleared quote** | Trades on TetraFi's rails | `mode: cleared` plus a deadline tier on the [quote request](/search/how-it-works) |
 | **Signed debt** | A debt you owe - a repayment, a payout, a corridor payment | `POST /clearing/obligations`, signed by you; your creditor sees it inside a notice window |
 | **Batch of claims** | Debts owed to you, or usage your platform records | `POST /clearing/batches`; each debtor approves its own lines, and unapproved lines expire |
 
@@ -46,7 +46,7 @@ An obligation is **one debt**: who owes whom, how much, in which asset on which 
 * **One EIP-712 signature per obligation carries everything** - the debt, where its funding comes from, the window it may be locked in, a lock limit bound to the run, and the compliance policy it was accepted under.
 * **Enforced on-chain** - it travels as a Permit2 witness or inside an ERC-3009 authorization, so the window is enforced at lock time.
 * **Any custody stack** that signs EIP-712 typed data can produce it.
-* **Signing is off-chain** - beyond a one-time [Permit2 approval](/core-concepts/token-approvals) per token, you never call a clearing contract to submit or settle.
+* **Signing is off-chain** - beyond a one-time [Permit2 approval](/trade/orders) per token, you never call a clearing contract to submit or settle.
 
 **Key fields:** obligation, funding sources, window (`notBefore`, `notAfter`), lock limit, compliance policy hash.
 

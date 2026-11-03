@@ -1,0 +1,57 @@
+---
+title: "Operating guide"
+description: "Run an integration in production: prices for watching and quotes for trading, requotes over new searches, safe retries, unknown outcomes and following orders."
+---
+
+import SearchPrices from '/snippets/samples/search-prices.mdx';
+import RequoteAgain from '/snippets/samples/requote-again.mdx';
+import OrderIdempotentReplay from '/snippets/samples/order-idempotent-replay.mdx';
+import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
+import OrderStatus from '/snippets/samples/order-status.mdx';
+import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
+
+These are the habits that keep an integration fast, inside its limits and safe with money. Each rule links to the guide that covers it in full, and each example is a runnable sample from those guides.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Watch prices, quote to trade
+
+A quote request asks every venue live, and each venue limits how often it answers. Use `GET /api/v1/prices` or `GET /api/v1/prices/stream` to show prices or watch a market. Request a quote only when you mean to trade: only a quote has an `id` you can order, and only an executable quote holds its terms until `expiresAt`.
+
+Never poll quotes to track a price. You may send one live quote request every 3 seconds per key, and venues that are asked too often answer `askLimitReached` or `firmQuoteLimited` for a while. [Prices before you quote](/search/prices) covers the price reads.
+
+<SearchPrices />
+
+## Requote instead of searching again
+
+When a quote you hold expires, or you want another wallet, corridor or price protection, requote it: `POST /api/v1/quotes` with `requote` set to its id. Only that quote's venue is asked again. The original stays orderable until its own `expiresAt`. [Requotes and expiry](/trade/requotes-and-expiry) lists what a requote can change.
+
+<RequoteAgain />
+
+## Retry with the same key and body
+
+Send one `Idempotency-Key` per order, and store it with the order before you send. When a call times out, the connection drops, or the answer is a retryable `503`, send the same body with the same key. A replay returns the first answer, so no order is placed twice. [Idempotency](/trade/idempotency) lists which answers to retry.
+
+<OrderIdempotentReplay />
+
+For every other request, retry only answers marked retryable in the [error-code reference](/reference/error-codes). Wait `Retry-After` seconds when it is sent:
+
+<ErrorsRateLimit />
+
+## An unknown outcome is not a failure
+
+When an order times out, or reads `outcomeUnknown`, the trade may still have filled. Never place a new order for the same intent to "make sure". Keep reading its status, or find the order by its quote:
+
+<OrderRecoverByQuote />
+
+Only when the order is shown not to exist, or reads a final status that did not fill, is it safe to order again, on a new quote.
+
+## Follow an order to the end
+
+Read an order at its `statusUrl` every 10 to 15 seconds until `terminal` is `true`. When `next` says `wait`, read again after its `retryAfter`; when it says `contact`, contact support with its `reference`. Treat a status you do not recognise as "other" and keep following `terminal`. [Order status](/trade/order-status) lists every status.
+
+<OrderStatus />
+
+Or let [webhooks](/trade/webhooks) tell you: an `order.updated` event is sent to your endpoint on each order status change. It is thin: it names the order and the `statusUrl` to read, so read that URL rather than trusting the order events arrived in. An event can arrive more than once, so record each event's `id` and skip one you have already handled.

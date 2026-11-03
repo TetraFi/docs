@@ -1,0 +1,1679 @@
+{
+  "info": {
+    "name": "TetraFi API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Generated from the TetraFi integrator specification. Set baseUrl, apiKey and signingSecret in your local collection variables. Start with GET /api/v1/assets. Replace angle-bracket placeholders with real values before sending other requests; review each write rather than running the entire collection. Never share populated credentials."
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.tetrafi.io",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "signingSecret",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "protocolProfileBehavior": {
+    "disableUrlEncoding": true
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const cryptoJs = require('crypto-js');",
+          "// Never retain headers from an earlier signed send when signing is turned off.",
+          "pm.request.headers.remove('X-Timestamp');",
+          "pm.request.headers.remove('X-Signature');",
+          "",
+          "// Resolve variables ONCE, including dynamic variables, before hashing and sending.",
+          "const resolvedUrl = pm.variables.replaceIn(pm.request.url.toString());",
+          "const parts = /^(https?:\\/\\/[^/?#]+)([^#]*)/.exec(resolvedUrl);",
+          "if (!parts) throw new Error('Set baseUrl to an absolute HTTP or HTTPS URL');",
+          "const target = parts[2].startsWith('/') ? parts[2] : '/' + parts[2];",
+          "// Encode explicitly and disable subsequent transport encoding, so the signed",
+          "// target is exactly what is sent. Keep already percent-encoded bytes unchanged.",
+          "const pathWithQuery = encodeURI(target).replace(/%25([0-9a-f]{2})/gi, '%$1').replace(/'/g, '%27');",
+          "pm.request.url.update(parts[1] + pathWithQuery);",
+          "let body = '';",
+          "if (pm.request.body && !pm.request.body.disabled) {",
+          "  if (pm.request.body.mode !== 'raw') throw new Error('Signing supports raw request bodies only');",
+          "  body = pm.variables.replaceIn(pm.request.body.raw || '');",
+          "  // JSON comments are not valid API input and Postman would strip them AFTER",
+          "  // signing. Refuse them rather than signing bytes different from the wire.",
+          "  if (body && pm.request.headers.get('Content-Type')?.includes('application/json')) JSON.parse(body);",
+          "  pm.request.body.update(body);",
+          "}",
+          "const secret = pm.variables.get('signingSecret');",
+          "if (secret) {",
+          "  if (!/^[0-9a-f]{64}$/i.test(secret)) throw new Error('signingSecret must contain 64 hexadecimal characters');",
+          "  const timestamp = String(Math.floor(Date.now() / 1000));",
+          "  const digest = cryptoJs.SHA256(body).toString(cryptoJs.enc.Hex);",
+          "  const canonical = [timestamp, pm.request.method.toUpperCase(), pathWithQuery, digest].join('\\n');",
+          "  const signature = cryptoJs.HmacSHA256(canonical, cryptoJs.enc.Hex.parse(secret)).toString(cryptoJs.enc.Hex);",
+          "  pm.request.headers.upsert({ key: 'X-Timestamp', value: timestamp });",
+          "  pm.request.headers.upsert({ key: 'X-Signature', value: signature });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "GET /api/v1/assets",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/assets`: the Assets, variants and deployments the workspace can trade.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assets"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Assets per page, 1 to 200. With only a `cursor`, the page size that cursor was issued with."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The previous page's `nextCursor`. A cursor is valid while the listing it was issued for\nis unchanged; after a change it answers 409 `CURSOR_STALE`, and the walk starts again."
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/me",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/me",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me"
+          ],
+          "query": [
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "Comma-separated: profile, permissions, verification. An interactive session only, except permissions, which an API key's answer always carries"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/oauth/token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "description": "RFC 6749 client-credentials grant for active service accounts. Supply grant_type=client_credentials, client_id=<service-account UUID>, and client_secret=<full tfk_live_... or tfk_test_... service-account API key>. Client credentials may instead be sent with HTTP Basic authentication. Tokens use the configured auth.jwtExpirySeconds capped at 900 seconds and carry the service account's current workspace role, effective permissions, and effective API scopes.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/oauth/token",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "oauth",
+            "token"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "client_id=<client_id>&client_secret=<client_secret>&grant_type=<grant_type>"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic and Advanced orders using the same envelope as GET /orders/{id}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Number of matching items requested, 1–20; default 20."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque nextCursor from this caller, workspace and the identical filter set."
+            },
+            {
+              "key": "status",
+              "value": "pending",
+              "disabled": true,
+              "description": "Public lifecycle status, shared by Basic and Advanced orders."
+            },
+            {
+              "key": "kind",
+              "value": "basicTrade",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "from",
+              "value": "<from>",
+              "disabled": true,
+              "description": "Created at or after this RFC 3339 instant, inclusive."
+            },
+            {
+              "key": "to",
+              "value": "<to>",
+              "disabled": true,
+              "description": "Created at or before this RFC 3339 instant, inclusive."
+            },
+            {
+              "key": "sellAsset",
+              "value": "<sellAsset>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "buyAsset",
+              "value": "<buyAsset>",
+              "disabled": true,
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/orders",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": true,
+            "description": "Makes a retry safe. Required for API keys (a missing key answers 400 IDEMPOTENCY_KEY_REQUIRED); optional for signed-in members. 1 to 255 bytes, unique per order you mean to place; a UUID is a good choice. A retry with the same key and the same body, from the same credential's owner in the same workspace within 24 hours, returns the first answer and never places a second order. The same key with a different body answers 409 IDEMPOTENCY_CONFLICT; another principal's key answers 403 IDEMPOTENCY_AUTHORITY_REQUIRED. A retry that arrives while the first request is still running waits for it, and answers 409 ORDER_IN_PROGRESS (with Retry-After) if it is still running after 30 seconds. Refusals are not stored: after one, fix the request and send it again with the same key or a new one."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Submit a new order\nPOST /api/v1/orders - Submit an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A venue (Basic) quote becomes a venue trade (`basicTrade`); a protocol (Advanced) quote becomes a protocol order (`advancedTrade`), after POST /orders/preflight and any wallet signature or source transaction it asks for. Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quoteId\": \"<quoteId>\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/orders/{id}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Get order status by ID\nGET /api/v1/orders/:id - Get order details by ID\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. API-key clients may instead subscribe to `orders:<id>` on `/api/v1/ws?token=<api-key>&workspaceId=<id>`, but should perform this GET after an event or reconnect to obtain the complete current projection. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:id",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":id"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Order ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/orders/{id}/cancel",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": true,
+            "description": "Required for API keys. Cancellation is naturally idempotent by order id."
+          }
+        ],
+        "description": "Cancel an order before it is dispatched to a venue.\n\nCancels an undispatched Basic order or a pay-in still awaiting funds. Returns the same order envelope as GET, with status cancelled and terminal true. Repeating cancellation leaves the order unchanged. A durable dispatch claim, a progressed funding leg, or a terminal outcome refuses with ORDER_NOT_CANCELLABLE and details.status. Requires current PlaceOrder authority; API keys need orders_write and Idempotency-Key. No venue cancellation is attempted.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:id/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":id",
+            "cancel"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "The identifier accepted by GET /orders/{id}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/orders/{id}/funding",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/orders/{id}/funding` — fetch the StableFX funding `typedData` to sign.\n\nRecovery path: the order-create response normally carries the funding action in\nits `nextActions`, but if the create-time presign prefetch failed the client can\nfetch the typed data here on demand (it is re-derived server-side from the order's\n`contractTradeId`). Returns the `signTypedData` action (typed data + where to submit\nthe signature) or 404 when the order has no pending funding step.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:id/funding",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":id",
+            "funding"
+          ],
+          "variable": [
+            {
+              "key": "id",
+              "value": "<id>",
+              "description": "Order ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/orders/by-quote/{quoteId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Requires current view_orders in the selected workspace and orders_read for API keys. ordered names the native advancedTrade or basicTrade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/by-quote/:quoteId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            "by-quote",
+            ":quoteId"
+          ],
+          "variable": [
+            {
+              "key": "quoteId",
+              "value": "<quoteId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/prices",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/prices`: indicative per-venue prices for one pair, from memory.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/prices",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "prices"
+          ],
+          "query": [
+            {
+              "key": "sell",
+              "value": "<sell>",
+              "disabled": false,
+              "description": "Sell Asset id (USDC)"
+            },
+            {
+              "key": "buy",
+              "value": "<buy>",
+              "disabled": false,
+              "description": "Buy Asset id (USDT)"
+            },
+            {
+              "key": "sellAmount",
+              "value": "<sellAmount>",
+              "disabled": true,
+              "description": "The exact sell amount, a decimal in Asset units; send exactly one of sellAmount, buyAmount or sizes"
+            },
+            {
+              "key": "buyAmount",
+              "value": "<buyAmount>",
+              "disabled": true,
+              "description": "The exact buy amount, a decimal in Asset units"
+            },
+            {
+              "key": "sizes",
+              "value": "<sizes>",
+              "disabled": true,
+              "description": "1 to 8 comma-separated positive sell amounts"
+            },
+            {
+              "key": "sell.chain",
+              "value": "<sell.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the sell side"
+            },
+            {
+              "key": "buy.chain",
+              "value": "<buy.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the buy side"
+            },
+            {
+              "key": "venues.include",
+              "value": "<venues.include>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to keep"
+            },
+            {
+              "key": "venues.exclude",
+              "value": "<venues.exclude>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to drop"
+            },
+            {
+              "key": "variants.sell",
+              "value": "<variants.sell>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "variants.buy",
+              "value": "<variants.buy>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "locations",
+              "value": "<locations>",
+              "disabled": true,
+              "description": "Comma-separated singleChain, crossChain, offChain"
+            },
+            {
+              "key": "modalities",
+              "value": "<modalities>",
+              "disabled": true,
+              "description": "Comma-separated amm, solver, bridge, rfq, orderBook, fiat"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/prices/stream",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/prices/stream`: `snapshot` events per pair on change.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/prices/stream",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "prices",
+            "stream"
+          ],
+          "query": [
+            {
+              "key": "pairs",
+              "value": "<pairs>",
+              "disabled": false,
+              "description": "1 to 25 comma-separated SELL:BUY Asset pairs (USDC:USDT,USDC:ZAR)"
+            },
+            {
+              "key": "sellAmount",
+              "value": "<sellAmount>",
+              "disabled": true,
+              "description": "As GET /prices, applied to every pair"
+            },
+            {
+              "key": "buyAmount",
+              "value": "<buyAmount>",
+              "disabled": true,
+              "description": "As GET /prices, applied to every pair"
+            },
+            {
+              "key": "sizes",
+              "value": "<sizes>",
+              "disabled": true,
+              "description": "1 to 8 comma-separated positive sell amounts, applied to every pair; pairs × sizes at most 125"
+            },
+            {
+              "key": "sell.chain",
+              "value": "<sell.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the sell side"
+            },
+            {
+              "key": "buy.chain",
+              "value": "<buy.chain>",
+              "disabled": true,
+              "description": "CAIP-2 pin for the buy side"
+            },
+            {
+              "key": "venues.include",
+              "value": "<venues.include>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to keep"
+            },
+            {
+              "key": "venues.exclude",
+              "value": "<venues.exclude>",
+              "disabled": true,
+              "description": "Comma-separated venue ids to drop"
+            },
+            {
+              "key": "variants.sell",
+              "value": "<variants.sell>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "variants.buy",
+              "value": "<variants.buy>",
+              "disabled": true,
+              "description": "any | nativeOnly"
+            },
+            {
+              "key": "locations",
+              "value": "<locations>",
+              "disabled": true,
+              "description": "Comma-separated singleChain, crossChain, offChain"
+            },
+            {
+              "key": "modalities",
+              "value": "<modalities>",
+              "disabled": true,
+              "description": "Comma-separated amm, solver, bridge, rfq, orderBook, fiat"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/quotes",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `sell` or `requote` is 400 INVALID_REQUEST naming `sell`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / WALLET_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 REQUOTE_WINDOW_CLOSED (10 minutes after its expiry, past retainUntil; next search: request quotes again), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (firm false, expiresAt null) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quotes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quotes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sell\": {\n    \"asset\": \"USDC\"\n  },\n  \"buy\": {\n    \"asset\": \"USDC\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/quotes/requests/{quoteRequestId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer, as recorded off the hot path. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an orders_read API key when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. requestedByYou says whether the caller asked; only then can it order these quotes.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/quotes/requests/:quoteRequestId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "quotes",
+            "requests",
+            ":quoteRequestId"
+          ],
+          "variable": [
+            {
+              "key": "quoteRequestId",
+              "value": "<quoteRequestId>",
+              "description": "The set's quoteRequestId (rq_…)"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/capabilities",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the workspace's verification state and the capabilities it allows\n\nThe workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `dashboard_read` scope and reads\nonly the workspace it is bound to.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/capabilities",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "capabilities"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/trades",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/workspaces/{workspaceId}/trades\n\nThe one trade history. Projections: scope=workspace (default) reads the workspace's taker orders and venue trades; a member without view_compliance reads only their own, whatever the scope. scope=mine reads the caller's own (a member session only). scope=umbrella reads a broker's clients' orders with each client category's field visibility (view_umbrella_compliance). perspective=maker reads an LP workspace's fills with pseudonymised counterparties (view_settlements); with settlementStage or minAgeSeconds, its unsettled orders by stage (view_bilateral_documents). The default perspective is taker in every workspace. Every row carries tradeId, kind (order or venueTrade) and projection. Page with limit and cursor; format=csv returns the same filtered rows. Accepts a member session or an API key with trades_read; CSV is a member session only.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "trades"
+          ],
+          "query": [
+            {
+              "key": "scope",
+              "value": "mine",
+              "disabled": true,
+              "description": "mine, workspace or umbrella. Default: workspace. umbrella needs a broker\nworkspace and view_umbrella_compliance; mine needs a member session."
+            },
+            {
+              "key": "perspective",
+              "value": "taker",
+              "disabled": true,
+              "description": "taker (default, in every workspace) or maker. maker needs an LP workspace and\nview_settlements."
+            },
+            {
+              "key": "kind",
+              "value": "all",
+              "disabled": true,
+              "description": "all, order or venueTrade. Default: all for taker and umbrella; for maker the\nfills default (on-chain orders); umbrella has orders only."
+            },
+            {
+              "key": "status",
+              "value": "<status>",
+              "disabled": true,
+              "description": "Settlement status filter, as the projection names it."
+            },
+            {
+              "key": "counterpartyId",
+              "value": "<counterpartyId>",
+              "disabled": true,
+              "description": "Counterparty: the LP's catalogue venue id, the row's `lpVenueId` (taker; a venue\ntrade matches its execution type's venue), the client workspace (umbrella) or the\ntaker (maker)."
+            },
+            {
+              "key": "venueId",
+              "value": "<venueId>",
+              "disabled": true,
+              "description": "One of the LP's own venues, by its id (maker only)."
+            },
+            {
+              "key": "client",
+              "value": "<client>",
+              "disabled": true,
+              "description": "The member or client who placed the order: member (taker), user id (umbrella),\nentity (maker)."
+            },
+            {
+              "key": "settlementStage",
+              "value": "<settlementStage>",
+              "disabled": true,
+              "description": "Settlement stage of an unsettled order (maker only)."
+            },
+            {
+              "key": "minAgeSeconds",
+              "value": "0",
+              "disabled": true,
+              "description": "Only orders at least this many seconds old (maker only, with settlementStage)."
+            },
+            {
+              "key": "from",
+              "value": "<from>",
+              "disabled": true,
+              "description": "Placed at or after this RFC 3339 instant (umbrella: a UTC midnight)."
+            },
+            {
+              "key": "to",
+              "value": "<to>",
+              "disabled": true,
+              "description": "Placed at or before this RFC 3339 instant (umbrella: a UTC midnight)."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size; the projection's own bounds apply (default 25)."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The nextCursor of the previous page."
+            },
+            {
+              "key": "format",
+              "value": "json",
+              "disabled": true,
+              "description": "json (default) or csv. csv returns the projection's export of the same filters."
+            },
+            {
+              "key": "lifecycle",
+              "value": "<lifecycle>",
+              "disabled": true,
+              "description": "Taker: comma-separated lifecycle buckets (inProgress, completed, failed, refunded, unknown). Maker: the fills lifecycle filter"
+            },
+            {
+              "key": "nextActor",
+              "value": "<nextActor>",
+              "disabled": true,
+              "description": "Taker: taker, support, counterparty or none"
+            },
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": "Taker: either side's display asset symbol (case-insensitive)"
+            },
+            {
+              "key": "corridor",
+              "value": "<corridor>",
+              "disabled": true,
+              "description": "Corridor (source-dest)"
+            },
+            {
+              "key": "walletId",
+              "value": "<walletId>",
+              "disabled": true,
+              "description": "Taker: linked wallet id"
+            },
+            {
+              "key": "address",
+              "value": "<address>",
+              "disabled": true,
+              "description": "Taker: wallet address (custody vault or linked wallet)"
+            },
+            {
+              "key": "routingPath",
+              "value": "<routingPath>",
+              "disabled": true,
+              "description": "The row's routingPath type: direct or via_broker"
+            },
+            {
+              "key": "amountMin",
+              "value": "0",
+              "disabled": true,
+              "description": "Minimum USD notional"
+            },
+            {
+              "key": "amountMax",
+              "value": "0",
+              "disabled": true,
+              "description": "Maximum USD notional"
+            },
+            {
+              "key": "sortBy",
+              "value": "<sortBy>",
+              "disabled": true,
+              "description": "Field to sort by, as the projection names it"
+            },
+            {
+              "key": "sortDir",
+              "value": "<sortDir>",
+              "disabled": true,
+              "description": "Taker: asc or desc"
+            },
+            {
+              "key": "actionRequired",
+              "value": "false",
+              "disabled": true,
+              "description": "Taker: only orders whose nextAction is present"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}\n\nOne trade through the same projection as the list: the workspace's or the caller's own taker order or venue trade, a broker umbrella record with the client category's field visibility, or an LP's fill with pseudonymised counterparties. Taker orders keep their detail fields at the top level. Accepts a member session or an API key with trades_read.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "trades",
+            ":tradeId"
+          ],
+          "query": [
+            {
+              "key": "scope",
+              "value": "mine",
+              "disabled": true,
+              "description": "mine, workspace (default) or umbrella, as on the list"
+            },
+            {
+              "key": "perspective",
+              "value": "taker",
+              "disabled": true,
+              "description": "taker (default) or maker, as on the list"
+            },
+            {
+              "key": "venueId",
+              "value": "<venueId>",
+              "disabled": true,
+              "description": "Maker: the LP's own venue that filled it"
+            },
+            {
+              "key": "flow",
+              "value": "<flow>",
+              "disabled": true,
+              "description": "Maker: protocol, venueAccount or all"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "tradeId",
+              "value": "<tradeId>",
+              "description": "The trade's tradeId: an order id, or a venue trade's operation id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/balances",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "balances"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. A bounded window, not a paged list: each answer is one live read of the venue's own credit history for `lookbackDays` (1 to 30, default 7) ending now, returned whole with its `since`, `until`, `observedAt` and `expiresAt`. A window holding more than 1,000 venue records answers no credits, with reasonCode DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. No cursor is offered because the venues' histories have no position that stays stable from one live read to the next, so a cursor could skip or repeat a credit. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-history",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "deposit-history"
+          ],
+          "query": [
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": false,
+              "description": ""
+            },
+            {
+              "key": "chainRef",
+              "value": "<chainRef>",
+              "disabled": false,
+              "description": ""
+            },
+            {
+              "key": "lookbackDays",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-instructions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "deposit-instructions"
+          ],
+          "query": [
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "chainRef",
+              "value": "<chainRef>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "currency",
+              "value": "<currency>",
+              "disabled": true,
+              "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `chainRef`."
+            },
+            {
+              "key": "providerBankId",
+              "value": "<providerBankId>",
+              "disabled": true,
+              "description": "The dedicated fiat venue's linked bank id for the sending bank. Required with currency for a dedicated fiat venue and refused for other venues."
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-enablements",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-enablements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-enablements"
+          ],
+          "query": [
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque `nextCursor` from the previous page of the same list and filters."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, default 20, clamped to 1..=100."
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/workspaces/{id}/webhooks`",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required for every caller (1 to 255 bytes; missing or empty is 400 IDEMPOTENCY_KEY_REQUIRED). The same key and body within 24 hours answers the stored 201 again: the same webhook, with secret null and secretShownOnce true, and no second webhook is created. The same key with a different body is 409 IDEMPOTENCY_CONFLICT."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks`\n\nCreate a webhook with a shown-once whsec_<base64> secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: v1,<base64 HMAC-SHA256>, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"<url>\",\n  \"events\": [\n    \"<events>\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}`",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Update any of url, events or active without recreating the endpoint. URLs use the same HTTPS and SSRF validation as creation; events must be current subscription names. Changing url or events makes the caller the endpoint's accountable principal, whose read rights then govern protected event delivery; changing only active keeps the existing principal. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DELETE /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`DELETE /api/v1/workspaces/{id}/webhooks/{webhookId}`\n\nDelete a webhook. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}/deliveries`",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "deliveries"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Send one retained payload again with current URL and signing secret.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/redeliver",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "deliveries",
+            ":deliveryId",
+            "redeliver"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            },
+            {
+              "key": "deliveryId",
+              "value": "<deliveryId>",
+              "description": "Original delivery ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/reactivate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/reactivate`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/reactivate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "reactivate"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate-secret",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/rotate-secret`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate-secret",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "rotate-secret"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/test`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/test",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "test"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

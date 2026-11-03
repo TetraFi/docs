@@ -1,0 +1,38 @@
+---
+title: "API reference"
+description: "Every operation an API key can call, generated from the TetraFi API's own specification."
+---
+
+These pages are generated from the API's integrator specification, so they always match what the API accepts and returns. The guides explain how the operations fit together; start with the [Quickstart](/quickstart) if you are new.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog), and the [Compatibility policy](/compatibility) says what can change after launch.
+</Note>
+
+## Base URL and authentication
+
+Send every request to `https://api.tetrafi.io` with your API key in `X-API-Key`: the key implies its workspace. A key with venue trading also signs each request. [Authentication](/authentication) covers both.
+
+## Download the specification
+
+Download the [OpenAPI specification](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/openapi.json) these pages are generated from (OpenAPI 3.1, JSON) to generate a client or import it into your tools. It changes with the API; the [Changelog](/changelog) lists each change.
+
+## Postman collection
+
+Import the [TetraFi Postman collection](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json) into Postman using **Import → Link**, or download the JSON file and import it. In the collection's **Variables** tab, set these three values locally:
+
+| Variable | Value |
+| :--- | :--- |
+| `baseUrl` | `https://api.tetrafi.io`, or the API base URL you were given |
+| `apiKey` | Your API key |
+| `signingSecret` | The key's 64-character hexadecimal signing secret, if signing is enabled |
+
+Send **GET /api/v1/assets** to check your credentials. The collection sends `X-API-Key` and signs each request automatically when `signingSecret` is set; leave it empty only for a key without signing. Keep credentials local: do not share or export a collection with populated values.
+
+The remaining requests come from the same integrator specification as this reference. Replace angle-bracket placeholders and any path variables with real values before sending them. Review each request individually rather than running the whole collection, which includes order submission.
+
+## Reading responses
+
+- Ignore response fields you don't recognise; objects can gain fields.
+- Treat an enum value you don't recognise as "other": every response enum in the specification is open.
+- Every refusal is one error body. [Errors and refusals](/trade/errors) explains how to read it, and [Error codes](/reference/error-codes) lists every code and source reason.

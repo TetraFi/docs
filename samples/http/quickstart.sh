@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Quickstart: list assets, request quotes, place an order on the best quote and read its status.
+#
+# Needs bash, curl, jq and openssl. Reads:
+#   TETRAFI_BASE_URL        https://api.tetrafi.io in production
+#   TETRAFI_API_KEY         your API key
+#   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
+#   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
+# Optional:
+#   TETRAFI_SELL, TETRAFI_BUY, TETRAFI_AMOUNT  the pair and the amount you sell (default 10 USDC for USDT)
+#   TETRAFI_VENUES          comma-separated venue ids to ask, instead of every venue
+#   TETRAFI_SLIPPAGE_BPS    how far below a quote that is not firm you accept, in basis points (default 50)
+#   TETRAFI_PLACE_ORDER=1 places the order; without it the script stops before ordering
+#
+# The last line printed is one JSON summary. An API error prints its error body and exits 1.
+set -euo pipefail
+
+# region quickstart-client
+: "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
+: "${TETRAFI_API_KEY:?Set TETRAFI_API_KEY}"
+
+# tetrafi METHOD PATH [BODY] [HEADER]
+# Sends one request and prints the response body. On an error status it also prints
+# the body to stderr and returns 1. With TETRAFI_SIGNING_SECRET set, it signs the request.
+tetrafi() {
+  local method=$1 path=$2 body=${3:-} extra=${4:-}
+  local headers=(
+    -H "X-API-Key: $TETRAFI_API_KEY"
+    -H "Accept: application/json"
+  )
+  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
+  if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
+  if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
+  if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
+    local timestamp digest signature
+    timestamp=$(date +%s)
+    digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
+    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+      | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
+    headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
+  fi
+  local response status
+  response=$(curl -sS -X "$method" "$TETRAFI_BASE_URL$path" "${headers[@]}" \
+    ${body:+--data "$body"} -w $'\n%{http_code}')
+  status=${response##*$'\n'}
+  response=${response%$'\n'*}
+  printf '%s\n' "$response"
+  if (( status >= 400 )); then
+    printf '%s\n' "$response" >&2
+    return 1
+  fi
+}
+# endregion
+
+sell=${TETRAFI_SELL:-USDC}
+buy=${TETRAFI_BUY:-USDT}
+amount=${TETRAFI_AMOUNT:-10}
+
+# region quickstart-assets
+assets=$(tetrafi GET /api/v1/assets)
+for asset in "$sell" "$buy"; do
+  if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+    echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
+    exit 1
+  fi
+done
+echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $sell for $buy" >&2
+# endregion
+
+# region quickstart-quote
+request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
+  --arg venues "${TETRAFI_VENUES:-}" '{
+    sell: {asset: $sell},
+    buy: {asset: $buy},
+    sellAmount: $amount
+  } + (if $venues == "" then {} else {filters: {venues: {include: ($venues | split(","))}}} end)')
+quotes=$(tetrafi POST /api/v1/quotes "$request")
+
+# Quotes arrive best first (most received, net of fees). Take the best one you can order now.
+quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
+if [[ -z $quote ]]; then
+  # Every venue asked is listed in sources with its outcome, so an empty result says why.
+  jq -c '{error: "NO_ACTIONABLE_QUOTE", sources: [.sources[] | {venue: .venue.id, status, reason}]}' <<<"$quotes" >&2
+  exit 1
+fi
+quote_id=$(jq -r '.id' <<<"$quote")
+jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode,
+  sell: .sell.amount, buy: .buy.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2
+# endregion
+
+if [[ ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
+  # Stop before ordering: you did not ask to place the order.
+  jq -c -n --arg q "$quote_id" '{quoteId: $q, ordered: false}'
+  exit 0
+fi
+
+# region quickstart-order
+order_body=$(jq -c '{quoteId: .id}' <<<"$quote")
+if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
+  # The quote says when it needs minReceive: the least you accept, here the quoted buy amount less
+  # slippage (default 50 bps), rounded down.
+  # Without a buy chain, use the lowest precision listed for the native asset.
+  decimals=$(jq -er --arg a "$(jq -r '.buy.asset' <<<"$quote")" \
+    --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.assets[] | select(.assetId == $a)
+      | .variants[] | select(.kind == "native") | .deployments[]
+      | select($c == "" or .chain == $c) | .decimals]
+      | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets")
+  order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id,
+    minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
+      | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)}' <<<"$quote")
+fi
+# One Idempotency-Key per order. Keep it: retrying with the same key and body
+# returns the first answer instead of placing a second order.
+idempotency_key=$(openssl rand -hex 16)
+placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
+jq -c '{kind, quoteId}' <<<"$placed" >&2
+# endregion
+
+# region quickstart-status
+# Read the order at the statusUrl the answer gave: one envelope for Basic and Advanced orders.
+# terminal says whether it can still change; next, when present, says what to do meanwhile.
+order=$(tetrafi GET "$(jq -r '.statusUrl' <<<"$placed")")
+jq -c --arg k "$idempotency_key" '{kind, status, terminal, next, idempotencyKey: $k}' <<<"$order"
+# endregion

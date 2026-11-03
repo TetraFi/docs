@@ -1,0 +1,96 @@
+---
+title: "Exchange account balances"
+description: "List your connected exchange accounts, and read what one holds and the deposits its venue credited, with an API key."
+---
+
+import VenueAccountsList from '/snippets/samples/venue-accounts-list.mdx';
+import VenueBalances from '/snippets/samples/venue-balances.mdx';
+import VenueDepositHistory from '/snippets/samples/venue-deposit-history.mdx';
+
+An exchange account is an account your workspace holds at a venue and has connected to TetraFi. Your API key lists them, and reads each one's balances and the deposits the venue credited to it. These reads never move money and never authorize a payment.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Before you start
+
+- Switch on **Read treasury** for the key. Without it, these reads are refused with `403`.
+- The paths name your workspace: `TETRAFI_WORKSPACE_ID` is the `workspaceId` that `GET /api/v1/me` answers for your key.
+
+## List your exchange accounts
+
+`GET /api/v1/workspaces/{workspaceId}/venue-enablements` lists the workspace's exchange accounts, oldest first, in `items`. Each item's `accountId` is the `{venueAccountId}` the reads below take.
+
+| Field | Meaning |
+| --- | --- |
+| `accountId` | The account's id. |
+| `venueId` | The venue, by its id (for example `binance`). `null` only when the account maps to no known venue. |
+| `label` | The account's name in the app. |
+| `lifecycle` | `pending`, `configured`, `funding_only`, `disabled` or `revoked`. Read balances from a `configured` account. New values may be added: treat one you do not recognise as unusable. |
+| `venueKind` | `accountBased`, a venue that holds your money in the account, or `walletBased`, a venue that trades from your own wallets: read those wallets instead. |
+| `tradePaused`, `withdrawalPaused` | Whether trading or withdrawals on the account are paused. |
+
+The page holds up to `limit` items (20 by default, at most 100). To read every account, pass `nextCursor` back as `cursor` until it is `null`. A `cursor` this list did not issue answers `400 INVALID_CURSOR`.
+
+<VenueAccountsList />
+
+```json Output on test networks
+{"accountId":"8a31ab17-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
+{"accountId":"7e873d0e-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
+{"accountId":"169e142e-…","venueId":"keyrock","label":"Keyrock account","lifecycle":"configured","venueKind":"accountBased"}
+```
+
+## Read the balances
+
+`GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances` answers with what the venue last reported for the account.
+
+| Field | Meaning |
+| --- | --- |
+| `state` | Whether the balance could be read: `supported` when it was. Other values carry a `reason` and a `reasonCode` that say why not. New values may be added: treat one you do not recognise as unreadable. |
+| `observedAt`, `expiresAt` | When the venue reported the balance, and when that reading stops being current. Read it again after `expiresAt`. |
+| `balances` | One line per asset. `null` means there is no reading; `[]` is an account that really holds nothing. |
+| `balances[].total` | Everything the venue holds for the asset, including amounts it has locked. On an account with credit it can be negative: what the account owes. |
+| `balances[].free` | What the venue says is free to trade or withdraw. |
+| `balances[].available` | `free` less what TetraFi has already committed to open trades and withdrawals. `null` when it is not known. |
+| `balances[].usdValue` | The line's value in US dollars. `null` when there is no reference price, never `0`. |
+
+<VenueBalances />
+
+```json Output on test networks
+{"state":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","usdValue":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","usdValue":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","usdValue":null}]}
+```
+
+## Read the deposit history
+
+`GET …/venue-accounts/{venueAccountId}/deposit-history` lists the deposits the venue credited to the account for one `asset` on one network, `chainRef` (CAIP-2, such as `eip155:1`). Both are required.
+
+Each answer is one read of the venue's own credit history over the last `lookbackDays` days (1 to 30, 7 by default), returned whole with its `since` and `until`. It is not paged: there is no cursor, because a venue's history has no position that stays stable from one read to the next. A window holding more than 1,000 of the venue's records answers no credits, with `reasonCode` `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`: read a shorter window.
+
+`GET …/venue-accounts/{venueAccountId}/deposit-instructions` lists the pairs the account takes deposits on, in `options`. A venue that publishes no networks answers `options: []` and names its assets in `unconfirmedNetworkAssets`: the networks of those deposits are not verified, so never send real funds on them.
+
+`credits` lists each deposit. `null` means the history could not be read, and `reason` says why: it never means there were no deposits. `[]` is a real empty history.
+
+<VenueDepositHistory />
+
+```json Output on test networks
+{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","reason":"Terminal credits reported by this venue account in the displayed window. Refresh balances separately before requesting a fresh RFQ.","credits":0}
+```
+
+## Refusals
+
+| `error` | Status | What to do |
+| --- | --- | --- |
+| `INVALID_CURSOR` | 400 | The `cursor` was not issued by the list. Start again without one. |
+| `VENUE_ACCOUNT_NOT_FOUND` | 404 | The workspace has no exchange account with that id. Check the id in the app. |
+| `OBSERVATION_AUTHORITY_REQUIRED` | 403 | The key has no current authority to read the account: it is revoked or expired, or does not carry Read treasury. |
+| `VENUE_READ_AUTHORITY_REFUSED` | 403 | The key's authority ended or was withdrawn while the read was running. `reason` is `permission_withdrawn` (the key's owner lost the permission, or left the workspace) or `authority_ended`. Restore the key's access before reading again. |
+| `VENUE_ACCOUNT_REVERIFY_REQUIRED` | 409 | No current key at the venue holds the account's balance. Reconnect the account in the app. |
+| `VENUE_ACCOUNT_REVOKED` | 409 | The account was disconnected. |
+| `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | 409 | The account's money is held in your registered wallets, not at the venue: read those wallets instead. |
+
+Every other code is in [Error codes](/reference/error-codes).
+
+## In the app
+
+**Treasury** shows the same balances and deposits on each exchange account's page.
