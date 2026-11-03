@@ -110,7 +110,7 @@ quote_id=$(jq -r '.id' <<<"$quote")
 
 # region recipe-exchange-funds
 # Each quote says whether the account holds enough to trade it: readiness "funded", or
-# "shortfall" with the amount missing and next "fund". GET …/venue-accounts/{id}/balances reads
+# "shortfall" with the amount missing and next "fund". GET …/venue-accounts/{venueAccountId}/balances reads
 # what the account holds.
 jq -c '{readiness}' <<<"$quote" >&2
 if [[ $(jq -r '.next.kind' <<<"$quote") != order ]]; then

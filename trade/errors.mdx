@@ -112,7 +112,7 @@ New codes can be added at any time. Act on the codes you know, and treat any oth
 
 An API key is bound to its workspace, so it may leave `X-Workspace-Id` out. When it sends one, it must be the key's own: any other workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a value that is not a workspace id answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
 
-A few paths name a workspace, such as `GET /api/v1/workspaces/{id}/webhooks`. A path workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
+A few paths name a workspace, such as `GET /api/v1/workspaces/{workspaceId}/webhooks`. A path workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
 
 <ErrorsWrongWorkspace />
 
@@ -144,7 +144,7 @@ A company, broker or liquidity provider workspace can request quotes, place orde
 
 Both are done in the app, not through the API. When TetraFi cannot read the company details just now, the request answers `503 CAPABILITY_UNAVAILABLE` with the blocker `BASE_PROFILE_UNREADABLE`: send it again shortly. Treat a blocker code you do not recognise by its `message` and `unlockStep`.
 
-To check before you quote, read `GET /api/v1/workspaces/{id}/capabilities`: each capability, such as `request_quotes` or `submit_order`, says whether it is `allowed`, with the same `blockers` when it is not.
+To check before you quote, read `GET /api/v1/workspaces/{workspaceId}/capabilities`: each capability, such as `request_quotes` or `submit_order`, says whether it is `allowed`, with the same `blockers` when it is not.
 
 ## Refusals by area
 

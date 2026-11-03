@@ -735,7 +735,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{id}/capabilities",
+      "name": "GET /api/v1/workspaces/{workspaceId}/capabilities",
       "request": {
         "method": "GET",
         "header": [
@@ -746,7 +746,7 @@
         ],
         "description": "Read the workspace's verification state and the capabilities it allows\n\nThe workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `dashboard_read` scope and reads\nonly the workspace it is bound to.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/capabilities",
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/capabilities",
           "host": [
             "{{baseUrl}}"
           ],
@@ -754,657 +754,14 @@
             "api",
             "v1",
             "workspaces",
-            ":id",
+            ":workspaceId",
             "capabilities"
           ],
           "variable": [
             {
-              "key": "id",
-              "value": "<id>",
+              "key": "workspaceId",
+              "value": "<workspaceId>",
               "description": "Workspace ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "GET /api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/balances",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/balances",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "venue-accounts",
-            ":venueAccountId",
-            "balances"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Current company or broker workspace"
-            },
-            {
-              "key": "venueAccountId",
-              "value": "<venueAccountId>",
-              "description": ""
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "GET /api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/deposit-history",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. A bounded window, not a paged list: each answer is one live read of the venue's own credit history for `lookbackDays` (1 to 30, default 7) ending now, returned whole with its `since`, `until`, `observedAt` and `expiresAt`. A window holding more than 1,000 venue records answers no credits, with reasonCode DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. No cursor is offered because the venues' histories have no position that stays stable from one live read to the next, so a cursor could skip or repeat a credit. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/deposit-history",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "venue-accounts",
-            ":venueAccountId",
-            "deposit-history"
-          ],
-          "query": [
-            {
-              "key": "asset",
-              "value": "<asset>",
-              "disabled": false,
-              "description": ""
-            },
-            {
-              "key": "chainRef",
-              "value": "<chainRef>",
-              "disabled": false,
-              "description": ""
-            },
-            {
-              "key": "lookbackDays",
-              "value": "0",
-              "disabled": true,
-              "description": ""
-            }
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Current company or broker workspace"
-            },
-            {
-              "key": "venueAccountId",
-              "value": "<venueAccountId>",
-              "description": ""
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "GET /api/v1/workspaces/{id}/venue-accounts/{venueAccountId}/deposit-instructions",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-accounts/:venueAccountId/deposit-instructions",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "venue-accounts",
-            ":venueAccountId",
-            "deposit-instructions"
-          ],
-          "query": [
-            {
-              "key": "asset",
-              "value": "<asset>",
-              "disabled": true,
-              "description": ""
-            },
-            {
-              "key": "chainRef",
-              "value": "<chainRef>",
-              "disabled": true,
-              "description": ""
-            },
-            {
-              "key": "currency",
-              "value": "<currency>",
-              "disabled": true,
-              "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `chainRef`."
-            },
-            {
-              "key": "providerBankId",
-              "value": "<providerBankId>",
-              "disabled": true,
-              "description": "The dedicated fiat venue's linked bank id for the sending bank. Required with currency for a dedicated fiat venue and refused for other venues."
-            }
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Current company or broker workspace"
-            },
-            {
-              "key": "venueAccountId",
-              "value": "<venueAccountId>",
-              "description": ""
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "GET /api/v1/workspaces/{id}/venue-enablements",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/venue-enablements",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "venue-enablements"
-          ],
-          "query": [
-            {
-              "key": "cursor",
-              "value": "<cursor>",
-              "disabled": true,
-              "description": "Opaque `nextCursor` from the previous page of the same list and filters."
-            },
-            {
-              "key": "limit",
-              "value": "0",
-              "disabled": true,
-              "description": "Page size, default 20, clamped to 1..=100."
-            }
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Current company or broker workspace"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "GET /api/v1/workspaces/{id}/webhooks",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`GET /api/v1/workspaces/{id}/webhooks`",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/workspaces/{id}/webhooks",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks`\n\nCreate a webhook with a shown-once whsec_<base64> secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: v1,<base64 HMAC-SHA256>, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"url\": \"<url>\",\n  \"events\": [\n    \"<events>\"\n  ]\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "GET /api/v1/workspaces/{id}/webhooks/{webhookId}",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}`",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "PATCH /api/v1/workspaces/{id}/webhooks/{webhookId}",
-      "request": {
-        "method": "PATCH",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "description": "Update any of url, events or active without recreating the endpoint. URLs use the same HTTPS and SSRF validation as creation; events must be current subscription names. Changing url or events makes the caller the endpoint's accountable principal, whose read rights then govern protected event delivery; changing only active keeps the existing principal. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "DELETE /api/v1/workspaces/{id}/webhooks/{webhookId}",
-      "request": {
-        "method": "DELETE",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`DELETE /api/v1/workspaces/{id}/webhooks/{webhookId}`\n\nDelete a webhook. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "GET /api/v1/workspaces/{id}/webhooks/{webhookId}/deliveries",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}/deliveries`",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId/deliveries",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId",
-            "deliveries"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/workspaces/{id}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "Send one retained payload again with current URL and signing secret.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId/deliveries/:deliveryId/redeliver",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId",
-            "deliveries",
-            ":deliveryId",
-            "redeliver"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            },
-            {
-              "key": "deliveryId",
-              "value": "<deliveryId>",
-              "description": "Original delivery ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/workspaces/{id}/webhooks/{webhookId}/reactivate",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/reactivate`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId/reactivate",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId",
-            "reactivate"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/workspaces/{id}/webhooks/{webhookId}/rotate-secret",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/rotate-secret`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId/rotate-secret",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId",
-            "rotate-secret"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/workspaces/{id}/webhooks/{webhookId}/test",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/test`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:id/webhooks/:webhookId/test",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":id",
-            "webhooks",
-            ":webhookId",
-            "test"
-          ],
-          "variable": [
-            {
-              "key": "id",
-              "value": "<id>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
             }
           ]
         }
@@ -1663,6 +1020,655 @@
               "key": "tradeId",
               "value": "<tradeId>",
               "description": "The trade's tradeId: an order id, or a venue trade's operation id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in registered wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/balances",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "balances"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. A bounded window, not a paged list: each answer is one live read of the venue's own credit history for `lookbackDays` (1 to 30, default 7) ending now, returned whole with its `since`, `until`, `observedAt` and `expiresAt`. A window holding more than 1,000 venue records answers no credits, with reasonCode DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. No cursor is offered because the venues' histories have no position that stays stable from one live read to the next, so a cursor could skip or repeat a credit. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-history",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "deposit-history"
+          ],
+          "query": [
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": false,
+              "description": ""
+            },
+            {
+              "key": "chainRef",
+              "value": "<chainRef>",
+              "disabled": false,
+              "description": ""
+            },
+            {
+              "key": "lookbackDays",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-instructions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "deposit-instructions"
+          ],
+          "query": [
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "chainRef",
+              "value": "<chainRef>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "currency",
+              "value": "<currency>",
+              "disabled": true,
+              "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `chainRef`."
+            },
+            {
+              "key": "providerBankId",
+              "value": "<providerBankId>",
+              "disabled": true,
+              "description": "The dedicated fiat venue's linked bank id for the sending bank. Required with currency for a dedicated fiat venue and refused for other venues."
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-enablements",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-enablements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-enablements"
+          ],
+          "query": [
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque `nextCursor` from the previous page of the same list and filters."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, default 20, clamped to 1..=100."
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/workspaces/{id}/webhooks`",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required for every caller (1 to 255 bytes; missing or empty is 400 IDEMPOTENCY_KEY_REQUIRED). The same key and body within 24 hours answers the stored 201 again: the same webhook, with secret null and secretShownOnce true, and no second webhook is created. The same key with a different body is 409 IDEMPOTENCY_CONFLICT."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks`\n\nCreate a webhook with a shown-once whsec_<base64> secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: v1,<base64 HMAC-SHA256>, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"<url>\",\n  \"events\": [\n    \"<events>\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}`",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Update any of url, events or active without recreating the endpoint. URLs use the same HTTPS and SSRF validation as creation; events must be current subscription names. Changing url or events makes the caller the endpoint's accountable principal, whose read rights then govern protected event delivery; changing only active keeps the existing principal. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DELETE /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`DELETE /api/v1/workspaces/{id}/webhooks/{webhookId}`\n\nDelete a webhook. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`GET /api/v1/workspaces/{id}/webhooks/{webhookId}/deliveries`",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "deliveries"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Send one retained payload again with current URL and signing secret.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/redeliver",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "deliveries",
+            ":deliveryId",
+            "redeliver"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            },
+            {
+              "key": "deliveryId",
+              "value": "<deliveryId>",
+              "description": "Original delivery ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/reactivate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/reactivate`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/reactivate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "reactivate"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate-secret",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/rotate-secret`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate-secret",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "rotate-secret"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{id}/webhooks/{webhookId}/test`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/test",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "test"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
             }
           ]
         }

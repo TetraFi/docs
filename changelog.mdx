@@ -10,6 +10,8 @@ The API is in preview until launch, so a change here can still remove or rename 
   - A signed read (`GET` or `HEAD`) sent again unchanged inside the 300-second window is accepted, so polling needs no nonce. A signed write is still accepted once ([Sign requests](/authentication#sign-requests)).
   - An API key placing an order without an `Idempotency-Key` header is refused with `400 IDEMPOTENCY_KEY_REQUIRED` ([Idempotency](/trade/idempotency)).
   - The source refusal `BINDING_NOT_ON_CHAIN` is renamed `WALLET_NOT_ON_CHAIN`, with the same meaning ([Wallets and accounts](/trade/wallets-and-accounts)).
+  - Every path that names a workspace calls its parameter `workspaceId`, for example `GET /api/v1/workspaces/{workspaceId}/venue-enablements`. The URLs themselves are unchanged.
+  - A new source reason, `venueEnablementRechecking`: the venue's readiness for your workspace is being re-checked, so it wasn't asked. Request quotes again shortly ([Error codes](/reference/error-codes#venueEnablementRechecking)).
 </Update>
 
 <Update label="2026-11-02" description="What an order did, one trade history, and exchange account balances">
@@ -109,7 +111,7 @@ The API is in preview until launch, so a change here can still remove or rename 
 <Update label="2026-10-30" description="List and cancel orders">
   - List your orders with `GET /api/v1/orders`: newest first, in the order envelope, filtered by `status`, `kind`, `sellAsset`, `buyAsset`, `from` and `to`, and paged with `cursor`. A page can hold fewer than `limit` orders, even none: follow `nextCursor` until it is `null`.
   - Cancel an order before it is sent to a venue, or a pay-in waiting for funds, with `POST /api/v1/orders/{id}/cancel` and an `Idempotency-Key`. Afterwards it answers `409 ORDER_NOT_CANCELLABLE` with `details.status`. TetraFi never cancels at the venue or refunds.
-  - `GET /api/v1/workspaces/{id}/trades` is no longer part of the integrator API: use the order list.
+  - `GET /api/v1/workspaces/{workspaceId}/trades` is no longer part of the integrator API: use the order list.
 </Update>
 
 <Update label="2026-10-30" description="orderId on every order answer; minReceiveRequired on quotes">
@@ -138,7 +140,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Stop sending `X-Workspace-Id` with an API key, or keep sending it: when present it must be the key's own workspace, or it is refused with `403 WORKSPACE_SCOPE_MISMATCH`.
   - A signed-in member's session still sends `X-Workspace-Id`. Without it, the request is refused with `400 MISSING_WORKSPACE`.
   - Read a placed order's status at the `statusUrl` its `POST /api/v1/orders` answer returns, instead of building the address yourself.
-  - Filter `GET /api/v1/workspaces/{id}/trades` with its camelCase parameter names only, for example `nextActor`, `dateFrom`, `amountMin` and `sortBy`. The snake_case names are refused with `400`.
+  - Filter `GET /api/v1/workspaces/{workspaceId}/trades` with its camelCase parameter names only, for example `nextActor`, `dateFrom`, `amountMin` and `sortBy`. The snake_case names are refused with `400`.
 </Update>
 
 <Update label="2026-10-29" description="Trading source and funding replace bind and binding">
