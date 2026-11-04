@@ -24,6 +24,29 @@ Operations that are not launched are left out of the projection; they return whe
 they launch. Leaving one out does not grant or revoke runtime execution authority. UI
 and SDK generation continues to consume committed full-spec files, not these HTTP routes.
 
+## Release compatibility enforcement
+
+Devbox exports and ordinary contract CI report compatibility changes without blocking
+publication. Beta and main releases are blocking: their release dispatcher supplies the
+last successfully shipped revision for that environment, and the credential-free check
+reads its `docs/api/integrator/openapi.json` with `git show`. The released revision is the
+baseline; no repository baseline file is refreshed or committed.
+
+`tooling/scripts/release/integrator-release-check.py` uses the existing oasdiff policy,
+including its open/extensible response-enum rules. Every breaking change must match an
+entry in the candidate release's `integrator/approved-breaks.json`: `environment`, a
+non-empty `reason`, and `change` containing the exact `id`, `operation`, `operationId`,
+`path`, `section`, and `text` printed as `approval change:` by the check. An approval for
+another environment, location, field or value does not approve the change.
+
+An unreadable release record, previous revision/spec, approval file or differ refuses the
+release. A genuine first release additionally needs a `bootstrap` entry with that
+`environment`, a non-empty `reason`, and `specSha256` of the exact candidate spec bytes.
+The committed list starts empty: neither environment is implicitly bootstrapped.
+Beta's small durable record (`rfq-beta-release.json` beside the pull-CI pending queue)
+is advanced only after the deploy Job succeeds; an interrupted rollout refuses until
+reconciled. Main uses its successful-release ledger, not merely a published GitHub tag.
+
 ## What we promise
 
 After launch, a change to the integrator API is **additive**. We may:
