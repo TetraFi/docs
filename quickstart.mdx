@@ -11,10 +11,12 @@ import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
 
 This guide walks through one script, [`samples/http/quickstart.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/quickstart.sh), step by step. It lists the assets your workspace can trade, asks every venue for a quote on 10 USDC to USDT, takes the best quote and places the order.
 
+Copy the **cURL** blocks in order into the same Bash session, or run the linked script. Both stop after the quote unless you explicitly opt in to ordering with `TETRAFI_PLACE_ORDER=1`.
+
 Each step shows the script's code under **cURL**. The **TypeScript SDK** tab shows the same step in TetraFi's TypeScript SDK, which is not published to npm yet: it is coming soon. Its example differs from the script in two ways: it quotes USDC for ETH, and after ordering it waits until the order ends.
 
 <Warning>
-This guide places a real order: by default it trades 10 USDC from your venue account, and that cannot be undone. There is no sandbox yet. Set `TETRAFI_AMOUNT` to trade less, down to the venue's minimum. [Test safely](/test-safely) shows how to find each venue's minimum before you order.
+The script stops after the quote by default. Only set `TETRAFI_PLACE_ORDER=1` when you intend to place a real order: it trades 10 USDC from your venue account by default, and that cannot be undone. There is no sandbox yet. Set `TETRAFI_AMOUNT` to trade less, down to the venue's minimum. [Test safely](/test-safely) shows how to find each venue's minimum before you order.
 </Warning>
 
 <Note>
@@ -40,7 +42,7 @@ Create the key in the app as a workspace owner or admin with permission to manag
 3. Switch **Venue trading** on and select **Create key**.
 4. Copy **API Key** and **Request-signing secret** to your secret manager, keeping them separate. They are shown once and cannot be recovered. Tick **I have saved both credentials securely** and select **Done**.
 
-The dialog does not grant organisation wallets to the key. Exchange and OTC venue accounts need no wallet grant, but on-chain Basic venues answer `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` until an owner or admin grants a wallet. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains that separate step.
+With venue trading on, the dialog grants your workspace's default organisation wallets that you hold a Trade right on, and says which it granted. Exchange and OTC venue accounts need no wallet grant. If no usable organisation wallet is granted, on-chain Basic venues answer `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. [Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets) explains how to review and change the key's grants.
 
 The key is bound to its workspace, so the script sends no workspace id: every request works in the key's own workspace. If you need the id later, `GET /api/v1/me` returns it in `workspaceId`, and in the app a workspace owner or admin finds it as **Workspace ID** in the workspace's settings, on the **General** tab.
 
