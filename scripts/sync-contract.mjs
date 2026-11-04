@@ -43,14 +43,7 @@ function compatibilityPage() {
   if (text === null) throw new Error(`missing contract source ${from}`);
   const lines = text.split('\n');
   if (!lines[0].startsWith('# ')) throw new Error(`${from}: expected a level-1 heading on line 1`);
-  const internalReleaseSection = /^## Release compatibility enforcement\r?\n[\s\S]*?(?=^## |$(?![\s\S]))/gm;
-  const sections = [...text.matchAll(internalReleaseSection)];
-  if (sections.length !== 1) {
-    throw new Error(`${from}: expected exactly one internal release-enforcement section; review the public projection`);
-  }
   const body = lines.slice(1).join('\n').replace(/^\n+/, '')
-    // Release-runner mechanics are internal engineering guidance, not an integrator contract.
-    .replace(internalReleaseSection, '')
     // Links that point inside the RFQ repository become site links.
     // The reference section exists only once the integrator spec is published.
     .replace(/\[`?integrator\/openapi\.json`?\]\(integrator\/openapi\.json\)/g, reference.spec ? '[API reference](/reference/introduction)' : '[API overview](/overview)')
