@@ -149,6 +149,8 @@ The shape also has a `payee` kind, but no trade can deliver to a payee yet: deli
 
 `destinationTag` is the tag or memo an address needs, such as an XRP destination tag, a Stellar memo or an exchange deposit memo. Leaving it out means no tag: TetraFi never fills one in for you.
 
+With an API key, `deliverTo` naming an address outside the workspace's organisation wallets is refused with `403 API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` on the quote request, before an order is placed. Use an organisation-wallet destination the key may use. Manage delivery destinations in the app, not through a per-key address allowlist: an API key cannot allowlist an outside address. This is separate from the key's grants to trade from organisation wallets ([Give a key organisation wallets](#give-a-key-organisation-wallets)).
+
 On a venue quote, delivering to a wallet asks TetraFi to withdraw the output from your venue account once the order fills. The wallet must be one of your workspace's wallets, approved as a withdrawal destination of that venue account for the asset you buy, with exactly the tag it was approved with. The quote then carries a network fee line for the venue's withdrawal fee (the most the order will pay) and a `buy.amount` net of it.
 
 Delivering a venue quote to a wallet needs a signed-in member who can view the workspace's wallets. With an API key, a venue quote's output stays on the venue account: a requote that names another destination is refused with the reason `deliverToNotPermitted`.

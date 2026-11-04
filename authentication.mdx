@@ -38,7 +38,7 @@ For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read 
 
 ### Trading on your venue accounts
 
-Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC venue accounts or from an organisation wallet (only inside the limited grant that wallet's owners approved), need more than the permissions above. A key without the setup below gets those venues in the quote response as `restricted` with the reason `venueTradeScopeRequired`. A key that trades Basic quotes needs:
+Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC venue accounts or from an organisation wallet (only inside the limited grant that wallet's owners approved), need more than the permissions above. With **Venue trading** switched off, a valid `POST /api/v1/quotes` still answers `200`, but returns no venue-account quote cards: the restriction appears at quote time, not as an order-time refusal on a returned venue card. A key that trades Basic quotes needs:
 
 - **The venue trading scope.** It can only be given when the key is created, together with **Read quotes** and **Submit orders**, by the key's owner signed in with a second factor. It cannot be added to an existing key.
 - **Request signing.** A key created with venue trading always signs its requests. Its signing secret, in hexadecimal, is shown once when the key is created. Every request with the key must then be signed (see below). Signing cannot be turned off on a key that can trade venues: that answers `409 VENUE_TRADE_KEY_SIGNING_REQUIRED`, and the key and its secret stay unchanged. For unsigned requests, use a key without venue trading.
@@ -55,13 +55,17 @@ Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC
 
 | Field | What it says |
 | --- | --- |
-| `venueTradeScope` | The key has the venue trading scope. |
-| `venueTradeEnabled` | Venue trading is switched on for the key. |
+| `venueTradeScope` | The key holds the `workspace_venue_trade` scope. |
+| `venueTradeEnabled` | Venue trading is switched on for the key. `false` means a valid quote request can succeed without returning any venue-account quote cards. |
 | `requestSigningRequired` | Every request with the key must be signed. |
 | `grants` | The organisation wallets granted to the key, each with its `financialAccountId`, the id `source.tradingWallets` takes. |
 | `blockedBy` | When present, the code an order from an organisation wallet would be refused with right now, such as `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` when no wallet is granted. |
 
+Read these fields under `organisationWallets` before searching: both `venueTradeScope` and `venueTradeEnabled` must be `true` to get orderable venue-account quote cards. The top-level `scopes` list also shows whether the key holds `workspace_venue_trade`; that scope alone does not mean the key's venue trading switch is on.
+
 When TetraFi cannot read the key's grants, `/me` answers `503 API_KEY_ORGANISATION_WALLET_AUTHORITY_UNAVAILABLE`, never an empty list: retry shortly. A key reads only its own grants.
+
+Delivery to an address outside the workspace's organisation wallets is refused on the quote request with `403 API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED`, before an order is placed. Manage delivery destinations in the app, not through a per-key address allowlist; an API key cannot allowlist an outside address. Use an organisation-wallet destination the key may use instead ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)).
 
 <MeOrganisationWallets />
 

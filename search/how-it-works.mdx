@@ -101,7 +101,7 @@ Every venue considered appears once in `sources`, whether or not it was asked (`
 More statuses exist and new ones can appear. Treat any status you do not recognise as "other" and show its `detail`.
 
 <Note>
-What an API key sees depends on what it may do. Quotes from your connected venue accounts need a key with venue trading enabled that signs its requests; any other key gets those venues as `restricted` with reason `venueTradeScopeRequired`. On-chain venues that TetraFi trades for you from an organisation wallet need that wallet granted to the key; otherwise they read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. See [Authentication](/authentication#trading-on-your-venue-accounts).
+What an API key sees depends on what it may do. Quotes from your connected venue accounts need the `workspace_venue_trade` scope, venue trading switched on and signed requests. With venue trading off, a valid `POST /api/v1/quotes` answers `200` but returns no venue-account quote cards; do not wait for an order-time refusal to detect this. Check `GET /api/v1/me` first: `organisationWallets.venueTradeScope` and `organisationWallets.venueTradeEnabled` must both be `true` for orderable venue-account quote cards. On-chain venues that TetraFi trades for you from an organisation wallet need that wallet granted to the key; otherwise they read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. See [Authentication](/authentication#trading-on-your-venue-accounts).
 </Note>
 
 ## JSON or a stream
@@ -161,6 +161,7 @@ A refused request answers one error body, `{"error", "message", "requestId", "ti
 | `INVALID_REQUEST` | A field is unknown, missing or of the wrong type; `message` names it. | Fix that field. |
 | `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | The value is not in the catalogue. | Use values from `GET /api/v1/assets` and from `sources[].venue.id`. |
 | `INVALID_AMOUNT` | `sellAmount` or `buyAmount` is not a positive decimal string. | Send it as a string, such as `"10"`. |
+| `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | The quote request answers `403` when an API key's `deliverTo` names an address outside the workspace's organisation wallets, before an order is placed. | Use an organisation-wallet destination the key may use. Manage delivery destinations in the app, not through a per-key address allowlist ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
 | `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `Retry-After` seconds, then retry. |
 
 Chain refusals are on [Chains and routes](/search/chains-and-routes).
