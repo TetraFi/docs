@@ -5,6 +5,10 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-11-04" description="Amount precision">
+  - An amount with more fractional digits than its asset has is refused before any quote or funding check, with `400 AMOUNT_PRECISION_EXCEEDED`; `details` names the `field`, the `decimals` sent and the `allowed` precision ([Conventions](/reference/conventions)).
+</Update>
+
 <Update label="2026-11-03" description="Firm only, and repeated signed reads">
   - The search filter `filters.executableOnly` is renamed `filters.firmOnly`, and it now keeps only firm quotes (`firm: true`): executable estimates held to `minOut`, such as order-book and AMM quotes, are left out too, as are indicative quotes. A request still sending `filters.executableOnly` is refused with `400 INVALID_REQUEST` ([Firm only](/search/firm-only)).
   - A signed read (`GET` or `HEAD`) sent again unchanged inside the 300-second window is accepted, so polling needs no nonce. A signed write is still accepted once ([Sign requests](/authentication#sign-requests)).
