@@ -50,11 +50,13 @@ tetrafi() {
     return 1
   fi
 }
-# endregion
 
+# Pair and amount used by the following steps. Keep these in the client snippet
+# so copying the guide's cURL blocks works just like running this script.
 sell=${TETRAFI_SELL:-USDC}
 buy=${TETRAFI_BUY:-USDT}
 amount=${TETRAFI_AMOUNT:-10}
+# endregion
 
 # region quickstart-assets
 assets=$(tetrafi GET /api/v1/assets)

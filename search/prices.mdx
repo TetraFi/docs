@@ -7,6 +7,10 @@ import SearchPrices from '/snippets/samples/search-prices.mdx';
 
 `GET /api/v1/prices` returns what each venue's price for a pair is right now, from prices TetraFi already holds. No venue is asked, so it is fast, and it does not count against the [one-every-3-seconds quote limit](/search/how-it-works#rate-limit). Use it to show prices, size a trade or decide which venues to ask, then [request quotes](/search/how-it-works) when you want to trade.
 
+A price is never firm: every row carries `firm: false`, and no venue is bound to it. Whether a venue will be bound to its price is known only from a quote: ask `POST /api/v1/quotes`, and send `filters.firmOnly: true` to keep only firm quotes ([Firm only](/search/firm-only)).
+
+The cURL block below continues the [Quickstart](/quickstart): first copy its request helper and pair variables from step 1. You can also run the complete, quote-only [`search-basics.sh` script](https://github.com/tetrafi/docs/blob/main/samples/http/search-basics.sh) after setting the same credentials; it defines the helper and variables for you.
+
 <SearchPrices />
 
 ## Query parameters
@@ -78,7 +82,7 @@ Rows are trimmed here. There is one row for each venue, location and variant pai
 | Field | Meaning |
 | --- | --- |
 | `sizes[]` | One entry per size you asked for, in order: `sell`, `buy` (what lands after included fees, `null` when nothing could be priced), `netReceived`, `filled` (`full`, `partial` or `none`) and `fees`. |
-| `firm`, `lastLook` | Always `false`: a price binds no venue and is never an order you can place. |
+| `firm`, `lastLook` | Always `false`: a price binds no venue and is never an order you can place. Firmness comes only from a quote. |
 | `basis` | `levels` (the venue's published levels) or `model`. |
 | `observedAt`, `staleAfter` | When the price was seen, and when it is old. |
 | `levels` | The venue's own price levels, in sell units, where it publishes them. |

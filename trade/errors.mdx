@@ -168,7 +168,7 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 403 `INSUFFICIENT_SCOPE` | The key lacks the permission this call needs. | Create a key with that permission ([Permissions](/authentication#permissions)). |
 | 403 `INSUFFICIENT_PERMISSION` | You, the key's owner, no longer hold the permission in the workspace. A key never does more than you can. | Ask a workspace admin for the permission. |
 | 403 `VENUE_TRADE_SCOPE_REQUIRED` | The call trades on a venue account and the key lacks the venue trading scope. | Create a key with it ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). |
-| 403 `VENUE_TRADE_KEY_DISABLED` | Venue trading is not switched on for the key. | Ask a workspace owner or admin to switch it on. |
+| 403 `VENUE_TRADE_KEY_DISABLED` | A call requiring venue trading finds it switched off for the key. A valid new quote request instead answers `200` with no venue-account quote cards. | Check `GET /api/v1/me` → `organisationWallets.venueTradeEnabled` before searching; ask a workspace owner or admin to switch it on. |
 | 403 `VENUE_TRADE_SIGNATURE_REQUIRED` | The call trades on a venue account and the request is not signed. | Sign the request. |
 | 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading settings changed while the request ran. | Send it again. |
 | 413 `REQUEST_BODY_TOO_LARGE` | The body is larger than TetraFi accepts. | Send a smaller body. |
@@ -209,6 +209,7 @@ More reasons may be added: treat one you do not recognise as "fix the credential
 | 400 `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
 | 400 `WALLET_NOT_ON_CHAIN` | A wallet in `source.tradingWallets` cannot pay on the chain you keyed it under. | Choose a candidate listed for that chain. |
 | 403 `SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist, or you cannot use it. | Choose a candidate from the answer's `sourceOptions` ([Wallets and accounts](/trade/wallets-and-accounts#when-tetrafi-refuses-a-source)). |
+| 403 `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. The quote request is refused, before an order is placed. | Use an organisation-wallet destination the key may use. Manage delivery destinations in the app, not through a per-key address allowlist ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
 | 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation-scope wallet. |
 | 404 `QUOTE_REQUEST_NOT_FOUND` | No quote set with this id is readable by you. | Check the id. |
 | 429 `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `details.retryAfter`, then send it again. |

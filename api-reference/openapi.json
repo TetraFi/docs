@@ -749,88 +749,6 @@
         ],
         "type": "object"
       },
-      "BindingDestinationKind": {
-        "description": "What a payee destination target is. Own financial accounts are not targets\nof this defaults store.\n\nNew values may be added; treat unknown values as other.",
-        "enum": [
-          "cryptoAddress",
-          "bankAccount"
-        ],
-        "type": "string",
-        "x-extensible-enum": true
-      },
-      "BindingTargetKind": {
-        "description": "Native wallet/default targets. Trading venue accounts and funding links use\nthe financial-account source model, never this wallet preference namespace.\n\nNew values may be added; treat unknown values as other.",
-        "enum": [
-          "linkedWallet",
-          "workspaceWallet",
-          "organizationWallet",
-          "destination"
-        ],
-        "type": "string",
-        "x-extensible-enum": true
-      },
-      "BindingTargetOwnership": {
-        "description": "Native target ownership for selection guidance only, never authorization.\nA destination describes its address-book record, not ownership of external\nfunds or signing authority. Unknown owner facts must stay distinguishable.\n\nNew values may be added; treat unknown values as other.",
-        "enum": [
-          "personal",
-          "workspace",
-          "unknown"
-        ],
-        "type": "string",
-        "x-extensible-enum": true
-      },
-      "BindingTargetView": {
-        "description": "The one target object of every read: slot reads, candidates and API-key\n`bindingDefaults`. `address` and `label` are `null` where none;\n`chains` is `[]` for a bank destination.",
-        "properties": {
-          "address": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "chains": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "destinationKind": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/BindingDestinationKind",
-                "description": "Present on a `destination` target only."
-              }
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/BindingTargetKind"
-          },
-          "label": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "ownership": {
-            "$ref": "#/components/schemas/BindingTargetOwnership"
-          }
-        },
-        "required": [
-          "kind",
-          "id",
-          "ownership",
-          "address",
-          "chains",
-          "label"
-        ],
-        "type": "object"
-      },
       "BondReservation": {
         "description": "The hub bond reservation backing a bonded RFQ order.",
         "properties": {
@@ -3005,6 +2923,15 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "FundsDestinationKind": {
+        "description": "The address-book destination type. Financial accounts are selected separately.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "cryptoAddress",
+          "bankAccount"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "FundsLocation": {
         "description": "Where a leg's funds are when the leg does not run.\n\nTagged on `holder` so later holders (a venue-held balance, for example) are additive\nvariants rather than a new vocabulary.\n\nNew values may be added; treat unknown values as other.",
         "oneOf": [
@@ -3192,6 +3119,79 @@
           }
         ],
         "x-extensible-enum": true
+      },
+      "FundsTargetKind": {
+        "description": "A wallet or address-book destination used to pay or receive funds.\nFinancial-account funding uses its own source model.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "linkedWallet",
+          "workspaceWallet",
+          "organizationWallet",
+          "destination"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "FundsTargetOwnership": {
+        "description": "Ownership of a funds target for selection guidance only, never authorization.\nA destination describes its address-book record, not ownership of external\nfunds or signing authority. Unknown owner facts must stay distinguishable.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "personal",
+          "workspace",
+          "unknown"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "FundsTargetView": {
+        "description": "A wallet or destination available for paying or receiving funds.\n`address` and `label` are `null` where absent; `chains` is `[]` for a bank destination.",
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "destinationKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FundsDestinationKind",
+                "description": "Present on a `destination` target only."
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FundsTargetKind"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ownership": {
+            "$ref": "#/components/schemas/FundsTargetOwnership"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "ownership",
+          "address",
+          "chains",
+          "label"
+        ],
+        "type": "object"
       },
       "GeoSourceKind": {
         "description": "Where the request-geo fact comes from. `none` means no trusted source is\nconfigured in this zone, so no geo restriction is enforced (and nothing\nmay claim it is).\n\nNew values may be added; treat unknown values as other.",
@@ -9312,7 +9312,7 @@
             "type": "object"
           },
           {
-            "description": "Ask the venue again, with these Binding slots filled.",
+            "description": "Ask the venue again, with these funding or delivery selections filled.",
             "properties": {
               "kind": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -10105,7 +10105,7 @@
           },
           "request": {
             "$ref": "#/components/schemas/PairQuoteRequest",
-            "description": "The request as it was sent, in the `POST /quotes` body shape (`sell`, `buy`, exactly one of\n`sellAmount` or `buyAmount`; the Binding by target id, never raw identity fields)."
+            "description": "The request as it was sent, in the `POST /quotes` body shape (`sell`, `buy`, exactly one of\n`sellAmount` or `buyAmount`; funding and delivery by target id, never raw identity fields)."
           },
           "requestedAt": {
             "format": "date-time",
@@ -11484,7 +11484,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/BindingTargetView",
+                "$ref": "#/components/schemas/FundsTargetView",
                 "description": "A known eligible preference that this account did not link. Display only."
               }
             ]
@@ -11974,7 +11974,7 @@
         "x-extensible-enum": true
       },
       "RequoteNeed": {
-        "description": "A Binding slot a requote needs filled. An empty `needs` means requote as is.\n\nNew values may be added; treat unknown values as other.",
+        "description": "A funding or delivery selection a requote needs filled. An empty `needs` means requote as is.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
           "wallet:evm",
           "wallet:solana",
@@ -12031,7 +12031,7 @@
               },
               {
                 "$ref": "#/components/schemas/SourceSelection",
-                "description": "A different wallet (one of the card's `bindingOptions`), venue account or delivery for the new\nquote; absent keeps the original's binding, re-keyed to the new corridor when one is given."
+                "description": "Source choices for the new quote; absent keeps the reviewed source. On a wallet source,\na wallet-only body with a nonempty `tradingWallets` map patches choices by network and\npreserves the other endpoints. An empty map clears the wallet choices and resolves defaults.\nA venue-account or funding-account choice replaces the source selection. Receiving wallets\nretained from the quote remain delivery choices, not additional trading-wallet authority."
               }
             ]
           }
@@ -14274,138 +14274,25 @@
                 "$ref": "#/components/schemas/CompanyTradeListItem"
               },
               {
-                "not": {
-                  "anyOf": [
-                    {
-                      "required": [
-                        "orderId"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "createdAt"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "submittedByYou"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "route"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "lpName"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "lpSource"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "routingPathLabel"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "status"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "settlementStatus"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "lifecycleStatus"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "executionPrice"
-                      ]
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "anyOf": [
-              {
                 "$ref": "#/components/schemas/CompanyVenueTradeListItem"
               },
               {
-                "not": {
-                  "anyOf": [
-                    {
-                      "required": [
-                        "connectionId"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "operationId"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "executionTypeId"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "venueName"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "venueAccountName"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "providerSite"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "createdAt"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "submittedByYou"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "sell"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "buy"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "executionStatus"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "lifecycleStatus"
-                      ]
-                    }
-                  ]
-                }
+                "properties": {
+                  "projection": {
+                    "description": "New values may be added; treat unknown values as other.",
+                    "enum": [
+                      "umbrella",
+                      "maker",
+                      "settlement"
+                    ],
+                    "type": "string",
+                    "x-extensible-enum": true
+                  }
+                },
+                "required": [
+                  "projection"
+                ],
+                "type": "object"
               }
             ]
           },
@@ -14415,11 +14302,9 @@
                 "$ref": "#/components/schemas/TradeKind"
               },
               "projection": {
-                "$ref": "#/components/schemas/TradeProjection",
-                "description": "Which projection produced the row."
+                "$ref": "#/components/schemas/TradeProjection"
               },
               "tradeId": {
-                "description": "The order id, or a venue trade's operation id; the detail is `…/trades/{tradeId}`.",
                 "type": "string"
               }
             },
@@ -14431,7 +14316,7 @@
             "type": "object"
           }
         ],
-        "description": "One trade in the trade history.\n\nThe core (`tradeId`, `kind`, `projection`) is on every row. Taker rows carry the\norder or venue-trade fields at the top level, exactly as the taker list has\nalways returned them; `umbrella` is set only on umbrella rows and `maker` only\non maker rows."
+        "description": "One trade with tradeId, kind and projection, and the fields of its order, venue trade or session-only projection."
       },
       "TradeRouteDisplay": {
         "description": "The sold and bought sides of a trade for display read models.",
@@ -15420,6 +15305,13 @@
           "venueEnablementId": {
             "description": "The workspace venue account this connection binds. Rotation keeps it, so a\nchange of id means a different account, not a newer key.",
             "type": "string"
+          },
+          "webhookSubscribed": {
+            "description": "Circle webhook delivery readiness, leased from remote verification of the exact runtime host and callback.",
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "withdrawalPaused": {
             "type": "boolean"
@@ -16803,7 +16695,7 @@
             "type": "string"
           },
           "wallet": {
-            "$ref": "#/components/schemas/BindingTargetView"
+            "$ref": "#/components/schemas/FundsTargetView"
           }
         },
         "required": [
@@ -22906,7 +22798,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/capabilities": {
       "get": {
-        "description": "The workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `dashboard_read` scope and reads\nonly the workspace it is bound to.",
+        "description": "The workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `compliance_read` scope and reads\nonly the workspace it is bound to.",
         "operationId": "get_workspace_capabilities",
         "parameters": [
           {
@@ -23054,7 +22946,7 @@
                 }
               }
             },
-            "description": "An API key without `dashboard_read` (`INSUFFICIENT_SCOPE`), or an inaccessible header workspace (`WORKSPACE_SCOPE_MISMATCH`)",
+            "description": "An API key without `compliance_read` (`INSUFFICIENT_SCOPE`), or an inaccessible header workspace (`WORKSPACE_SCOPE_MISMATCH`)",
             "headers": {
               "x-ratelimit-limit": {
                 "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
@@ -23298,6 +23190,9 @@
         "security": [
           {
             "bearer_auth": []
+          },
+          {
+            "api_key": []
           }
         ],
         "summary": "Read the workspace's verification state and the capabilities it allows",
@@ -25957,7 +25852,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/venue-enablements": {
       "get": {
-        "description": "A Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
+        "description": "A Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. A foreign or unknown path workspace answers the same 404 WORKSPACE_NOT_FOUND without reading that workspace. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
         "operationId": "list_venue_enablements",
         "parameters": [
           {
@@ -26126,6 +26021,45 @@
               }
             },
             "description": "",
+            "headers": {
+              "x-ratelimit-limit": {
+                "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-remaining": {
+                "description": "Requests left before this caller is limited: the per-address limit's when that limit counted the request, otherwise the API key's own remaining allowance. Absent when no finite limit counted the request.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-ratelimit-reset": {
+                "description": "Sent with x-ratelimit-limit, only when the request's API key has its own limit: whole seconds until that allowance is full again.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "WORKSPACE_NOT_FOUND: the path names a foreign or unknown workspace",
             "headers": {
               "x-ratelimit-limit": {
                 "description": "Sent only when the request's API key has its own requests-per-minute limit: that limit. Sessions, and keys without their own limit, never receive it.",
