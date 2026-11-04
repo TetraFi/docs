@@ -744,7 +744,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the workspace's verification state and the capabilities it allows\n\nThe workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `dashboard_read` scope and reads\nonly the workspace it is bound to.",
+        "description": "Read the workspace's verification state and the capabilities it allows\n\nThe workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `compliance_read` scope and reads\nonly the workspace it is bound to.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/capabilities",
           "host": [
@@ -1205,7 +1205,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
+        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. Each item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. A foreign or unknown path workspace answers the same 404 WORKSPACE_NOT_FOUND without reading that workspace. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-enablements",
           "host": [
