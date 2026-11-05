@@ -4,7 +4,7 @@
 #
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL          https://api.tetrafi.io in production
-#   TETRAFI_API_KEY           your API key, with Read treasury switched on
+#   TETRAFI_API_KEY           your API key, with Treasury read switched on
 #   TETRAFI_WORKSPACE_ID      your workspace id: the path names it
 #   TETRAFI_SIGNING_SECRET    the key's signing secret, when the key signs its requests
 #
