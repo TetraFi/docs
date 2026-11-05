@@ -699,6 +699,72 @@
       "response": []
     },
     {
+      "name": "GET /api/v1/workspaces/{workspaceId}/balances",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read balances across workspace accounts\n\nCache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; venue accounts require current ViewWallets and company/broker or admitted LP authority, exactly as their per-account balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Cursors bind to the workspace, caller, filters and ordered visible row identities; restart if those identities change.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/balances",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "balances"
+          ],
+          "query": [
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "accountKind",
+              "value": "<accountKind>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "accountId",
+              "value": "<accountId>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "GET /api/v1/workspaces/{workspaceId}/capabilities",
       "request": {
         "method": "GET",
@@ -726,6 +792,40 @@
               "key": "workspaceId",
               "value": "<workspaceId>",
               "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/fee-schedule",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the workspace's effective fee schedule\n\nCurrent and upcoming effective fees for this workspace, readable by any current member. Required API-key scope: `fee_schedule_read`; an OAuth client needs the same scope. Rates are decimal strings in parts per million. A schedule that cannot be read answers 503 FEE_SCHEDULE_UNAVAILABLE, never a partial or zero schedule.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/fee-schedule",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "fee-schedule"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": ""
             }
           ]
         }

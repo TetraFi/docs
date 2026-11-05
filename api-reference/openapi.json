@@ -13108,6 +13108,22 @@
         ],
         "type": "object"
       },
+      "UpcomingWorkspaceFeeSchedule": {
+        "properties": {
+          "effectiveFrom": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/WorkspaceFeeScheduleState"
+          }
+        },
+        "required": [
+          "effectiveFrom",
+          "schedule"
+        ],
+        "type": "object"
+      },
       "UpdateWebhookRequest": {
         "additionalProperties": false,
         "description": "Partial update of a webhook endpoint. Omitted fields retain their current values.",
@@ -15918,6 +15934,160 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "WorkspaceBalance": {
+        "properties": {
+          "accountId": {
+            "description": "A wallet's native walletId, or a venue/bank account's native account id.",
+            "type": "string"
+          },
+          "accountKind": {
+            "description": "wallet, venue_account or bank_account; clients tolerate future kinds.",
+            "type": "string"
+          },
+          "amount": {
+            "description": "Total holdings, in exact decimal asset units, never base units.",
+            "type": "string"
+          },
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "asset": {
+            "type": "string"
+          },
+          "chain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "freshness": {
+            "description": "fresh, stale or partial, as qualified by the native snapshot owner.",
+            "type": "string"
+          },
+          "id": {
+            "description": "Stable identity of this account, asset and chain observation series.",
+            "type": "string"
+          },
+          "nativeAssetId": {
+            "description": "The source's own asset identifier, not a guessed network identity.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "accountKind",
+          "accountId",
+          "asset",
+          "amount",
+          "asOf",
+          "freshness"
+        ],
+        "type": "object"
+      },
+      "WorkspaceBalanceUnavailable": {
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "accountKind": {
+            "type": "string"
+          },
+          "asOf": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "asset": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chain": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reasonCode": {
+            "description": "Native reading refusal, or an explicit missing amount/time/scale cause.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountKind",
+          "accountId",
+          "reasonCode"
+        ],
+        "type": "object"
+      },
+      "WorkspaceBalancesIncomplete": {
+        "description": "Non-disclosing coverage marker of a balances page: no affected identities or counts.",
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/WorkspaceBalancesIncompleteReason"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "WorkspaceBalancesIncompleteReason": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "accessSettingsUnavailable"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "WorkspaceBalancesResponse": {
+        "properties": {
+          "incomplete": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkspaceBalancesIncomplete",
+                "description": "Unreadable access settings cannot establish affected account visibility."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceBalance"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unavailable": {
+            "description": "Filtered readable accounts whose balances cannot be stated. Repeated on\nevery page; never replaced with zero or a successful empty observation.",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceBalanceUnavailable"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "unavailable"
+        ],
+        "type": "object"
+      },
       "WorkspaceCapabilitiesResponse": {
         "description": "What the workspace can do now, as the API enforces it. capabilities holds one decision per capability: allowed, or blocked with each blocker's code, the step that clears it (unlockStep), an estimate and the items still due. The quote and order routes apply the same decision and refuse with CAPABILITY_BLOCKED and the same blockers in details.capabilityBlockers.",
         "properties": {
@@ -15997,6 +16167,110 @@
           "workspace",
           "screening",
           "capabilities"
+        ],
+        "type": "object"
+      },
+      "WorkspaceFeeRate": {
+        "properties": {
+          "effectiveFrom": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ratePpm": {
+            "description": "Parts per million, as a decimal string. 100 ppm is one basis point.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ratePpm",
+          "effectiveFrom"
+        ],
+        "type": "object"
+      },
+      "WorkspaceFeeRates": {
+        "properties": {
+          "grossPlatform": {
+            "$ref": "#/components/schemas/WorkspaceFeeRate"
+          },
+          "makerShare": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkspaceFeeRate",
+                "description": "Share of net fees earned by this workspace as the venue's partner maker.\nNever discloses another workspace's agreement or share."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "platform": {
+            "$ref": "#/components/schemas/WorkspaceFeeRate",
+            "description": "Net platform rate after the taker incentive, as charged by the fee resolver."
+          },
+          "takerIncentive": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkspaceFeeRate",
+                "description": "Share of the gross fee rebated to this workspace; absent means no incentive."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          }
+        },
+        "required": [
+          "platform",
+          "grossPlatform"
+        ],
+        "type": "object"
+      },
+      "WorkspaceFeeSchedule": {
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/WorkspaceFeeScheduleState"
+          },
+          "upcoming": {
+            "description": "Future appended changes that alter this workspace's effective schedule.",
+            "items": {
+              "$ref": "#/components/schemas/UpcomingWorkspaceFeeSchedule"
+            },
+            "type": "array"
+          },
+          "workspaceId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "current",
+          "upcoming"
+        ],
+        "type": "object"
+      },
+      "WorkspaceFeeScheduleState": {
+        "properties": {
+          "defaultRates": {
+            "$ref": "#/components/schemas/WorkspaceFeeRates",
+            "description": "Rates for venues without an overriding entry in venues."
+          },
+          "partnerArrangementApplies": {
+            "type": "boolean"
+          },
+          "venues": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceVenueFeeRates"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "defaultRates",
+          "venues",
+          "partnerArrangementApplies"
         ],
         "type": "object"
       },
@@ -16100,6 +16374,25 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "WorkspaceVenueFeeRates": {
+        "properties": {
+          "partnerArrangementApplies": {
+            "type": "boolean"
+          },
+          "rates": {
+            "$ref": "#/components/schemas/WorkspaceFeeRates"
+          },
+          "venueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "venueId",
+          "rates",
+          "partnerArrangementApplies"
+        ],
+        "type": "object"
+      },
       "WorkspaceVenueMovement": {
         "description": "Which movement a workspace-venue route step makes at the LP account.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
@@ -16154,6 +16447,13 @@
             "permission": "Read compliance",
             "permissionIds": [
               "ReadCompliance"
+            ]
+          },
+          "fee_schedule_read": {
+            "description": "Read the current and upcoming fee rates for this workspace. Does not change rates.",
+            "permission": "Read fee schedule",
+            "permissionIds": [
+              "ReadFeeSchedule"
             ]
           },
           "orders_read": {
@@ -22426,6 +22726,586 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/balances": {
+      "get": {
+        "description": "Cache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; venue accounts require current ViewWallets and company/broker or admitted LP authority, exactly as their per-account balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Cursors bind to the workspace, caller, filters and ordered visible row identities; restart if those identities change.",
+        "operationId": "list_workspace_balances",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "description": "Workspace ID",
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accountKind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accountId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceBalancesResponse"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "treasury_read"
+            ]
+          },
+          {
+            "api_key": [
+              "treasury_read"
+            ]
+          }
+        ],
+        "summary": "Read balances across workspace accounts",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/capabilities": {
       "get": {
         "description": "The workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `compliance_read` scope and reads\nonly the workspace it is bound to.",
@@ -22911,6 +23791,448 @@
           }
         ],
         "summary": "Read the workspace's verification state and the capabilities it allows",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/fee-schedule": {
+      "get": {
+        "description": "Current and upcoming effective fees for this workspace, readable by any current member. Required API-key scope: `fee_schedule_read`; an OAuth client needs the same scope. Rates are decimal strings in parts per million. A schedule that cannot be read answers 503 FEE_SCHEDULE_UNAVAILABLE, never a partial or zero schedule.",
+        "operationId": "get_workspace_fee_schedule",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceFeeSchedule"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "Deprecation": {
+                "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "When deprecation applies, links to the deprecation notice with rel=deprecation; other link relations may also be sent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "Sunset": {
+                "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "fee_schedule_read"
+            ]
+          },
+          {
+            "api_key": [
+              "fee_schedule_read"
+            ]
+          }
+        ],
+        "summary": "Read the workspace's effective fee schedule",
         "tags": [
           "workspaces"
         ]
@@ -32210,6 +33532,10 @@
     {
       "description": "Workspace CRUD, settings, members, and team management",
       "name": "workspaces"
+    },
+    {
+      "description": "Custody provider treasury — vault enumeration, balances, and provider-native transfers",
+      "name": "treasury"
     },
     {
       "description": "Webhook management — CRUD, secret rotation, test delivery, delivery history",
