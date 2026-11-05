@@ -21,12 +21,12 @@ jq -c '[.sources[] | select(.status != "answered") | {venue: .venue.id, status, 
 
 ```typescript TypeScript SDK
 // Ask every venue, on and off chain, but only for the native variant on both sides.
-const set = await client.quote({
-  sell: { asset: usdc.assetId },
-  buy: { asset: eth.assetId },
-  sellAmount: '10',
-  filters: { variants: { sell: 'nativeOnly', buy: 'nativeOnly' } },
-});
+let request = givenRequest();
+if (!request) {
+  if (!usdc || !eth) throw new Error('This workspace cannot reach USDC and ETH yet.');
+  request = { sell: { asset: usdc.assetId }, buy: { asset: eth.assetId }, sellAmount: '10' };
+}
+const set = await client.quote({ ...request, filters: { ...request.filters, variants: { sell: 'nativeOnly', buy: 'nativeOnly' } } });
 ```
 
 </CodeGroup>
