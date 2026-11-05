@@ -8,6 +8,10 @@ The API is in preview until launch, so a change here can still remove or rename 
 <Update label="2026-11-05" description="Venue minimums, Pilot caps and webhooks">
   - Two new source reasons: `belowVenueMinimum` (the amount is below the venue's verified minimum: raise it) and `pilotMinimumAboveTradeCap` (the venue's minimum order is above its Pilot per-trade cap: choose another venue) ([Limits and minimums](/search/limits-and-minimums)).
   - Webhooks are available to API keys: create, test, rotate the secret, list deliveries and redeliver ([Webhooks](/trade/webhooks)).
+  - Webhook routes are canonical: `…/deliveries`, `…/deliveries/{deliveryId}/retry`, `…/rotate` and `…/resume`. A test delivery takes `{"kind":"test"}` and an `Idempotency-Key` and answers `201`; delivery lists page with `nextCursor` ([Webhooks](/trade/webhooks)).
+  - `GET /api/v1/me` with an API key returns the key's introspection only ([Authentication](/authentication)).
+  - `creditRefusal` on a quote source may be absent or `null`; neither means credit is available ([How search works](/search/how-it-works)).
+  - The SDK reads an order kind it does not know as `unknownKind: true`, keeping `kind`, `orderId`, `status`, `terminal` and `statusUrl`: follow its status, never resubmit ([Order status](/trade/order-status)).
 </Update>
 
 <Update label="2026-11-04" description="Amount precision">
