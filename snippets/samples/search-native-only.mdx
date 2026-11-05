@@ -5,7 +5,7 @@
 ```bash cURL
 # Keep only the native variant of each side: no bridged, wrapped, omnichain or test
 # representation. GET /assets lists each Asset's variants and their kind.
-jq -c --arg p "$sell" --arg r "$buy" '[.assets[] | select(.assetId == $p or .assetId == $r)
+jq -c --arg p "$sell" --arg r "$buy" '[.items[] | select(.assetId == $p or .assetId == $r)
   | {asset: .assetId, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   kind: "pair",

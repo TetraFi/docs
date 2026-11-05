@@ -54,6 +54,8 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="CAPABILITY_UNAVAILABLE"></span>`CAPABILITY_UNAVAILABLE` | 503 | Whether the workspace can use this capability could not be read (for example BASE_PROFILE_UNREADABLE: its company details could not be read). | Retry the same request shortly, with backoff. | Yes |
 | <span id="CHAIN_MISSING"></span>`CHAIN_MISSING` | 400 | The quote payload is missing its execution chain. | Request a new quote, then place the order on it. | No |
 | <span id="CHAIN_PIN_NEEDS_ON_CHAIN"></span>`CHAIN_PIN_NEEDS_ON_CHAIN` | 400 | A chain was pinned on a side that is not an on-chain asset. | Remove the chain pin, or name an on-chain asset. | No |
+| <span id="CLIENT_ORDER_ID_INVALID"></span>`CLIENT_ORDER_ID_INVALID` | 400 | clientOrderId is not 1–64 ASCII letters, digits, underscores or hyphens. | Correct clientOrderId and send the request again. | No |
+| <span id="CLIENT_ORDER_ID_IN_USE"></span>`CLIENT_ORDER_ID_IN_USE` | 409 | The workspace already has a non-terminal order or in-flight placement with this clientOrderId. | Find the order by clientOrderId, or retry its original Idempotency-Key. | No |
 | <span id="COMPANY_IDENTITY_CHANGED"></span>`COMPANY_IDENTITY_CHANGED` | 409 | The company's compliance identity changed after the order was prepared. | Review the order again and place a fresh one. | No |
 | <span id="COMPANY_IDENTITY_UNAVAILABLE"></span>`COMPANY_IDENTITY_UNAVAILABLE` | 503 | The company's compliance identity could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="COMPLIANCE_ATTESTATION_NOT_CONFIGURED"></span>`COMPLIANCE_ATTESTATION_NOT_CONFIGURED` | 503 | On-chain compliance attestation is not configured for this route. | Choose another quote; this route cannot be traded until it is configured. | No |
@@ -224,6 +226,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="MIN_RECEIVE_NOT_ACCEPTED"></span>`MIN_RECEIVE_NOT_ACCEPTED` | 400 | This quote executes at the price shown, so it takes no minimum receive. | Remove minReceive from the order. | No |
 | <span id="MIN_RECEIVE_REQUIRED"></span>`MIN_RECEIVE_REQUIRED` | 400 | This venue needs the least you accept to receive. | Set minReceive on the order. | No |
 | <span id="MISSING_WORKSPACE"></span>`MISSING_WORKSPACE` | 400 | A workspace is required for this request. | Send the request with a workspace-bound credential or workspace id. | No |
+| <span id="NATIVE_GRANT_EXPIRY_REAPPROVAL_REQUIRED"></span>`NATIVE_GRANT_EXPIRY_REAPPROVAL_REQUIRED` | 409 | The wallet's installed trading grant needs owner reapproval; no preparation or funds were sent. | Have the wallet's owners reapprove its trading grant, then request a new quote. | No |
 | <span id="NOT_FOUND"></span>`NOT_FOUND` | 404 | Nothing exists at this path, or it is not visible to the caller. | Check the path and id. | No |
 | <span id="NO_ELIGIBLE_SOLVERS"></span>`NO_ELIGIBLE_SOLVERS` | 400 | No venue is eligible for this request. | Change the pair, amount or filters, or connect a venue that serves it. | No |
 | <span id="OBSERVATION_AUTHORITY_REQUIRED"></span>`OBSERVATION_AUTHORITY_REQUIRED` | 403 | The caller lacks current authority to read this. | Use a credential with read access to this resource. | No |
@@ -254,6 +257,9 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="PERSONAL_TARGET_NOT_ALLOWED"></span>`PERSONAL_TARGET_NOT_ALLOWED` | 409 | This credential named a member's personal account in source.tradingWallets; only that member's own session trades from it. No venue was asked. | Name an organisation wallet the credential is granted. | No |
 | <span id="PILOT_MINIMUM_ABOVE_TRADE_CAP"></span>`PILOT_MINIMUM_ABOVE_TRADE_CAP` | 409 | The venue's minimum order is above its Pilot per-trade cap; no amount within the cap can trade. | Choose another venue; a cap change requires the operator's decision. | No |
 | <span id="PILOT_TRADE_CAP_EXCEEDED"></span>`PILOT_TRADE_CAP_EXCEEDED` | 409 | The trade is above this venue's per-trade limit during its pilot; nothing was sent. | Lower the amount. | No |
+| <span id="PLATFORM_JURISDICTION_BLOCKED"></span>`PLATFORM_JURISDICTION_BLOCKED` | 403 | An applicable entity country is on the mandatory platform denylist; no catalogue, credential or quote dispatch occurs. | Trading is unavailable in this jurisdiction under platform rules. | No |
+| <span id="PLATFORM_JURISDICTION_COUNTRY_REQUIRED"></span>`PLATFORM_JURISDICTION_COUNTRY_REQUIRED` | 422 | A primary or applicable address country is missing; mandatory platform clearance was not established. | Record the entity's primary and applicable address countries, then request quotes again. | No |
+| <span id="PLATFORM_JURISDICTION_UNAVAILABLE"></span>`PLATFORM_JURISDICTION_UNAVAILABLE` | 503 | An applicable country or its mandatory platform observation could not be read; no venue was contacted. | Correct unrecognized entity country data or retry after the profile observation recovers. | Yes |
 | <span id="PLATFORM_POLICY_UNAVAILABLE"></span>`PLATFORM_POLICY_UNAVAILABLE` | 503 | The platform compliance policy could not be confirmed current, so the order was not admitted. | Retry the same request shortly, with backoff. | Yes |
 | <span id="PREFLIGHT_NOT_APPLICABLE"></span>`PREFLIGHT_NOT_APPLICABLE` | 409 | This quote trades on a venue account and needs no preflight. | Place the order directly. | No |
 | <span id="PRICES_ELIGIBILITY_UNAVAILABLE"></span>`PRICES_ELIGIBILITY_UNAVAILABLE` | 503 | Which venues may price for this caller could not be read. | Retry the same request shortly, with backoff. | Yes |
@@ -286,6 +292,8 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="QUOTE_OUTSIDE_APPROVED_BOUNDS"></span>`QUOTE_OUTSIDE_APPROVED_BOUNDS` | 409 | The quote is outside the approved bounds; nothing was sent. | Request a new quote, then place the order on it. | No |
 | <span id="QUOTE_PRICE_MOVED"></span>`QUOTE_PRICE_MOVED` | 409 | The price moved outside the order's protection. | Request a new quote, or review the repricing offer if the response provides one. | No |
 | <span id="QUOTE_RATE_LIMITED"></span>`QUOTE_RATE_LIMITED` | 429 | Venue-hitting quote requests are limited to one every 3 seconds per caller. | Wait for the Retry-After period, then request again. | Yes |
+| <span id="QUOTE_REQUEST_KIND_INVALID"></span>`QUOTE_REQUEST_KIND_INVALID` | 400 | The quote request kind is not pair or requote. | Use kind: pair or kind: requote with that kind's documented fields. | No |
+| <span id="QUOTE_REQUEST_KIND_REQUIRED"></span>`QUOTE_REQUEST_KIND_REQUIRED` | 400 | The quote request is missing its required kind tag. | Send kind: pair for a fresh quote or kind: requote to refresh one. | No |
 | <span id="QUOTE_REQUEST_NOT_FOUND"></span>`QUOTE_REQUEST_NOT_FOUND` | 404 | No quote request with this id is visible to the caller. | Check the quoteRequestId. | No |
 | <span id="QUOTE_REQUEST_NOT_READY"></span>`QUOTE_REQUEST_NOT_READY` | 503 | The quote request was issued moments ago and is still being recorded. | Retry after about one second. | Yes |
 | <span id="QUOTE_REQUEST_UNAVAILABLE"></span>`QUOTE_REQUEST_UNAVAILABLE` | 503 | The quote request could not be read. | Retry the same request shortly, with backoff. | Yes |
@@ -293,6 +301,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="QUOTE_VALID_UNTIL_REQUIRED"></span>`QUOTE_VALID_UNTIL_REQUIRED` | 400 | The quote carries no validity deadline, so it cannot be submitted. | Request a new quote, then place the order on it. | No |
 | <span id="QUOTE_WALLET_NOT_BOUND"></span>`QUOTE_WALLET_NOT_BOUND` | 409 | The quote was priced before a paying wallet was chosen (its tradingSource is null and its next is requote); nothing was sent. | Choose the wallet to pay from, requote, then order the new quote. | No |
 | <span id="RATE_LIMITED"></span>`RATE_LIMITED` | 429 | Too many requests from this caller. | Wait for the Retry-After period, then retry. | Yes |
+| <span id="RECORDED_SLIPPAGE_INVALID"></span>`RECORDED_SLIPPAGE_INVALID` | 409 | The historical order has a slippage tolerance that cannot be represented as whole basis points. | Request reconciliation of the historical record; do not resubmit the order. | No |
 | <span id="RECORDS_OUT_OF_SCOPE"></span>`RECORDS_OUT_OF_SCOPE` | 403 | The order belongs to another member, and the caller cannot read other members' orders. | Read your own orders, or use a credential with compliance view permission. | No |
 | <span id="REFERENCE_PRICE_UNAVAILABLE"></span>`REFERENCE_PRICE_UNAVAILABLE` | 409 | A reference price for the bounds check could not be read; nothing was sent. | Request a new quote shortly. | No |
 | <span id="RELAY_CONTEXT_UNRESOLVED"></span>`RELAY_CONTEXT_UNRESOLVED` | 409 | The order's compliance context could not be resolved; nothing was relayed. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
@@ -391,6 +400,8 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="SIGNED_OUTPUT_BOUND_UNREADABLE"></span>`SIGNED_OUTPUT_BOUND_UNREADABLE` | 409 | The signed minimum receive cannot be read. | Request a new quote before signing. | No |
 | <span id="SIGNER_LACKS_RIGHT"></span>`SIGNER_LACKS_RIGHT` | 409 | The wallet's signer lacks the right this trade needs; nothing was signed. | Grant the signer the right, or choose another wallet. | No |
 | <span id="SIGNER_UNAVAILABLE"></span>`SIGNER_UNAVAILABLE` | 409 | The wallet's signer is not available; nothing was signed. | Retry later, or choose another wallet. | No |
+| <span id="SIGNING_GRANT_POLICY_CHECKING"></span>`SIGNING_GRANT_POLICY_CHECKING` | 409 | The wallet's installed signing policy is not currently verified; no preparation or funds were sent. | Check the wallet's Signing section, then request a new quote. | Yes |
+| <span id="SIGNING_GRANT_POLICY_UNREADABLE"></span>`SIGNING_GRANT_POLICY_UNREADABLE` | 409 | The wallet's installed signing policy could not be read; no preparation or funds were sent. | Check the wallet's Signing section, then request a new quote. | Yes |
 | <span id="SOLANA_DOMAIN_MISMATCH"></span>`SOLANA_DOMAIN_MISMATCH` | 400 | The Solana order's domain does not match the signed message. | Request a new quote, then place the order on it. | No |
 | <span id="SOLANA_ORDER_DEADLINE_PASSED"></span>`SOLANA_ORDER_DEADLINE_PASSED` | 422 | The Solana order's deadlines have passed. | Request a new quote, then place the order on it. | No |
 | <span id="SOLANA_ORDER_NOT_OPEN"></span>`SOLANA_ORDER_NOT_OPEN` | 422 | The Solana transaction did not open the expected escrow order. | Check the transaction, or request a new quote. | No |
@@ -445,6 +456,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="STEP_UP_SUBJECT_MISMATCH"></span>`STEP_UP_SUBJECT_MISMATCH` | 403 | The step-up proof was made for a different action. | Complete the step-up for the subject this refusal names. | No |
 | <span id="STEP_UP_UNAVAILABLE"></span>`STEP_UP_UNAVAILABLE` | 503 | The step-up check could not be performed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="STORAGE_ERROR"></span>`STORAGE_ERROR` | 500 | A storage error occurred on TetraFi's side. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
+| <span id="SUBMIT_SLIPPAGE_INVALID"></span>`SUBMIT_SLIPPAGE_INVALID` | 400 | The submitted slippage tolerance is not a non-negative integer in basis points. | Use whole basis points in deferredOptions.submitSlippageBps. | No |
 | <span id="TAKER_ADMISSION_UNAVAILABLE"></span>`TAKER_ADMISSION_UNAVAILABLE` | 503 | The workspace's taker admission could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="TAKER_ONBOARDING_INCOMPLETE"></span>`TAKER_ONBOARDING_INCOMPLETE` | 403 | TetraFi has turned off desk trading for this LP workspace. | Contact TetraFi support to turn desk trading back on. | No |
 | <span id="TAKER_WORKSPACE_TYPE"></span>`TAKER_WORKSPACE_TYPE` | 403 | This workspace type cannot request taker prices or quotes. | Use a taker workspace, or finish taker onboarding. | No |
@@ -677,6 +689,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="feeUnreadable"></span>`feeUnreadable` | The venue's fee could not be read. | Request quotes again. | No |
 | <span id="feeUnverified"></span>`feeUnverified` | The venue's fee has not been verified. | Choose another venue. | No |
 | <span id="filteredOut"></span>`filteredOut` | The venue is excluded by the request's filters. | Relax the filters to include it. | No |
+| <span id="firmAskPrincipalRequired"></span>`firmAskPrincipalRequired` | Automation cannot initiate a firm desk ask. | Request the firm quote through a member session or an API key. | No |
 | <span id="firmAskRefused"></span>`firmAskRefused` | The venue refused the firm ask. | Choose another quote. | No |
 | <span id="firmQuoteLimited"></span>`firmQuoteLimited` | The venue limits how often it answers firm quotes; `fix` names when it reopens. | Request quotes again after the time the fix names. | Yes |
 | <span id="freshnessUnknown"></span>`freshnessUnknown` | How fresh the venue's price is could not be read. | Request quotes again. | No |
@@ -685,6 +698,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="fundingWindow"></span>`fundingWindow` | The venue is inside a funding window. | Request quotes again after the window. | Yes |
 | <span id="grantCapExceeded"></span>`grantCapExceeded` | The amount exceeds the paying organisation wallet's approved signing-grant cap. | Lower the amount or ask the wallet owner to approve a larger grant. | No |
 | <span id="indicative"></span>`indicative` | A priced indicative card from a venue read or estimate, not a firm-price ask. | Read the card's firmAsk: onRequest offers a firm ask; atExecution fixes the price only when the order executes. | No |
+| <span id="indicativeRequested"></span>`indicativeRequested` | The request chose non-binding desk pricing; no firm ask was made. | Choose firmness firm, or requote the indicative card, to request a firm price. | No |
 | <span id="insufficientDepth"></span>`insufficientDepth` | The amount is above the depth the venue has available right now. | Lower the amount, or request quotes again later. | Yes |
 | <span id="insufficientLiquidity"></span>`insufficientLiquidity` | The venue lacks liquidity for this amount. | Try a smaller amount. | No |
 | <span id="jurisdictionRegionRequired"></span>`jurisdictionRegionRequired` | An applicable address needs a canonical subdivision or region before this LP can be asked. | Record the applicable address subdivision under its own country, then request quotes again. | No |
@@ -696,6 +710,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="minimumUnverified"></span>`minimumUnverified` | The venue's minimum amount is not verified. | Choose another venue. | No |
 | <span id="missingPermission"></span>`missingPermission` | The caller lacks the workspace permission this venue's quote needs; `fix` names it. | Ask a workspace admin for the permission the fix names. | No |
 | <span id="mixedNetworks"></span>`mixedNetworks` | The pair mixes test and production networks. | Choose chains on the same network. | No |
+| <span id="nativeBalanceUnavailable"></span>`nativeBalanceUnavailable` | The paying wallet's native coin balance could not be read just now; it is never taken as zero. | Request quotes again shortly. | Yes |
 | <span id="nativeGrantExpiryReapprovalRequired"></span>`nativeGrantExpiryReapprovalRequired` | The installed trading grant needs fresh wallet-owner approval. | Open the paying wallet's Signing section and ask its owner to approve the grant again. | No |
 | <span id="needsNativeGas"></span>`needsNativeGas` | The paying wallet needs native gas before this venue can trade; detail names the amount. | Fund the wallet with the named gas, then request quotes again. | No |
 | <span id="needsWallet"></span>`needsWallet` | The venue needs a bound wallet before it can quote. | Bind a wallet for this venue, then request quotes again. | No |
@@ -755,6 +770,8 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="placeOrderNotPermitted"></span>`placeOrderNotPermitted` | The caller cannot place orders. | Use a credential with Place orders. | No |
 | <span id="platformFeeRateUnavailable"></span>`platformFeeRateUnavailable` | The TetraFi fee rate for this trade could not be read, so the quote was withheld. | Request quotes again shortly. | Yes |
 | <span id="platformJurisdictionBlocked"></span>`platformJurisdictionBlocked` | The platform's mandatory denylist blocks an applicable entity jurisdiction; no venue was asked. | Trading is unavailable in this jurisdiction under platform rules. | No |
+| <span id="platformJurisdictionCountryRequired"></span>`platformJurisdictionCountryRequired` | A primary or applicable address country is missing; mandatory platform clearance was not established. | Record the entity's primary and applicable address countries, then request quotes again. | No |
+| <span id="platformJurisdictionUnavailable"></span>`platformJurisdictionUnavailable` | An applicable country or the mandatory platform observation could not be read. | Correct unrecognized entity country data or retry after the profile observation recovers. | Yes |
 | <span id="prefundingMarkerUnreadable"></span>`prefundingMarkerUnreadable` | Whether the route needs prefunding could not be read. | Request quotes again. | No |
 | <span id="prefundingRequired"></span>`prefundingRequired` | The venue needs a prefunded balance before it can quote. | Prefund the venue account. | No |
 | <span id="priceArithmetic"></span>`priceArithmetic` | The source's price could not be computed. | Choose another venue. | No |
@@ -804,6 +821,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="singleChainVenue"></span>`singleChainVenue` | The venue trades on one chain only. | Choose pay and receive on the same chain. | No |
 | <span id="siteChainUnreadable"></span>`siteChainUnreadable` | The venue site's chain could not be read. | Request quotes again shortly. | Yes |
 | <span id="sizeNotEligible"></span>`sizeNotEligible` | The amount is outside the venue's eligible sizes. | Change the amount. | No |
+| <span id="solanaFinalityUnavailable"></span>`solanaFinalityUnavailable` | The paying wallet's Solana balance could not be read at the required finality. | Request quotes again shortly. | Yes |
 | <span id="solverChainUnready"></span>`solverChainUnready` | The solver is not ready to settle on the chain named by network and detail. | Choose another route while the solver operator restores settlement readiness. | No |
 | <span id="submitOrderBlocked"></span>`submitOrderBlocked` | The workspace cannot submit orders now. | Resolve what blocks order submission. | No |
 | <span id="takerOnboardingIncomplete"></span>`takerOnboardingIncomplete` | The workspace has not finished taker onboarding. | Finish taker onboarding. | No |
@@ -817,6 +835,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="tradingPermissionRequired"></span>`tradingPermissionRequired` | Firm prices from this venue need Request quotes and Place orders. | Use a credential with both permissions. | No |
 | <span id="tradingSourceNetworkUnavailable"></span>`tradingSourceNetworkUnavailable` | The network of the selected trading source could not be resolved. | Choose another trading source, then request quotes again. | No |
 | <span id="tradingSourceNotLinked"></span>`tradingSourceNotLinked` | The selected trading source is not linked to this venue's account. | Choose a linked trading source, or link it on the venue account. | No |
+| <span id="tronSolidBlockUnavailable"></span>`tronSolidBlockUnavailable` | The paying wallet's Tron balance could not be read at a solidified block. | Request quotes again shortly. | Yes |
 | <span id="uniswapChainReadUnavailable"></span>`uniswapChainReadUnavailable` | The chain could not be read to price the Uniswap v3 pool. | Request quotes again shortly. | Yes |
 | <span id="uniswapInsufficientDepth"></span>`uniswapInsufficientDepth` | The amount is above the depth Uniswap v3 has available right now. | Lower the amount, or request quotes again later. | Yes |
 | <span id="uniswapQuoteUnreadable"></span>`uniswapQuoteUnreadable` | Uniswap v3's pool quote could not be read. | Request quotes again shortly. | Yes |

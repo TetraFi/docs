@@ -76,7 +76,7 @@ amount=${TETRAFI_AMOUNT:-10}
 # region recipe-cross-chain-chains
 # The chains an asset is on come from GET /assets: every deployment of its native variant.
 assets=$(tetrafi GET /api/v1/assets)
-chains=$(jq -c --arg a "$asset" '[.assets[] | select(.assetId == $a) | .variants[]
+chains=$(jq -c --arg a "$asset" '[.items[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[].chain] | unique' <<<"$assets")
 echo "{\"asset\":\"$asset\",\"chains\":$chains}" >&2
 from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
@@ -130,7 +130,7 @@ fi
 # When the quote's minReceiveRequired is true, it executes within your limit: send minReceive, the
 # least you accept, here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the
 # asset's decimals.
-decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.assets[] | select(.assetId == $a) | .variants[]
+decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.items[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[] | select(.chain == $c) | .decimals][0]' <<<"$assets")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000

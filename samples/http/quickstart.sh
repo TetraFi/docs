@@ -64,12 +64,12 @@ amount=${TETRAFI_AMOUNT:-10}
 # region quickstart-assets
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
     exit 1
   fi
 done
-echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $sell for $buy" >&2
+echo "assets: $(jq '.items | length' <<<"$assets") listed, quoting $sell for $buy" >&2
 # endregion
 
 # region quickstart-quote
@@ -151,7 +151,7 @@ if [[ ! -e $order_record && ! -L $order_record ]]; then
   if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
     # Without a buy chain, use the lowest precision listed for the native asset.
     decimals=$(jq -er --arg a "$(jq -r '.buy.asset' <<<"$quote")" \
-      --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.assets[] | select(.assetId == $a)
+      --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.items[] | select(.assetId == $a)
         | .variants[] | select(.kind == "native") | .deployments[]
         | select($c == "" or .chain == $c) | .decimals]
         | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets")

@@ -6,6 +6,11 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
 <Update label="2026-11-05" description="Venue minimums, Pilot caps and webhooks">
+  - The API description is versioned `1.0.0-beta.1`.
+  - `GET /api/v1/assets` lists the assets in `items`, which replaces `assets`, beside `nextCursor` ([How search works](/search/how-it-works#use-values-from-discovery)).
+  - An error body's `timestamp` is an RFC 3339 UTC date-time string, no longer integer Unix seconds ([Supported interfaces](/reference/supported-interfaces)).
+  - Each quote and price row carries `quality`: `firm`, `executable` or `indicative`. New values may be added ([Firm only](/search/firm-only#firm-executable-and-indicative)).
+  - Each order fill carries `fillId`, its stable id: deduplicate repeated reads by it ([What the order did](/trade/order-status#what-the-order-did)).
   - `POST /quotes` now requires `kind`: send `"kind":"pair"` for a new search or `"kind":"requote"` with `requote` for a held quote. A missing tag answers `400 QUOTE_REQUEST_KIND_REQUIRED`; an unknown or non-string tag answers `400 QUOTE_REQUEST_KIND_INVALID` ([How search works](/search/how-it-works), [Requotes](/trade/requotes-and-expiry)).
   - Enable request signing or rotate its secret with `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, using a signed-in member's session JWT, not an API key or service-account OAuth token ([Sign requests](/authentication#sign-requests)).
   - Rate-limit headers are now `RateLimit-Policy` (for example `1;w=3`) and `RateLimit` (`limit=1, remaining=0, reset=3`), sent on every answer a limit counted, refusals included. `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` are no longer sent ([Rate limits](/reference/conventions#rate-limits)).

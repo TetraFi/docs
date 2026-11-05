@@ -83,7 +83,7 @@ A Basic order also says what it actually did. These are recorded facts, never th
 
 | Field | Meaning |
 | --- | --- |
-| `fills` | Each confirmed fill, in execution order: `amount` (what it delivered), `sellAmount`, `price`, `at`, `venue`, and `txHash` with its `network` for an on-chain fill. Empty until a fill is confirmed. A field that was not recorded is `null`. |
+| `fills` | Each confirmed fill, in execution order: `fillId` (the fill's stable id; one row is one fill, never a running total, so deduplicate repeated reads by it), `amount` (what it delivered), `sellAmount`, `price`, `at`, `venue`, and `txHash` with its `network` for an on-chain fill. Empty until a fill is confirmed. A field that was not recorded is `null`. |
 | `quotedBuyAmount` | What the executed quote said would land. `null` when it is not known, for example before a venue order is sent. |
 | `settledBuyAmount` | What actually landed, read from the fills or the settlement. `null` until it is measured. Compare it with `quotedBuyAmount` to see what the trade delivered against its quote. |
 | `fees` | Each fee actually charged: `kind`, `amount`, `asset`, `chain` for an on-chain charge, and `includedInPrice`. When `includedInPrice` is `true`, the venue took the fee inside its price: the fill amounts already reflect it, so it is not charged on top. |

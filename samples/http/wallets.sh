@@ -87,7 +87,7 @@ me_summary=$(jq -c '.organisationWallets | if . == null then null else
   {grants: (.grants | length), blocked: (.blockedBy != null)} end' <<<"$me")
 
 # USDC's EVM chains, from the asset list.
-usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.assets[] | select(.assetId == "USDC") | .variants[]
+usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.items[] | select(.assetId == "USDC") | .variants[]
   | select(.kind == "native") | .deployments[].chain | select(startswith("eip155:"))] | unique')
 
 # region trading-source-options

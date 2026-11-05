@@ -53,7 +53,7 @@ if [[ ! -e $order_record && ! -L $order_record ]]; then
   if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
     # Without a buy chain, use the lowest precision listed for the native asset.
     decimals=$(jq -er --arg a "$(jq -r '.buy.asset' <<<"$quote")" \
-      --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.assets[] | select(.assetId == $a)
+      --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.items[] | select(.assetId == $a)
         | .variants[] | select(.kind == "native") | .deployments[]
         | select($c == "" or .chain == $c) | .decimals]
         | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets")

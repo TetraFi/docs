@@ -68,7 +68,7 @@ while :; do
     exit 1
   fi
   pages=$((pages + 1))
-  while IFS= read -r id; do listed+=("$id"); done < <(jq -r '.assets[].assetId' <<<"$page")
+  while IFS= read -r id; do listed+=("$id"); done < <(jq -r '.items[].assetId' <<<"$page")
   cursor=$(jq -r '.nextCursor // empty' <<<"$page")
   [[ -z $cursor ]] && break
 done

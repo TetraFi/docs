@@ -6,7 +6,7 @@
 # When the quote's minReceiveRequired is true, it executes within your limit: send minReceive, the
 # least you accept, here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the
 # asset's decimals.
-decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.assets[] | select(.assetId == $a) | .variants[]
+decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.items[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[] | select(.chain == $c) | .decimals][0]' <<<"$assets")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
