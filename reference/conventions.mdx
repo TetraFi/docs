@@ -71,18 +71,7 @@ You can send your own `X-Request-Id`, up to 64 letters, digits, `-` and `_`, to 
 
 ## Rate limits
 
-You may send one live quote request every 3 seconds per API key; a requote counts as one. A request answered entirely from cached prices does not count.
-
-A request over a limit answers `429` with a `Retry-After` header in whole seconds and the same wait in `details.retryAfter`, for example `PT2S`. Wait that long, then send it once more. [Errors and refusals](/trade/errors#the-quote-rate-limit) shows a retry.
-
-Every answer that a rate limit counted, successes and refusals alike, carries two headers in the [IETF RateLimit header fields](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) format:
-
-| Header | Meaning | Example |
-| --- | --- | --- |
-| `RateLimit-Policy` | The limit and its window in seconds, as `<limit>;w=<seconds>`. | `1;w=3`: one request every 3 seconds. |
-| `RateLimit` | `limit`, the requests you may still send now as `remaining`, and the whole seconds until the limit lets the next one through as `reset`. | `limit=1, remaining=0, reset=3` |
-
-When more than one limit counted a request, the headers describe the last one applied; on a `429` they describe the limit that refused it, with `remaining=0` and `reset` equal to `Retry-After`. In the output above, the quote request used the one quote request allowed every 3 seconds. An answer that no limit counted has neither header: treat an absent header as "not counted", never as zero.
+See [Rate limits](/reference/rate-limits) for the quote allowance, response headers and how to wait before retrying a `429`.
 
 ## Idempotency
 

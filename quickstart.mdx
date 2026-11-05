@@ -11,6 +11,16 @@ import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
 
 This guide walks through one script, [`samples/http/quickstart.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/quickstart.sh), step by step. It lists the assets your workspace can trade, asks every venue for a quote on 10 USDC to USDT, takes the best quote and places the order.
 
+## From prices to an order
+
+```mermaid
+flowchart TD
+    prices["Prices: indicative, not orderable"] -->|Ready to trade| quotes["Quotes: live auction"]
+    quotes -->|Choose an orderable quote before expiresAt| order["Order: send an Idempotency-Key"]
+```
+
+Read `GET /api/v1/prices` for [indicative prices](/search/prices): no venue is asked, and nothing in that answer can be ordered. When you intend to trade, `POST /api/v1/quotes` starts the live auction across the venues your workspace can use; send `filters.firmOnly: true` when you want only [quotes that hold their price](/search/firm-only). Follow each quote's `next` action and order it before its [`expiresAt`](/search/quote-lifetime). `POST /api/v1/orders` with the quote id and an `Idempotency-Key` places the order.
+
 For a first quote without placing an order, copy the **cURL** blocks in steps 1–3 into the same Bash session and stop there. Alternatively, run the linked script: it stops after the quote unless you explicitly opt in to ordering with `TETRAFI_PLACE_ORDER=1`. The order request in step 4 sends a real order when pasted.
 
 Each step shows the script's code under **cURL**. The **TypeScript SDK** tab shows the same step in TetraFi's TypeScript SDK, which is not published to npm yet: it is coming soon. Its example quotes USDC for ETH and waits until the order ends instead of reading its status once. The local replay file and the `bc` calculation below belong to the cURL script.
