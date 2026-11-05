@@ -6,6 +6,7 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
 <Update label="2026-11-05" description="Venue minimums, Pilot caps and webhooks">
+  - Enable request signing or rotate its secret with `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, using a signed-in member's session JWT, not an API key or service-account OAuth token ([Sign requests](/authentication#sign-requests)).
   - Rate-limit headers are now `RateLimit-Policy` (for example `1;w=3`) and `RateLimit` (`limit=1, remaining=0, reset=3`), sent on every answer a limit counted, refusals included. `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` are no longer sent ([Rate limits](/reference/conventions#rate-limits)).
   - Two new source reasons: `belowVenueMinimum` (the amount is below the venue's verified minimum: raise it) and `pilotMinimumAboveTradeCap` (the venue's minimum order is above its Pilot per-trade cap: choose another venue) ([Limits and minimums](/search/limits-and-minimums)).
   - Webhooks are available to API keys: create, test, rotate the secret, list deliveries and redeliver ([Webhooks](/trade/webhooks)).
