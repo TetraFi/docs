@@ -43,4 +43,13 @@ A retry that places a second order is the costly mistake. Send an `Idempotency-K
 
 ## Use a key with only what it needs
 
-Give a test key only the permissions it needs: **Read quotes** alone to try searches, then **Submit orders** and **Read orders** for your first orders. Revoke it when you are done ([Authentication](/authentication)).
+Reading prices and requesting quotes need different permissions:
+
+| What you test | Endpoint | Minimum key permissions | Required scopes |
+| --- | --- | --- | --- |
+| Read indicative prices, which cannot be ordered | `GET /api/v1/prices` | **Read quotes** | `prices_read` |
+| Request quotes, including requotes | `POST /api/v1/quotes` | **Read quotes** and **Submit orders** | `quotes_request` and `orders_write` |
+
+`quotes_request` can only be granted with `orders_write` on the same key. **Read quotes** alone is not enough to request quotes, even when your test never places an order. For your first orders, also add **Read orders** so you can follow their status. Orderable venue-account quotes need the additional venue-trading authority and request signing described in [Authentication](/authentication#trading-on-your-venue-accounts).
+
+Revoke the test key when you are done ([Authentication](/authentication)).
