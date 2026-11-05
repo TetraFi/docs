@@ -4,7 +4,7 @@
 
 ```bash cURL
 # Narrow the list with asset, accountKind (wallet, venueAccount or bankAccount) and accountId.
-kind=$(jq -r '.[0].accountKind // "wallet"' <<<"$rows")
+kind=${TETRAFI_BALANCE_KIND:-wallet}
 filtered=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/balances?accountKind=$kind&limit=50")
 jq -c '.items[:3][] | {accountKind, accountId, asset, amount}' <<<"$filtered" >&2
 ```
