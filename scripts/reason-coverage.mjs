@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Every source reason a published page names must be one the API declares in
-// tetrafi-rfq docs/api/integrator/error-codes.json (sourceReasons). A token counts as a reason only
+// tetrafi-rfq docs/api/integrator/error-codes.json (sourceReasons), or a public spec enum named
+// for a reason (such as WorkspaceBalancesIncompleteReason). A token counts as a reason only
 // in a reason context, so ordinary backticked words never do:
 //   - a JSON "reason": "<token>" pair;
 //   - prose "the reason `<token>`" or "reason `<token>`";
@@ -50,6 +51,16 @@ export function declaredReasons(json) {
   return new Set(json.sourceReasons.map((row) => row.reason));
 }
 
+// Other reason enums the public spec declares, such as a list's incomplete reason, are reasons too.
+// Only schemas named for a reason count, so a status or kind enum never declares one.
+export function specReasonEnums(spec) {
+  const reasons = new Set();
+  for (const [name, schema] of Object.entries(spec?.components?.schemas ?? {})) {
+    if (name.endsWith('Reason') && Array.isArray(schema?.enum)) schema.enum.forEach((value) => reasons.add(value));
+  }
+  return reasons;
+}
+
 function publishedPages() {
   const ignored = readFileSync(path.join(root, '.mintignore'), 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
     .map((l) => l.replace(/^\//, '').replace(/\/$/, ''));
@@ -62,8 +73,9 @@ function publishedPages() {
 export function main() {
   const from = path.join(process.env.TETRAFI_RFQ_API_DOCS ?? path.join(root, '..', 'tetrafi-rfq', 'docs', 'api'), 'integrator', 'error-codes.json');
   if (!existsSync(from)) { console.log(`REASON_CATALOGUE_MISSING ${from}`); return 1; }
-  const declared = declaredReasons(JSON.parse(readFileSync(from, 'utf8')));
-  OUTCOMES = outcomesFrom(JSON.parse(readFileSync(path.join(path.dirname(from), 'openapi.json'), 'utf8')));
+  const spec = JSON.parse(readFileSync(path.join(path.dirname(from), 'openapi.json'), 'utf8'));
+  const declared = new Set([...declaredReasons(JSON.parse(readFileSync(from, 'utf8'))), ...specReasonEnums(spec)]);
+  OUTCOMES = outcomesFrom(spec);
   let seen = 0;
   let undeclared = 0;
   for (const file of publishedPages()) {
