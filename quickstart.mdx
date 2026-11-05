@@ -25,7 +25,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 
 ## Before you begin
 
-You need `bash`, `curl`, `jq` and `openssl`, and an exchange or OTC venue account connected to your workspace that holds the USDC you sell.
+You need `bash`, `curl`, `jq`, `openssl` and `bc`, and an exchange or OTC venue account connected to your workspace that holds the USDC you sell. The script uses `bc` for exact decimal arithmetic, never floating-point maths.
 
 ### Get a key with venue trading
 
@@ -60,7 +60,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
     export TETRAFI_SIGNING_SECRET=...     # the key's signing secret
     ```
 
-    The script starts with one helper, `tetrafi`, that sends a request with your key, signs it when `TETRAFI_SIGNING_SECRET` is set, and stops the script with the error body on any error status.
+    The script starts with one helper, `tetrafi`, that sends a request with your key and signs it when `TETRAFI_SIGNING_SECRET` is set. It returns an error on a transport failure or any non-2xx status, printing the response body when one is available. Requests time out after 60 seconds; an order error goes to the recovery steps in step 4.
 
     <QuickstartClient />
   </Step>
@@ -138,11 +138,19 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` header with a value you generate and keep: a retry with the same key and body returns the first answer instead of placing a second order. Each quote can be ordered once.
 
-    When the quote's `minReceiveRequired` is `true`, send `minReceive`, the least you accept: the script uses the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the bought asset's decimals from `GET /api/v1/assets`.
+    When the quote's `minReceiveRequired` is `true`, send `minReceive`, the least you accept: the script uses the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the bought asset's decimals from `GET /api/v1/assets`. It calculates with decimal strings in `bc` and sends a decimal string, never an exponent or a float-rounded number. Slippage must be an integer from 0 to 9999; if rounding would make the minimum zero, the script stops before sending.
+
+    Before sending, the script saves `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json` in your current directory, readable only by you. `exactBody` is the exact JSON body as a string. Keep this file even after success. Re-entering the order step for the same quote reuses its saved body and key; it never overwrites them.
 
     The script places the order only when you set `TETRAFI_PLACE_ORDER=1`. Without it, it stops after the quote and prints the quote id it would order.
 
     <QuickstartOrder />
+
+    <Warning>
+    A timeout, dropped connection, 5xx, `409 IDEMPOTENCY_*` or unreadable answer is not proof that the order failed. The script stops with recovery commands: load the saved body and key, resend them unchanged, then call `GET /api/v1/orders/by-quote/{quoteId}` even if that replay fails. Use the `tetrafi` helper from step 1 so the replay has fresh request-signing headers. **Do not rerun the whole script, request a fresh quote, generate a new key or place a fresh order to retry this trade.**
+
+    If recovery says `ordered`, follow its `statusUrl`. If it says `unknown` or the read fails, wait and read again; never order again. If it says `notOrdered`, retry only the saved body and key, and only while `expired` is `false`. See [Idempotency](/trade/idempotency) for the recovery states and refusal codes.
+    </Warning>
 
     ```json Response (shortened)
     {
