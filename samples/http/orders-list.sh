@@ -65,7 +65,8 @@ while (( pages < 5 )); do
   [[ -z $cursor ]] && break
 done
 echo "orders: ${#orders[@]} across $pages pages" >&2
-printf '%s\n' "${orders[@]:0:3}" >&2
+# An empty list is a normal answer: a new workspace has no orders yet.
+(( ${#orders[@]} == 0 )) || printf '%s\n' "${orders[@]:0:3}" >&2
 # endregion
 
 # region order-execution
@@ -87,7 +88,7 @@ fi
   and has("quotedBuyAmount") and has("settledBuyAmount")' <<<"$filled" >/dev/null || fail EXECUTION_REPORT_MISSING
 
 # A cancelled order answers a repeated cancel with itself, unchanged; pick one that ended otherwise.
-final=$(printf '%s\n' "${orders[@]}" | jq -sc 'map(select(.terminal == true and .status != "cancelled")) | .[0] // empty')
+final=$( (( ${#orders[@]} == 0 )) || printf '%s\n' "${orders[@]}" | jq -sc 'map(select(.terminal == true and .status != "cancelled")) | .[0] // empty')
 cancel='{"skipped":"no final order in the last 30 days"}'
 if [[ -n $final ]]; then
   # region order-cancel
