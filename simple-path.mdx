@@ -18,10 +18,12 @@ The [Quickstart](/quickstart) walks through each request. When you only need to 
 By default `quoteAndOrder` orders the first quote, in the order the API returned them, that:
 
 - has `next.kind` `order`, so it needs no requote or wallet first;
-- is firm or executable (`quality` `firm` or `executable`), not an indicative price ([Firm, executable and indicative](/search/firm-only#firm-executable-and-indicative));
+- is firm or executable (`quality` `firm` or `executable`), or indicative when you pass `order.minReceive` ([Firm, executable and indicative](/search/firm-only#firm-executable-and-indicative));
 - has not passed its `expiresAt`.
 
-When that quote has `minReceiveRequired` `true`, the order carries its `minOut`, or its `buy.amount` when it has no `minOut`. To set your own floor, pass `order.minReceive`.
+An indicative quote holds no price: it executes only within the least you accept to receive. So the SDK orders one only with your own `order.minReceive`, a positive decimal amount, and never works out a floor for it.
+
+The order carries your `order.minReceive` when you pass one. Otherwise, when the quote's `minReceiveRequired` is `true`, it carries the quote's `minOut`, or its `buy.amount` when it has no `minOut`.
 
 To choose differently, pass `select`, a function that receives the whole quote response and returns one of its quotes. The SDK still checks your choice against the rules above, so a selector can change which quote is ordered, never make an unorderable one orderable. This selector keeps the default rule and adds one: every leg must trade on a sandbox or testnet site, so the example never moves real funds.
 
@@ -35,7 +37,7 @@ Make the idempotency key yourself and store it with the request before you call 
 
 `waitForTerminal` polls the order with the same backoff as `waitForOrder` and stops when `terminal` is `true`. It waits 120 seconds unless you pass `timeoutMs`. When the wait runs out it throws `TetrafiOrderTimeoutError` with the `orderId`: the order is still running, so read it again later by its id and never place another ([Recovering an order](/trade/recovering-an-order)).
 
-The complete example reads the same `TETRAFI_BASE_URL`, `TETRAFI_API_KEY` and `TETRAFI_WORKSPACE_ID` as the [Quickstart](/quickstart#set-your-environment). It stops after the quote and prints the quote it would order unless you set `TETRAFI_PLACE_ORDER=1`, and it turns off the client's automatic retries so an order is sent only once.
+The complete example reads the same `TETRAFI_BASE_URL`, `TETRAFI_API_KEY` and `TETRAFI_WORKSPACE_ID` as the [Quickstart](/quickstart#set-your-environment). Set `TETRAFI_MIN_RECEIVE` to let it order an indicative quote within that minimum. It stops after the quote and prints the quote it would order unless you set `TETRAFI_PLACE_ORDER=1`, and it turns off the client's automatic retries so an order is sent only once.
 
 ## What it does not do
 

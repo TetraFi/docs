@@ -5,7 +5,7 @@
 ```typescript TypeScript SDK
 // Store this key with the request before sending: after a crash, the same key and request read back the same order.
 const idempotencyKey = crypto.randomUUID();
-const placed = await client.quoteAndOrder(body, { select: testSiteCard, idempotencyKey });
+const placed = await client.quoteAndOrder(body, { select: testSiteCard, idempotencyKey, ...(minReceive ? { order: { minReceive } } : {}) });
 const done = await client.waitForTerminal(placed.orderId, { timeoutMs: waitMs });
 ```
 

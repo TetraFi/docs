@@ -16113,7 +16113,7 @@
     },
     "securitySchemes": {
       "api_key": {
-        "description": "Send the API key in `X-API-Key`.\n\n**Request signing.** A key with signing enabled (enabled for the key in its workspace's credential settings, which return the signing secret once; see the request-signing guide at `docs/api/request-signing.md`) must also sign every request:\n\n- `X-Timestamp`: the current Unix time in seconds, within 300 seconds of the server clock.\n- `X-Signature`: lower-case hex HMAC-SHA256 of the canonical string, keyed with the signing secret's 32 bytes (the secret is 64 hex characters; decode it first).\n\nThe canonical string is four lines joined by `\\n`, with no trailing newline: the `X-Timestamp` value, the upper-case method, the path with its query exactly as sent (`/api/v1/orders?limit=1`), and the lower-case hex SHA-256 of the exact body bytes (the SHA-256 of an empty body when there is none).\n\nA write's signature (POST, PUT, PATCH, DELETE) is accepted once: sending the same signed write again is refused, so a retry signs again. A read (GET, HEAD) changes nothing, so an identical signed read inside the window is admitted again and polling needs no nonce.\n\nA signing refusal is a 401 `AUTH_REQUIRED` whose `details.reason` names the cause: `SIGNATURE_REQUIRED` (a header is missing), `SIGNATURE_INVALID` (a malformed header or a wrong signature), `TIMESTAMP_OUT_OF_RANGE` or `SIGNATURE_REPLAYED`.",
+        "description": "Send the API key in `X-API-Key`.\n\n**Request signing.** A key with signing enabled (enabled for the key in its workspace's credential settings, which return the signing secret once; see [Sign requests](https://docs.tetrafi.io/authentication#sign-requests)) must also sign every request:\n\n- `X-Timestamp`: the current Unix time in seconds, within 300 seconds of the server clock.\n- `X-Signature`: lower-case hex HMAC-SHA256 of the canonical string, keyed with the signing secret's 32 bytes (the secret is 64 hex characters; decode it first).\n\nThe canonical string is four lines joined by `\\n`, with no trailing newline: the `X-Timestamp` value, the upper-case method, the path with its query exactly as sent (`/api/v1/orders?limit=1`), and the lower-case hex SHA-256 of the exact body bytes (the SHA-256 of an empty body when there is none).\n\nA write's signature (POST, PUT, PATCH, DELETE) is accepted once: sending the same signed write again is refused, so a retry signs again. A read (GET, HEAD) changes nothing, so an identical signed read inside the window is admitted again and polling needs no nonce.\n\nA signing refusal is a 401 `AUTH_REQUIRED` whose `details.reason` names the cause: `SIGNATURE_REQUIRED` (a header is missing), `SIGNATURE_INVALID` (a malformed header or a wrong signature), `TIMESTAMP_OUT_OF_RANGE` or `SIGNATURE_REPLAYED`.",
         "in": "header",
         "name": "X-API-Key",
         "type": "apiKey",
@@ -19079,7 +19079,7 @@
     },
     "/api/v1/orders/{orderId}": {
       "get": {
-        "description": "Returns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. After an order notification or a reconnect, perform this GET to obtain the complete current projection. Never put an API key in a URL. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
+        "description": "Returns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. After a webhook delivery, perform this GET to obtain the complete current projection. Never put an API key in a URL. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
         "operationId": "get_order",
         "parameters": [
           {
@@ -21746,9 +21746,8 @@
                 }
               },
               "Retry-After": {
-                "description": "Seconds until the request may be retried",
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
                 "schema": {
-                  "format": "int64",
                   "minimum": 0,
                   "type": "integer"
                 }
