@@ -1,0 +1,54 @@
+---
+title: "Quote and order in two calls"
+description: "Use the TypeScript SDK's simple path: quote once, order the first orderable quote, and wait for the order to end."
+---
+
+import SimplePathSelect from '/snippets/samples/simple-path-select.mdx';
+import SimplePathOrder from '/snippets/samples/simple-path-order.mdx';
+
+The [Quickstart](/quickstart) walks through each request. When you only need to trade at the best orderable quote, TetraFi's TypeScript SDK does it in two calls (the SDK is not published to npm yet: it is coming soon):
+
+1. `quoteAndOrder(request, options)` asks venues for quotes once, picks one quote and orders it.
+2. `waitForTerminal(orderId, options)` follows that order until it can no longer change.
+
+**Ordering a quote is the accept.** There is no separate accept call: a quote binds nothing until you order its `id`, and `quoteAndOrder` sends that order in the same call.
+
+## Which quote it orders
+
+By default `quoteAndOrder` orders the first quote, in the order the API returned them, that:
+
+- has `next.kind` `order`, so it needs no requote or wallet first;
+- is firm or executable (`quality` `firm` or `executable`), not an indicative price ([Firm, executable and indicative](/search/firm-only#firm-executable-and-indicative));
+- has not passed its `expiresAt`.
+
+When that quote has `minReceiveRequired` `true`, the order carries its `minOut`, or its `buy.amount` when it has no `minOut`. To set your own floor, pass `order.minReceive`.
+
+To choose differently, pass `select`, a function that receives the whole quote response and returns one of its quotes. The SDK still checks your choice against the rules above, so a selector can change which quote is ordered, never make an unorderable one orderable. This selector keeps the default rule and adds one: every leg must trade on a sandbox or testnet site, so the example never moves real funds.
+
+<SimplePathSelect />
+
+## Order and wait
+
+Make the idempotency key yourself and store it with the request before you call `quoteAndOrder`. If your process stops before it reads the answer, the same key and request read back the same order instead of placing a second one ([Idempotency](/trade/idempotency)).
+
+<SimplePathOrder />
+
+`waitForTerminal` polls the order with the same backoff as `waitForOrder` and stops when `terminal` is `true`. It waits 120 seconds unless you pass `timeoutMs`. When the wait runs out it throws `TetrafiOrderTimeoutError` with the `orderId`: the order is still running, so read it again later by its id and never place another ([Recovering an order](/trade/recovering-an-order)).
+
+The complete example reads the same `TETRAFI_BASE_URL`, `TETRAFI_API_KEY` and `TETRAFI_WORKSPACE_ID` as the [Quickstart](/quickstart#set-your-environment). It stops after the quote and prints the quote it would order unless you set `TETRAFI_PLACE_ORDER=1`, and it turns off the client's automatic retries so an order is sent only once.
+
+## What it does not do
+
+`quoteAndOrder` never signs, funds, runs a preflight or requotes. When the best quote needs any of those, follow the steps in [Placing an order](/trade/orders) instead.
+
+## When nothing is ordered
+
+When no quote qualifies, `quoteAndOrder` throws `TetrafiSimplePathError` and places nothing. Its `quoteSet` holds every quote and every venue outcome in `sources`, so you can see why no venue offered an orderable quote.
+
+| `code` | Meaning |
+| --- | --- |
+| `NO_EXECUTABLE_QUOTE` | No quote met the rules above, or your selector returned none. |
+| `SELECTED_QUOTE_NOT_EXECUTABLE` | Your selector returned a quote that is not in the response, or that fails the rules above. |
+| `MIN_RECEIVE_UNREADABLE` | The chosen quote requires a minimum receive, and it has neither `minOut` nor `buy.amount`. |
+
+A refusal from the API itself arrives unchanged as `TetrafiApiError`, with the API's `code`. The [error codes](/reference/error-codes) say what each one means and what to do.
