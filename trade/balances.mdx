@@ -4,6 +4,7 @@ description: "Read every balance your workspace holds, across its wallets and ex
 ---
 
 import BalancesList from '/snippets/samples/balances-list.mdx';
+import BalancesFilter from '/snippets/samples/balances-filter.mdx';
 import BalancesUnavailable from '/snippets/samples/balances-unavailable.mdx';
 
 `GET /api/v1/workspaces/{workspaceId}/balances` lists what each of your workspace's wallets and exchange accounts holds, one row per account, asset and chain. It reads the last observation TetraFi holds: it never asks a chain or a venue for a new one, and it never moves money.
@@ -24,8 +25,8 @@ The page holds up to `limit` rows (1 to 100). To read every row, pass `nextCurso
 
 | Field | Meaning |
 | --- | --- |
-| `id` | The stable id of this account, asset and chain. |
-| `accountKind` | `wallet`, `venue_account` or `bank_account`. New kinds may be added: show a row of a kind you do not recognise as it is. |
+| `id` | The id of this account, asset and chain. It is opaque: never parse it or build one. |
+| `accountKind` | `wallet`, `venueAccount` or `bankAccount`. New kinds may be added: show a row of a kind you do not recognise as it is. |
 | `accountId` | A wallet's `walletId`, or the exchange account's `venueAccountId` ([Exchange account balances](/trade/venue-balances)). |
 | `asset`, `chain` | The asset, and its CAIP-2 chain. `chain` is `null` for a balance held off-chain, such as at an exchange. |
 | `nativeAssetId` | The asset's id at its source, such as a token contract address, when the source names one. |
@@ -33,7 +34,7 @@ The page holds up to `limit` rows (1 to 100). To read every row, pass `nextCurso
 | `asOf` | When the balance was observed, as an RFC 3339 date-time. |
 | `freshness` | `fresh`, `stale` or `partial`. Treat a value you do not recognise as `stale`. |
 
-Narrow the list with query parameters: `asset`, `accountKind` and `accountId`. Any other parameter, or an `accountKind` other than the three above, answers `400 INVALID_BALANCE_LIST_QUERY`.
+Narrow the list with query parameters: `asset`, `accountKind` and `accountId`. Any other parameter, or an `accountKind` other than the three above (including the earlier `venue_account` and `bank_account`), answers `400 INVALID_BALANCE_LIST_QUERY`.
 
 <BalancesList />
 
@@ -47,6 +48,10 @@ Narrow the list with query parameters: `asset`, `accountKind` and `accountId`. A
   "unavailable": []
 }
 ```
+
+To read one kind of account, pass `accountKind`. Every row of the answer is of that kind:
+
+<BalancesFilter />
 
 ## Accounts whose balance is unknown
 
@@ -68,7 +73,7 @@ An account the key may read but whose balance cannot be stated is listed in `una
   "items": [],
   "nextCursor": null,
   "unavailable": [
-    { "accountKind": "venue_account", "accountId": "169e142e-…", "asset": null, "chain": null, "reasonCode": "…", "asOf": null }
+    { "accountKind": "venueAccount", "accountId": "169e142e-…", "asset": null, "chain": null, "reasonCode": "…", "asOf": null }
   ],
   "incomplete": { "reason": "accessSettingsUnavailable" }
 }

@@ -62,6 +62,13 @@ done
 jq -c '.[:3][] | {accountKind, accountId, asset, chain, amount, asOf, freshness}' <<<"$rows" >&2
 # endregion
 
+# region balances-filter
+# Narrow the list with asset, accountKind (wallet, venueAccount or bankAccount) and accountId.
+kind=$(jq -r '.[0].accountKind // "wallet"' <<<"$rows")
+filtered=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/balances?accountKind=$kind&limit=50")
+jq -c '.items[:3][] | {accountKind, accountId, asset, amount}' <<<"$filtered" >&2
+# endregion
+
 # region balances-unavailable
 # An account whose balance cannot be read is listed in unavailable with its reasonCode, on every
 # page. It is never shown as a zero row: show it as "unavailable". incomplete, when present, means
@@ -76,6 +83,7 @@ jq -e 'has("items") and has("nextCursor") and (.unavailable | type == "array")' 
   || fail BALANCES_SHAPE_UNEXPECTED
 jq -e 'all(.[]; (.amount | type == "string" and test("^[0-9]+(\\.[0-9]+)?$")) and (.asOf | type == "string"))' \
   <<<"$rows" >/dev/null || fail BALANCE_AMOUNT_NOT_DECIMAL_STRING
+jq -e --arg kind "$kind" 'all(.items[]; .accountKind == $kind)' <<<"$filtered" >/dev/null || fail BALANCE_FILTER_IGNORED
 
 jq -nc --argjson rows "$rows" --argjson page "$page" --argjson pages "$pages" \
   '{rows: ($rows | length), pages: $pages, kinds: ($rows | map(.accountKind) | unique),
