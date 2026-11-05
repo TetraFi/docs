@@ -93,7 +93,7 @@ usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.assets[] | select(.assetId =
 # region trading-source-options
 # Every answer's sourceOptions lists, per network, the trading wallets this key may name, each by its
 # financialAccountId; isDefault marks the one used when you name none.
-first=$(quote_request "$(jq -cn --arg amount "$amount" '{sell: {asset: "USDC"}, buy: {asset: "ETH"},
+first=$(quote_request "$(jq -cn --arg amount "$amount" '{kind: "pair", sell: {asset: "USDC"}, buy: {asset: "ETH"},
   sellAmount: $amount}')") || { printf '%s\n' "$first" >&2; exit 1; }
 trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
   | select(.chain as $c | $chains | index($c))
@@ -117,7 +117,7 @@ request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | ke
   | (if ($chains | length) > 1
       then {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "USDC", chain: $chains[1]}}
       else {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "ETH", chain: $chains[0]}} end)
-  + {sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
+  + {kind: "pair", sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
 # endregion
 
 # region trading-source-refusal
@@ -148,7 +148,7 @@ if [[ -z $target ]]; then
   echo '{"deliverTo":"no off-chain quote to try"}' >&2
   deliver_outcome=none
 else
-  body=$(jq -c --argjson w "$trading_wallets" '{requote: .id, deliverTo: {kind: "financialAccount",
+  body=$(jq -c --argjson w "$trading_wallets" '{kind: "requote", requote: .id, deliverTo: {kind: "financialAccount",
     financialAccountId: ($w | to_entries[0].value)}}' <<<"$target")
   if delivered=$(quote_request "$body"); then
     deliver_outcome=$(jq -r '.quotes[0].next.kind' <<<"$delivered")

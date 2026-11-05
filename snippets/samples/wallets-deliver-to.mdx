@@ -10,7 +10,7 @@ if [[ -z $target ]]; then
   echo '{"deliverTo":"no off-chain quote to try"}' >&2
   deliver_outcome=none
 else
-  body=$(jq -c --argjson w "$trading_wallets" '{requote: .id, deliverTo: {kind: "financialAccount",
+  body=$(jq -c --argjson w "$trading_wallets" '{kind: "requote", requote: .id, deliverTo: {kind: "financialAccount",
     financialAccountId: ($w | to_entries[0].value)}}' <<<"$target")
   if delivered=$(quote_request "$body"); then
     deliver_outcome=$(jq -r '.quotes[0].next.kind' <<<"$delivered")

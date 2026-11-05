@@ -75,6 +75,7 @@ echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $sell for $b
 # region quickstart-quote
 request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   --arg venues "${TETRAFI_VENUES:-}" '{
+    kind: "pair",
     sell: {asset: $sell},
     buy: {asset: $buy},
     sellAmount: $amount

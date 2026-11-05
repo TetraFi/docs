@@ -70,7 +70,7 @@ buy=${TETRAFI_BUY:-USDT}
 # Every refusal is one JSON body: {error, message, requestId, timestamp, docUrl, next?, details?}.
 # Match on `error`, never on `message`. Keep `requestId` for support; docUrl links the code's entry.
 if refusal=$(tetrafi POST /api/v1/quotes \
-  '{"sell":{"asset":"NOT_AN_ASSET"},"buy":{"asset":"USDT"},"sellAmount":"10"}' 2>/dev/null); then
+  '{"kind":"pair","sell":{"asset":"NOT_AN_ASSET"},"buy":{"asset":"USDT"},"sellAmount":"10"}' 2>/dev/null); then
   echo '{"error":"EXPECTED_A_REFUSAL"}' >&2
   exit 1
 fi
@@ -92,7 +92,7 @@ parse=$(jq -c '{error, requestId, next}' <<<"$refusal")
 # Each signature is accepted once, so the two requests differ in amount.
 quote_body() {
   jq -c -n --arg sell "$sell" --arg buy "$buy" --arg amount "$1" \
-    '{sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount}'
+    '{kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount}'
 }
 tetrafi POST /api/v1/quotes "$(quote_body 10)" >"$tmp/first" 2>/dev/null & first=$!
 tetrafi POST /api/v1/quotes "$(quote_body 11)" >"$tmp/second" 2>/dev/null & second=$!

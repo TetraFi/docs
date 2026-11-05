@@ -79,7 +79,7 @@ amount=${TETRAFI_AMOUNT:-5}
 venue=${TETRAFI_VENUE:-}
 if [[ -z $venue ]]; then
   found=$(quote "$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
-    sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
+    kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
     filters: {locations: ["offChain"]}}')")
   jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$found" >&2
   venue=$(jq -r 'first(.quotes[] | select(.legs[0].venue.integrationMode == "basic") | .legs[0].venue.id) // empty' <<<"$found")
@@ -93,7 +93,7 @@ fi
 # region recipe-exchange-quote
 # Ask that venue only. Its quote trades on your account there: tradingSource names it (kind venueAccount).
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
-  sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
+  kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
   filters: {venues: {include: [$venue]}}
 }')
 quotes=$(quote "$request")

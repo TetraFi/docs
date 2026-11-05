@@ -76,7 +76,7 @@ summary='{}'
 
 request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   --arg venues "${TETRAFI_VENUES:-}" '{
-    sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount
+    kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount
   } + (if $venues == "" then {} else {filters: {venues: {include: ($venues | split(","))}}} end)')
 quotes=$(quote "$request")
 first=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
@@ -90,7 +90,7 @@ jq -c '{quoteId: .id, venue: .legs[0].venue.id, firm, buy: .buy.amount, minOut, 
 # region requote-again
 # Ask the same venue again for the same pair and amount. The answer is a new quote whose
 # requoteOf names the original. The original stays orderable until its own expiresAt.
-requoted=$(quote "{\"requote\":\"$quote_id\"}")
+requoted=$(quote "{\"kind\":\"requote\",\"requote\":\"$quote_id\"}")
 fresh=$(jq -c '.quotes[0]' <<<"$requoted")
 jq -c '{quoteId: .id, requoteOf, firm, buy: .buy.amount, minOut, expiresAt}' <<<"$fresh" >&2
 # endregion
@@ -99,7 +99,7 @@ summary=$(jq -c --argjson q "$fresh" '. + {requote: {id: $q.id, requoteOf: $q.re
 # region requote-protection
 # Change the price protection for the new quote. A wider protection lowers minOut, the least
 # a non-firm quote may deliver.
-protected=$(quote "{\"requote\":\"$quote_id\",\"priceProtectionBps\":50}")
+protected=$(quote "{\"kind\":\"requote\",\"requote\":\"$quote_id\",\"priceProtectionBps\":50}")
 jq -c '.quotes[0] | {quoteId: .id, requoteOf, buy: .buy.amount, minOut}' <<<"$protected" >&2
 # endregion
 # Quotes expire within seconds, so the order below uses the newest quote.
@@ -181,7 +181,7 @@ if [[ ${TETRAFI_EXPIRED:-} == yes ]]; then
   fi
   jq -c '{error, next}' <<<"$lapsed" >&2
   if [[ $(error_of "$lapsed") == QUOTE_EXPIRED ]]; then
-    refreshed=$(quote "{\"requote\":\"$quote_id\"}")
+    refreshed=$(quote "{\"kind\":\"requote\",\"requote\":\"$quote_id\"}")
     jq -c '.quotes[0] | {quoteId: .id, requoteOf, buy: .buy.amount, expiresAt}' <<<"$refreshed" >&2
   fi
   # endregion

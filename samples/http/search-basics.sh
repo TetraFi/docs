@@ -136,6 +136,7 @@ shared_chains=$(jq -c --argjson r "$(chains_of "$buy")" 'map(select(. as $c | $r
 # region search-sell-exact
 # Sell exactly `amount` of the sell asset. Each quote states what you would buy.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount
@@ -150,6 +151,7 @@ outcome sellExact "$sell_exact"
 # Buy exactly `buy_amount` of the buy asset. Each quote states what you would sell.
 # A venue that only prices the amount you sell is listed in sources as unsupported.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   buyAmount: $amount
@@ -170,6 +172,7 @@ if [[ -z $chain ]]; then
   exit 1
 fi
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg chain "$chain" '{
+  kind: "pair",
   sell: {asset: $sell, chain: $chain},
   buy: {asset: $buy, chain: $chain},
   sellAmount: $amount,
@@ -191,6 +194,7 @@ if [[ -z $to_chain ]]; then
   exit 1
 fi
 request=$(jq -nc --arg asset "$sell" --arg amount "$cross_amount" --arg from "$from_chain" --arg to "$to_chain" '{
+  kind: "pair",
   sell: {asset: $asset, chain: $from},
   buy: {asset: $asset, chain: $to},
   sellAmount: $amount,
@@ -206,6 +210,7 @@ outcome crossChain "$cross_chain"
 # Keep only quotes that execute on a venue account (an exchange or desk). No chain pins:
 # a pinned chain with only offChain allowed is refused with CHAIN_PIN_NEEDS_ON_CHAIN.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -222,6 +227,7 @@ outcome offChain "$off_chain"
 # then `complete` carries the whole set. One live quote request every 3 seconds, so wait first.
 sleep 3
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount

@@ -115,6 +115,7 @@ done
 # A plain search first. The venues that answer it give the venue id the venue filters use:
 # venue ids come from sources[].venue.id (or GET /api/v1/prices rows), never from a fixed list.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount
@@ -131,6 +132,7 @@ fi
 # Keep only venues of the types you list: amm, solver, bridge, rfq, orderBook or fiat.
 # Every venue of another type is listed in sources as filteredOut and is not asked.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg types "$modalities" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -145,6 +147,7 @@ outcome modalities "$by_type"
 # region search-venue-include
 # Ask only the venues you name. Every other venue is listed in sources as filteredOut.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -159,6 +162,7 @@ outcome venueInclude "$only"
 # region search-venue-exclude
 # Ask every venue except the ones you name. The excluded venue is listed as filteredOut.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -176,6 +180,7 @@ outcome venueExclude "$without"
 jq -c --arg p "$sell" --arg r "$buy" '[.assets[] | select(.assetId == $p or .assetId == $r)
   | {asset: .assetId, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -192,6 +197,7 @@ outcome nativeOnly "$native"
 # executable estimates held to minOut (order-book and AMM quotes) are dropped once venues answer,
 # so a venue that gave only those still reads answered in sources, with no quote in quotes.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -210,6 +216,7 @@ fi
 
 # The filter's earlier name is refused by name, never ignored.
 old_name=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount, filters: {executableOnly: true}}')
 for _ in 1 2; do
   if old_refusal=$(tetrafi POST /api/v1/quotes "$old_name" 2>/dev/null); then
@@ -230,6 +237,7 @@ jq -c '{oldName: "filters.executableOnly", error, details}' <<<"$old_refusal" >&
 # region search-sort-eta
 # Order quotes by expected time to delivery, fastest first, instead of by net received.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -245,6 +253,7 @@ outcome sortEta "$by_eta"
 # minOut on sell-exact quotes, and maxPay on buy-exact quotes from your venue accounts.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$protection_amount" \
   --argjson bps "$protection_bps" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -254,6 +263,7 @@ protected=$(quote_request "$request")
 jq -c '[.quotes[] | select(.minOut != null) | {venue: .legs[0].venue.id, buy: .buy.amount, minOut}]' <<<"$protected" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" \
   --argjson bps "$protection_bps" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   buyAmount: $amount,

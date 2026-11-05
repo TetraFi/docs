@@ -8,6 +8,7 @@
 jq -c --arg p "$sell" --arg r "$buy" '[.assets[] | select(.assetId == $p or .assetId == $r)
   | {asset: .assetId, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,

@@ -63,7 +63,7 @@ amounts=${TETRAFI_AMOUNTS:-1 5 10 25}
 results='{}'
 for amount in $amounts; do
   answer=$(tetrafi POST /api/v1/quotes "$(jq -cn --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
-    '{sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount}')")
+    '{kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount}')")
   results=$(jq -cn --arg amount "$amount" --argjson answer "$answer" --argjson seen "$results" 'reduce ($answer.sources[]
     | select(.status != "filteredOut")) as $s ($seen;
       if .[$s.venue.id].smallest then . else

@@ -5,7 +5,7 @@
 ```bash cURL
 # Every answer's sourceOptions lists, per network, the trading wallets this key may name, each by its
 # financialAccountId; isDefault marks the one used when you name none.
-first=$(quote_request "$(jq -cn --arg amount "$amount" '{sell: {asset: "USDC"}, buy: {asset: "ETH"},
+first=$(quote_request "$(jq -cn --arg amount "$amount" '{kind: "pair", sell: {asset: "USDC"}, buy: {asset: "ETH"},
   sellAmount: $amount}')") || { printf '%s\n' "$first" >&2; exit 1; }
 trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
   | select(.chain as $c | $chains | index($c))
