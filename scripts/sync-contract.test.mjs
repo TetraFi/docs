@@ -120,3 +120,21 @@ test('check reports a hand-edited permissions page and regeneration repairs it',
   assert.equal(run().status, 0);
   assert.equal(run('--check').status, 0);
 });
+
+// Catches a rustdoc summary published as its raw lines: the route line and escaped code spans.
+test('an operation is named by its summary line, with balanced code spans kept', () => {
+  const spec = scopedSpec();
+  spec.paths['/api/v1/assets'].get.summary = '`GET /api/v1/assets`: the assets you can trade.\nGET /api/v1/assets - List assets';
+  spec.paths['/api/v1/me'].get.summary = 'An `unbalanced code span';
+  delete spec.paths['/api/v1/oauth/token'].post.summary;
+  spec.paths['/api/v1/orders/{orderId}'] = { get: { summary: 'Read an order', security: [{ api_key: ['quotes:read'] }] } };
+  const { run, page } = fixture(spec);
+  assert.equal(run().status, 0);
+  const text = readFileSync(page, 'utf8');
+  for (const row of [
+    '| GET | `/api/v1/assets` | `GET /api/v1/assets`: the assets you can trade. | `quotes:read` | Read quotes |',
+    '| GET | `/api/v1/me` | An &#96;unbalanced code span | None | None |',
+    '| POST | `/api/v1/oauth/token` |  | No API key required | Not applicable |',
+    '| GET | `/api/v1/orders/{orderId}` | Read an order | `quotes:read` | Read quotes |',
+  ]) assert.ok(text.includes(row), `Missing row: ${row}`);
+});

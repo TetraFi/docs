@@ -64,12 +64,18 @@ function normalizePath(raw) {
 }
 
 export function responseSchemas(spec) {
+  // A schema may itself be a reference with a sibling description (an alias), so follow the chain.
   const resolve = (node) => {
-    if (!node?.$ref) return node;
-    if (!node.$ref.startsWith('#/')) throw new Error(`unsupported reference ${node.$ref}`);
-    const target = node.$ref.slice(2).split('/').reduce((value, key) => value?.[key.replace(/~1/g, '/').replace(/~0/g, '~')], spec);
-    if (!target) throw new Error(`unresolved reference ${node.$ref}`);
-    return target;
+    const seen = new Set();
+    while (node?.$ref) {
+      if (seen.has(node.$ref)) throw new Error(`reference cycle at ${node.$ref}`);
+      seen.add(node.$ref);
+      if (!node.$ref.startsWith('#/')) throw new Error(`unsupported reference ${node.$ref}`);
+      const target = node.$ref.slice(2).split('/').reduce((value, key) => value?.[key.replace(/~1/g, '/').replace(/~0/g, '~')], spec);
+      if (!target) throw new Error(`unresolved reference ${node.$ref}`);
+      node = target;
+    }
+    return node;
   };
   const byOperation = new Map();
   for (const [route, item] of Object.entries(spec.paths ?? {})) {

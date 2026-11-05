@@ -249,6 +249,16 @@ function permissionsPage() {
   const cell = (value) => value.replace(/&/g, '&amp;').replace(/\|/g, '&#124;')
     .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;')
     .replace(/`/g, '&#96;').replace(/\r?\n/g, '<br />');
+  // Code spans are literal in MDX: only a pipe, which would split the table cell, is escaped.
+  const code = (value) => `\`${value.replace(/\|/g, '\\|')}\``;
+  // The summary's first line names the operation; later rustdoc lines repeat the route. Balanced
+  // backticks stay code spans; an unbalanced one is escaped so it cannot open a span across cells.
+  const operationName = (summary) => {
+    const line = (summary ?? '').split(/\r?\n/).find((part) => part.trim())?.trim() ?? '';
+    const parts = line.split('`');
+    if (parts.length % 2 === 0) return cell(line);
+    return parts.map((part, i) => (i % 2 ? code(part) : cell(part))).join('');
+  };
   const permission = (scope) => {
     const label = labels && Object.hasOwn(labels, scope) ? labels[scope]?.permission : undefined;
     if (typeof label === 'string' && label.trim()) return cell(label);
@@ -262,7 +272,7 @@ function permissionsPage() {
     let permissions;
     if (keyRequirements.length) {
       scopes = keyRequirements.map(({ api_key }) => api_key.length ?
-        api_key.map((scope) => `\`${cell(scope)}\``).join('<br />') : 'None').join(' or ');
+        api_key.map(code).join('<br />') : 'None').join(' or ');
       permissions = keyRequirements.map(({ api_key }) => api_key.length ?
         api_key.map(permission).join('<br />') : 'None').join(' or ');
     } else {
@@ -270,7 +280,7 @@ function permissionsPage() {
         'No API key required' : 'Session only';
       permissions = 'Not applicable';
     }
-    return `| ${method} | \`${cell(route)}\` | ${cell(summary ?? 'Summary not provided in the API specification')} | ${scopes} | ${permissions} |`;
+    return `| ${method} | ${code(route)} | ${operationName(summary)} | ${scopes} | ${permissions} |`;
   });
   return { page: [
     ...heading,
