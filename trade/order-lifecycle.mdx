@@ -1,0 +1,51 @@
+---
+title: "Order lifecycle"
+description: "The public statuses shared by Basic and Advanced orders, with final outcomes marked."
+---
+
+Both order kinds use the same public `status` values. The diagram shows common paths, not a required sequence: states can be skipped, and a review or uncertain outcome can interrupt progress. Always use the response's `terminal` flag to decide when to stop.
+
+```mermaid
+stateDiagram-v2
+    state "settled (terminal)" as settled
+    state "unfilled (terminal)" as unfilled
+    state "refused (terminal)" as refused
+    state "cancelled (terminal)" as cancelled
+    state "failed (terminal)" as failed
+    state "refunded (terminal)" as refunded
+
+    [*] --> pending
+    pending --> working
+    pending --> refused
+    pending --> cancelled
+    pending --> unfilled
+    pending --> reviewRequired
+    working --> filled
+    working --> unfilled
+    working --> failed
+    working --> refunded
+    working --> outcomeUnknown
+    working --> reviewRequired
+    filled --> settled
+    filled --> failed
+    filled --> reviewRequired
+    reviewRequired --> working
+    outcomeUnknown --> working: reconciled
+    outcomeUnknown --> filled: fill confirmed
+    outcomeUnknown --> unfilled: confirmed unfilled
+    outcomeUnknown --> failed
+    outcomeUnknown --> refunded
+    outcomeUnknown --> reviewRequired
+    settled --> [*]
+    unfilled --> [*]
+    refused --> [*]
+    cancelled --> [*]
+    failed --> [*]
+    refunded --> [*]
+```
+
+`outcomeUnknown` is not terminal and does not mean failure: the trade may have filled. `reviewRequired` is also not final; follow the response's `next` action. `refused` is final and means a pre-trade check stopped the order before anything was sent.
+
+A final `failed` outcome does not by itself prove that nothing traded; read the recorded fills and settlement detail. [Order status](/trade/order-status#statuses) explains each value, and [Recover an uncertain order](/trade/recovering-an-order) gives the safe recovery sequence.
+
+New status values may be added. Treat one you do not recognise as "other" and keep following `terminal`, rather than failing your parser or assuming success.

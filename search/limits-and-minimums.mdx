@@ -1,0 +1,40 @@
+---
+title: "Limits and minimums"
+description: "Read venue size bounds and Pilot caps from the quote answer, and distinguish a small order from a cap conflict."
+---
+
+Limits depend on the venue, pair, account and execution stage. Read them from `POST /api/v1/quotes` for the amount you intend to trade; do not maintain one global minimum or assume a successful quote reserves capacity.
+
+## Read the answer
+
+| Where | What it tells you |
+| --- | --- |
+| `quotes[].sizeLimits` | The provider bounds observed for that quote, when available. |
+| `sources[].sizeLimits` | Bounds retained with a venue's outcome, including a size refusal. |
+| `sizeLimits.fixedAmount` | Which exact request amount the observation bounds. |
+| `sizeLimits.read` | With `status: "observed"`, the read can include `minimum`, `maximum`, `bands` and `observedAt`; with `status: "unavailable"`, `code` says why the limits could not be read. |
+| `minimum` and `maximum` | Decimal-string `amount` with a `unit`: `kind: "asset"` names its `asset`, while `kind: "usd"` is USD notional. A missing bound is not zero or unlimited. |
+| `bands` | The individual mechanisms' size ranges. Do not assume an amount between the outer minimum and maximum fits a band. |
+| `quotes[].legs[].execution.stage` | For a venue-account leg, the current stage and any Pilot caps; protocol legs have no venue-account execution block. |
+
+An absent or `null` observation means no bound was reported, not that any amount is allowed. Observed bounds are not a current admission grant: checks run again before dispatch.
+
+## Pilot is real, capped execution
+
+A stage with `kind: "pilot"` exposes `maxPerTradeUsd` and `maxPerDayUsd`. These are USD-notional caps, not amounts of the asset you sell. The daily cap applies per UTC day across all workspaces for that venue execution stage, not just to your key. Read the returned values rather than hard-coding them.
+
+A `live` stage has no TetraFi execution caps; venue limits still apply. A `disabled` stage does not execute, even when a price is shown.
+
+## When the amount does not fit
+
+The quote answer keeps the venue in `sources`, with `status`, `reason` and a human-readable `detail`. A source reason is not an HTTP error for the whole search.
+
+| Source reason | Meaning and action |
+| --- | --- |
+| reason `belowVenueMinimum` | Below the verified venue minimum. `detail` names the native amount and asset. Raise the amount; this alone is not a Pilot conflict. |
+| reason `amountBelowMinimum` | Below what the venue takes. Raise the amount. |
+| reason `amountAboveMaximum` | Above what the venue takes. Lower the amount. |
+| reason `pilotTradeCapExceeded` | Above the Pilot per-trade cap. Lower the amount. |
+| reason `pilotMinimumAboveTradeCap` | The venue minimum itself exceeds the Pilot cap. No amount fits both; choose another venue. |
+
+At order time, Pilot admission still checks both caps; a quote does not reserve the remaining daily allowance. `PILOT_TRADE_CAP_EXCEEDED` means nothing was sent because the per-trade cap was exceeded. Read the [error-code reference](/reference/error-codes) for the returned code and remedy; [How search works](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote) explains how to read the other source outcomes.
