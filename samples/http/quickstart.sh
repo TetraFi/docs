@@ -130,13 +130,16 @@ request a fresh quote, generate a new key, or place a fresh order to retry this 
 In a Bash session with the tetrafi helper from step 1, resend the saved body with
 the SAME key, then read by quote even if that replay fails:
   order_record='$order_record'
-  quote_id=\$(jq -er '.quoteId' "\$order_record")
-  idempotency_key=\$(jq -er '.idempotencyKey' "\$order_record")
-  order_body=\$(jq -er '.exactBody' "\$order_record")
-  if ! tetrafi POST /api/v1/orders "\$order_body" "Idempotency-Key: \$idempotency_key"; then
+RECOVERY
+  cat >&2 <<'RECOVERY'
+  saved_record=$(jq -cn '[inputs] | if length == 1 then .[0] else error("ORDER_RECORD_INVALID") end' "$order_record")
+  quote_id=$(jq -er '.quoteId' <<<"$saved_record")
+  idempotency_key=$(jq -er '.idempotencyKey' <<<"$saved_record")
+  order_body=$(jq -er '.exactBody' <<<"$saved_record")
+  if ! tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key"; then
     echo 'Replay unresolved; still read by quote.' >&2
   fi
-  tetrafi GET "/api/v1/orders/by-quote/\$quote_id"
+  tetrafi GET "/api/v1/orders/by-quote/$quote_id"
 ordered: follow statusUrl. unknown or a failed read: wait and read again, never order again.
 notOrdered: retry only the saved body and key, and only while expired is false.
 RECOVERY
@@ -165,29 +168,35 @@ if [[ ! -e $order_record && ! -L $order_record ]]; then
     exit 1
   fi
 fi
+# This is local data, not an API response. Read exactly one saved JSON record.
+if ! saved_record=$(jq -cn '[inputs] | if length == 1 then .[0] else error("ORDER_RECORD_INVALID") end' "$order_record"); then
+  order_recovery
+  exit 1
+fi
 # Re-entering this step for the same quote always reuses its saved key AND body.
 if ! jq -e --arg q "$quote_id" '.quoteId == $q
   and (.idempotencyKey | type == "string" and test("^[a-f0-9]{32}$"))
   and (.exactBody | type == "string")
-  and (.exactBody | fromjson | .quoteId == $q)' "$order_record" >/dev/null; then
+  and (.exactBody | fromjson | .quoteId == $q)' <<<"$saved_record" >/dev/null; then
   echo 'Order record is unreadable or mismatched. Do not replace it with a new key.' >&2
   order_recovery
   exit 1
 fi
-idempotency_key=$(jq -er '.idempotencyKey' "$order_record")
-order_body=$(jq -er '.exactBody' "$order_record")
+idempotency_key=$(jq -er '.idempotencyKey' <<<"$saved_record")
+order_body=$(jq -er '.exactBody' <<<"$saved_record")
 # Any failed POST (including 5xx and 409 IDEMPOTENCY_*) needs recovery, not a new order.
 if ! placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key"); then
   order_recovery
   exit 1
 fi
-if ! jq -e -s --arg q "$quote_id" 'length == 1 and (.[0] | type == "object"
+if ! jq -e --arg q "$quote_id" 'type == "object"
   and (.kind | type == "string" and length > 0)
   and (.orderId | type == "string" and length > 0)
   and (.statusUrl | type == "string" and startswith("/api/v1/orders/"))
   and (.status | type == "string" and length > 0)
   and (.terminal | type == "boolean")
-  and (.quoteId == null or .quoteId == $q))' <<<"$placed" >/dev/null; then
+  and (.quoteId == null or .quoteId == $q)' <<<"$placed" >/dev/null \
+  || [[ $(jq -s 'length' <<<"$placed") != 1 ]]; then
   echo 'Order answer is unreadable; it is not proof that nothing was placed.' >&2
   order_recovery
   exit 1
