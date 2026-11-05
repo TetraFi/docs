@@ -21,7 +21,7 @@ jq -c '{sourceOptions: [.sourceOptions[]? | {kind, chain, candidates: [.candidat
 const walletsIn = (set: QuoteSet): Record<string, string> => {
   const found: Record<string, string> = {};
   for (const option of set.sourceOptions ?? []) {
-    if (option.kind !== 'wallet' || typeof option.chain !== 'string' || !usdcChains.has(option.chain)) continue;
+    if (option.kind !== 'wallet' || !('chain' in option) || typeof option.chain !== 'string' || !usdcChains.has(option.chain)) continue;
     const chosen = option.candidates.find((candidate) => candidate.isDefault) ?? option.candidates[0];
     if (chosen) found[option.chain] = chosen.financialAccountId;
   }
