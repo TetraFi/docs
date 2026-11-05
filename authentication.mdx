@@ -51,7 +51,7 @@ Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC
 
 ### Check what a key can trade from
 
-`GET /api/v1/me` with a workspace key also answers `organisationWallets`, so the key can see its own setup before it orders:
+`GET /api/v1/me` with a workspace key includes its own `organisationWallets` trading authority, so the key can see its setup before it orders. This is part of API-key introspection, not the owner's wallet list or profile:
 
 | Field | What it says |
 | --- | --- |
@@ -86,7 +86,19 @@ The key is bound to its workspace when it is created, so every request it sends 
 
 Order reads need authentication too. Send your key on `GET /api/v1/orders/{orderId}`. A read without credentials never returns the order: it answers `401 AUTH_REQUIRED` before any order lookup. Authentication and workspace refusals use the same [JSON error body](/trade/errors#read-a-refusal) as other API refusals.
 
-To check a key, call `GET /api/v1/me`. It has no side effects and returns the key's workspace in `workspaceId`, its current permissions and scopes, its rate limits and its expiry. Use it to find the workspace id of a new key: a few paths, such as a Basic trade status read after [recovering an order by its quote](/trade/idempotency#recover-an-order-by-its-quote), still contain it. A key with request signing must still sign it.
+To check a key, call `GET /api/v1/me`. It has no side effects and returns `IntrospectionResponse`: the presented API key's identity and current authority, not an interactive user's profile or verification state. A key with request signing must still sign it.
+
+| Field | What it says |
+| --- | --- |
+| `authKind` | `apiKey`: this answer describes the presented key. |
+| `auth` | `apiKey`, or `oauthClientCredentials` for a bearer token exchanged from the key. |
+| `keyId`, `name`, `origin` | The key's identity. |
+| `scopes`, `permissions`, `dataScope` | The key's current authority. |
+| `workspaceId` | The workspace the key is bound to; absent or `null` for a key bound to no workspace. |
+| `organisationWallets` | Its own wallet grants and signing state ([above](#check-what-a-key-can-trade-from)); absent or `null` when the key has no workspace. |
+| `rateLimits`, `expiresAt` | The key's rate limits and expiry when present. Do not assume these optional fields are set. |
+
+Use `workspaceId` to find the workspace id of a new workspace key: a few paths, such as a Basic trade status read after [recovering an order by its quote](/trade/idempotency#recover-an-order-by-its-quote), still contain it. A programmatic client must not request a profile or verification expansion.
 
 ## Sign requests
 

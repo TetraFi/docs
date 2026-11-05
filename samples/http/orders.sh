@@ -111,9 +111,10 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   idempotency_key=$(openssl rand -hex 16)
   order_body="{\"quoteId\":\"$order_quote\"}"
   placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
-  # A basicTrade names its venue trade in operation; an advancedTrade names its order in order.
-  jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
-    else {order: (.order | {orderId})} end' <<<"$placed" >&2
+  # Common progress fields work for every kind; inspect operation only for a known basicTrade.
+  jq -c '{kind, orderId, quoteId, status, terminal, statusUrl}
+    + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
+      else {} end' <<<"$placed" >&2
   # endregion
 
   # region order-idempotent-replay
@@ -148,10 +149,10 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
     conflict: $c, recovered: $r.state}}' <<<"$summary")
 
   # region order-status
-  # Read the order at the statusUrl its answer gave: the same envelope as POST /orders, for
-  # Basic and Advanced orders alike. Poll every 10 to 15 seconds until terminal is true. While it
-  # is not, next can say what to do: wait (retryAfter) or contact support with its reference.
-  # A status you do not recognise is "other": keep following terminal.
+  # Read the order at the statusUrl its answer gave: the same envelope as POST /orders, even
+  # for a kind this client does not know. Poll every 10 to 15 seconds until terminal is true.
+  # While it is not, next can say what to do: wait (retryAfter) or contact support with its reference.
+  # A kind or status you do not recognise is "other": keep following terminal.
   status_url=$(jq -r '.statusUrl' <<<"$placed")
   for _ in $(seq 1 12); do
     read_order=$(tetrafi GET "$status_url")

@@ -147,14 +147,6 @@
             "api",
             "v1",
             "me"
-          ],
-          "query": [
-            {
-              "key": "include",
-              "value": "<include>",
-              "disabled": true,
-              "description": "Comma-separated: profile, permissions, verification. An interactive session only, except permissions, which an API key's answer always carries"
-            }
           ]
         }
       },
@@ -207,7 +199,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic and Advanced orders using the same envelope as GET /orders/{orderId}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
+        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic orders using the same envelope as GET /orders/{orderId}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -292,7 +284,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Submit a new order\nPOST /api/v1/orders - Submit an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A venue (Basic) quote becomes a venue trade (`basicTrade`); a protocol (Advanced) quote becomes a protocol order (`advancedTrade`), after POST /orders/preflight and any wallet signature or source transaction it asks for. Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
+        "description": "Submit a new order\nPOST /api/v1/orders - Submit an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A Basic venue quote becomes a venue trade (`basicTrade`). Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -390,40 +382,6 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders/{orderId}/funding",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`GET /api/v1/orders/{orderId}/funding` — fetch the StableFX funding `typedData` to sign.\n\nRecovery path: the order-create response normally carries the funding action in\nits `nextActions`, but if the create-time presign prefetch failed the client can\nfetch the typed data here on demand (it is re-derived server-side from the order's\n`contractTradeId`). Returns the `signTypedData` action (typed data + where to submit\nthe signature) or 404 when the order has no pending funding step.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:orderId/funding",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            ":orderId",
-            "funding"
-          ],
-          "variable": [
-            {
-              "key": "orderId",
-              "value": "<orderId>",
-              "description": "Order ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
       "name": "GET /api/v1/orders/by-quote/{quoteId}",
       "request": {
         "method": "GET",
@@ -433,7 +391,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Requires current view_orders in the selected workspace and orders_read for API keys. ordered names the native advancedTrade or basicTrade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
+        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Requires current view_orders in the selected workspace and orders_read for API keys. ordered names the Basic venue trade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/by-quote/:quoteId",
           "host": [
@@ -1266,6 +1224,20 @@
             ":workspaceId",
             "webhooks"
           ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, default 20, clamped to 1–100"
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque nextCursor from this workspace's webhook list"
+            }
+          ],
           "variable": [
             {
               "key": "workspaceId",
@@ -1380,6 +1352,12 @@
             "value": "application/json"
           },
           {
+            "key": "If-Match",
+            "value": "<If-Match>",
+            "disabled": false,
+            "description": "Required strong ETag from GET, or quoted updatedAt from the same list snapshot"
+          },
+          {
             "key": "Content-Type",
             "value": "application/json"
           }
@@ -1488,6 +1466,20 @@
             ":webhookId",
             "deliveries"
           ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, default 20, clamped to 1–100"
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque nextCursor from this webhook's delivery history"
+            }
+          ],
           "variable": [
             {
               "key": "workspaceId",
@@ -1505,7 +1497,67 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver",
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required. Same key and kind replay the stored 201 delivery without a second send; different body is 409 IDEMPOTENCY_CONFLICT."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "deliveries"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"kind\": \"test\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry",
       "request": {
         "method": "POST",
         "header": [
@@ -1516,7 +1568,7 @@
         ],
         "description": "Send one retained payload again with current URL and signing secret.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/redeliver",
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/retry",
           "host": [
             "{{baseUrl}}"
           ],
@@ -1529,7 +1581,7 @@
             ":webhookId",
             "deliveries",
             ":deliveryId",
-            "redeliver"
+            "retry"
           ],
           "variable": [
             {
@@ -1553,7 +1605,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/reactivate",
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume",
       "request": {
         "method": "POST",
         "header": [
@@ -1562,9 +1614,9 @@
             "value": "application/json"
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/reactivate`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/reactivate",
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/resume",
           "host": [
             "{{baseUrl}}"
           ],
@@ -1575,7 +1627,7 @@
             ":workspaceId",
             "webhooks",
             ":webhookId",
-            "reactivate"
+            "resume"
           ],
           "variable": [
             {
@@ -1594,18 +1646,24 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate-secret",
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Accept",
             "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required for every caller (1 to 255 bytes; missing or empty is 400 IDEMPOTENCY_KEY_REQUIRED). The same key within 24 hours replays the stored 200 without rotating again: secret is null and secretShownOnce true. A new key rotates again. Reuse with a different request is 409 IDEMPOTENCY_CONFLICT."
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate-secret`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate-secret",
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate",
           "host": [
             "{{baseUrl}}"
           ],
@@ -1616,48 +1674,7 @@
             ":workspaceId",
             "webhooks",
             ":webhookId",
-            "rotate-secret"
-          ],
-          "variable": [
-            {
-              "key": "workspaceId",
-              "value": "<workspaceId>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/test",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/test`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/test",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":workspaceId",
-            "webhooks",
-            ":webhookId",
-            "test"
+            "rotate"
           ],
           "variable": [
             {

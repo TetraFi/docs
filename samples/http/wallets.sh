@@ -75,13 +75,16 @@ quote_request() {
 amount=${TETRAFI_AMOUNT:-10}
 
 # region me-organisation-wallets
-# What this key can trade from: its venue trading setup and the organisation wallets granted to it.
+# Introspect this key, not its owner's profile. A workspace key sees its venue trading setup and
+# granted organisation wallets. A key without a workspace may omit organisationWallets or return null.
 # blockedBy, when present, is the code an organisation-wallet order would be refused with right now.
 me=$(tetrafi GET /api/v1/me)
-jq -c '.organisationWallets | {venueTradeScope, venueTradeEnabled, requestSigningRequired,
-  grants: [.grants[] | .financialAccountId], blockedBy}' <<<"$me" >&2
+jq -c '.organisationWallets | if . == null then null else
+  {venueTradeScope, venueTradeEnabled, requestSigningRequired,
+    grants: [.grants[] | .financialAccountId], blockedBy} end' <<<"$me" >&2
 # endregion
-me_summary=$(jq -c '.organisationWallets | {grants: (.grants | length), blocked: (.blockedBy != null)}' <<<"$me")
+me_summary=$(jq -c '.organisationWallets | if . == null then null else
+  {grants: (.grants | length), blocked: (.blockedBy != null)} end' <<<"$me")
 
 # USDC's EVM chains, from the asset list.
 usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.assets[] | select(.assetId == "USDC") | .variants[]

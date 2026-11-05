@@ -59,7 +59,9 @@ A Basic quote answers `"kind": "basicTrade"` with the venue trade it created:
 }
 ```
 
-Every order answer carries `status`, `terminal` and `statusUrl`, and [`GET /api/v1/orders/{id}`](/trade/order-status) at `statusUrl` answers the same envelope.
+Every order answer carries `orderId`, `status`, `terminal` and `statusUrl`, and [`GET /api/v1/orders/{id}`](/trade/order-status) at `statusUrl` answers the same envelope. Use the top-level `orderId` for identity and idempotent replays, without selecting a nested id by kind.
+
+The current integrator contract describes `basicTrade`; new kinds may be added. The TypeScript SDK marks a kind this client does not know with `unknownKind: true`, while keeping the server's `kind`, `id`/`orderId`, `status`, `terminal` and `statusUrl`. Read its status and terminality, and follow `statusUrl`; do not assume it has `operation` or `order` detail, and do not resubmit it because its kind is unfamiliar. See [Kinds this client does not know](/trade/order-status#kinds-this-client-does-not-know).
 
 Each quote can be ordered once. Follow the order with [Order status](/trade/order-status).
 

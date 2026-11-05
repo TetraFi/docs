@@ -22,13 +22,19 @@ See [Order lifecycle](/trade/order-lifecycle) for the status diagram and [Settle
 | Field | Meaning |
 | --- | --- |
 | `orderId` | The order's id: the one `GET /api/v1/orders/{id}` takes. |
-| `kind` | `basicTrade`, a trade TetraFi executes for you on a venue, or `advancedTrade`, an on-chain order. |
+| `kind` | `basicTrade`, a trade TetraFi executes for you on a venue. New kinds may be added; keep reading the common progress fields when you do not recognise one. |
 | `status` | Where the order is (below). |
 | `terminal` | `true` when the order can no longer change. Stop polling on this, not on a particular `status`. |
 | `next` | Present only while there is something to do in the meantime (below). |
 | `statusUrl` | Where to read the order again. |
 | `quoteId` | The quote it was placed from, when known. |
-| `operation` or `order` | The venue trade's or on-chain order's own detail, for `basicTrade` or `advancedTrade`. |
+| `operation` | The venue trade's own detail on a `basicTrade` order. Do not assume another kind has the same detail. |
+
+### Kinds this client does not know
+
+The TypeScript SDK returns an order with `unknownKind: true` when its `kind` is not one this client knows. It preserves the server's `kind`, `orderId` (also available as `id`), `status`, `terminal` and `statusUrl`. `unknownKind` is an SDK marker, not a wire field or a replacement value for `kind`.
+
+Read `status` and `terminal`, and follow `statusUrl` until the order is terminal. Do not read `operation` or assume an on-chain `order` payload exists on an unknown kind. An unfamiliar kind does not mean the order failed and is never a reason to submit it again.
 
 ## Statuses
 

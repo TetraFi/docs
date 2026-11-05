@@ -138,15 +138,16 @@ order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$dec
 # returns the first answer instead of moving the funds twice.
 idempotency_key=$(openssl rand -hex 16)
 placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
-# A basicTrade names its venue trade in operation; an advancedTrade names its order in order.
-jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
-  else {order: (.order | {orderId})} end' <<<"$placed" >&2
+# Common progress fields work for every kind; inspect operation only for a known basicTrade.
+jq -c '{kind, orderId, quoteId, status, terminal, statusUrl}
+  + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
+    else {} end' <<<"$placed" >&2
 # endregion
 
 # region recipe-cross-chain-status
 # Follow the order at the statusUrl the answer gave until terminal is true, polling every 10
-# seconds, or after next.retryAfter when it says to wait. The envelope is the same for a move
-# TetraFi executes for you (basicTrade) and an on-chain order (advancedTrade).
+# seconds, or after next.retryAfter when it says to wait. Follow these common progress fields
+# even for a kind this client does not know; never infer failure or resubmit from kind.
 status_url=$(jq -r '.statusUrl' <<<"$placed")
 for _ in $(seq 1 60); do
   state=$(tetrafi GET "$status_url")
