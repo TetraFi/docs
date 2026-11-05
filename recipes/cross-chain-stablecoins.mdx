@@ -63,7 +63,17 @@ export TETRAFI_TO_CHAIN=...           # the CAIP-2 chain you buy on, from step 1
     {"quoteId":"q_01M5XS49…","venue":"across","next":"order","sell":"1 on eip155:84532","buy":"0.999501 on eip155:11155111","eta":"PT166S","tradesFrom":{"kind":"wallet","financialAccountId":"4d4670ab-…","network":"eip155:84532"},"fundingModel":"prefunded"}
     ```
 
-    A venue that cannot quote says why in `sources`. `amountBelowMinimum` comes with a `detail` naming the least you can move.
+    A venue that cannot quote says why in `sources`. Below a bridge's minimum, its source reads `amountBelowMinimum`, `fix` gives the least amount to request, and `detail` says the same in words:
+
+    ```json Output on test networks (shortened)
+    {"venue":{"id":"cctp"},"status":"unavailable","reason":"amountBelowMinimum","asked":true,"fix":{"kind":"changeAmount","amount":"5.943624"},"detail":"Request at least 5.943624 USDC to get a price."}
+    ```
+
+    Request at least `fix.amount` and quote again. The minimum follows the bridge's fees, so it moves; the script defaults to 10 USDC to stay above it on test networks.
+
+    <Note>
+    Relay is not available from an organisation wallet whose signing policy pins where it may send funds. Relay chooses a new deposit address for each order, and such a policy cannot approve an address it does not know in advance. Use Circle CCTP for cross-chain USDC from those wallets.
+    </Note>
 
     You can send one live quote request every 3 seconds. The script waits `details.retryAfter` once when it gets `429 QUOTE_RATE_LIMITED`.
   </Step>
@@ -144,7 +154,7 @@ When no quote's `next` is `order`, the script stops and its summary lists why, v
 | What you see | What it means | What to do |
 | --- | --- | --- |
 | `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | The key has no organisation wallet granted to it that this venue can use. | Ask a workspace owner to [grant the key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets). |
-| `unavailable` with `amountBelowMinimum` | The amount is below what that venue moves. `detail` names the least. | Move at least that amount. |
+| `unavailable` with `amountBelowMinimum` | The amount is below what that venue moves. `fix.amount` is the least, and `detail` says it in words. | Request at least `fix.amount` and quote again. |
 | A quote whose `next` is `preflight`, `sign` or `transact` | The move would pay from your own wallet on-chain (Advanced), which is not open yet. | Use a quote whose `next` is `order`. |
 | `restricted` with `venueTradeScopeRequired` | The key cannot trade on venue accounts. | Set up [venue trading](/authentication#trading-on-your-venue-accounts) for the key. |
 

@@ -12,7 +12,7 @@
 #   TETRAFI_ASSET           the asset to move (default USDC)
 #   TETRAFI_FROM_CHAIN      CAIP-2 chain you sell on (default: the first chain GET /assets lists)
 #   TETRAFI_TO_CHAIN        CAIP-2 chain you buy on (default: the next chain GET /assets lists)
-#   TETRAFI_AMOUNT          the amount you sell (default 1)
+#   TETRAFI_AMOUNT          the amount you sell (default 10: bridges have a minimum, a few USDC on test networks)
 #   TETRAFI_SLIPPAGE_BPS    how far below an indicative quote you accept, in basis points (default 50)
 #   TETRAFI_PLACE_ORDER=1   places the order (yes also works); without it the script stops before ordering
 #
@@ -71,7 +71,7 @@ quote() {
 }
 
 asset=${TETRAFI_ASSET:-USDC}
-amount=${TETRAFI_AMOUNT:-1}
+amount=${TETRAFI_AMOUNT:-10}
 
 # region recipe-cross-chain-chains
 # The chains an asset is on come from GET /assets: every deployment of its native variant.
