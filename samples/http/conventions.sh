@@ -79,13 +79,14 @@ echo "assets: ${#listed[@]} across $pages pages" >&2
 # region conventions-request-id
 # Send your own X-Request-Id (letters, digits, - and _, up to 64 characters) to find a request
 # in your logs and ours; the response echoes it. Without one, TetraFi generates a UUID.
-# The rate-limit headers say how many requests this key has left before a 429.
+# RateLimit-Policy and RateLimit say how many requests this key has left before a 429.
 request_id="conventions-$(date +%s)"
 headers_file=$(mktemp)
 quotes=$(tetrafi POST /api/v1/quotes "$(jq -cn '{sell: {asset: "USDC"}, buy: {asset: "USDT"},
   sellAmount: "10"}')" "X-Request-Id: $request_id" "$headers_file")
-header() { awk -v name="$1" 'tolower($1) == tolower(name ":") { sub(/\r$/, "", $2); print $2 }' "$headers_file" | tail -1; }
-echo "{\"requestId\":\"$(header x-request-id)\",\"limit\":\"$(header x-ratelimit-limit)\",\"remaining\":\"$(header x-ratelimit-remaining)\",\"reset\":\"$(header x-ratelimit-reset)\"}" >&2
+header() { awk -v name="$1" 'tolower($1) == tolower(name ":") { sub(/^[^:]*:[ \t]*/, ""); sub(/\r$/, ""); print }' "$headers_file" | tail -1; }
+jq -cn --arg requestId "$(header x-request-id)" --arg policy "$(header ratelimit-policy)" --arg rateLimit "$(header ratelimit)" \
+  '{requestId: $requestId, rateLimitPolicy: $policy, rateLimit: $rateLimit}' >&2
 # endregion
 [[ $(header x-request-id) == "$request_id" ]] || fail REQUEST_ID_NOT_ECHOED
 
