@@ -114,9 +114,12 @@ Every response counted by a finite limiter, including 2xx and 429, carries
 `RateLimit-Policy: 100;w=60` (quota and window seconds) and
 `RateLimit: limit=100, remaining=41, reset=19` (a structured dictionary), following
 [draft-ietf-httpapi-ratelimit-headers-07, sections 3.1 and 3.5](https://www.ietf.org/archive/id/draft-ietf-httpapi-ratelimit-headers-07.html).
-Values come from the actual admission decision. The last enforced key or route
-policy takes precedence over the per-address policy; on a limiter's 429 the refused
-policy is reported with `remaining=0`, and `reset` equals `Retry-After` and the
+Values come from actual admission decisions. Of the applicable key, route and
+per-address policies, the closest to exhaustion is reported (section 3.2): lowest
+remaining, then longest reset. On a limiter's 429 exactly the refusing policy is
+reported with `remaining=0`; if a venue supplies a cooldown but no quota/window,
+RateLimit headers are omitted rather than attributed to an unrelated policy.
+For a known refusing policy, `reset` equals `Retry-After` and the
 seconds in `details.retryAfter`. Reset is the whole-second wait until quota next
 becomes available, not an epoch or a promise of a full token-bucket burst refill.
 A rolling window may restore quota incrementally. Missing headers mean no quota
