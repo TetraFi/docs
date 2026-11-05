@@ -22,6 +22,11 @@ test('credential and id shapes are caught', () => {
   ]) assert.ok(caught(sample).length, `not caught: ${sample}`);
 });
 
+test('backend source paths are caught', () => {
+  for (const sample of [['crates', 'api', 'src', 'integrator_codes.rs'].join('/') + ' owns the rows', 'see ' + ['retry_after', 'rs'].join('.')])
+    assert.ok(caught(sample).includes('internal-source-path'), `not caught: ${sample}`);
+});
+
 test('ordinary docs text passes', () => {
   for (const sample of ['an OTC desk quotes', 'chain eip155:8453', 'amount "10.0134"', 'address 0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693'])
     assert.deepEqual(caught(sample), [], sample);
