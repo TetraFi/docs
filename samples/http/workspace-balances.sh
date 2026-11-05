@@ -50,6 +50,8 @@ tetrafi() {
   fi
 }
 
+fail() { echo "{\"error\":\"$1\"}" >&2; exit 1; }
+
 # region balances-list
 # GET …/balances lists one row per account, asset and chain. Pass nextCursor back as cursor until
 # it is null. amount is a decimal string in whole asset units; asOf is when it was observed.

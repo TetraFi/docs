@@ -48,6 +48,8 @@ tetrafi() {
   fi
 }
 
+fail() { echo "{\"error\":\"$1\"}" >&2; exit 1; }
+
 # region fee-schedule-read
 # GET …/fee-schedule answers the schedule in force (current) and the changes already scheduled
 # (upcoming), oldest first. Every rate is a decimal string in parts per million: 100 ppm is one
