@@ -1955,7 +1955,7 @@
         "type": "object"
       },
       "DeliverTo": {
-        "description": "Output to own money (a financial account) or an explicit chain address.\n\nNew values may be added; treat unknown values as other.",
+        "description": "Output to own money (a financial account) or an explicit chain address.",
         "discriminator": {
           "propertyName": "kind"
         },
@@ -1967,12 +1967,10 @@
                 "type": "string"
               },
               "kind": {
-                "description": "New values may be added; treat unknown values as other.",
                 "enum": [
                   "financialAccount"
                 ],
-                "type": "string",
-                "x-extensible-enum": true
+                "type": "string"
               }
             },
             "required": [
@@ -2003,12 +2001,10 @@
                 ]
               },
               "kind": {
-                "description": "New values may be added; treat unknown values as other.",
                 "enum": [
                   "address"
                 ],
-                "type": "string",
-                "x-extensible-enum": true
+                "type": "string"
               }
             },
             "required": [
@@ -2018,8 +2014,7 @@
             ],
             "type": "object"
           }
-        ],
-        "x-extensible-enum": true
+        ]
       },
       "ExecutionPriceDisplay": {
         "description": "User-facing execution price for a read model.",
@@ -3559,14 +3554,13 @@
         "x-extensible-enum": true
       },
       "LocationKind": {
-        "description": "Where a leg executes and first settles.\n\nNew values may be added; treat unknown values as other.",
+        "description": "Where a leg executes and first settles.",
         "enum": [
           "singleChain",
           "crossChain",
           "offChain"
         ],
-        "type": "string",
-        "x-extensible-enum": true
+        "type": "string"
       },
       "LpDataProvenance": {
         "description": "Trust label for the entity facts on a row: who supplied them.\n\nComputed at read time: a KYB-approved entity is always `KybVerified`;\notherwise the stored `entity_profiles.data_source` value wins\n(`platform_curated` for registry/ops-seeded facts, `self_declared` for\nLP-supplied profile edits).\n\nNew values may be added; treat unknown values as other.",
@@ -7710,10 +7704,10 @@
         "x-extensible-enum": true
       },
       "QuoteRequestEcho": {
-        "description": "The quote request as recorded. Additional recorded fields may be sent and must be ignored; POST /quotes remains strict.",
+        "description": "The quote request as recorded. Additional recorded fields may be sent at any depth and must be ignored; POST /quotes remains strict.",
         "properties": {
           "buy": {
-            "$ref": "#/components/schemas/QuoteSideRequest",
+            "$ref": "#/components/schemas/QuoteRequestEchoQuoteSideRequest",
             "description": "The Asset the taker buys, and optionally its chain."
           },
           "buyAmount": {
@@ -7722,7 +7716,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DecimalAmount",
+                "$ref": "#/components/schemas/QuoteRequestEchoDecimalAmount",
                 "description": "The exact amount to buy, a positive decimal string in Asset units. Exactly one of\n`sellAmount` and `buyAmount`."
               }
             ]
@@ -7733,7 +7727,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DeliverTo"
+                "$ref": "#/components/schemas/QuoteRequestEchoDeliverTo"
               }
             ]
           },
@@ -7743,7 +7737,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/QuoteRequestFilters"
+                "$ref": "#/components/schemas/QuoteRequestEchoQuoteRequestFilters"
               }
             ]
           },
@@ -7785,7 +7779,7 @@
             ]
           },
           "sell": {
-            "$ref": "#/components/schemas/QuoteSideRequest",
+            "$ref": "#/components/schemas/QuoteRequestEchoQuoteSideRequest",
             "description": "The Asset the taker sells, and optionally its chain."
           },
           "sellAmount": {
@@ -7794,7 +7788,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DecimalAmount",
+                "$ref": "#/components/schemas/QuoteRequestEchoDecimalAmount",
                 "description": "The exact amount to sell, a positive decimal string in Asset units. Exactly one of\n`sellAmount` and `buyAmount` (400 `INVALID_REQUEST` naming both otherwise)."
               }
             ]
@@ -7805,7 +7799,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/QuoteSort",
+                "$ref": "#/components/schemas/QuoteRequestEchoQuoteSort",
                 "description": "Default `netReceived`."
               }
             ]
@@ -7816,7 +7810,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/SourceSelection"
+                "$ref": "#/components/schemas/QuoteRequestEchoSourceSelection"
               }
             ]
           },
@@ -7826,7 +7820,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/IsoDuration",
+                "$ref": "#/components/schemas/QuoteRequestEchoIsoDuration",
                 "description": "Collection deadline, an ISO 8601 duration; default `PT6S`, at least 100 milliseconds and at\nmost `PT10S`."
               }
             ]
@@ -7837,6 +7831,269 @@
           "buy"
         ],
         "type": "object"
+      },
+      "QuoteRequestEchoAssetId": {
+        "description": "A registry Asset id (`USDC`, `USDe`). Matched case-insensitively against the catalogue,\nwhich answers it in the registry's own spelling.",
+        "example": "USDC",
+        "type": "string"
+      },
+      "QuoteRequestEchoCaip2Chain": {
+        "description": "A CAIP-2 chain id (`eip155:8453`, `solana:<genesis>`, `tron:shasta`), syntax-checked:\na namespace of 3 to 8 lowercase letters, digits or `-`, and a reference of 1 to 32\nletters, digits, `-` or `_`. Compared exactly, as CAIP-2 references are case-sensitive.",
+        "example": "eip155:8453",
+        "type": "string"
+      },
+      "QuoteRequestEchoDecimalAmount": {
+        "description": "A non-negative decimal string in Asset units (`\"10000\"`, `\"9994.0\"`): digits with an\noptional fraction, no sign, exponent or leading zero. Never a float and never base\nunits. A request amount must also be positive (`INVALID_AMOUNT`); a fee or a\nknown balance may be zero.",
+        "example": "10000",
+        "type": "string"
+      },
+      "QuoteRequestEchoDeliverTo": {
+        "description": "Output to own money (a financial account) or an explicit chain address.\n\nNew values may be added; treat unknown values as other.",
+        "oneOf": [
+          {
+            "properties": {
+              "financialAccountId": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "financialAccount"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "financialAccountId",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "calldata": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "chain": {
+                "$ref": "#/components/schemas/QuoteRequestEchoCaip2Chain"
+              },
+              "destinationTag": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "address"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "chain",
+              "address",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "QuoteRequestEchoIsoDuration": {
+        "description": "An ISO 8601 duration, e.g. PT3S or PT2M.",
+        "examples": [
+          "PT120S"
+        ],
+        "format": "duration",
+        "pattern": "^PT(?:[0-9]+H(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]{1,3})?S)?|[0-9]+M(?:[0-9]+(?:\\.[0-9]{1,3})?S)?|[0-9]+(?:\\.[0-9]{1,3})?S)$",
+        "type": "string"
+      },
+      "QuoteRequestEchoLocationKind": {
+        "description": "Where a leg executes and first settles.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "singleChain",
+          "crossChain",
+          "offChain"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "QuoteRequestEchoQuoteRequestFilters": {
+        "description": "The public request's narrowing filters; an omitted filter means all.",
+        "properties": {
+          "firmOnly": {
+            "description": "`true` keeps only firm cards (`firm: true`): the venue is bound to the price until\n`expiresAt`. Indicative cards and executable estimates held to `minOut` are left out;\nabsent or `false` keeps all.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteRequestEchoLocationKind"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "modalities": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteRequestEchoVenueModality"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "variants": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteRequestEchoQuoteRequestVariants"
+              }
+            ]
+          },
+          "venues": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteRequestEchoVenueFilter"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "QuoteRequestEchoQuoteRequestVariants": {
+        "description": "Which variants the sold and bought Assets accept.",
+        "properties": {
+          "buy": {
+            "$ref": "#/components/schemas/QuoteRequestEchoVariantPreference"
+          },
+          "sell": {
+            "$ref": "#/components/schemas/QuoteRequestEchoVariantPreference"
+          }
+        },
+        "type": "object"
+      },
+      "QuoteRequestEchoQuoteSideRequest": {
+        "description": "One side of a quote request: an Asset, optionally pinned to a chain.",
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/QuoteRequestEchoAssetId"
+          },
+          "chain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteRequestEchoCaip2Chain",
+                "description": "Pins this side to one chain, which implies on-chain for this side."
+              }
+            ]
+          }
+        },
+        "required": [
+          "asset"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestEchoQuoteSort": {
+        "description": "The order of `quotes[]`; ties break by venue id. There is no `recommended`.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "netReceived",
+          "eta"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "QuoteRequestEchoSourceSelection": {
+        "description": "An explicit request choice. Every value is a financial-account id.",
+        "properties": {
+          "fundingAccountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradingWallets": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "description": "A CAIP-2 chain id (`eip155:8453`, `solana:<genesis>`, `tron:shasta`), syntax-checked:\na namespace of 3 to 8 lowercase letters, digits or `-`, and a reference of 1 to 32\nletters, digits, `-` or `_`. Compared exactly, as CAIP-2 references are case-sensitive.",
+              "example": "eip155:8453",
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "venueAccountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "QuoteRequestEchoVariantPreference": {
+        "description": "New values may be added; treat unknown values as other.",
+        "enum": [
+          "any",
+          "nativeOnly"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "QuoteRequestEchoVenueFilter": {
+        "description": "Venue ids to keep or drop; each must be a known venue (`UNKNOWN_VENUE`).",
+        "properties": {
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "include": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "QuoteRequestEchoVenueModality": {
+        "description": "A venue's modality, from its declaration. The one owner of this\nconcept: quote request and response types reuse it.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "amm",
+          "solver",
+          "bridge",
+          "rfq",
+          "orderBook",
+          "fiat"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
       },
       "QuoteRequestFilters": {
         "additionalProperties": false,
@@ -8066,13 +8323,12 @@
         "type": "object"
       },
       "QuoteSort": {
-        "description": "The order of `quotes[]`; ties break by venue id. There is no `recommended`.\n\nNew values may be added; treat unknown values as other.",
+        "description": "The order of `quotes[]`; ties break by venue id. There is no `recommended`.",
         "enum": [
           "netReceived",
           "eta"
         ],
-        "type": "string",
-        "x-extensible-enum": true
+        "type": "string"
       },
       "QuoteSourceEntry": {
         "description": "One considered venue's outcome, a closed set tagged `status`:\n\n| status | meaning |\n|---|---|\n| `asking` | in flight on the stream only: the auction is consulting this venue now; its final outcome replaces it under the same venue key, and none remains at `complete` |\n| `answered` | the venue produced a quote |\n| `needsWallet` | no wallet of `family` to ask with |\n| `walletRefused` | the bound wallet is refused (`Revoked`, a confirmed sanctions hit) |\n| `firmQuoteLimited` | a desk's firm-quote cap applies; `explanation` is product copy |\n| `priceOnRequest` | no venue price was requested; `quoteId` identifies the held estimate or stub to Requote |\n| `askLimitReached` | the venue's ask limit is reached for now; `retryAfter` says when to ask again |\n| `timedOut` | no answer inside the deadline |\n| `refused` | the venue refused the live ask |\n| `restricted` | a gate kept the venue from this principal |\n| `unsupported` | the venue does not serve the pair |\n| `filteredOut` | the request's own filters exclude it (never a coverage or chain gap) |\n| `unavailable` | a read failed (`admissionUnavailable`, …) |\n\nAn unscreened default wallet is not a status: the quote carries `screening`. `venue`\nis the venue block, its `id` the one quote legs and `/prices` rows carry. Durations\n(`retryAfter`) are ISO 8601, counted from when the response was sent. Every entry\ncarries `asked`: whether this venue was consulted for this request: a live ask, or a\nfresh read of its published book or live desk price within that source's freshness\nwindow. An estimate no venue gave (a model or reference price) is not consulted, and\nan `answered` entry is always consulted. How a card's price was obtained is its own\nprice basis, never this flag.\n\nNew values may be added; treat unknown values as other.",
@@ -12141,13 +12397,11 @@
         "x-extensible-enum": true
       },
       "VariantPreference": {
-        "description": "New values may be added; treat unknown values as other.",
         "enum": [
           "any",
           "nativeOnly"
         ],
-        "type": "string",
-        "x-extensible-enum": true
+        "type": "string"
       },
       "VenueAccountStep": {
         "description": "The step a `manageVenueAccount` fix names on the venue account.\n\nNew values may be added; treat unknown values as other.",
@@ -14964,7 +15218,7 @@
             "$ref": "#/components/parameters/WorkspaceId"
           },
           {
-            "description": "Assets per page, 1 to 200. With only a `cursor`, the page size that cursor was issued with.",
+            "description": "Assets per page, 1 to 200. May change between pages; omit it to keep the cursor's page size.",
             "in": "query",
             "name": "limit",
             "required": false,
@@ -14975,7 +15229,7 @@
             }
           },
           {
-            "description": "The previous page's `nextCursor`. A cursor is valid while the listing it was issued for\nis unchanged; after a change it answers 409 `CURSOR_STALE`, and the walk starts again.",
+            "description": "The previous page's `nextCursor`. Valid while the workspace and ordered asset ids are\nunchanged; otherwise answers 409 `CURSOR_STALE`. Asset metadata may change.",
             "in": "query",
             "name": "cursor",
             "required": false,
@@ -19617,7 +19871,7 @@
     },
     "/api/v1/quotes/requests/{quoteRequestId}": {
       "get": {
-        "description": "The quotes, sources and orders of one asset-pair POST /quotes answer, as recorded off the hot path. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an orders_read API key when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. requestedByYou says whether the caller asked; only then can it order these quotes.",
+        "description": "The quotes, sources and orders of one asset-pair POST /quotes answer. Immediate reads use the same held request handed to the asynchronous evidence writer; later reads recover its durable record. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an orders_read API key when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. A request lost in a crash before persistence returns 404 QUOTE_REQUEST_NOT_FOUND; its unpersisted quotes are also lost, so request fresh quotes. Genuine store or read failures return retryable 503 QUOTE_REQUEST_UNAVAILABLE with details.retryAfter and Retry-After. requestedByYou says whether the caller asked; only then can it order these quotes.",
         "operationId": "get_quote_request",
         "parameters": [
           {
@@ -19967,7 +20221,7 @@
                 }
               }
             },
-            "description": "QUOTE_REQUEST_NOT_READY: issued moments ago and still being recorded (retry after about one second); QUOTE_REQUEST_UNAVAILABLE: the record could not be read",
+            "description": "QUOTE_REQUEST_UNAVAILABLE: genuine store or read failure; retry after Retry-After (also details.retryAfter). Normal asynchronous recording does not refuse an immediate read.",
             "headers": {
               "Retry-After": {
                 "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",

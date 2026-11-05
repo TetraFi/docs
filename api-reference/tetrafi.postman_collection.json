@@ -114,13 +114,13 @@
               "key": "limit",
               "value": "0",
               "disabled": true,
-              "description": "Assets per page, 1 to 200. With only a `cursor`, the page size that cursor was issued with."
+              "description": "Assets per page, 1 to 200. May change between pages; omit it to keep the cursor's page size."
             },
             {
               "key": "cursor",
               "value": "<cursor>",
               "disabled": true,
-              "description": "The previous page's `nextCursor`. A cursor is valid while the listing it was issued for\nis unchanged; after a change it answers 409 `CURSOR_STALE`, and the walk starts again."
+              "description": "The previous page's `nextCursor`. Valid while the workspace and ordered asset ids are\nunchanged; otherwise answers 409 `CURSOR_STALE`. Asset metadata may change."
             }
           ]
         }
@@ -668,7 +668,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer, as recorded off the hot path. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an orders_read API key when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. requestedByYou says whether the caller asked; only then can it order these quotes.",
+        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer. Immediate reads use the same held request handed to the asynchronous evidence writer; later reads recover its durable record. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an orders_read API key when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. A request lost in a crash before persistence returns 404 QUOTE_REQUEST_NOT_FOUND; its unpersisted quotes are also lost, so request fresh quotes. Genuine store or read failures return retryable 503 QUOTE_REQUEST_UNAVAILABLE with details.retryAfter and Retry-After. requestedByYou says whether the caller asked; only then can it order these quotes.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes/requests/:quoteRequestId",
           "host": [
