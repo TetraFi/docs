@@ -5,6 +5,16 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-11-06" description="Casing, malformed bodies and capacity refusals">
+  - A body that is not valid JSON answers `400 INVALID_REQUEST`, no longer `422 REQUEST_UNPROCESSABLE` ([Errors](/trade/errors)).
+  - `400 INVALID_REQUEST` for a missing required body field carries `details.field`, the field's path ([Errors](/trade/errors)).
+  - Unlock steps, `flowKind` and each lifecycle step's `key` are camelCase, for example `companyDetails`, `settlementPending` and `notSent`. `rawStatus` keeps the recorded token as it is ([Order status](/trade/order-status)).
+  - Ten source reasons are renamed to camelCase values, such as `clockUnavailable`, `referenceStale` and `livePriceUnavailable`. Treat a reason you do not recognise as unavailable ([Error codes](/reference/error-codes)).
+  - When TetraFi is briefly at capacity, a request answers `429 RATE_LIMITED` with `Retry-After` and no RateLimit headers. Nothing was sent: wait, then send it again ([Rate limits](/reference/rate-limits)).
+  - `COMPLIANCE_FAILED`, `KYC_EXPIRED`, `KYC_NOT_VERIFIED`, `ORDER_HELD_FOR_REVIEW` and `VENUE_QUOTE_OPERATION_CLOSED` no longer promise that nothing was sent: read the order before placing another.
+  - Every `401 AUTH_REQUIRED` carries `WWW-Authenticate: api_key, Bearer`.
+</Update>
+
 <Update label="2026-11-05" description="Venue minimums, Pilot caps and webhooks">
   - The API description is versioned `1.0.0-beta.1`.
   - `GET /api/v1/workspaces/{workspaceId}/balances` lists every balance the key may read, across wallets and exchange accounts: `items`, `nextCursor`, and `unavailable` for accounts whose balance cannot be stated, never a zero. The key needs **Treasury read** ([Balances](/trade/balances)).

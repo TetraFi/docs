@@ -47,6 +47,10 @@ We do not, without the deprecation process below:
 - make an optional request field required, or a request rule stricter;
 - stop sending a response field we documented as always present.
 
+Values are camelCase. Identifiers (permissions, API key scopes, workspace types) and values
+that name stored records (fee treatment, funding and leg states, review reasons, approval
+and order stages) are snake_case tokens and will not be renamed.
+
 Before launch, a breaking change lands in place with no alias and a CHANGELOG entry. The
 latest is the sell/buy vocabulary of 2026-10-31. It renamed fields across quotes, prices,
 orders, trades and fills. It also renamed enum values: `sizeLimits.amountSide`
@@ -123,7 +127,12 @@ For a known refusing policy, `reset` equals `Retry-After` and the
 seconds in `details.retryAfter`. Reset is the whole-second wait until quota next
 becomes available, not an epoch or a promise of a full token-bucket burst refill.
 A rolling window may restore quota incrementally. Missing headers mean no quota
-claim, never zero. The pre-launch `X-RateLimit-*` scheme is retired.
+claim, never zero. Bounded service and placement-capacity refusals use `429 RATE_LIMITED`
+with a typed admission cause and matching retry duration/header. They do not describe a
+quota or window, so they omit `RateLimit` and `RateLimit-Policy`, even when an earlier
+key or route limiter accepted the request. This pre-launch timeout/unavailable-to-429
+status change is recorded in the 2026-11-06 changelog. The pre-launch `X-RateLimit-*`
+scheme is retired.
 
 ## Retries and idempotency
 

@@ -30,6 +30,8 @@ Every answer that a rate limit counted, successes and refusals alike, carries tw
 
 When more than one limit counted a request, the headers describe the one closest to running out: the lowest `remaining`, then the longest `reset`. On a `429`, they describe the limit that refused it, with `remaining=0` and `reset` equal to `Retry-After`. When a venue sets only a cooldown, with no quota or window, the `429` carries `Retry-After` but no RateLimit headers. `reset` is a wait, not a timestamp or a promise that the whole allowance refills at once.
 
+When TetraFi is briefly at capacity, a request answers `429 RATE_LIMITED` before anything is sent, with `Retry-After` but no RateLimit headers: no quota was counted. Wait `Retry-After` seconds and send it again; for an order, keep the same `Idempotency-Key`.
+
 An answer that no limit counted has neither header. Treat an absent header as "not counted", never as zero. A price read does not use the quote allowance, but can still carry headers for a different limit.
 
 ## Price limits
