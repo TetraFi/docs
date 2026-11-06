@@ -13,6 +13,11 @@ The API is in preview until launch, so a change here can still remove or rename 
   - When TetraFi is briefly at capacity, a request answers `429 RATE_LIMITED` with `Retry-After` and no RateLimit headers. Nothing was sent: wait, then send it again ([Rate limits](/reference/rate-limits)).
   - `COMPLIANCE_FAILED`, `KYC_EXPIRED`, `KYC_NOT_VERIFIED`, `ORDER_HELD_FOR_REVIEW` and `VENUE_QUOTE_OPERATION_CLOSED` no longer promise that nothing was sent: read the order before placing another.
   - Every `401 AUTH_REQUIRED` carries `WWW-Authenticate: api_key, Bearer`.
+  - A `401` no longer declares `RateLimit` or `RateLimit-Policy`: limits count a request only after it is authenticated ([Rate limits](/reference/rate-limits)).
+  - An order in the trade history carries `makerAttribution`, its recorded maker as `executionTypeId` and `displayName`, or `null` when none was recorded ([Trade history](/trade/trade-history)).
+  - `409 STABLEFX_SIGNING_GRANT_REQUIRED` means the wallet has no active Circle StableFX trading grant. Nothing was prepared or sent: have a wallet owner set one up in Treasury, then request a new quote ([Error codes](/reference/error-codes)).
+  - `nextCursor` is an opaque token that may expire. An invalid or expired one answers `400`: start again from the first page ([Compatibility](/compatibility)).
+  - A revoked API key is refused within seconds, and at most 30 seconds after you revoke it ([Authentication](/authentication#rotate-and-revoke)).
 </Update>
 
 <Update label="2026-11-05" description="Venue minimums, Pilot caps and webhooks">

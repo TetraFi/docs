@@ -1120,6 +1120,18 @@
               "null"
             ]
           },
+          "makerAttribution": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TradeMakerAttribution",
+                "description": "The order's recorded maker, absent if no execution type was recorded."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "nextAction": {
             "oneOf": [
               {
@@ -13577,6 +13589,22 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "TradeMakerAttribution": {
+        "description": "The recorded maker of an order; identity only, never operational or credential data.",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "executionTypeId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "executionTypeId",
+          "displayName"
+        ],
+        "type": "object"
+      },
       "TradeOracleStatus": {
         "description": "New values may be added; treat unknown values as other.",
         "enum": [
@@ -17656,18 +17684,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -17675,7 +17691,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -18136,18 +18152,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -18155,7 +18159,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -18588,6 +18592,12 @@
                   "type": "string"
                 }
               },
+              "WWW-Authenticate": {
+                "description": "Always sent with invalid_client (401): `Basic realm=\"oauth/token\"` (RFC 6749 section 5.2).",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "x-request-id": {
                 "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
                 "schema": {
@@ -18863,18 +18873,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -18882,7 +18880,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -19275,18 +19273,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -19294,7 +19280,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -20005,18 +19991,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -20024,7 +19998,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -20447,18 +20421,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -20466,7 +20428,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -20902,18 +20864,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -20921,7 +20871,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -21558,18 +21508,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -21577,7 +21515,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -22099,18 +22037,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -22118,7 +22044,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -22576,18 +22502,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -22595,7 +22509,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -23306,18 +23220,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -23325,7 +23227,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -23838,18 +23740,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -23857,7 +23747,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -24376,18 +24266,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -24395,7 +24273,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -24866,18 +24744,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -24885,7 +24751,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -25273,7 +25139,7 @@
             }
           },
           {
-            "description": "Counterparty: the LP's catalogue venue id, the row's `lpVenueId` (taker; a venue\ntrade matches its execution type's venue), the client workspace (umbrella) or the\ntaker (maker).",
+            "description": "Counterparty: the LP's catalogue venue id, the row's `lpVenueId` (taker; a venue\ntrade matches its execution type's venue) or an LP workspace UUID (orders only), the client workspace (umbrella) or the\ntaker (maker).",
             "in": "query",
             "name": "counterpartyId",
             "required": false,
@@ -25282,7 +25148,7 @@
             }
           },
           {
-            "description": "One of the LP's own venues, by its id (maker only).",
+            "description": "Exact execution-type identity: the maker of an order (taker), or one of the LP's own venues (maker).",
             "in": "query",
             "name": "venueId",
             "required": false,
@@ -25602,18 +25468,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -25621,7 +25475,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -26137,18 +25991,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -26156,7 +25998,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -26635,18 +26477,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -26654,7 +26484,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -27275,18 +27105,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -27294,7 +27112,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -27940,18 +27758,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -27959,7 +27765,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -28498,18 +28304,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -28517,7 +28311,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -29007,18 +28801,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -29026,7 +28808,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -29514,18 +29296,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -29533,7 +29303,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -30150,18 +29920,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -30169,7 +29927,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -30652,18 +30410,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -30671,7 +30417,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -31174,18 +30920,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -31193,7 +30927,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -31931,18 +31665,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -31950,7 +31672,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -32447,18 +32169,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -32466,7 +32176,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -33108,18 +32818,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -33127,7 +32825,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -33664,18 +33362,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -33683,7 +33369,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }
@@ -34172,18 +33858,6 @@
                   "type": "string"
                 }
               },
-              "RateLimit": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "RateLimit-Policy": {
-                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
-                "schema": {
-                  "type": "string"
-                }
-              },
               "Sunset": {
                 "description": "Present when retirement is scheduled: the HTTP-date after which this version may stop being served (RFC 8594).",
                 "schema": {
@@ -34191,7 +33865,7 @@
                 }
               },
               "WWW-Authenticate": {
-                "description": "Sent when the request presented a bearer token and it was refused: `Bearer error=\"invalid_token\"` (RFC 6750 section 3). Exchange a new token. A refused API key carries no challenge.",
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
                 "schema": {
                   "type": "string"
                 }

@@ -76,6 +76,15 @@ became `buyAmountUnsupported`, `sellChainInvalid` and `buyChainInvalid`.
   `GET /api/v1/assets` and from quote responses. A venue or asset can be added without
   any change to your code.
 
+## Pagination tokens
+
+`nextCursor` is an opaque continuation token. Return it unchanged as `cursor`
+for the same list, workspace and filters; never decode, construct or edit it.
+Tokens may expire, including after a server-key rotation or a deployment that
+changes the private format. An invalid or expired token answers 400; restart
+from the first page without `cursor`. The token's private encoding is not part
+of the integrator contract.
+
 ## Order identity and minimum receive
 
 Both order kinds carry one top-level `orderId`, accepted by `GET /api/v1/orders/{id}`.
