@@ -20,11 +20,11 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 
 ## List your exchange accounts
 
-`GET /api/v1/workspaces/{workspaceId}/venue-enablements` lists the workspace's exchange accounts, oldest first, in `items`. Each item's `accountId` is the `{venueAccountId}` the reads below take.
+`GET /api/v1/workspaces/{workspaceId}/venue-enablements` lists the workspace's exchange accounts, oldest first, in `items`. Each item's `accountId` is the `{venueAccountId}` the reads below take. A wallet-based venue (`venueKind` `walletBased`) has no venue account and no `accountId`: its money is in your trading wallets, named by `fundingTarget`. Key an item by `venueEnablementId`.
 
 | Field | Meaning |
 | --- | --- |
-| `accountId` | The account's id. |
+| `accountId` | The account's id. Absent for a wallet-based venue. |
 | `venueId` | The venue, by its id (for example `binance`). `null` only when the account maps to no known venue. |
 | `label` | The account's name in the app. |
 | `lifecycle` | `pending`, `configured`, `funding_only`, `disabled` or `revoked`. Read balances from a `configured` account. New values may be added: treat one you do not recognise as unusable. |
