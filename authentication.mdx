@@ -158,7 +158,7 @@ The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_S
 ## Rotate and revoke
 
 - **Rotate.** Choose **Rotate key** on the key. A new secret is issued, and the old one keeps working for a short grace period so you can deploy the new one. The rotated key keeps its permissions and its signing secret.
-- **Revoke.** Choose **Revoke key** on the key. Revoking is permanent and immediate: applications using the key lose access at once, and the key then answers `401 AUTH_REQUIRED` with `details.reason` `INVALID_API_KEY`.
+- **Revoke.** Choose **Revoke key** on the key. Revoking is permanent. A revoked key is refused within seconds, and at most 30 seconds after you revoke it: requests sent in that window may still be served. From then on, the key answers `401 AUTH_REQUIRED` with `details.reason` `INVALID_API_KEY`.
 
 A key past its **Expiration** answers `401 AUTH_REQUIRED` with `details.reason` `API_KEY_EXPIRED`.
 
