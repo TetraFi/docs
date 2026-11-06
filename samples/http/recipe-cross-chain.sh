@@ -12,7 +12,7 @@
 #   TETRAFI_ASSET           the asset to move (default USDC)
 #   TETRAFI_FROM_CHAIN      CAIP-2 chain you sell on (default: the first chain GET /assets lists)
 #   TETRAFI_TO_CHAIN        CAIP-2 chain you buy on (default: the next chain GET /assets lists)
-#   TETRAFI_AMOUNT          the amount you sell (default 1)
+#   TETRAFI_AMOUNT          the amount you sell (default 10: bridges have a minimum, a few USDC on test networks)
 #   TETRAFI_SLIPPAGE_BPS    how far below an indicative quote you accept, in basis points (default 50)
 #   TETRAFI_PLACE_ORDER=1   places the order (yes also works); without it the script stops before ordering
 #
@@ -71,12 +71,12 @@ quote() {
 }
 
 asset=${TETRAFI_ASSET:-USDC}
-amount=${TETRAFI_AMOUNT:-1}
+amount=${TETRAFI_AMOUNT:-10}
 
 # region recipe-cross-chain-chains
 # The chains an asset is on come from GET /assets: every deployment of its native variant.
 assets=$(tetrafi GET /api/v1/assets)
-chains=$(jq -c --arg a "$asset" '[.assets[] | select(.assetId == $a) | .variants[]
+chains=$(jq -c --arg a "$asset" '[.items[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[].chain] | unique' <<<"$assets")
 echo "{\"asset\":\"$asset\",\"chains\":$chains}" >&2
 from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
@@ -92,6 +92,7 @@ done
 # region recipe-cross-chain-quote
 # The same asset on both sides, each side pinned to its chain, and only cross-chain quotes kept.
 request=$(jq -nc --arg asset "$asset" --arg amount "$amount" --arg from "$from_chain" --arg to "$to_chain" '{
+  kind: "pair",
   sell: {asset: $asset, chain: $from},
   buy: {asset: $asset, chain: $to},
   sellAmount: $amount,
@@ -129,7 +130,7 @@ fi
 # When the quote's minReceiveRequired is true, it executes within your limit: send minReceive, the
 # least you accept, here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the
 # asset's decimals.
-decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.assets[] | select(.assetId == $a) | .variants[]
+decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.items[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[] | select(.chain == $c) | .decimals][0]' <<<"$assets")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
@@ -138,15 +139,16 @@ order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$dec
 # returns the first answer instead of moving the funds twice.
 idempotency_key=$(openssl rand -hex 16)
 placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
-# A basicTrade names its venue trade in operation; an advancedTrade names its order in order.
-jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
-  else {order: (.order | {orderId})} end' <<<"$placed" >&2
+# Common progress fields work for every kind; inspect operation only for a known basicTrade.
+jq -c '{kind, orderId, quoteId, status, terminal, statusUrl}
+  + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
+    else {} end' <<<"$placed" >&2
 # endregion
 
 # region recipe-cross-chain-status
 # Follow the order at the statusUrl the answer gave until terminal is true, polling every 10
-# seconds, or after next.retryAfter when it says to wait. The envelope is the same for a move
-# TetraFi executes for you (basicTrade) and an on-chain order (advancedTrade).
+# seconds, or after next.retryAfter when it says to wait. Follow these common progress fields
+# even for a kind this client does not know; never infer failure or resubmit from kind.
 status_url=$(jq -r '.statusUrl' <<<"$placed")
 for _ in $(seq 1 60); do
   state=$(tetrafi GET "$status_url")

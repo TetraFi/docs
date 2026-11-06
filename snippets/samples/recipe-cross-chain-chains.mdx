@@ -5,7 +5,7 @@
 ```bash cURL
 # The chains an asset is on come from GET /assets: every deployment of its native variant.
 assets=$(tetrafi GET /api/v1/assets)
-chains=$(jq -c --arg a "$asset" '[.assets[] | select(.assetId == $a) | .variants[]
+chains=$(jq -c --arg a "$asset" '[.items[] | select(.assetId == $a) | .variants[]
   | select(.kind == "native") | .deployments[].chain] | unique' <<<"$assets")
 echo "{\"asset\":\"$asset\",\"chains\":$chains}" >&2
 from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}

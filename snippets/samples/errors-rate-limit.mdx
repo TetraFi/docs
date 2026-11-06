@@ -9,7 +9,7 @@
 # Each signature is accepted once, so the two requests differ in amount.
 quote_body() {
   jq -c -n --arg sell "$sell" --arg buy "$buy" --arg amount "$1" \
-    '{sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount}'
+    '{kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount}'
 }
 tetrafi POST /api/v1/quotes "$(quote_body 10)" >"$tmp/first" 2>/dev/null & first=$!
 tetrafi POST /api/v1/quotes "$(quote_body 11)" >"$tmp/second" 2>/dev/null & second=$!

@@ -11,12 +11,15 @@ You search by sending one quote request: the asset you sell, the asset you buy, 
 - `quotes`: the quotes that came back, best first, each one held for you under its `id`;
 - `sources`: every venue that was considered, with its outcome, so a missing quote always has a reason.
 
+See [Quote lifetime and firmness](/search/quote-lifetime) for price commitments and [Limits and minimums](/search/limits-and-minimums) for amount bounds and Pilot caps.
+
 ## The request
 
 `POST /api/v1/quotes`
 
 | Field | Required | Value |
 | --- | --- | --- |
+| `kind` | Yes | `"pair"` for a new search. A missing tag is `400 QUOTE_REQUEST_KIND_REQUIRED`; an unknown or non-string tag is `400 QUOTE_REQUEST_KIND_INVALID`. Use `"requote"` only to [refresh a held quote](/trade/requotes-and-expiry). |
 | `sell.asset`, `buy.asset` | Yes | An Asset id from [`GET /api/v1/assets`](#use-values-from-discovery), such as `USDC`. Assets carry no chain. |
 | `sell.chain`, `buy.chain` | No | A CAIP-2 chain id, such as `eip155:8453`, to pin that side to one chain. See [Chains and routes](/search/chains-and-routes). |
 | `sellAmount` or `buyAmount` | Exactly one | The exact amount you sell (`sellAmount`) or buy (`buyAmount`), a positive decimal string in Asset units, such as `"10"` or `"0.001"`. Never base units. Both or neither is refused with `400 INVALID_REQUEST`. See [Sell exact or buy exact](/search/sell-or-buy-exact). |
@@ -68,6 +71,10 @@ Each quote tells you:
 
 `venueAsked` is `false` when every quote came from cached prices and no venue was contacted.
 
+### Read a recorded search
+
+`GET /api/v1/quotes/requests/{quoteRequestId}` reads a recorded search. Its `request` uses `QuoteRequestEcho`: the recorded request, not the strict input schema for a new quote. Ignore recorded fields your client does not recognise; do not send the echo back wholesale as a new request. Build a fresh body from the supported request fields above, or [requote a held quote](/trade/requotes-and-expiry).
+
 ## Executable and indicative quotes
 
 | `firm` and `expiresAt` | What it means | `minOut` | `staleAfter` |
@@ -99,6 +106,8 @@ Every venue considered appears once in `sources`, whether or not it was asked (`
 | `refused` | The venue declined. |
 
 More statuses exist and new ones can appear. Treat any status you do not recognise as "other" and show its `detail`.
+
+An `unavailable` source or a quote's `tradingSourceRefusal` may include `creditRefusal` with the credit owner's exact refusal. This field is optional and may be `null`. Check for a non-null value before reading its cause or `fix`, and treat absent and `null` alike as no credit detail, not as proof that credit is available. Keep using the source's `reason`, `detail` and `fix` for recovery.
 
 <Note>
 What an API key sees depends on what it may do. Quotes from your connected venue accounts need the `workspace_venue_trade` scope, venue trading switched on and signed requests. With venue trading off, a valid `POST /api/v1/quotes` answers `200` but returns no venue-account quote cards; do not wait for an order-time refusal to detect this. Check `GET /api/v1/me` first: `organisationWallets.venueTradeScope` and `organisationWallets.venueTradeEnabled` must both be `true` for orderable venue-account quote cards. On-chain venues that TetraFi trades for you from an organisation wallet need that wallet granted to the key; otherwise they read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. See [Authentication](/authentication#trading-on-your-venue-accounts).
@@ -132,7 +141,7 @@ Never hardcode Asset ids, chains or venue lists. `GET /api/v1/assets` returns wh
 ```json
 {
   "eligibility": { "complete": true },
-  "assets": [
+  "items": [
     {
       "assetId": "USDC",
       "symbol": "USDC",

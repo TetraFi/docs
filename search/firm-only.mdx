@@ -5,7 +5,7 @@ description: "Keep only quotes whose venue is bound to the price, and leave out 
 
 import SearchFirmOnly from '/snippets/samples/search-firm-only.mdx';
 
-Each quote says whether its venue is bound to the price, in `firm` and `expiresAt`. A search returns every kind unless you ask for firm quotes only.
+Each quote says how far its venue is bound to the price: `quality` is `firm`, `executable` or `indicative`, and `firm` and `expiresAt` say the same in two fields. New `quality` values may be added; treat one you do not know as indicative. A search returns every kind unless you ask for firm quotes only.
 
 | Field | Value | Effect |
 | --- | --- | --- |
@@ -13,11 +13,11 @@ Each quote says whether its venue is bound to the price, in `firm` and `expiresA
 
 ## Firm, executable and indicative
 
-| `firm` and `expiresAt` | What it means | What you can rely on | Kept by `firmOnly` |
+| `quality`, `firm` and `expiresAt` | What it means | What you can rely on | Kept by `firmOnly` |
 | --- | --- | --- | --- |
-| `firm: true`, `expiresAt` set | Firm: the venue delivers exactly this amount until `expiresAt`. | The quoted amount. | Yes |
-| `firm: false`, `expiresAt` set | An executable estimate, such as an order-book or AMM quote: the venue will trade until `expiresAt`, and delivery may move a little. | At least `minOut`, set by your [price protection](/search/sort-and-protection#price-protection). | No |
-| `firm: false`, `expiresAt` `null` | Indicative: the venue's current price, not a commitment. `staleAfter` says when the price is old. | Nothing yet. | No |
+| `firm`; `firm: true`, `expiresAt` set | Firm: the venue delivers exactly this amount until `expiresAt`. | The quoted amount. | Yes |
+| `executable`; `firm: false`, `expiresAt` set | An executable estimate, such as an order-book or AMM quote: the venue will trade until `expiresAt`, and delivery may move a little. | At least `minOut`, set by your [price protection](/search/sort-and-protection#price-protection). | No |
+| `indicative`; `firm: false`, `expiresAt` `null` | Indicative: the venue's current price, not a commitment. `staleAfter` says when the price is old. | Nothing yet. | No |
 
 Ask for firm quotes only when you are about to trade and want to compare only amounts a venue has committed to. Leave it out when you are comparing prices, or when an order book, a pool or a desk that publishes only indicative prices may give you the best one: an executable estimate is still protected by `minOut`.
 

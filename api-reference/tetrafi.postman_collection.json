@@ -114,13 +114,13 @@
               "key": "limit",
               "value": "0",
               "disabled": true,
-              "description": "Assets per page, 1 to 200. With only a `cursor`, the page size that cursor was issued with."
+              "description": "Assets per page, 1 to 200. May change between pages; omit it to keep the cursor's page size."
             },
             {
               "key": "cursor",
               "value": "<cursor>",
               "disabled": true,
-              "description": "The previous page's `nextCursor`. A cursor is valid while the listing it was issued for\nis unchanged; after a change it answers 409 `CURSOR_STALE`, and the walk starts again."
+              "description": "The previous page's `nextCursor`. Valid while the workspace and ordered asset ids are\nunchanged; otherwise answers 409 `CURSOR_STALE`. Asset metadata may change."
             }
           ]
         }
@@ -147,14 +147,6 @@
             "api",
             "v1",
             "me"
-          ],
-          "query": [
-            {
-              "key": "include",
-              "value": "<include>",
-              "disabled": true,
-              "description": "Comma-separated: profile, permissions, verification. An interactive session only, except permissions, which an API key's answer always carries"
-            }
           ]
         }
       },
@@ -207,7 +199,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic and Advanced orders using the same envelope as GET /orders/{orderId}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
+        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic orders using the same envelope as GET /orders/{orderId}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -266,6 +258,12 @@
               "value": "<buyAsset>",
               "disabled": true,
               "description": ""
+            },
+            {
+              "key": "clientOrderId",
+              "value": "<clientOrderId>",
+              "disabled": true,
+              "description": "Exact caller reference, including terminal orders with a reused reference."
             }
           ]
         }
@@ -292,7 +290,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Submit a new order\nPOST /api/v1/orders - Submit an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A venue (Basic) quote becomes a venue trade (`basicTrade`); a protocol (Advanced) quote becomes a protocol order (`advancedTrade`), after POST /orders/preflight and any wallet signature or source transaction it asks for. Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
+        "description": "Submit a new order\nPOST /api/v1/orders - Submit an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A Basic venue quote becomes a venue trade (`basicTrade`). Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -326,7 +324,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Get order status by ID\nGET /api/v1/orders/:id - Get order details by ID\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. API-key clients may instead subscribe to `orders:<id>` on `/api/v1/ws?token=<api-key>&workspaceId=<id>`, but should perform this GET after an event or reconnect to obtain the complete current projection. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
+        "description": "Get order status by ID\nGET /api/v1/orders/:id - Get order details by ID\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. After a webhook delivery, perform this GET to obtain the complete current projection. Never put an API key in a URL. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/:orderId",
           "host": [
@@ -390,40 +388,6 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders/{orderId}/funding",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`GET /api/v1/orders/{orderId}/funding` — fetch the StableFX funding `typedData` to sign.\n\nRecovery path: the order-create response normally carries the funding action in\nits `nextActions`, but if the create-time presign prefetch failed the client can\nfetch the typed data here on demand (it is re-derived server-side from the order's\n`contractTradeId`). Returns the `signTypedData` action (typed data + where to submit\nthe signature) or 404 when the order has no pending funding step.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/orders/:orderId/funding",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "orders",
-            ":orderId",
-            "funding"
-          ],
-          "variable": [
-            {
-              "key": "orderId",
-              "value": "<orderId>",
-              "description": "Order ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
       "name": "GET /api/v1/orders/by-quote/{quoteId}",
       "request": {
         "method": "GET",
@@ -433,7 +397,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Requires current view_orders in the selected workspace and orders_read for API keys. ordered names the native advancedTrade or basicTrade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
+        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Requires current view_orders in the selected workspace and orders_read for API keys. ordered names the Basic venue trade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/by-quote/:quoteId",
           "host": [
@@ -676,7 +640,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract (PairQuoteRequest or RequoteRequest); the legacy intent body is retired, so an object without `sell` or `requote` is 400 INVALID_REQUEST naming `sell`. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / WALLET_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 REQUOTE_WINDOW_CLOSED (10 minutes after its expiry, past retainUntil; next search: request quotes again), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, is the one error body ApiError {error, message, requestId, timestamp, next?, details?}. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (firm false, expiresAt null) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it binds a workspace wallet in bind.wallets: a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. A desk on a production site is firm-asked only on request, the same for sessions and API keys, each one call: name it in filters.venues.include and its firm quote returns in that response, or requote its indicative card ({requote: quoteId}). A broad request never asks it: its card stays indicative and reads unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, bind.deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
+        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract uses required `kind: pair` or `kind: requote` to select its strict request body. Missing kind is 400 QUOTE_REQUEST_KIND_REQUIRED; a non-string or unknown kind is 400 QUOTE_REQUEST_KIND_INVALID (details.field is kind). The legacy intent body and shape inference are retired. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / WALLET_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 REQUOTE_WINDOW_CLOSED (10 minutes after its expiry, past retainUntil; next search: request quotes again), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, uses the shared ApiError schema. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (firm false, expiresAt null) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it selects a trading wallet in source.tradingWallets, a map from CAIP-2 chain to financial-account id (not a wallet address or native wallet id): a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. Optional firmness is indicative, firm or auto (absent means auto); unknown values return 400 INVALID_REQUEST with details.field firmness. Indicative never makes a firm desk ask. Firm explicitly asks every eligible desk, with a named source refusal for each desk that cannot be asked, under the existing authority, limits and collection deadline. filters.firmOnly remains a result filter. Requote is renewed explicit firm intent, not inherited indicative intent. In auto, a production desk is firm-asked only by naming it in filters.venues.include or requoting its card; an automatic broad request leaves it indicative or unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, top-level deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes",
           "host": [
@@ -690,7 +654,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"sell\": {\n    \"asset\": \"USDC\"\n  },\n  \"buy\": {\n    \"asset\": \"USDC\"\n  }\n}",
+          "raw": "{\n  \"sell\": {\n    \"asset\": \"USDC\"\n  },\n  \"buy\": {\n    \"asset\": \"USDC\"\n  },\n  \"kind\": \"pair\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -710,7 +674,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer, as recorded off the hot path. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an orders_read API key when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. requestedByYou says whether the caller asked; only then can it order these quotes.",
+        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer. Required API-key scope: `quotes_read`. Immediate reads use the same held request handed to the asynchronous evidence writer; later reads recover its durable record. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an API key with the additional orders_read scope when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. A request lost in a crash before persistence returns 404 QUOTE_REQUEST_NOT_FOUND; its unpersisted quotes are also lost, so request fresh quotes. Genuine store or read failures return retryable 503 QUOTE_REQUEST_UNAVAILABLE with details.retryAfter and Retry-After. requestedByYou says whether the caller asked; only then can it order these quotes.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes/requests/:quoteRequestId",
           "host": [
@@ -728,6 +692,72 @@
               "key": "quoteRequestId",
               "value": "<quoteRequestId>",
               "description": "The set's quoteRequestId (rq_…)"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/balances",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read balances across workspace accounts\n\nCache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; venue accounts require current ViewWallets and company/broker or admitted LP authority, exactly as their per-account balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Cursors bind to the workspace, caller, filters and ordered visible row identities; restart if those identities change.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/balances",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "balances"
+          ],
+          "query": [
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "accountKind",
+              "value": "wallet",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "accountId",
+              "value": "<accountId>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
             }
           ]
         }
@@ -762,6 +792,40 @@
               "key": "workspaceId",
               "value": "<workspaceId>",
               "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/fee-schedule",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the workspace's effective fee schedule\n\nCurrent and upcoming effective fees for this workspace, readable by any current member. Required API-key scope: `fee_schedule_read`; an OAuth client needs the same scope. Rates are decimal strings in parts per million. A schedule that cannot be read answers 503 FEE_SCHEDULE_UNAVAILABLE, never a partial or zero schedule.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/fee-schedule",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "fee-schedule"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": ""
             }
           ]
         }
@@ -1077,7 +1141,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. A bounded window, not a paged list: each answer is one live read of the venue's own credit history for `lookbackDays` (1 to 30, default 7) ending now, returned whole with its `since`, `until`, `observedAt` and `expiresAt`. A window holding more than 1,000 venue records answers no credits, with reasonCode DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. No cursor is offered because the venues' histories have no position that stays stable from one live read to the next, so a cursor could skip or repeat a credit. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. Each first answer reads the venue's credit history for `lookbackDays` (1 to 30, default 7), ending now. Optional `limit` (1 to 200) and `cursor` page credits oldest first by observation time and venue deposit id. Follow `nextCursor` until null. A cursor freezes the window and binds its workspace, account, asset, network and complete credit fingerprint; its window takes precedence over lookbackDays. A changed observation refuses the cursor, never skips or repeats a credit. Omit paging for the whole bounded observation. A window holding more than 1,000 records answers no credits with DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-history",
           "host": [
@@ -1109,7 +1173,19 @@
               "key": "lookbackDays",
               "value": "0",
               "disabled": true,
-              "description": ""
+              "description": "Initial history window, 1 to 30 days, default 7. On subsequent pages the\ncursor's frozen window takes precedence; omit lookbackDays then."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Credits per page, 1 to 200. Omit for all credits; a cursor retains its page size."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The previous nextCursor. Binds the workspace, account, asset, network,\nwindow and observed credit set. A changed observation refuses instead of skipping credits."
             }
           ],
           "variable": [
@@ -1266,6 +1342,20 @@
             ":workspaceId",
             "webhooks"
           ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, default 20, clamped to 1–100"
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque nextCursor from this workspace's webhook list"
+            }
+          ],
           "variable": [
             {
               "key": "workspaceId",
@@ -1320,7 +1410,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"url\": \"<url>\",\n  \"events\": [\n    \"<events>\"\n  ]\n}",
+          "raw": "{\n  \"url\": \"<url>\",\n  \"events\": [\n    \"treasury.payout.awaiting_approval\"\n  ]\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -1378,6 +1468,12 @@
           {
             "key": "Accept",
             "value": "application/json"
+          },
+          {
+            "key": "If-Match",
+            "value": "<If-Match>",
+            "disabled": false,
+            "description": "Required strong ETag from GET, or quoted updatedAt from the same list snapshot"
           },
           {
             "key": "Content-Type",
@@ -1488,6 +1584,20 @@
             ":webhookId",
             "deliveries"
           ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, default 20, clamped to 1–100"
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "Opaque nextCursor from this webhook's delivery history"
+            }
+          ],
           "variable": [
             {
               "key": "workspaceId",
@@ -1505,18 +1615,84 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/redeliver",
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Accept",
             "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required. Same key and kind replay the stored 201 delivery without a second send; different body is 409 IDEMPOTENCY_CONFLICT."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "webhooks",
+            ":webhookId",
+            "deliveries"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "webhookId",
+              "value": "<webhookId>",
+              "description": "Webhook ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"kind\": \"test\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": true,
+            "description": "Required for API-key and OAuth writes. Replaying the same key and body returns the retained result; a different body under the same key is 409 IDEMPOTENCY_CONFLICT."
           }
         ],
         "description": "Send one retained payload again with current URL and signing secret.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/redeliver",
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/retry",
           "host": [
             "{{baseUrl}}"
           ],
@@ -1529,7 +1705,7 @@
             ":webhookId",
             "deliveries",
             ":deliveryId",
-            "redeliver"
+            "retry"
           ],
           "variable": [
             {
@@ -1553,18 +1729,24 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/reactivate",
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Accept",
             "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": true,
+            "description": "Required for API-key and OAuth writes. Replaying the same key and body returns the retained result; a different body under the same key is 409 IDEMPOTENCY_CONFLICT."
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/reactivate`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/reactivate",
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/resume",
           "host": [
             "{{baseUrl}}"
           ],
@@ -1575,7 +1757,7 @@
             ":workspaceId",
             "webhooks",
             ":webhookId",
-            "reactivate"
+            "resume"
           ],
           "variable": [
             {
@@ -1594,18 +1776,24 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate-secret",
+      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Accept",
             "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required for every caller (1 to 255 bytes; missing or empty is 400 IDEMPOTENCY_KEY_REQUIRED). The same key within 24 hours replays the stored 200 without rotating again: secret is null and secretShownOnce true. A new key rotates again. Reuse with a different request is 409 IDEMPOTENCY_CONFLICT."
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate-secret`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate-secret",
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate",
           "host": [
             "{{baseUrl}}"
           ],
@@ -1616,48 +1804,7 @@
             ":workspaceId",
             "webhooks",
             ":webhookId",
-            "rotate-secret"
-          ],
-          "variable": [
-            {
-              "key": "workspaceId",
-              "value": "<workspaceId>",
-              "description": "Workspace ID"
-            },
-            {
-              "key": "webhookId",
-              "value": "<webhookId>",
-              "description": "Webhook ID"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/test",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          }
-        ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/test`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/test",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":workspaceId",
-            "webhooks",
-            ":webhookId",
-            "test"
+            "rotate"
           ],
           "variable": [
             {

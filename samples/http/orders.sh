@@ -76,7 +76,7 @@ summary='{}'
 
 request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   --arg venues "${TETRAFI_VENUES:-}" '{
-    sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount
+    kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount
   } + (if $venues == "" then {} else {filters: {venues: {include: ($venues | split(","))}}} end)')
 quotes=$(quote "$request")
 first=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
@@ -90,7 +90,7 @@ jq -c '{quoteId: .id, venue: .legs[0].venue.id, firm, buy: .buy.amount, minOut, 
 # region requote-again
 # Ask the same venue again for the same pair and amount. The answer is a new quote whose
 # requoteOf names the original. The original stays orderable until its own expiresAt.
-requoted=$(quote "{\"requote\":\"$quote_id\"}")
+requoted=$(quote "{\"kind\":\"requote\",\"requote\":\"$quote_id\"}")
 fresh=$(jq -c '.quotes[0]' <<<"$requoted")
 jq -c '{quoteId: .id, requoteOf, firm, buy: .buy.amount, minOut, expiresAt}' <<<"$fresh" >&2
 # endregion
@@ -99,7 +99,7 @@ summary=$(jq -c --argjson q "$fresh" '. + {requote: {id: $q.id, requoteOf: $q.re
 # region requote-protection
 # Change the price protection for the new quote. A wider protection lowers minOut, the least
 # a non-firm quote may deliver.
-protected=$(quote "{\"requote\":\"$quote_id\",\"priceProtectionBps\":50}")
+protected=$(quote "{\"kind\":\"requote\",\"requote\":\"$quote_id\",\"priceProtectionBps\":50}")
 jq -c '.quotes[0] | {quoteId: .id, requoteOf, buy: .buy.amount, minOut}' <<<"$protected" >&2
 # endregion
 # Quotes expire within seconds, so the order below uses the newest quote.
@@ -111,9 +111,10 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   idempotency_key=$(openssl rand -hex 16)
   order_body="{\"quoteId\":\"$order_quote\"}"
   placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
-  # A basicTrade names its venue trade in operation; an advancedTrade names its order in order.
-  jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
-    else {order: (.order | {orderId})} end' <<<"$placed" >&2
+  # Common progress fields work for every kind; inspect operation only for a known basicTrade.
+  jq -c '{kind, orderId, quoteId, status, terminal, statusUrl}
+    + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
+      else {} end' <<<"$placed" >&2
   # endregion
 
   # region order-idempotent-replay
@@ -148,10 +149,10 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
     conflict: $c, recovered: $r.state}}' <<<"$summary")
 
   # region order-status
-  # Read the order at the statusUrl its answer gave: the same envelope as POST /orders, for
-  # Basic and Advanced orders alike. Poll every 10 to 15 seconds until terminal is true. While it
-  # is not, next can say what to do: wait (retryAfter) or contact support with its reference.
-  # A status you do not recognise is "other": keep following terminal.
+  # Read the order at the statusUrl its answer gave: the same envelope as POST /orders, even
+  # for a kind this client does not know. Poll every 10 to 15 seconds until terminal is true.
+  # While it is not, next can say what to do: wait (retryAfter) or contact support with its reference.
+  # A kind or status you do not recognise is "other": keep following terminal.
   status_url=$(jq -r '.statusUrl' <<<"$placed")
   for _ in $(seq 1 12); do
     read_order=$(tetrafi GET "$status_url")
@@ -180,7 +181,7 @@ if [[ ${TETRAFI_EXPIRED:-} == yes ]]; then
   fi
   jq -c '{error, next}' <<<"$lapsed" >&2
   if [[ $(error_of "$lapsed") == QUOTE_EXPIRED ]]; then
-    refreshed=$(quote "{\"requote\":\"$quote_id\"}")
+    refreshed=$(quote "{\"kind\":\"requote\",\"requote\":\"$quote_id\"}")
     jq -c '.quotes[0] | {quoteId: .id, requoteOf, buy: .buy.amount, expiresAt}' <<<"$refreshed" >&2
   fi
   # endregion

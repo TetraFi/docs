@@ -4,7 +4,7 @@
 #
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL          https://api.tetrafi.io in production
-#   TETRAFI_API_KEY           your API key, with Read treasury switched on
+#   TETRAFI_API_KEY           your API key, with Treasury read switched on
 #   TETRAFI_WORKSPACE_ID      your workspace id: the path names it
 #   TETRAFI_SIGNING_SECRET    the key's signing secret, when the key signs its requests
 #
@@ -89,7 +89,7 @@ if [[ -z $asset ]]; then
   # A venue that declares no deposit network answers options [] and names its assets in
   # unconfirmedNetworkAssets: ask for one of them on a chain GET /api/v1/assets lists for it.
   asset=$(jq -r '.unconfirmedNetworkAssets // [] | if index("USDC") then "USDC" else .[0] // "" end' <<<"$instructions")
-  chain=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.assets[] | select(.assetId == $a)
+  chain=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.items[] | select(.assetId == $a)
     | .variants[] | select(.kind == "native") | .deployments[] | .chain) // ""')
 fi
 [[ -n $asset && -n $chain ]] || fail NO_DEPOSIT_OPTION

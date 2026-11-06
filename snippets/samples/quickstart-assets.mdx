@@ -5,20 +5,19 @@
 ```bash cURL
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
     exit 1
   fi
 done
-echo "assets: $(jq '.assets | length' <<<"$assets") listed, quoting $sell for $buy" >&2
+echo "assets: $(jq '.items | length' <<<"$assets") listed, quoting $sell for $buy" >&2
 ```
 
 ```typescript TypeScript SDK
 // Assets come from the API, never from a hardcoded list: what your workspace can reach can change.
-const { assets } = await client.assets();
+const { items: assets } = await client.assets();
 const usdc = assets.find((asset) => asset.symbol === 'USDC');
 const eth = assets.find((asset) => asset.symbol === 'ETH');
-if (!usdc || !eth) throw new Error('This workspace cannot reach USDC and ETH yet.');
 ```
 
 </CodeGroup>

@@ -27,12 +27,15 @@ tetrafi() {
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
   local response status
-  response=$(curl -sS -X "$method" "$TETRAFI_BASE_URL$path" "${headers[@]}" \
-    ${body:+--data "$body"} -w $'\n%{http_code}')
+  if ! response=$(curl -sS --connect-timeout 10 --max-time 60 -X "$method" \
+    "$TETRAFI_BASE_URL$path" "${headers[@]}" ${body:+--data "$body"} -w $'\n%{http_code}'); then
+    echo 'Request failed in transport; its outcome may be unknown.' >&2
+    return 1
+  fi
   status=${response##*$'\n'}
   response=${response%$'\n'*}
   printf '%s\n' "$response"
-  if (( status >= 400 )); then
+  if [[ ! $status =~ ^2[0-9]{2}$ ]]; then
     printf '%s\n' "$response" >&2
     return 1
   fi

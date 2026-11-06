@@ -14,6 +14,8 @@ const SHAPES = [
   { rule: 'private-key-shape', severity: 'hard', re: /(?<![0-9a-fA-F])0x[0-9a-fA-F]{64}(?![0-9a-fA-F])/g },
   { rule: 'retired-surface', severity: 'content', re: /\/api\/v1\/(?:rfq|router|pairs|solvers)\b|\/router\/(?:quotes|orders)|quotes\/indicative/g },
   { rule: 'retired-term', severity: 'content', re: /\bquoteResponse\b|\bintegrityChecksum\b|\bminValidUntil\b|\bcards\[|"intent"\s*:/g },
+  // Backend source paths: maintainer notes in a synced source file must not reach the public site.
+  { rule: 'internal-source-path', severity: 'content', re: /\bcrates\/[\w./-]+|\b\w+\.rs\b/g },
 ];
 export const INTERNAL_NAMES = ['firmOnRequote', 'budgetExhausted', 'routingOptions', 'stepUpProof', 'continuationOf', 'operationId', 'directUserId'];
 

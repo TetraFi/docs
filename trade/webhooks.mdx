@@ -11,16 +11,47 @@ Instead of polling an order's status, register an HTTPS endpoint, and TetraFi se
 The API may change until launch. Every change is listed in the [Changelog](/changelog).
 </Note>
 
-## Register an endpoint
+## Register and manage an endpoint
 
-Webhooks belong to a workspace. Someone with the **Manage credentials and integrations** permission adds one in the app:
+Webhooks belong to a workspace. Your API key needs **Manage webhooks** (`webhooks_manage`), and its owner must still hold the workspace's **Manage webhooks** permission (`manage_webhooks`). Managing credentials alone does not authorise an API key to manage webhooks.
 
-1. Open **Integrations** and select the **Webhooks** tab.
-2. Select **Add webhook**, enter the **Webhook URL** of your HTTPS endpoint, choose the **Events** it handles, then select **Create webhook**.
-3. Copy the signing secret, which starts with `whsec_`, to your secret manager. It is shown once. Tick **I've saved this secret**.
-4. Select **Test event** on the webhook to send one signed delivery right away, and check that your endpoint verifies it.
+For `order.updated`, the endpoint's accountable principal must also have current access to read the workspace's orders. Give the key **Read orders** (`orders_read`) if it will follow an event's `statusUrl`. Events the principal cannot read are withheld, not sent.
 
-Managing webhooks with an API key that has the `webhooks_manage` scope is rolling out. The endpoints are in the [API reference](/reference/introduction).
+Use the workspace bound to your key for `{workspaceId}`. Send `X-API-Key` on every call. With a signed key, also send `X-Timestamp` and `X-Signature`, following [Sign requests](/authentication#sign-requests). Sign the exact method, path including any query, and body bytes. A retry of a write needs a fresh signature, even when its `Idempotency-Key` stays the same. The request-signing secret is separate from the webhook secret used to verify deliveries.
+
+### 1. Create the webhook
+
+Send `POST /api/v1/workspaces/{workspaceId}/webhooks` with an `Idempotency-Key` and a JSON body containing `url` (your HTTPS receiver) and `events` (for example, `["order.updated"]`). Choose subscription names from [Webhook events](/reference/webhook-events); `webhook.test` is sent by the test endpoint, not a subscription name.
+
+Success is `201 Created` with `webhook`, `secret` and `secretShownOnce`. Save `webhook.id` as `{webhookId}`. Store the `whsec_` signing secret in your secret manager immediately: it is shown once. Retrying the same body with the same idempotency key within 24 hours returns `201` without creating another endpoint, but `secret` is `null` on the replay. If you did not save it, rotate the secret below.
+
+### 2. Send a test event
+
+Send `POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` with a new `Idempotency-Key` and the JSON body `{"kind":"test"}`. Success is `201 Created` with a delivery record, not a guarantee that your receiver accepted it. Check `success`, `statusCode` and `errorMessage`, then verify the received `webhook.test` event with the [existing verification samples](#verify-the-signature). Save the record's `id` as `{deliveryId}`. Retrying the same key and body returns the stored delivery without sending another test; a different body with that key answers `409 IDEMPOTENCY_CONFLICT`.
+
+### 3. Rotate the secret
+
+Send `POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate`, with no request body and a new `Idempotency-Key`. Success is `200 OK` with `secret` and `secretShownOnce`. Store the new secret immediately and deploy it to your receiver. A replay with the same idempotency key within 24 hours does not rotate again and returns `secret: null`.
+
+For 24 hours, deliveries carry signatures from both the new and previous secrets. Either verifies, so your receiver can keep accepting deliveries while you deploy the new secret. This rotates the webhook secret, not your API key's request-signing secret.
+
+### 4. Redeliver one delivery
+
+Send `POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry`, with no request body. Success is `200 OK` with the delivery record. TetraFi sends the retained payload to the webhook's current URL, signed with its current secret. Check the returned `success`, `statusCode` and `errorMessage` again; a `200` API response is not the receiver's acknowledgement.
+
+Webhook creation, test delivery creation and secret rotation require an `Idempotency-Key`. Reuse it only to recover that same action; use a new key for a new action. A delivery retry can send the retained event again, so do not assume retries of that call are deduplicated.
+
+### 5. Recover missed events
+
+Send `GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`. Success is `200 OK` with `items`, `totalCount`, `nextCursor` and `retention`. Send `nextCursor` back as `cursor` until it is `null`. Inspect each delivery's `success`, `errorMessage` and `redeliverAvailable`, then redeliver a retained delivery using its `id` and the endpoint above. Availability is not permission: redelivery checks current access again.
+
+If the endpoint is paused, fix the receiver, then send `POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume`, with no request body. Success is `200 OK` with the webhook configuration. Then redeliver the retained failures.
+
+The delivery list is bounded; read its `retention` rather than treating it as a complete event history. There is no public endpoint to replay every event since a timestamp. If a missed delivery is no longer available, read the affected order's current state; the delivery log cannot reconstruct every intermediate status. A `404 WEBHOOK_DELIVERY_NOT_FOUND` means the id is not in this endpoint's log. `409 WEBHOOK_REDELIVERY_REFUSED` means the delivery cannot be resent now, for example while the endpoint is paused or an attempt is pending. `409 WEBHOOK_REDELIVERY_NOT_AVAILABLE` means it was withheld for lack of read access: restore the principal's access for later events, but that withheld event is not resent. See the [error catalogue](/reference/error-codes).
+
+### Manage it in the app
+
+A signed-in member with **Manage webhooks** or **Manage credentials and integrations** can also use **Integrations**, then the **Webhooks** tab. Select **Add webhook**, enter the **Webhook URL**, choose **Events**, then select **Create webhook**. Save the shown-once secret and tick **I've saved this secret**. **Test event** sends a signed delivery; recent deliveries and their redelivery actions are on the webhook.
 
 ## Events
 

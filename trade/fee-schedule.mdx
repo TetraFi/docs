@@ -1,0 +1,64 @@
+---
+title: "Fee schedule"
+description: "Read the fees your workspace pays now, per venue, and the changes already scheduled, with an API key."
+---
+
+import FeeScheduleRead from '/snippets/samples/fee-schedule-read.mdx';
+
+`GET /api/v1/workspaces/{workspaceId}/fee-schedule` answers the TetraFi fees your workspace pays: the schedule in force now, and every change already scheduled. It reads only.
+
+<Note>
+The API may change until launch. Every change is listed in the [Changelog](/changelog).
+</Note>
+
+## Before you start
+
+- Switch on **Read fee schedule** for the key ([Authentication](/authentication#permissions)). Every member of a workspace can read its fees, but a key reads them only when this permission is ticked: no other permission includes it.
+- The path names your workspace: `TETRAFI_WORKSPACE_ID` is the `workspaceId` that `GET /api/v1/me` answers for your key.
+
+## Read the schedule
+
+`current` is the schedule in force. `upcoming` lists the changes already scheduled, oldest first, each with the `effectiveFrom` it starts at and the whole `schedule` from then on. `[]` means no change is scheduled.
+
+A schedule has one set of `defaultRates` and, in `venues`, the venues whose rates differ: a venue listed there uses its own `rates`, and every other venue uses `defaultRates`. `partnerArrangementApplies` is `true` when your workspace has a partner arrangement with the venue.
+
+| Rate | Meaning |
+| --- | --- |
+| `platform` | The rate you are charged, after any taker incentive. |
+| `grossPlatform` | The rate before the taker incentive. |
+| `takerIncentive` | The share of the gross fee rebated to your workspace. `null` when there is none. |
+| `makerShare` | The share of fees your workspace earns as the venue's partner maker. `null` when there is none. It never shows another workspace's arrangement. |
+
+Each rate has `ratePpm`, a decimal string in parts per million (100 ppm is one basis point, 0.01%), and the `effectiveFrom` it applies from, as an RFC 3339 date-time. Read `ratePpm` as a decimal, not a float.
+
+<FeeScheduleRead />
+
+```json Response (shortened)
+{
+  "workspaceId": "36ff6481-…",
+  "current": {
+    "defaultRates": {
+      "platform": { "ratePpm": "100", "effectiveFrom": "2026-10-27T00:00:00Z" },
+      "grossPlatform": { "ratePpm": "100", "effectiveFrom": "2026-10-27T00:00:00Z" },
+      "takerIncentive": null,
+      "makerShare": null
+    },
+    "venues": [],
+    "partnerArrangementApplies": false
+  },
+  "upcoming": []
+}
+```
+
+## Refusals
+
+| `error` | Status | What to do |
+| --- | --- | --- |
+| `INVALID_REQUEST` | 400 | The path's workspace id is not a UUID. |
+| `FEE_SCHEDULE_UNAVAILABLE` | 503 | The schedule could not be read, and no partial or zero schedule was sent. Retry shortly. |
+
+A key without **Read fee schedule** is refused with `403`. Every other code is in [Error codes](/reference/error-codes).
+
+## In the app
+
+The app does not show your workspace's fee schedule yet: read it with this request.

@@ -1,0 +1,39 @@
+---
+title: "Rate limits"
+description: "Know when a quote request counts, read your remaining allowance and wait before retrying a refusal."
+---
+
+import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
+
+## The quote rate limit
+
+You may send one live quote request (`POST /api/v1/quotes`) every 3 seconds per API key. A requote counts as one. A request answered entirely from cached prices does not count against this limit.
+
+A live quote request asks venues for quotes, and each venue limits how often it answers. The limit protects your venue relationships and keeps their answers coming. A venue asked too often stops quoting you for a while: its source answers [`askLimitReached`](/reference/error-codes#askLimitReached), with a `fix` that names when it reopens, or [`firmQuoteLimited`](/reference/error-codes#firmQuoteLimited). Use `GET /api/v1/prices` or `GET /api/v1/prices/stream` to watch a market, and request a quote only when you intend to trade. See [Prices](/search/prices).
+
+## Wait, then retry once
+
+A request over the quote limit answers `429 QUOTE_RATE_LIMITED`. The `Retry-After` header gives the wait in whole seconds. `details.retryAfter` carries the same wait as an ISO 8601 duration, for example `PT3S`. Wait that long, then retry once.
+
+The sample from [`samples/http/errors.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/errors.sh) sends two quote requests at once, waits for the refused request's `details.retryAfter`, then sends it once more. Run the complete script with your [Quickstart credentials](/quickstart#set-your-environment); it defines the helper and variables the excerpt uses and places no order.
+
+<ErrorsRateLimit />
+
+## Read the headers
+
+Every answer that a rate limit counted, successes and refusals alike, carries two headers in the [IETF RateLimit header fields](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) format:
+
+| Header | Meaning | Example |
+| --- | --- | --- |
+| `RateLimit-Policy` | The limit and its window in seconds, as `<limit>;w=<seconds>`. | `1;w=3`: one request every 3 seconds. |
+| `RateLimit` | `limit`, the requests you may still send now as `remaining`, and the whole seconds until quota next becomes available as `reset`. | `limit=1, remaining=0, reset=3` |
+
+When more than one limit counted a request, the headers describe the one closest to running out: the lowest `remaining`, then the longest `reset`. On a `429`, they describe the limit that refused it, with `remaining=0` and `reset` equal to `Retry-After`. When a venue sets only a cooldown, with no quota or window, the `429` carries `Retry-After` but no RateLimit headers. `reset` is a wait, not a timestamp or a promise that the whole allowance refills at once.
+
+An answer that no limit counted has neither header. Treat an absent header as "not counted", never as zero. A price read does not use the quote allowance, but can still carry headers for a different limit.
+
+## Price limits
+
+Price reads have their own limit, separate from quotes. `429 PRICES_RATE_LIMIT` means too many price reads: wait `Retry-After` seconds before retrying.
+
+You may hold up to 4 price streams per caller at once. Opening another answers `429 PRICES_STREAM_LIMIT`: close a stream before subscribing again. [Prices](/search/prices#caching-and-limits) covers caching and streaming.

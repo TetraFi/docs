@@ -22,6 +22,7 @@ npm test          # the leak gate's own tests
 - The internal host and tooling names it refuses are kept outside this repository, in the private `tetrafi-docs` repository (`public-site/leak-terms.json`). The gate refuses to run without that file.
 - Field names that are internal today are allowed only while the public API spec names them as fields.
 - The API reference is copied from the API's integrator spec only when that spec passes the same rules. Until then `npm run sync` withholds it.
+- `npm run sync` also generates `reference/permissions.mdx` from the integrator spec's operation scopes and app permission labels; until scopes are exported it contains only an unavailable notice, and `--check` rejects drift or a used scope without its label.
 
 ## Code samples
 

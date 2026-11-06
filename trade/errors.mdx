@@ -24,7 +24,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
   "error": "QUOTE_EXPIRED",
   "message": "This quote has expired, so nothing was sent. Request a new price.",
   "requestId": "5ee4d511-5ef8-4e47-9999-5b144ec4fcbc",
-  "timestamp": 1792443399,
+  "timestamp": "2026-10-19T20:56:39Z",
   "docUrl": "https://tetrafi.mintlify.app/reference/error-codes#QUOTE_EXPIRED",
   "next": { "kind": "requote", "needs": [] }
 }
@@ -35,7 +35,7 @@ The API may change until launch. Every change is listed in the [Changelog](/chan
 | `error` | The stable code. | Match on it. It never changes for the same refusal. |
 | `message` | A sentence for people. | Show or log it. Never match on it: the words can change. |
 | `requestId` | The same value as the `X-Request-Id` response header. | Log it, and quote it when you contact support. |
-| `timestamp` | When the refusal was made, in Unix seconds. | Log it. |
+| `timestamp` | When the refusal was made, as an RFC 3339 UTC date-time string. | Log it. |
 | `docUrl` | This code's entry in the [error-code reference](/reference/error-codes). | Link it in your logs or show it to a developer. |
 | `next` | The way forward, when there is one. | See [what next tells you](#what-next-tells-you). |
 | `details` | The code's detail, when there is any. | Read the keys you know. Keys are camelCase and more can be added. |
@@ -57,7 +57,7 @@ A refusal that you can recover from in a known way carries `next`. Its `kind` is
 
 | `next.kind` | What to do |
 | --- | --- |
-| `requote` | Send `POST /api/v1/quotes` with `{"requote": "<quote id>"}`. `next.needs` lists what the new quote needs from you, such as a trading wallet to name; an empty list means requote as it is. See [Requotes and expiry](/trade/requotes-and-expiry). |
+| `requote` | Send `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`. `next.needs` lists what the new quote needs from you, such as a trading wallet to name; an empty list means requote as it is. See [Requotes and expiry](/trade/requotes-and-expiry). |
 | `fund` | The paying account holds too little. Fund it, then get a new price. |
 | `preflight`, `sign`, `transact` | Your own wallet would act on-chain (Advanced), which is not open yet. Order a Basic quote instead. |
 | `order` | The quote can be ordered as it is. |
@@ -88,6 +88,8 @@ Wait at least that long. Sending sooner is refused again.
 ### The quote rate limit
 
 You can send one live quote request every 3 seconds per API key. A requote counts as a quote request. A request answered entirely from cached prices does not count. A faster request answers `429 QUOTE_RATE_LIMITED`.
+
+[Rate limits](/reference/rate-limits#the-quote-rate-limit) explains why this limit applies and how to read the response headers.
 
 The script sends two quote requests at once, so one of them is refused. It waits `details.retryAfter`, then sends the refused one again:
 

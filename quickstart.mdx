@@ -13,7 +13,7 @@ This guide walks through one script, [`samples/http/quickstart.sh`](https://gith
 
 For a first quote without placing an order, copy the **cURL** blocks in steps 1–3 into the same Bash session and stop there. Alternatively, run the linked script: it stops after the quote unless you explicitly opt in to ordering with `TETRAFI_PLACE_ORDER=1`. The order request in step 4 sends a real order when pasted.
 
-Each step shows the script's code under **cURL**. The **TypeScript SDK** tab shows the same step in TetraFi's TypeScript SDK, which is not published to npm yet: it is coming soon. Its example differs from the script in two ways: it quotes USDC for ETH, and after ordering it waits until the order ends.
+Each step shows the script's code under **cURL**. The **TypeScript SDK** tab shows the same step in TetraFi's TypeScript SDK, which is not published to npm yet: it is coming soon. Its example quotes USDC for ETH and waits until the order ends instead of reading its status once. The local replay file and the `bc` calculation below belong to the cURL script.
 
 <Warning>
 The script stops after the quote by default. Only set `TETRAFI_PLACE_ORDER=1` when you intend to place a real order: it trades 10 USDC from your venue account by default, and that cannot be undone. There is no sandbox yet. Set `TETRAFI_AMOUNT` to trade less, down to the venue's minimum. [Test safely](/test-safely) shows how to find each venue's minimum before you order.
@@ -23,9 +23,19 @@ The script stops after the quote by default. Only set `TETRAFI_PLACE_ORDER=1` wh
 The API may change until launch. Every change is listed in the [Changelog](/changelog).
 </Note>
 
+## From prices to an order
+
+```mermaid
+flowchart TD
+    prices["Prices: indicative, not orderable"] -->|Ready to trade| quotes["Quotes: live auction"]
+    quotes -->|Choose an orderable quote before expiresAt| order["Order: send an Idempotency-Key"]
+```
+
+Read `GET /api/v1/prices` for [indicative prices](/search/prices): no venue is asked, and nothing in that answer can be ordered. When you intend to trade, `POST /api/v1/quotes` starts the live auction across the venues your workspace can use; send `filters.firmOnly: true` when you want only [quotes that hold their price](/search/firm-only). Follow each quote's `next` action and order it before its [`expiresAt`](/search/quote-lifetime). `POST /api/v1/orders` with the quote id and an `Idempotency-Key` places the order.
+
 ## Before you begin
 
-You need `bash`, `curl`, `jq` and `openssl`, and an exchange or OTC venue account connected to your workspace that holds the USDC you sell.
+You need `bash`, `curl`, `jq`, `openssl` and `bc`, and an exchange or OTC venue account connected to your workspace that holds the USDC you sell. The script uses `bc` for exact decimal arithmetic, never floating-point maths.
 
 ### Get a key with venue trading
 
@@ -60,7 +70,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
     export TETRAFI_SIGNING_SECRET=...     # the key's signing secret
     ```
 
-    The script starts with one helper, `tetrafi`, that sends a request with your key, signs it when `TETRAFI_SIGNING_SECRET` is set, and stops the script with the error body on any error status.
+    The script starts with one helper, `tetrafi`, that sends a request with your key and signs it when `TETRAFI_SIGNING_SECRET` is set. It returns an error on a transport failure or any non-2xx status, printing the response body when one is available. Requests time out after 60 seconds; an order error goes to the recovery steps in step 4.
 
     <QuickstartClient />
   </Step>
@@ -72,7 +82,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
 
     ```json Response (shortened)
     {
-      "assets": [
+      "items": [
         {
           "assetId": "USDC",
           "symbol": "USDC",
@@ -90,7 +100,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
   </Step>
 
   <Step title="Request quotes and pick the best">
-    `POST /api/v1/quotes` asks every venue at once. The body names the asset you sell (`sell`), the asset you buy (`buy`) and `sellAmount`, the exact amount you sell. To fix the amount you buy instead, send `buyAmount`. Leave out `chain` on a side to let venues quote it on any chain or off-chain.
+    `POST /api/v1/quotes` asks every venue at once. Send `"kind":"pair"`; the body names the asset you sell (`sell`), the asset you buy (`buy`) and `sellAmount`, the exact amount you sell. To fix the amount you buy instead, send `buyAmount`. Leave out `chain` on a side to let venues quote it on any chain or off-chain.
 
     Quotes come back best first, by what you buy net of fees. The script takes the first one whose `next` is `order`: a quote you can order now. If none is, it prints every venue's outcome from `sources` and stops.
 
@@ -138,11 +148,19 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` header with a value you generate and keep: a retry with the same key and body returns the first answer instead of placing a second order. Each quote can be ordered once.
 
-    When the quote's `minReceiveRequired` is `true`, send `minReceive`, the least you accept: the script uses the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the bought asset's decimals from `GET /api/v1/assets`.
+    When the quote's `minReceiveRequired` is `true`, send `minReceive`, the least you accept: the script uses the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS` (default 50, or 0.5%), rounded down to the bought asset's decimals from `GET /api/v1/assets`. It calculates with decimal strings in `bc` and sends a decimal string, never an exponent or a float-rounded number. Slippage must be an integer from 0 to 9999; if rounding would make the minimum zero, the script stops before sending.
+
+    Before sending, the script saves `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json` in your current directory, readable only by you. `exactBody` is the exact JSON body as a string. Keep this file even after success. Re-entering the order step for the same quote reuses its saved body and key; it never overwrites them.
 
     The script places the order only when you set `TETRAFI_PLACE_ORDER=1`. Without it, it stops after the quote and prints the quote id it would order.
 
     <QuickstartOrder />
+
+    <Warning>
+    A timeout, dropped connection, 5xx, `409 IDEMPOTENCY_*` or unreadable answer is not proof that the order failed. The script stops with recovery commands: load the saved body and key, resend them unchanged, then call `GET /api/v1/orders/by-quote/{quoteId}` even if that replay fails. Use the `tetrafi` helper from step 1 so the replay has fresh request-signing headers. **Do not rerun the whole script, request a fresh quote, generate a new key or place a fresh order to retry this trade.**
+
+    If recovery says `ordered`, follow its `statusUrl`. If it says `unknown` or the read fails, wait and read again; never order again. If it says `notOrdered`, retry only the saved body and key, and only while `expired` is `false`. See [Idempotency](/trade/idempotency) for the recovery states and refusal codes.
+    </Warning>
 
     ```json Response (shortened)
     {
