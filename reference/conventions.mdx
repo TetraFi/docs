@@ -43,7 +43,7 @@ See [Supported interfaces](/reference/supported-interfaces) for transports, SDK 
 
 ## Paging
 
-A list that pages takes `limit` and answers `nextCursor`. Send it back as `cursor` until `nextCursor` is absent. A cursor is valid while the list it came from is unchanged: after a change it answers `409 CURSOR_STALE`, and you start again from the first page.
+A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged as `cursor` until `nextCursor` is absent. Tokens are opaque: never decode, construct or edit them, and use them only for the same workspace, list and filters. They may expire, including after a server-key rotation or private-format deployment; an invalid or expired authenticated cursor answers 400, and you restart without `cursor`. A list with a snapshot contract may instead answer `409 CURSOR_STALE` after the underlying selection changes; restart from its first page too. The token's private encoding is not part of the API contract.
 
 `GET /api/v1/assets` pages this way, from 1 to 200 assets a page, and `GET /api/v1/orders`, up to 20 orders a page. An order page can hold fewer than `limit` orders, even none, while more follow: stop only when `nextCursor` is absent or `null`.
 
