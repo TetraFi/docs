@@ -1214,7 +1214,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. Select payInLegId (a summary pay-in window's legId) for one open pay-in leg's payment details: the read uses that leg's currency and, for a dedicated fiat venue, the paying bank its deposit declaration recorded when that bank is linked at the venue; send it alone (400 PAY_IN_LEG_SELECTION_EXCLUSIVE). 404 PAY_IN_LEG_NOT_FOUND for a leg that is not this account's pay-in, 409 PAY_IN_LEG_NOT_OPEN once it is no longer waiting for funds. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-instructions",
           "host": [
@@ -1253,6 +1253,12 @@
               "value": "<providerBankId>",
               "disabled": true,
               "description": "The dedicated fiat venue's linked bank id for the sending bank. Required with currency for a dedicated fiat venue and refused for other venues."
+            },
+            {
+              "key": "payInLegId",
+              "value": "<payInLegId>",
+              "disabled": true,
+              "description": "One of the venue account's open pay-in legs (a summary pay-in window's `legId`):\nthe read selects that leg's currency and, for a dedicated fiat venue, the paying\nbank its deposit declaration recorded. Only on the venue-account read, and never\nwith `asset`, `chainRef`, `currency` or `providerBankId`."
             }
           ],
           "variable": [
