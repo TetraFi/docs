@@ -32,10 +32,17 @@ const allowed = allowedInternalNames(publicSpec);
 const rules = rulesFor(root, allowed);
 const hardRules = rules.filter((r) => r.severity === 'hard');
 const hits = [];
+// Pages are .mdx. Mintlify serves any other .md by URL, in navigation or not, so a working note in the
+// tree is published; only the names it never serves, and folders it ignores, may hold one.
+const MARKDOWN_ALLOWED = new Set(['README.md', 'LICENSE.md', 'CHANGELOG.md', 'CONTRIBUTING.md']);
+const MARKDOWN_UNSERVED = /^(?:\.github|\.claude|\.agents|\.archive|node_modules|scripts|samples)\//;
+const strayMarkdown = (file) => /\.md$/i.test(file) && !MARKDOWN_UNSERVED.test(file) && !MARKDOWN_ALLOWED.has(file);
+const stray = { rule: 'stray-markdown', line: 0, match: 'a .md file is served by URL; make it a page (.mdx) or move it out' };
 
 const files = [...new Set([...list('ls-files', '-z'), ...list('ls-files', '-z', '--others', '--exclude-standard')])]
   .filter((f) => !skipped(f) && existsSync(path.join(root, f)));
 for (const file of files) {
+  if (strayMarkdown(file)) hits.push({ scope: 'tree', file, ...stray });
   for (const h of scanText(readFileSync(path.join(root, file), 'utf8'), rules)) hits.push({ scope: 'tree', file, ...h });
 }
 
@@ -51,6 +58,7 @@ if (!args.includes('--no-history')) {
   for (const commit of commits) {
     const changed = list('diff-tree', '-r', '-z', '--no-commit-id', '--name-only', '--diff-filter=AM', '--root', commit);
     for (const file of changed.filter((f) => !skipped(f))) {
+      if (strayMarkdown(file)) hits.push({ scope: 'history', commit: commit.slice(0, 7), file, ...stray });
       const text = git('show', `${commit}:${file}`);
       history.blobs += 1;
       for (const h of scanText(text, hardRules)) hits.push({ scope: 'history', commit: commit.slice(0, 7), file, ...h });

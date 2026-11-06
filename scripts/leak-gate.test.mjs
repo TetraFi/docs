@@ -51,3 +51,23 @@ test('an unresolvable base refuses instead of passing', () => {
   const run = spawnSync('node', [path.join(import.meta.dirname, 'leak-gate.mjs'), '--root', repo, '--base', 'origin/main'], { encoding: 'utf8', env: process.env });
   assert.notEqual(run.status, 0);
 });
+
+// Catches an internal working note at the root (or in any page folder): Mintlify serves any .md by URL,
+// in or out of navigation, so only the names it never serves are allowed.
+test('a stray markdown note fails the gate, in the tree and in history; README passes', () => {
+  const repo = mkdtempSync(path.join(tmpdir(), 'leak-repo-'));
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' });
+  git('init', '-q'); git('config', 'user.email', 't@example.com'); git('config', 'user.name', 't');
+  writeFileSync(path.join(repo, 'README.md'), 'readme\n'); git('add', '.'); git('commit', '-qm', 'base');
+  const base = git('rev-parse', 'HEAD').trim();
+  const gate = () => spawnSync('node', [path.join(import.meta.dirname, 'leak-gate.mjs'), '--root', repo, '--base', base], { encoding: 'utf8', env: process.env });
+  assert.equal(gate().status, 0, gate().stdout);
+  writeFileSync(path.join(repo, 'live-findings.md'), 'working notes\n');
+  const planted = gate();
+  assert.equal(planted.status, 1, planted.stdout);
+  assert.match(planted.stdout, /LEAK stray-markdown live-findings\.md/);
+  git('add', '.'); git('commit', '-qm', 'note'); git('rm', '-q', 'live-findings.md'); git('commit', '-qm', 'remove');
+  const removed = gate();
+  assert.equal(removed.status, 1, removed.stdout);
+  assert.match(removed.stdout, /LEAK stray-markdown [0-9a-f]{7}:live-findings\.md/);
+});
