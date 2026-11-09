@@ -191,7 +191,7 @@ Every authentication failure is the one code `401 AUTH_REQUIRED`. Its `details.r
 | The key is past its expiration. | `API_KEY_EXPIRED` | Create a new key. |
 | The key needs signing and `X-Timestamp` or `X-Signature` is missing. | `SIGNATURE_REQUIRED` | [Sign the request](/authentication#sign-requests). |
 | The signature is malformed or does not match. | `SIGNATURE_INVALID` | Sign the exact method, path with query, and body bytes you send, with the hex-decoded secret. |
-| `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 30 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` | Sync your clock and sign again. |
+| `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 10 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` | Keep your clock NTP-synced, then sign again with a fresh timestamp and nonce. |
 | A write (`POST`, `PUT`, `PATCH` or `DELETE`) has no `X-Nonce`. | `NONCE_REQUIRED` | Send a fresh `X-Nonce` and sign it as the second line. |
 | `X-Nonce` is malformed (not 16 to 128 of `A-Z a-z 0-9 - _`) or sent more than once. | `NONCE_INVALID` | Send one well-formed nonce. |
 | This nonce was already accepted for the key. | `SIGNATURE_REPLAYED` | Sign each send with a new nonce, retries included; keep the same `Idempotency-Key`. A repeated signed read without a nonce is accepted. |

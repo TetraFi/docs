@@ -128,7 +128,7 @@ When signing is on for a key, every request carries more headers:
 
 | Header | Value |
 | --- | --- |
-| `X-Timestamp` | The current time in Unix seconds. It must be within 300 seconds of TetraFi's clock, and a write's at most 30 seconds ahead of it. |
+| `X-Timestamp` | The current time in Unix seconds. It must be within 300 seconds of TetraFi's clock, and a write's at most 10 seconds ahead of it: keep your clock NTP-synced. |
 | `X-Nonce` | A fresh random value for each request: 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`. Required on a write (`POST`, `PUT`, `PATCH` or `DELETE`); leave it off a read (`GET` or `HEAD`). |
 | `X-Signature` | Lower-case hexadecimal HMAC-SHA256 of the string below, keyed with the signing secret's 32 bytes: the secret is 64 hexadecimal characters, so decode it first. |
 
@@ -160,7 +160,7 @@ A request that fails the signature check is refused with `401 AUTH_REQUIRED`, an
 | --- | --- |
 | The key needs signing and a header is missing. | `SIGNATURE_REQUIRED` |
 | The signature is malformed or does not match. | `SIGNATURE_INVALID` |
-| `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 30 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` |
+| `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 10 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` |
 | A write has no `X-Nonce`. | `NONCE_REQUIRED` |
 | `X-Nonce` is malformed, or sent more than once. | `NONCE_INVALID` |
 | This nonce was already accepted for the key. | `SIGNATURE_REPLAYED` |
