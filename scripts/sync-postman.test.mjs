@@ -102,8 +102,8 @@ test('a form-encoded anonymous operation sends a raw form of every field without
 });
 
 function sign({ secret = 'ab'.repeat(32), method = 'post', url = 'https://api.example.test/api/v1/orders?limit=2&cursor=a%2Fb', body = '{\n  "quoteId": "{{quoteId}}", "note": "café"\n}', mode = 'raw', disabled = false } = {}) {
-  const headers = new Map([['Content-Type', 'application/json'], ['X-Signature', 'stale'], ['X-Timestamp', 'stale']]);
-  const variables = { signingSecret: secret, quoteId: 'q_test' };
+  const headers = new Map([['Content-Type', 'application/json'], ['X-Signature', 'stale'], ['X-Timestamp', 'stale'], ['X-Nonce', 'stale']]);
+  const variables = { signingSecret: secret, quoteId: 'q_test', $guid: '0b6f1d2e-3c4a-4b5d-8e6f-7a8b9c0d1e2f' };
   const request = { method, headers: {
     get: (key) => headers.get(key), remove: (key) => headers.delete(key), upsert: ({ key, value }) => headers.set(key, value),
   }, url: { toString: () => url, update: (value) => { url = value; } } };
@@ -127,8 +127,9 @@ test('signing hashes the exact resolved UTF-8 body and includes the full query',
   const body = '{\n  "quoteId": "q_test", "note": "café"\n}';
   assert.equal(request.body.raw, body);
   assert.equal(url, 'https://api.example.test/api/v1/orders?limit=2&cursor=a%2Fb');
-  const canonical = `1800000000\nPOST\n/api/v1/orders?limit=2&cursor=a%2Fb\n${createHash('sha256').update(body).digest('hex')}`;
+  const canonical = `1800000000\n0b6f1d2e-3c4a-4b5d-8e6f-7a8b9c0d1e2f\nPOST\n/api/v1/orders?limit=2&cursor=a%2Fb\n${createHash('sha256').update(body).digest('hex')}`;
   assert.equal(headers.get('X-Timestamp'), '1800000000');
+  assert.equal(headers.get('X-Nonce'), '0b6f1d2e-3c4a-4b5d-8e6f-7a8b9c0d1e2f');
   assert.equal(headers.get('X-Signature'), createHmac('sha256', Buffer.from('ab'.repeat(32), 'hex')).update(canonical).digest('hex'));
 });
 
@@ -136,7 +137,10 @@ test('empty secret removes both signature headers; empty GET bodies use the empt
   const unsigned = sign({ secret: '', body: '' });
   assert.equal(unsigned.headers.has('X-Signature'), false);
   assert.equal(unsigned.headers.has('X-Timestamp'), false);
+  assert.equal(unsigned.headers.has('X-Nonce'), false);
   const signed = sign({ method: 'get', body: '', url: 'https://api.example.test/api/v1/assets?limit=1' });
+  // A read signs four lines and sends no nonce.
+  assert.equal(signed.headers.has('X-Nonce'), false);
   const canonical = `1800000000\nGET\n/api/v1/assets?limit=1\n${createHash('sha256').update('').digest('hex')}`;
   assert.equal(signed.headers.get('X-Signature'), createHmac('sha256', Buffer.from('ab'.repeat(32), 'hex')).update(canonical).digest('hex'));
 });

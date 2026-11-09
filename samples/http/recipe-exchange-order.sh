@@ -36,10 +36,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi

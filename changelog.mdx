@@ -5,6 +5,14 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-11-09" description="A nonce on every signed write">
+  - **Breaking for signing keys.** A key with request signing on must send `X-Nonce` on every write (`POST`, `PUT`, `PATCH`, `DELETE`): 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`, new for each request. A write signs five lines, `{timestamp}\n{nonce}\n{METHOD}\n{path}\n{bodySha256}`; a read without a nonce keeps the four-line form. A write without one answers `401 AUTH_REQUIRED` with `details.reason` `NONCE_REQUIRED` ([Sign every request](/authentication#sign-every-request)).
+  - A nonce is accepted once per key, so two identical writes in the same second both succeed with their own nonces, and a retry signs again with a new nonce while keeping its `Idempotency-Key`. A reused nonce answers `SIGNATURE_REPLAYED`.
+  - New `details.reason` values on `401 AUTH_REQUIRED`: `NONCE_REQUIRED`, `NONCE_INVALID` and `SIGNATURE_PREDATES_RESTART` (sign again with a fresh timestamp and nonce). A write's `X-Timestamp` may be at most 30 seconds ahead of TetraFi's clock.
+  - `429 REPLAY_WINDOW_FULL`: the key's replay record is full; retry shortly with a fresh nonce. `503 API_KEY_UNAVAILABLE` also covers a signing state that could not be confirmed ([Errors](/trade/errors)).
+  - The cURL samples, the Postman collection and the TypeScript SDK send `X-Nonce` on writes.
+</Update>
+
 <Update label="2026-11-06" description="Casing, malformed bodies and capacity refusals">
   - A wallet-based venue in `GET …/venue-enablements` no longer carries `accountId`: it has no venue account, and `fundingTarget` names the trading wallets that hold its money. Key items by `venueEnablementId` and read `accountId` only where present ([Venue balances](/trade/venue-balances)).
   - A body that is not valid JSON answers `400 INVALID_REQUEST`, no longer `422 REQUEST_UNPROCESSABLE` ([Errors](/trade/errors)).

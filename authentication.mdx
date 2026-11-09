@@ -124,25 +124,35 @@ For a member's own key without venue trading, `DELETE` on the signing route disa
 
 ### Sign every request
 
-When signing is on for a key, every request carries two more headers:
+When signing is on for a key, every request carries more headers:
 
 | Header | Value |
 | --- | --- |
-| `X-Timestamp` | The current time in Unix seconds. It must be within 300 seconds of TetraFi's clock. |
+| `X-Timestamp` | The current time in Unix seconds. It must be within 300 seconds of TetraFi's clock, and a write's at most 30 seconds ahead of it. |
+| `X-Nonce` | A fresh random value for each request: 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`. Required on a write (`POST`, `PUT`, `PATCH` or `DELETE`); leave it off a read (`GET` or `HEAD`). |
 | `X-Signature` | Lower-case hexadecimal HMAC-SHA256 of the string below, keyed with the signing secret's 32 bytes: the secret is 64 hexadecimal characters, so decode it first. |
 
-The signed string is four lines joined by a newline, with no newline at the end:
+A write signs five lines joined by a newline, with no newline at the end:
 
 ```text
 <X-Timestamp>
+<X-Nonce>
 <HTTP method in upper case>
 <path with its query string, exactly as sent>
 <lower-case hexadecimal SHA-256 of the exact body bytes>
 ```
 
-A request without a body signs the SHA-256 of zero bytes.
+A read sends no `X-Nonce` and signs the same lines without the second, four in all. A request without a body signs the SHA-256 of zero bytes.
 
-A signed write (`POST`, `PUT`, `PATCH` or `DELETE`) is accepted once: sending the same signed write again is refused, so a retry signs again with a fresh `X-Timestamp`. A read (`GET` or `HEAD`) changes nothing, so the same signed read is accepted again inside the 300-second window, and polling a status needs no nonce.
+Generate the nonce from a cryptographic random source, for example 18 random bytes in base64url:
+
+```bash
+nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+```
+
+In Node.js, `crypto.randomBytes(18).toString('base64url')`; in Python, `secrets.token_urlsafe(18)`.
+
+TetraFi accepts each nonce once per key and refuses it again, whatever the body. So two identical writes in the same second each carry their own nonce and both succeed, and a retry of a write signs again with a new nonce and a fresh `X-Timestamp` while its `Idempotency-Key` and body stay the same: the key, not the signature, is what makes the retry safe ([Idempotency](/trade/idempotency)). A read without a nonce changes nothing, so the same signed read is accepted again inside the 300-second window, and polling a status needs no nonce. A read that does send `X-Nonce` is signed in five lines and accepted once.
 
 A request that fails the signature check is refused with `401 AUTH_REQUIRED`, and `details.reason` says why:
 
@@ -150,8 +160,13 @@ A request that fails the signature check is refused with `401 AUTH_REQUIRED`, an
 | --- | --- |
 | The key needs signing and a header is missing. | `SIGNATURE_REQUIRED` |
 | The signature is malformed or does not match. | `SIGNATURE_INVALID` |
-| `X-Timestamp` is more than 300 seconds from TetraFi's clock. | `TIMESTAMP_OUT_OF_RANGE` |
-| This exact signed write was already accepted. | `SIGNATURE_REPLAYED` |
+| `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 30 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` |
+| A write has no `X-Nonce`. | `NONCE_REQUIRED` |
+| `X-Nonce` is malformed, or sent more than once. | `NONCE_INVALID` |
+| This nonce was already accepted for the key. | `SIGNATURE_REPLAYED` |
+| The request was timestamped before TetraFi restarted. Sign it again with a fresh timestamp and nonce, and send it once more. | `SIGNATURE_PREDATES_RESTART` |
+
+Two more answers are about the key rather than the signature. `429 REPLAY_WINDOW_FULL` means the key holds as many accepted nonces as its replay record allows (100,000 per signing secret over ten minutes); nothing was done, so retry shortly with a fresh timestamp and nonce, and spread sustained write volume across keys. `503 API_KEY_UNAVAILABLE` means the key or its signing state could not be confirmed; retry shortly.
 
 The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.
 

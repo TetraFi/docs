@@ -37,10 +37,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
@@ -87,12 +95,13 @@ stream_request() {
   )
   if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature nonce
     timestamp=$(date +%s)
+    nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" POST /api/v1/quotes "$digest" \
+    signature=$(printf '%s\n%s\n%s\n%s\n%s' "$timestamp" "$nonce" POST /api/v1/quotes "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
-    headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
+    headers+=(-H "X-Timestamp: $timestamp" -H "X-Nonce: $nonce" -H "X-Signature: $signature")
   fi
   curl -sS -N -X POST "$TETRAFI_BASE_URL/api/v1/quotes" "${headers[@]}" \
     -D "$tmp/stream-headers" --data "$body"
