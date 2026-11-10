@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { declaredCodes, documentedCodes, generatedCodes, main } from './refusal-coverage.mjs';
+import { declaredCodes, documentedCodes, documentedSiteCodes, generatedCodes, main } from './refusal-coverage.mjs';
 
 const page = readFileSync(path.join(import.meta.dirname, '..', 'trade', 'errors.mdx'), 'utf8');
 const rows = [...documentedCodes(page)];
@@ -25,8 +25,20 @@ function run(codes, { generated = rows, documented = page } = {}) {
   return { status, stdout: output.join('\n') };
 }
 
-test('the page has refusal rows to compare', () => {
-  for (const code of ['MISSING_WORKSPACE', 'UNKNOWN_ASSET', 'QUOTE_RATE_LIMITED', 'IDEMPOTENCY_CONFLICT']) assert.ok(rows.includes(code), code);
+test('the guides have refusal rows to compare', () => {
+  for (const code of ['MISSING_WORKSPACE', 'AUTH_REQUIRED', 'RATE_LIMITED', 'IP_NOT_ALLOWED']) assert.ok(rows.includes(code), code);
+  const site = documentedSiteCodes(path.join(import.meta.dirname, '..'));
+  for (const code of ['UNKNOWN_ASSET', 'QUOTE_RATE_LIMITED', 'QUOTE_ALREADY_ORDERED', 'MISSING_WORKSPACE']) assert.ok(site.has(code), code);
+});
+
+test('a refusal table on any guide page is checked', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'refusal-pages-'));
+  mkdirSync(path.join(fixture, 'search'));
+  mkdirSync(path.join(fixture, 'reference'));
+  writeFileSync(path.join(fixture, 'search', 'page.mdx'), '## Refusals\n| Code | Why |\n| --- | --- |\n| `400 GUIDE_ONLY_CODE` | x |\n## Next\n| `NOT_COUNTED_CODE` | x |');
+  writeFileSync(path.join(fixture, 'reference', 'error-codes.mdx'), '## Refusals\n| `GENERATED_PAGE_CODE` | x |');
+  assert.deepEqual([...documentedSiteCodes(fixture)], ['GUIDE_ONLY_CODE']);
+  assert.throws(() => documentedSiteCodes(mkdtempSync(path.join(tmpdir(), 'refusal-none-'))), /REFUSAL_TABLES_MISSING/);
 });
 
 test('a declared code with no row fails, naming it', () => {
@@ -37,9 +49,9 @@ test('a declared code with no row fails, naming it', () => {
 });
 
 test('a row the API no longer declares fails, naming it', () => {
-  const result = run({ codes: rows.filter((code) => code !== 'UNKNOWN_ASSET').map((code) => ({ code })) });
+  const result = run({ codes: rows.filter((code) => code !== 'IP_NOT_ALLOWED').map((code) => ({ code })) });
   assert.equal(result.status, 1, result.stdout);
-  assert.match(result.stdout, /^REFUSAL_UNKNOWN UNKNOWN_ASSET$/m);
+  assert.match(result.stdout, /^REFUSAL_UNKNOWN IP_NOT_ALLOWED$/m);
 });
 
 test('every declared code with a row passes', () => {
@@ -55,16 +67,16 @@ test('the reference covers declared codes omitted from the hand-written subset',
 });
 
 test('a generated row is required even when the hand-written page covers the code', () => {
-  const result = run({ codes: rows.map((code) => ({ code })) }, { generated: rows.filter((code) => code !== 'UNKNOWN_ASSET') });
+  const result = run({ codes: rows.map((code) => ({ code })) }, { generated: rows.filter((code) => code !== 'IP_NOT_ALLOWED') });
   assert.equal(result.status, 1, result.stdout);
-  assert.match(result.stdout, /^REFUSAL_UNDOCUMENTED UNKNOWN_ASSET$/m);
+  assert.match(result.stdout, /^REFUSAL_UNDOCUMENTED IP_NOT_ALLOWED$/m);
 });
 
 test('a missing or withheld reference fails closed and still reports unknown hand-written codes', () => {
-  const result = run({ codes: rows.filter((code) => code !== 'UNKNOWN_ASSET') }, { generated: null });
+  const result = run({ codes: rows.filter((code) => code !== 'IP_NOT_ALLOWED') }, { generated: null });
   assert.equal(result.status, 1, result.stdout);
   assert.match(result.stdout, /^REFUSAL_COVERAGE_UNREADABLE reference\/error-codes.mdx$/m);
-  assert.match(result.stdout, /^REFUSAL_UNKNOWN UNKNOWN_ASSET$/m);
+  assert.match(result.stdout, /^REFUSAL_UNKNOWN IP_NOT_ALLOWED$/m);
 });
 
 test('source reasons and prose never count as generated refusal codes', () => {
@@ -73,7 +85,7 @@ test('source reasons and prose never count as generated refusal codes', () => {
 });
 
 test('hand-written refusal tables are checked, but source reasons and prose are not', () => {
-  const documented = page.replace('## Refusals by area', '## Refusals by area\n| Code | Meaning |\n| `EXTRA_TABLE_CODE` | x |');
+  const documented = page.replace('## Refusals on any request', '## Refusals on any request\n| Code | Meaning |\n| `EXTRA_TABLE_CODE` | x |');
   const result = run({ codes: rows }, { documented: `${documented}\nMention \`PROSE_ONLY_CODE\`.` });
   assert.equal(result.status, 1, result.stdout);
   assert.match(result.stdout, /^REFUSAL_UNKNOWN EXTRA_TABLE_CODE$/m);
