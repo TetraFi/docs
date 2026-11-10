@@ -85,6 +85,25 @@ changes the private format. An invalid or expired token answers 400; restart
 from the first page without `cursor`. The token's private encoding is not part
 of the integrator contract.
 
+## Permission request targets
+
+A quote source's `fix` (`QuoteSourceFix`) and a refusal's `refusalFix` (`RefusalFix`) of
+kind `requestPermission` name a `target`, a tagged union on `kind`. Since 2026-11-10 it
+has three values: `walletRight` (`walletId`, `right`), `workspacePermission`
+(`permission`) and `accountRight` (`accountId`, `right`: `transfer`,
+`approveTransaction` or `manageDestinations`), a right on a custody account named by
+its financial account id. The addition is additive: `target.kind` and the rights are
+open enums. Treat an unknown `kind` as a permission a member asks for in the app; its
+`approvers` and `existingRequest` still read as documented.
+
+## Policy installations
+
+Since 2026-11-10, `…/treasury/accounts/{accountId}/policy-installations` (create, list,
+item, `reconcile`, `cancel`) records how a saved policy version's plan reaches an
+account's provider. These are new operations and error codes, so the addition is
+additive. `state` and `readback.state` are open enums: treat an unknown `state` as not
+confirmed and an unknown `readback.state` as `unread`.
+
 ## Order identity and minimum receive
 
 Both order kinds carry one top-level `orderId`, accepted by `GET /api/v1/orders/{id}`.
