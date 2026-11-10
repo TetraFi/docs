@@ -1,40 +1,32 @@
 ---
 title: "Requotes and expiry"
-description: "Ask a quote's venue again for a new price: to change the wallet, account, corridor or price protection, to get an executable price, or to refresh a quote that expired."
+description: "Ask a quote's venue again: to change the wallet, account, corridor or price protection, to get an executable price, or to refresh a quote that expired."
 ---
 
 import RequoteAgain from '/snippets/samples/requote-again.mdx';
 import RequoteProtection from '/snippets/samples/requote-protection.mdx';
 import RequoteExpired from '/snippets/samples/requote-expired.mdx';
 
-A requote asks the venue of a quote you already hold for a new price. You send the quote's id instead of a new search, and you get back one new quote from that venue. Every other venue is left alone.
+A requote asks the venue of a quote you hold for a new price. You send the quote's id instead of a new search, and you get back one new quote from that venue. Requote when you want to:
 
-See [Quote lifetime and firmness](/search/quote-lifetime) for the windows each source uses and what a firm price promises.
-
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
-
-## When to requote
-
-- **To change how the quote executes.** Pick another trading wallet or venue account (`source`), another destination for the output (`deliverTo`), another corridor the quote offered (`corridor`), or a different price protection (`priceProtectionBps`). A corridor is the pair of chains a cross-chain quote moves between, from the chain you sell on to the chain you buy on; a quote lists the other corridors its venue offers in `corridors`.
-- **To get an executable price.** An indicative quote is the venue's price, not a commitment. A requote asks the venue for a quote you can order. For a desk whose card reads `next.kind: "requote"`, this is how you get its firm price.
-- **To refresh a price that expired.** An executable quote can be ordered only until its `expiresAt`. After that, requote it for a new price from the same venue.
+- **change how it executes**: another trading wallet or venue account (`source`), destination (`deliverTo`), corridor (`corridor`) or price protection (`priceProtectionBps`);
+- **get an executable price** for an indicative quote, or a desk's firm price when its quote reads `next.kind: "requote"`;
+- **refresh a quote that expired**.
 
 ## The request
 
-`POST /api/v1/quotes`, the same endpoint as a search, with a different body:
+`POST /api/v1/quotes`, with this body:
 
 | Field | Required | Value |
 | --- | --- | --- |
-| `kind` | Yes | `"requote"`. A pair tag with a `requote` field is `400 INVALID_REQUEST`. |
-| `requote` | Yes | The quote id (`q_…`) from an earlier `POST /api/v1/quotes`. |
-| `source` | No | A different trading wallet per chain (`source.tradingWallets`), venue account (`source.venueAccountId`) or funding account (`source.fundingAccountId`), each by the `financialAccountId` the answer's `sourceOptions` gave. Leave it out to keep the original's. |
-| `deliverTo` | No | Where the output goes, for example `{"kind": "financialAccount", "financialAccountId": "..."}`. With an API key, a venue account's output stays on the account. |
-| `corridor` | No | `{"from": "<chain>", "to": "<chain>"}`: another corridor the original quote listed in `corridors`. |
-| `priceProtectionBps` | No | 0 to 1000. The price protection for the new quote's `minOut`, on a quote that is not firm. Leave it out to keep the original's. |
+| `kind` | Yes | `"requote"`. |
+| `requote` | Yes | The quote id (`q_…`). |
+| `source` | No | A different trading wallet per chain (`source.tradingWallets`), venue account (`source.venueAccountId`) or funding account (`source.fundingAccountId`), each a `financialAccountId` from the answer's `sourceOptions`. |
+| `deliverTo` | No | Where the output goes ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). With an API key, a venue account's output stays on the account. |
+| `corridor` | No | `{"from": "<chain>", "to": "<chain>"}`: another chain pair the original listed in `corridors`. |
+| `priceProtectionBps` | No | 0 to 1000, for the new quote's `minOut`. |
 
-Only the fields above belong in a requote body. The pair, the amount, the side and the filters come from the original quote and cannot change: sending any of them with `requote` is refused with `400 REQUOTE_FIELDS_CONFLICT`. For a different pair or amount, search again.
+A field you leave out keeps the original's. The pair, amount, side and filters cannot change: sending them is `400 REQUOTE_FIELDS_CONFLICT`. For a different pair or amount, search again.
 
 <RequoteAgain />
 
@@ -54,47 +46,28 @@ Only the fields above belong in a requote body. The pair, the amount, the side a
 }
 ```
 
-What you get back:
+- You get one new quote whose `requoteOf` names the original. Order the new id.
+- The answer is JSON, never a stream.
+- The original stays orderable until its own `expiresAt`. Each quote can still be ordered once.
+- Only that venue is asked (for a route, every venue on that same route). If it declines, you get a named refusal; TetraFi never substitutes another venue.
+- A requote counts against the [quote limit](/reference/rate-limits).
 
-- **One new quote** with its own `id`, whose `requoteOf` names the quote you requoted. Order the new id.
-- **A JSON reply, never a stream**, even if you send `Accept: text/event-stream`.
-- **The original stays orderable** until its own `expiresAt`. Requoting does not cancel it. Each quote can still be ordered only once.
-- **Only that venue is asked.** For a route with several legs, every venue on the route is asked for that same route. If the venue declines, you get a named refusal, and TetraFi never substitutes another venue.
-
-A requote is a live quote request, so it counts toward the limit of one live quote request every 3 seconds.
-
-### Change the price protection
-
-A non-firm executable quote carries `minOut`, the least it may deliver. `priceProtectionBps` sets how far below the quoted amount that floor sits. Here a requote at 50 basis points lowers `minOut` from `4.99182` to `4.98181` on the same quoted amount:
+Here a requote at 50 basis points lowers `minOut` from `4.99182` to `4.98181` on the same quoted amount:
 
 <RequoteProtection />
 
 ## Quote times
 
-| Field | Set on | Meaning |
-| --- | --- | --- |
-| `expiresAt` | Executable quotes | When the quote stops being orderable. `null` on an indicative quote. |
-| `staleAfter` | Indicative quotes | When the indicative price is old. `null` on an executable quote. |
-| `observedAt` | Indicative quotes and order-book estimates | When the venue's price or order book was read. `null` on a firm quote. |
-| `firmAskAvailableAt` | Desk quotes, when known | The workspace has reached the desk's firm-quote limit until this time, so a requote asking it for a firm price is refused before then. |
+A quote can be requoted until its `retainUntil`: 10 minutes after it lapsed (`expiresAt`, or `staleAfter` for an indicative quote).
 
-You can requote a quote until its `retainUntil`: 10 minutes after it expired (its `expiresAt`, or `staleAfter` for an indicative quote). Before then, ordering the lapsed quote answers `410 QUOTE_EXPIRED` with `next.kind: "requote"`. After it, a requote or an order answers `410 REQUOTE_WINDOW_CLOSED` with `next.kind: "search"`: search again with a pair body.
+- Before then, ordering the lapsed quote answers `410 QUOTE_EXPIRED` with `next.kind: "requote"`.
+- After it, a requote or an order answers `410 REQUOTE_WINDOW_CLOSED` with `next.kind: "search"`: search again.
 
-## Firm and non-firm quotes
-
-`firm` and `expiresAt` say whether the venue is bound to its price:
-
-| `firm` and `expiresAt` | Delivery | `minOut` |
-| --- | --- | --- |
-| `firm: true`, `expiresAt` set | Exactly the quoted amount, until `expiresAt`. | `null` |
-| `firm: false`, `expiresAt` set | May move, but never below `minOut`. | set |
-| `firm: false`, `expiresAt` `null` | Indicative: not a commitment. | `null` |
-
-`next` says what you do with the quote: `order`, `fund`, or `requote` (`preflight`, `sign` and `transact` appear only on Advanced quotes, which are not open yet). When it is `requote`, `next.needs` lists what the new quote needs from you, such as a trading wallet to name. Some desks' indicative quotes read `next.kind: "order"`: you order them with a minimum receive instead, as [Orders](/trade/orders#venue-quotes-that-execute-within-your-limit) explains.
+When `next.kind` is `requote`, `next.needs` lists what the new quote needs from you, such as a trading wallet to name; an empty list means requote it as it is. [Firmness and lifetime](/search/firmness-and-lifetime#quote-times) lists every quote time.
 
 ## Refresh an expired quote
 
-Ordering a quote after its `expiresAt` is refused with `410 QUOTE_EXPIRED` and nothing is sent. The refusal's `next` is `{"kind": "requote"}`, so requote the same id to get a fresh price from that venue:
+An expired quote is refused with `410 QUOTE_EXPIRED` and nothing is sent. Requote the same id:
 
 <RequoteExpired />
 
@@ -105,29 +78,20 @@ Ordering a quote after its `expiresAt` is refused with `410 QUOTE_EXPIRED` and n
 
 ## Refusals
 
-A refused requote answers the standard error body: `error` is the code, `message` a sentence you can show, and `details` or `next` where present. For a `429`, wait the `Retry-After` header's seconds before asking again.
-
 | Code | Status | Why | What to do |
 | --- | --- | --- | --- |
-| `REQUOTE_FIELDS_CONFLICT` | 400 | The body has a field that cannot go with `requote`, such as `sellAmount` or `filters`. | Send only `requote`, `source`, `deliverTo`, `corridor` and `priceProtectionBps`, or search again. |
-| `CORRIDOR_NOT_OFFERED` | 400 | The original quote was not offered on that corridor. | Use a corridor from the quote's `corridors`. |
-| `WALLET_NOT_ON_CHAIN` | 400 | The trading wallet you named is not an account on that chain. | Name a trading wallet on that chain in `source.tradingWallets`. |
-| `SOURCE_NOT_OWNED` | 403 | A wallet or account in `source` or `deliverTo` is not one you can use. | Name a wallet or account from `sourceOptions`. |
-| `ACCOUNT_NOT_AVAILABLE` | 403 | That venue account is not the one this quote was priced on. | Leave out `source.venueAccountId`, or search again. |
-| `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | 403 | This credential cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**, or a member session. |
-| `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you. Another key's or member's quote answers the same. | Check the id. Requote only quotes your own key requested. |
-| `PERSONAL_TARGET_NOT_ALLOWED` | 409 | An API key named a personal wallet. | Bind an organisation-scope wallet. |
-| `REQUOTE_REFUSED` | 409 | The venue declined. `message` gives its reason in words and `details.reason` a token, for example `productNotQuoted` or `venueNotListed`. | Show `message`. Your original quote still holds until its expiry. Treat a reason you do not recognise as "other". |
-| `REQUOTE_NEEDS_WALLET` | 409 | The venue quotes only once you choose a wallet. | Requote again with `source.tradingWallets`. |
+| `REQUOTE_FIELDS_CONFLICT` | 400 | A field that cannot go with `requote`, such as `sellAmount` or `filters`. | Send only the fields above, or search again. |
+| `CORRIDOR_NOT_OFFERED` | 400 | The original was not offered on that corridor. | Use one from its `corridors`. |
+| `WALLET_NOT_ON_CHAIN` | 400 | The trading wallet you named is not on that chain. | Name a wallet listed for that chain. |
+| `SOURCE_NOT_OWNED` | 403 | A wallet or account you named is not one you can use. | Name one from `sourceOptions`. |
+| `ACCOUNT_NOT_AVAILABLE` | 403 | That venue account is not the one this quote was priced on. | Leave out `source.venueAccountId`. |
+| `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | 403 | This credential cannot ask this venue for a firm quote. | Use a key with **Read quotes** and **Submit orders**. |
+| `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you, including another key's quote. | Requote only quotes your key requested. |
+| `PERSONAL_TARGET_NOT_ALLOWED` | 409 | An API key named a personal wallet. | Name an organisation wallet. |
+| `REQUOTE_REFUSED` | 409 | The venue declined; `details.reason` carries a token, such as `productNotQuoted`. | Show `message`. The original still holds until it expires. |
+| `REQUOTE_NEEDS_WALLET` | 409 | The venue quotes only once you choose a wallet. | Requote with `source.tradingWallets`. |
 | `QUOTE_OWNER_CONTEXT_UNKNOWN` | 409 | The quote was recorded before it could be refreshed for a client. | Search again. |
-| `REQUOTE_WINDOW_CLOSED` | 410 | The quote is past its `retainUntil`. `next` is `search`. | Search again. |
-| `QUOTE_RATE_LIMITED` | 429 | More than one live quote request in 3 seconds. | Wait `Retry-After` seconds, then send it again. |
-| `VENUE_FIRM_QUOTE_LIMITED` | 429 | The workspace reached the venue's firm-quote limit. | Wait `Retry-After` seconds. The quote's `firmAskAvailableAt` says when, where known. |
-| `BUDGET_EXHAUSTED` | 429 | The venue's quote budget is used up for now. | Wait `Retry-After` seconds when it is set, otherwise try later. |
-| `QUOTE_NOT_YET_DURABLE` | 503 | The quote is still being recorded. | Send the same requote again after a second. |
-| `QUOTE_STORE_UNAVAILABLE` | 503 | Held quotes cannot be read right now. | Try again shortly. |
-| `REQUOTE_TIMED_OUT` | 504 | The venue did not answer in time. | Your original quote still holds until its expiry. Try again, or order the original. |
-
-## In the app
-
-On the Trade page, an expired quote card offers to request it again, a desk's indicative card offers **Get firm quote**, and changing price protection in Review offers **Requote and execute**: each sends this same requote.
+| `REQUOTE_WINDOW_CLOSED` | 410 | Past `retainUntil`. | Search again. |
+| `QUOTE_RATE_LIMITED`, `VENUE_FIRM_QUOTE_LIMITED`, `BUDGET_EXHAUSTED` | 429 | The quote limit, the venue's firm-quote limit or the venue's quote budget is used up. | Wait `Retry-After` seconds; `firmAskAvailableAt` says when a desk reopens, where known. |
+| `QUOTE_NOT_YET_DURABLE`, `QUOTE_STORE_UNAVAILABLE` | 503 | The quote is still being recorded, or held quotes cannot be read. | Send the same requote again after a second. |
+| `REQUOTE_TIMED_OUT` | 504 | The venue did not answer in time. | Try again, or order the original while it holds. |

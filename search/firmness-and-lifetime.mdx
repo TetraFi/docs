@@ -1,0 +1,58 @@
+---
+title: "Firmness and lifetime"
+description: "Read what a quote commits to and until when: firm, executable or indicative, and the expiry each venue type sets."
+---
+
+Every quote says how far its venue is bound to the price in `quality`, and until when in `expiresAt`. Read both before you order.
+
+## Firm, executable and indicative
+
+| `quality` | `firm`, `expiresAt` | What you can rely on | `minOut` | `staleAfter` |
+| --- | --- | --- | --- | --- |
+| `firm` | `true`, set | The venue delivers exactly `buy.amount` until `expiresAt`. | `null` | `null` |
+| `executable` | `false`, set | The venue trades until `expiresAt`, and delivery may move, but never below `minOut`. Order-book and AMM quotes are executable. | set by your [price protection](/search/filters-and-sort#price-protection) | `null` |
+| `indicative` | `false`, `null` | Nothing yet: it is the venue's current price, not a commitment. | `null` | set |
+
+`firm` and `expiresAt` say the same as `quality` in two fields. New `quality` values may be added: treat one you do not know as `indicative`.
+
+`lastLook` is always `false`: no venue re-checks an accepted price before it fills, so an order inside a firm quote's window trades at that price or is refused unsent. Firmness does not waive funding, wallet, permission or pre-trade checks, and it does not mean the order will be accepted or settle immediately.
+
+A [price](/search/prices) is never firm: only a quote can be.
+
+## Order an indicative quote
+
+An indicative quote can still be ordered when its `next` is `order`: you send `minReceive`, the least you accept, the venue is asked for its price when you order, and the trade happens only if it delivers at least that ([Orders](/trade/orders#venues-that-execute-within-your-limit)). When its `next` is `requote`, [requote it](/trade/requotes-and-expiry) to get an executable price first.
+
+## Ask for firm prices
+
+Two request fields control firmness, and they are independent:
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `firmness` | `auto` (default), `firm` or `indicative` | How desks are asked. `auto` keeps automatic pricing, `firm` asks every eligible desk for a firm price up front, and `indicative` never asks for one. |
+| `filters.firmOnly` | `true`, or `false` (default) | Keeps only `firm` quotes in `quotes`, after venues answer. |
+
+`filters.firmOnly` drops executable estimates and indicative quotes after the venues answered, so it asks the same venues and counts against the [quote limit](/reference/rate-limits) as usual. A venue that gave only estimates still reads `answered` in `sources`, with no quote in `quotes`. Use it when you are about to trade and want to compare only amounts a venue committed to; leave it out when you compare prices, because an order book or a pool may give the best one, protected by `minOut`.
+
+Sending the filter's earlier name, `filters.executableOnly`, is refused with `400 INVALID_REQUEST`.
+
+## Quote times
+
+| Field | Set on | Meaning |
+| --- | --- | --- |
+| `expiresAt` | `firm` and `executable` quotes | The last time the quote can be ordered. It is not a settlement deadline. |
+| `staleAfter` | `indicative` quotes | When the price is old. |
+| `observedAt` | `indicative` quotes and order-book estimates | When the venue's price or book was read. |
+| `retainUntil` | Every held quote | The last time it can be requoted: 10 minutes after it lapsed ([Requotes and expiry](/trade/requotes-and-expiry#quote-times)). |
+| `firmAskAvailableAt` | Desk quotes, when known | Your workspace has reached the desk's firm-quote limit until then. |
+
+Use the returned `expiresAt`, never a timer started when your client received the quote. Each venue type sets its own window, and network time or an older observation can leave less:
+
+| Venue type | Window |
+| --- | --- |
+| Exchange or OTC desk (RFQ) | The venue's own quote terms. For example, Keyrock declares 3 seconds and Binance RFQ 30 seconds. |
+| Order book | At most 5 seconds from pricing, and never past the book's freshness or the request deadline. |
+| AMM or DEX | The route's returned deadline. A Basic Uniswap quote is held for at most 60 seconds. |
+| Solver | The solver's returned validity. |
+| Bridge | Native CCTP quotes have a 60-second window. Basic Across and Relay quotes are capped at 60 seconds, or their provider's expiry if earlier. |
+| Indicative | No orderable expiry: refresh after `staleAfter`, or requote. |

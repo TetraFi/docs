@@ -1,0 +1,133 @@
+---
+title: "Filters and sort"
+description: "Pin chains, choose where quotes execute, keep or drop venues, keep native variants or firm quotes only, and set sort and price protection."
+---
+
+import SearchSingleChain from '/snippets/samples/search-single-chain.mdx';
+import SearchCrossChain from '/snippets/samples/search-cross-chain.mdx';
+import SearchOffChain from '/snippets/samples/search-off-chain.mdx';
+import SearchModalities from '/snippets/samples/search-modalities.mdx';
+import SearchVenueInclude from '/snippets/samples/search-venue-include.mdx';
+import SearchVenueExclude from '/snippets/samples/search-venue-exclude.mdx';
+import SearchNativeOnly from '/snippets/samples/search-native-only.mdx';
+import SearchFirmOnly from '/snippets/samples/search-firm-only.mdx';
+import SearchSortEta from '/snippets/samples/search-sort-eta.mdx';
+import SearchPriceProtection from '/snippets/samples/search-price-protection.mdx';
+
+A search asks every venue your workspace can use. These fields narrow or reorder it:
+
+| Field | Value | Effect |
+| --- | --- | --- |
+| `sell.chain`, `buy.chain` | A CAIP-2 chain id | That side trades on that chain. |
+| `filters.locations` | Any of `singleChain`, `crossChain`, `offChain` | Keeps only quotes that execute there. |
+| `filters.modalities` | Any of `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat` | Keeps only venues of those types. |
+| `filters.venues` | `{"include": [...], "exclude": [...]}` | Asks only the venues you name, or every venue except them. An empty `include` keeps every venue. |
+| `filters.variants` | `{"sell": "nativeOnly", "buy": "nativeOnly"}`, each `any` by default | Keeps only the native form of that side's asset. |
+| `filters.firmOnly` | `true` or `false` (default) | Keeps only firm quotes ([Firmness and lifetime](/search/firmness-and-lifetime#ask-for-firm-prices)). |
+| `sort` | `netReceived` (default) or `eta` | The order of `quotes`. |
+| `priceProtectionBps` | 0 to 1000, 30 when omitted | How far a non-firm executable quote may deliver below its quote. |
+
+A filter you leave out keeps everything. A venue must pass every filter you send to be asked. A venue that does not is listed in `sources` with `status: "filteredOut"` and `asked: false`, so you can always see what you left out; when nothing is left, `quotes` is empty and `sources` shows why.
+
+The cURL blocks below are excerpts from two quote-only scripts, [`search-basics.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/search-basics.sh) (chains) and [`search-filters.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/search-filters.sh) (everything else). Each defines `sell`, `buy`, `amount` and its signed request helper; run them with the [Quickstart](/quickstart#set-your-environment) environment.
+
+## Chains and routes
+
+An asset such as `USDC` carries no chain. Left open, a side can trade on any chain the asset is deployed on, or on your venue accounts. Take chain ids from the deployments in [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery).
+
+| `location.kind` | Meaning | Its sides |
+| --- | --- | --- |
+| `singleChain` | Swapped on one chain. | `sell.chain` and `buy.chain` are the same. |
+| `crossChain` | Moved between chains by a bridge or a solver. | `sell.chain` and `buy.chain` differ. |
+| `offChain` | Traded on one of your venue accounts. | `chain` is `null` on a side held on the account. |
+| `mixed` | Legs that execute in different places. Each leg has its own location. | Not a filter value: sending it is `400 INVALID_REQUEST`. |
+
+Single-chain: pin both sides to the same chain and keep `singleChain`.
+
+<SearchSingleChain />
+
+Cross-chain: pin the two sides to different chains. To move one asset between chains, put the same asset on both sides and pin at least one. A cross-chain quote's `eta` is the expected delivery time, such as `PT10S`.
+
+<SearchCrossChain />
+
+Off-chain: keep `offChain` and pin no chain. Only your venue accounts answer.
+
+<SearchOffChain />
+
+## Venue types and venues
+
+Every venue has one type, in `venue.modality` on each source and quote leg: `amm` (an on-chain pool), `solver` (fills your order on-chain), `bridge` (moves an asset between chains), `rfq` (a desk that quotes on request through your venue account), `orderBook` (an exchange book, through your venue account) or `fiat` (between bank money and digital assets). New types can appear: treat one you do not recognise as "other".
+
+<SearchModalities />
+
+`filters.venues` matches `venue.id`, the id of the route that executes, such as `binance-orderbook`. It does not match `venue.venueId`, the named venue, such as `binance`, which can have several routes. Take ids from `sources[].venue.id` or a [price](/search/prices) row's `venue.id`.
+
+```json
+{ "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": true }
+```
+
+<SearchVenueInclude />
+
+<SearchVenueExclude />
+
+Naming a desk in `filters.venues.include` is also how you ask it for a firm price when it quotes only on request; its source says so in `detail` when a broad search did not ask it.
+
+## Native only
+
+An asset can exist in several variants, listed by `GET /api/v1/assets` with a `kind`: `native` (the asset itself), `bridged` (such as `USDC.e`), `wrapped` (such as `WETH`), `omnichain` or `test`. Treat a kind you do not recognise as not native. Each quote states its variants in `sell.variant` and `buy.variant`.
+
+`filters.variants` with `nativeOnly` acts on each venue's routes, not on whole venues: a venue whose only route uses another variant is not asked and reads `unavailable` with the reason `onchainAssetVariantFiltered`. For example, a pool that pays out WETH drops out of a search for ETH with `buy: "nativeOnly"`, while venue accounts holding native ETH still quote.
+
+<SearchNativeOnly />
+
+## Firm only
+
+`filters.firmOnly: true` keeps only quotes with `quality: "firm"`. It filters after venues answer, so the same venues are asked.
+
+<SearchFirmOnly />
+
+## Sort
+
+| `sort` | Amount you send | Order of `quotes` |
+| --- | --- | --- |
+| `netReceived` | `sellAmount` | Most `netReceived` first. |
+| `netReceived` | `buyAmount` | Least `sell.amount` first. |
+| `eta` | Either | Shortest `eta` first. |
+
+A quote whose value cannot be read goes last: an `unavailable` `netReceived`, or no `eta` (venue account quotes may carry none). Ties go first to quotes whose every fee is known, then by venue id.
+
+<SearchSortEta />
+
+## Price protection
+
+A non-firm executable quote may deliver a little less than it quotes. `priceProtectionBps` sets the most it may fall, in basis points (100 is 1%), and the quote states the result:
+
+| Quote | Field | Value |
+| --- | --- | --- |
+| `executable` | `minOut` | The least you receive: the quoted amount less the protection, rounded down to the buy amount's precision. |
+| Buy exact, from a venue account | `maxPay` | The most you sell: once the venue has firmly priced it, its amount raised by the protection and rounded up; until then, `sell.amount`. |
+| `firm` or `indicative` | `minOut` | `null`. |
+
+<SearchPriceProtection />
+
+For example, 100 basis points on a quote to buy `0.4322` ETH gives a `minOut` of `0.4278`:
+
+```json Output
+{ "venue": "...", "buy": "0.4322", "minOut": "0.4278" }
+```
+
+A [requote](/trade/requotes-and-expiry) can send its own `priceProtectionBps`, or keep the original's. An order on a Basic quote takes no `priceProtectionBps` (`400 INVALID_REQUEST`): set your floor with `minReceive` instead ([Orders](/trade/orders#minimum-receive)).
+
+## Refusals
+
+| Code | Why | What to do |
+| --- | --- | --- |
+| `SAME_ASSET_NEEDS_CHAIN` | The same asset on both sides with nothing to tell them apart: no chain pinned, or the same chain with `nativeOnly` on both sides. | Pin a chain on at least one side, or two different chains. |
+| `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. | Remove the pin, or allow `singleChain` or `crossChain`. |
+| `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that asset; `details.value` is the chain. | Pin a chain the asset is deployed on. |
+| `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A chain or venue id TetraFi does not know; `details.value` names it. | Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
+| `INVALID_REQUEST` | A filter value is not one listed above, `filters.locations` includes `mixed`, `firmOnly` is not a boolean, `sort` is unknown, or `priceProtectionBps` is outside 0 to 1000. `message` names the field. | Fix that field. |
+
+## In the app
+
+On the trade page, **Advanced filters** sets the route, venues to keep or exclude, price protection (the app starts at 0.5%, not the API's 0.3%) and the ranking. It only opens more search filters: it does not choose Advanced execution.

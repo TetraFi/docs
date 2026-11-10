@@ -31,7 +31,7 @@ flowchart TD
     quotes -->|Choose an orderable quote before expiresAt| order["Order: send an Idempotency-Key"]
 ```
 
-Read `GET /api/v1/prices` for [indicative prices](/search/prices): no venue is asked, and nothing in that answer can be ordered. When you intend to trade, `POST /api/v1/quotes` starts the live auction across the venues your workspace can use; send `filters.firmOnly: true` when you want only [quotes that hold their price](/search/firm-only). Follow each quote's `next` action and order it before its [`expiresAt`](/search/quote-lifetime). `POST /api/v1/orders` with the quote id and an `Idempotency-Key` places the order.
+Read `GET /api/v1/prices` for [indicative prices](/search/prices): no venue is asked, and nothing in that answer can be ordered. When you intend to trade, `POST /api/v1/quotes` starts the live auction across the venues your workspace can use; send `filters.firmOnly: true` when you want only [quotes that hold their price](/search/firmness-and-lifetime). Follow each quote's `next` action and order it before its [`expiresAt`](/search/firmness-and-lifetime). `POST /api/v1/orders` with the quote id and an `Idempotency-Key` places the order.
 
 ## Before you begin
 
@@ -138,7 +138,7 @@ On-chain (Advanced) execution is not open yet: Advanced venues are listed in `so
     | `TETRAFI_SELL` | `USDC` | The asset you sell. |
     | `TETRAFI_BUY` | `USDT` | The asset you buy. |
     | `TETRAFI_AMOUNT` | `10` | The amount you sell, sent as `sellAmount`. |
-    | `TETRAFI_VENUES` | every venue | A comma-separated list of venue ids to ask, sent as `filters.venues.include`. Use `sources[].venue.id` values ([Venue types and venues](/search/venues#specific-venues)). |
+    | `TETRAFI_VENUES` | every venue | A comma-separated list of venue ids to ask, sent as `filters.venues.include`. Use `sources[].venue.id` values ([Venue types and venues](/search/filters-and-sort#venue-types-and-venues)). |
     | `TETRAFI_SLIPPAGE_BPS` | `50` | How far below the quoted amount you accept when the quote needs `minReceive`, in basis points. |
     | `TETRAFI_PLACE_ORDER` | not set | Set it to `1` to place the order. |
 

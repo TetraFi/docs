@@ -1,38 +1,50 @@
 ---
-title: "How search works"
-description: "One quote request asks every venue your workspace can use. You get comparable quotes, and every venue's outcome."
+title: "Request quotes"
+description: "Send one quote request and get comparable quotes from every venue your workspace can use, with every venue's outcome."
 ---
 
 import SearchSellExact from '/snippets/samples/search-sell-exact.mdx';
+import SearchBuyExact from '/snippets/samples/search-buy-exact.mdx';
 import SearchStream from '/snippets/samples/search-stream.mdx';
 
-You search by sending one quote request: the asset you sell, the asset you buy, and one exact amount, either the amount you sell or the amount you buy. TetraFi asks every venue your workspace can use at the same time and answers with two lists:
+Send `POST /api/v1/quotes` with the asset you sell, the asset you buy and one exact amount. TetraFi asks every venue your workspace can use at once and answers with two lists:
 
-- `quotes`: the quotes that came back, best first, each one held for you under its `id`;
+- `quotes`: the quotes that came back, best first, each held for you under its `id`;
 - `sources`: every venue that was considered, with its outcome, so a missing quote always has a reason.
 
-See [Quote lifetime and firmness](/search/quote-lifetime) for price commitments and [Limits and minimums](/search/limits-and-minimums) for amount bounds and Pilot caps.
+The cURL blocks are excerpts from the quote-only [`search-basics.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/search-basics.sh) script; run it with the [Quickstart](/quickstart#set-your-environment) environment. To narrow the search, see [Filters and sort](/search/filters-and-sort). To read what a quote commits to, see [Firmness and lifetime](/search/firmness-and-lifetime).
 
 ## The request
 
-`POST /api/v1/quotes`
-
 | Field | Required | Value |
 | --- | --- | --- |
-| `kind` | Yes | `"pair"` for a new search. A missing tag is `400 QUOTE_REQUEST_KIND_REQUIRED`; an unknown or non-string tag is `400 QUOTE_REQUEST_KIND_INVALID`. Use `"requote"` only to [refresh a held quote](/trade/requotes-and-expiry). |
-| `sell.asset`, `buy.asset` | Yes | An Asset id from [`GET /api/v1/assets`](#use-values-from-discovery), such as `USDC`. Assets carry no chain. |
-| `sell.chain`, `buy.chain` | No | A CAIP-2 chain id, such as `eip155:8453`, to pin that side to one chain. See [Chains and routes](/search/chains-and-routes). |
-| `sellAmount` or `buyAmount` | Exactly one | The exact amount you sell (`sellAmount`) or buy (`buyAmount`), a positive decimal string in Asset units, such as `"10"` or `"0.001"`. Never base units. Both or neither is refused with `400 INVALID_REQUEST`. See [Sell exact or buy exact](/search/sell-or-buy-exact). |
-| `filters` | No | Narrows the search. Omit a filter to keep everything. |
-| `filters.locations` | No | Any of `singleChain`, `crossChain`, `offChain`. `mixed` is not a filter value. |
-| `filters.modalities` | No | Any of `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat`. |
-| `filters.venues` | No | `{"include": [...], "exclude": [...]}` with venue ids from `sources[].venue.id`. See [Venue types and venues](/search/venues#specific-venues). |
-| `filters.variants` | No | `{"sell": "any" or "nativeOnly", "buy": "any" or "nativeOnly"}`. |
-| `filters.firmOnly` | No | `true` keeps only firm quotes (`firm: true`), leaving out executable estimates and indicative quotes; `false`, the default, keeps them all. |
+| `kind` | Yes | `"pair"` for a new search. A missing tag is `400 QUOTE_REQUEST_KIND_REQUIRED`; an unknown or non-string one is `400 QUOTE_REQUEST_KIND_INVALID`. Send `"requote"` only to [refresh a held quote](/trade/requotes-and-expiry). |
+| `sell.asset`, `buy.asset` | Yes | An asset id from [`GET /api/v1/assets`](#use-values-from-discovery), such as `USDC`. Assets carry no chain. |
+| `sell.chain`, `buy.chain` | No | A CAIP-2 chain id, such as `eip155:8453`, to pin that side to one chain ([Chains and routes](/search/filters-and-sort#chains-and-routes)). |
+| `sellAmount` or `buyAmount` | Exactly one | The exact amount you sell or buy, as a positive decimal string in asset units, such as `"10"`. Never base units. Both or neither is `400 INVALID_REQUEST`. |
+| `filters` | No | Narrows the search: `locations`, `modalities`, `venues`, `variants` and `firmOnly` ([Filters and sort](/search/filters-and-sort)). |
 | `sort` | No | `netReceived` (default) or `eta`. |
-| `priceProtectionBps` | No | 0 to 1000, 30 when omitted. How far a non-firm executable quote's delivery may fall below its quoted amount, Basic or Advanced. See [Sort and price protection](/search/sort-and-protection#price-protection). |
+| `priceProtectionBps` | No | 0 to 1000, 30 when omitted: how far a non-firm executable quote's delivery may fall below its quoted amount ([Price protection](/search/filters-and-sort#price-protection)). |
+| `firmness` | No | `auto` (the default), `firm` or `indicative`: whether desks are asked for firm prices up front ([Ask for firm prices](/search/firmness-and-lifetime#ask-for-firm-prices)). |
+| `timeout` | No | How long venues are collected, as an ISO 8601 duration: `PT6S` by default, from 100 milliseconds up to `PT10S`. |
+| `source`, `deliverTo`, `preferredWallets` | No | Which wallet or account trades and where the output goes ([Wallets and accounts](/trade/wallets-and-accounts)). Leave them out to use your defaults. |
+| `onBehalfOf` | No | For a broker: the direct user you quote for. |
+| `integrationAppId` | No | The integration app whose partner fee terms apply ([Monetize](/monetize)). Leave it out if you have none. |
+
+## Sell exact or buy exact
+
+| You send | Each quote states | Default order |
+| --- | --- | --- |
+| `sellAmount`, in units of `sell.asset` | `buy.amount`, what you would buy | Most `netReceived` first |
+| `buyAmount`, in units of `buy.asset` | `sell.amount`, what you would sell | Least `sell.amount` first |
+
+A venue may price slightly less than you sent, rounded to the precision it trades in: a request to sell `"100"` can come back with `sell.amount` `"99.99994"`. The quote always states the amount it used.
 
 <SearchSellExact />
+
+<SearchBuyExact />
+
+On-chain protocols, bridges and some exchanges quote only the amount you sell, so a buy-exact search usually returns fewer quotes. Those venues read `unsupported` with the reason `buyAmountUnsupported`; a venue account can show the same limit as a `filteredOut` row with the token in `detail`, and an on-chain venue that cannot deliver an exact amount uses `exactOutputDeliveryUnsupported`. When no venue can quote a fixed buy amount, size a `sellAmount` from a [price](/search/prices) instead.
 
 ## The response
 
@@ -45,6 +57,7 @@ See [Quote lifetime and firmness](/search/quote-lifetime) for price commitments 
     {
       "id": "q_...",
       "location": { "kind": "offChain" },
+      "quality": "executable",
       "firm": false,
       "lastLook": false,
       "sell": { "asset": "USDC", "chain": null, "variant": { "kind": "native", "name": "USDC" }, "amount": "99.99994" },
@@ -61,82 +74,75 @@ See [Quote lifetime and firmness](/search/quote-lifetime) for price commitments 
 }
 ```
 
-Quotes are trimmed here: each one also carries its `legs`, `fees`, `netReceived`, `eta` and more.
+Quotes are trimmed here: each also carries `legs`, `fees`, `netReceived`, `eta` and more. Read these first:
 
-Each quote tells you:
-
-- **where it executes**, in `location.kind`: `singleChain`, `crossChain` or `offChain`, or `mixed` for a route whose legs differ. `mixed` describes a quote only: you cannot filter on it, and `filters.locations: ["mixed"]` is refused with `400 INVALID_REQUEST`;
-- **whether the venue is bound to its price**, in `firm` with `expiresAt` ([below](#executable-and-indicative-quotes)), and `lastLook`, always `false`: an accepted price is never re-checked before it fills;
-- **what you do next**, in `next.kind`: `order`, `fund` or `requote` (`preflight`, `sign` and `transact` appear only on Advanced quotes, which are not open yet).
+- `next.kind`: what you do next. `order` means order it now, `fund` means the paying account is short, and `requote` means ask the venue again. `preflight`, `sign` and `transact` appear only on Advanced quotes.
+- `quality`, with `firm` and `expiresAt`: what the price commits to ([Firmness and lifetime](/search/firmness-and-lifetime)).
+- `buy.amount`: what lands at `deliverTo` after every fee the quote includes. `netReceived` also subtracts fees you pay separately, for fair comparison; it reads `{"kind": "unavailable", "reason": ...}` when a fee could not be read, never 0.
+- `location.kind`: `singleChain`, `crossChain`, `offChain`, or `mixed` for a route whose legs differ.
 
 `venueAsked` is `false` when every quote came from cached prices and no venue was contacted.
 
-### Read a recorded search
-
-`GET /api/v1/quotes/requests/{quoteRequestId}` reads a recorded search. Its `request` uses `QuoteRequestEcho`: the recorded request, not the strict input schema for a new quote. Ignore recorded fields your client does not recognise; do not send the echo back wholesale as a new request. Build a fresh body from the supported request fields above, or [requote a held quote](/trade/requotes-and-expiry).
-
-## Executable and indicative quotes
-
-| `firm` and `expiresAt` | What it means | `minOut` | `staleAfter` |
-| --- | --- | --- | --- |
-| `firm: true`, `expiresAt` set | Executable: the venue delivers exactly this amount until expiry. | `null` | `null` |
-| `firm: false`, `expiresAt` set | Executable: delivery may move, but never below `minOut`. | set | `null` |
-| `firm: false`, `expiresAt` `null` | Indicative: the venue's price, not a commitment. | `null` | set |
-
-`expiresAt` is when an executable quote stops being orderable. Order before then, or requote it: see [Requotes and expiry](/trade/requotes-and-expiry). An indicative quote has no expiry; `staleAfter` says when its price is old.
-
-Firmness is known only from a quote. A price from [`GET /api/v1/prices`](/search/prices) is never firm (`firm: false` on every row); to keep only quotes a venue is bound to, send `filters.firmOnly: true` with this request ([Firm only](/search/firm-only)).
-
-An indicative quote has no `minOut`, because it commits to nothing. You can still order one when its `next` is `order`: you send `minReceive`, the least you accept, the venue is asked for its price when you order, and the trade happens only if it delivers at least that ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). When its `next` is `requote`, ask the venue again first.
+`GET /api/v1/quotes/requests/{quoteRequestId}` reads a recorded search. Its `request` is the recorded echo (`QuoteRequestEcho`), not a valid new request: build a fresh body instead of sending it back.
 
 ## Sources: why a venue did or did not quote
 
-Every venue considered appears once in `sources`, whether or not it was asked (`asked`). `detail` is a sentence you can show to a person; `reason`, where present, is a token your code can match.
+Every venue considered appears once in `sources`. `reason` is a token your code can match; `detail` is a sentence you can show a person.
 
 | `status` | What happened |
 | --- | --- |
 | `answered` | The venue quoted. Its quotes are in `quotes`. |
 | `filteredOut` | Your filters excluded it. It was not asked. |
 | `unsupported` | It does not serve this request, for example this pair (`pairNotServed`) or a buy-exact amount (`buyAmountUnsupported`). |
-| `unavailable` | It could not quote now. `reason` and `detail` say why, for example `notConnected` (no account at that venue), `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` (no organisation wallet the key may use is granted to it) or `advancedModeDisabled` (Advanced execution is not open yet). |
-| `restricted` | A permission keeps it from you. `reason` names it, for example `venueTradeScopeRequired`. |
-| `needsWallet` | It quotes only for a wallet you have not bound. |
-| `walletRefused` | The wallet it would use cannot trade there, for example because it was revoked. `wallet` names it ([When a quote needs a wallet](/trade/wallets-and-accounts#when-a-quote-needs-a-wallet)). |
+| `unavailable` | It could not quote now, for example `notConnected` (no account at that venue), `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` (no organisation wallet granted to the key) or `advancedModeDisabled`. |
+| `restricted` | A permission keeps it from you, for example `venueTradeScopeRequired`. |
+| `needsWallet` | It quotes only for a wallet you have not named ([When a quote needs a wallet](/trade/wallets-and-accounts#when-a-quote-needs-a-wallet)). |
+| `walletRefused` | The wallet it would use cannot trade there; `wallet` names it. |
 | `timedOut` | It did not answer before the collection deadline. |
 | `refused` | The venue declined. |
 
-More statuses exist and new ones can appear. Treat any status you do not recognise as "other" and show its `detail`.
-
-An `unavailable` source or a quote's `tradingSourceRefusal` may include `creditRefusal` with the credit owner's exact refusal. This field is optional and may be `null`. Check for a non-null value before reading its cause or `fix`, and treat absent and `null` alike as no credit detail, not as proof that credit is available. Keep using the source's `reason`, `detail` and `fix` for recovery.
+New statuses and reasons can appear: treat one you do not recognise as a source you cannot use, and show its `detail`. A source may also carry a `fix` naming the next step, and `creditRefusal` with a credit owner's exact refusal; treat an absent or `null` `creditRefusal` as no credit detail, not as proof that credit is available. [Error codes](/reference/error-codes#source-reasons) lists every reason.
 
 <Note>
-What an API key sees depends on what it may do. Quotes from your connected venue accounts need the `workspace_venue_trade` scope, venue trading switched on and signed requests. With venue trading off, a valid `POST /api/v1/quotes` answers `200` but returns no venue-account quote cards; do not wait for an order-time refusal to detect this. Check `GET /api/v1/me` first: `organisationWallets.venueTradeScope` and `organisationWallets.venueTradeEnabled` must both be `true` for orderable venue-account quote cards. On-chain venues that TetraFi trades for you from an organisation wallet need that wallet granted to the key; otherwise they read `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. See [Authentication](/authentication#trading-on-your-venue-accounts).
+A key without venue trading still gets `200`, but no quotes from your venue accounts: they read `restricted` with `venueTradeScopeRequired`. Check `GET /api/v1/me` first ([Authentication](/authentication#check-what-a-key-can-trade-from)).
 </Note>
+
+## Size limits and minimums
+
+Limits depend on the venue, pair, account and execution stage, so read them from the quote answer for the amount you intend to trade. A successful quote reserves no capacity.
+
+| Where | What it tells you |
+| --- | --- |
+| `quotes[].sizeLimits`, `sources[].sizeLimits` | The venue's observed bounds: `read.status` `observed` with `minimum`, `maximum`, `bands` and `observedAt`, or `unavailable` with a `code`. `fixedAmount` names the request amount they bound. |
+| `minimum`, `maximum` | A decimal `amount` with a `unit`: `kind: "asset"` names its asset, `kind: "usd"` is USD notional. A missing bound is neither zero nor unlimited. |
+| `bands` | Each mechanism's own range. An amount between the outer minimum and maximum may still fit no band. |
+| `quotes[].legs[].execution.stage` | A venue account leg's stage. `pilot` carries `maxPerTradeUsd` and `maxPerDayUsd`, USD caps; the daily cap is per UTC day across all workspaces on that venue. `live` has no TetraFi caps, and `disabled` does not execute. |
+
+When the amount does not fit, the venue stays in `sources` with a reason:
+
+| Reason | What to do |
+| --- | --- |
+| `belowVenueMinimum`, `amountBelowMinimum` | Raise the amount. `detail` names the venue's minimum when it is verified. |
+| `amountAboveMaximum`, `pilotTradeCapExceeded` | Lower the amount. |
+| `pilotMinimumAboveTradeCap` | The venue's minimum is above its Pilot cap, so no amount fits: choose another venue. |
+
+Order admission checks the caps again: `PILOT_TRADE_CAP_EXCEEDED` means nothing was sent.
 
 ## JSON or a stream
 
-By default you get one JSON reply when collection ends (3 seconds at most). Send `Accept: text/event-stream` to get server-sent events as venues answer:
-
-| Event | Data |
-| --- | --- |
-| `quote` | One quote, as it arrives. |
-| `source` | One venue's outcome. |
-| `complete` | The whole quote set, the same object as the JSON reply. |
-| `error` | The error body. The stream ends. |
-
-Event ids increase, and the stream sends keepalive comments between events.
+By default you get one JSON reply when collection ends. Send `Accept: text/event-stream` to get server-sent events as venues answer: `quote` (one quote), `source` (one venue's outcome), `complete` (the whole quote set, as in the JSON reply) and `error` (the error body; the stream ends). Event ids increase, and keepalive comments arrive between events.
 
 <SearchStream />
 
+The stream reports the search only. Follow an order through its status or [webhooks](/trade/webhooks).
+
 ## Rate limit
 
-You may send one live quote request every 3 seconds. A faster one is refused with `429 QUOTE_RATE_LIMITED`, a `Retry-After` header in seconds, and the same wait in `details.retryAfter` (for example `PT1S`). Wait that long and send it again. A request answered entirely from cached prices is not counted.
-
-For prices without that limit, read [`GET /api/v1/prices`](/search/prices) first.
+Each key may send one live quote request every 3 seconds; a requote counts, a request answered entirely from cache does not. A faster one answers `429 QUOTE_RATE_LIMITED` with `Retry-After`. To watch a market, read [prices](/search/prices) instead ([Rate limits](/reference/rate-limits)).
 
 ## Use values from discovery
 
-Never hardcode Asset ids, chains or venue lists. `GET /api/v1/assets` returns what your workspace can trade:
+Never hardcode asset ids, chains or venue lists. `GET /api/v1/assets` returns what your workspace can trade, and needs the **Read quotes** permission:
 
 ```json
 {
@@ -159,22 +165,18 @@ Never hardcode Asset ids, chains or venue lists. `GET /api/v1/assets` returns wh
 }
 ```
 
-Use `assetId` in `sell.asset` and `buy.asset`, and a deployment's `chain` when you pin a side. `offChainVenues` lists the venue accounts that hold that variant. When `eligibility.complete` is `false`, `reason` says which part of the list could not be read. An API key needs the `prices_read` scope to read it, which the **Read quotes** permission grants ([Permissions](/authentication#permissions)).
+Send `assetId` as `sell.asset` and `buy.asset`, and a deployment's `chain` to pin a side. `offChainVenues` lists the venue accounts that hold that variant. When `eligibility.complete` is `false`, `reason` says which part of the list could not be read. Take venue ids from `sources[].venue.id`.
 
 ## Refusals
 
-A refused request answers one error body, `{"error", "message", "requestId", "timestamp", "next"?, "details"?}`, the same at every status. `error` is the code to match on; `requestId` equals the `X-Request-Id` header; `details.value`, where present, is the value that was refused. [Errors and refusals](/trade/errors) lists every code.
+A refused request answers the standard [error body](/trade/errors#read-a-refusal). The common ones:
 
 | Code | Why | What to do |
 | --- | --- | --- |
 | `INVALID_REQUEST` | A field is unknown, missing or of the wrong type; `message` names it. | Fix that field. |
-| `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | The value is not in the catalogue. | Use values from `GET /api/v1/assets` and from `sources[].venue.id`. |
-| `INVALID_AMOUNT` | `sellAmount` or `buyAmount` is not a positive decimal string. | Send it as a string, such as `"10"`. |
-| `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | The quote request answers `403` when an API key's `deliverTo` names an address outside the workspace's organisation wallets, before an order is placed. | Use an organisation-wallet destination the key may use. Manage delivery destinations in the app, not through a per-key address allowlist ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
-| `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `Retry-After` seconds, then retry. |
+| `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | The value is not in the catalogue. | Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
+| `INVALID_AMOUNT` | The amount is not a positive decimal string. | Send it as a string, such as `"10"`. |
+| `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. | Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
+| `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `Retry-After` seconds. |
 
-Chain refusals are on [Chains and routes](/search/chains-and-routes).
-
-## In the app
-
-The Trade page sends this same request when you choose a pair and type an amount, and lists the quotes it returns.
+Chain, venue and filter refusals are on [Filters and sort](/search/filters-and-sort#refusals). [Error codes](/reference/error-codes) lists every code.
