@@ -839,6 +839,61 @@
       "response": []
     },
     {
+      "name": "GET /api/v1/workspaces/{workspaceId}/settlement/plan",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the cross-venue settlement plan\n\nA read-only snapshot of what is due across the workspace's venue accounts. Unknown deadlines remain unknown. Per-source read failures are explicit and make the plan incomplete. Reading creates no transfer, reservation, approval request or LP instruction. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/settlement/plan",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "settlement",
+            "plan"
+          ],
+          "query": [
+            {
+              "key": "horizonDays",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "GET /api/v1/workspaces/{workspaceId}/trades",
       "request": {
         "method": "GET",
@@ -1097,6 +1152,117 @@
       "response": []
     },
     {
+      "name": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement\n\nOne trade's settlement state. The taker perspective is the order's settlement detail (view_settlements; an API key with settlements_read). The maker perspective is the LP's settlement pipeline for the order, a member-session read with view_bilateral_documents. Each perspective answers exactly what its own route answers.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "trades",
+            ":tradeId",
+            "settlement"
+          ],
+          "query": [
+            {
+              "key": "perspective",
+              "value": "taker",
+              "disabled": true,
+              "description": "taker (default): the order's settlement lifecycle; maker: the LP's settlement-pipeline state (an LP member session)"
+            },
+            {
+              "key": "venueId",
+              "value": "<venueId>",
+              "disabled": true,
+              "description": "perspective=maker: the LP's own venue; omitted reads every owned venue"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "tradeId",
+              "value": "<tradeId>",
+              "description": "The trade's tradeId (its order id)"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations\n\nThe Basic settlement obligations that reference one trade, with their venue account, window and state (view_settlements; an API key with settlements_read).",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement/obligations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "trades",
+            ":tradeId",
+            "settlement",
+            "obligations"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, 1 to 500 (default 100)"
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The nextCursor of the previous page"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "tradeId",
+              "value": "<tradeId>",
+              "description": "The trade's tradeId: a venue trade's operation id; an on-chain order has none"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances",
       "request": {
         "method": "GET",
@@ -1120,6 +1286,47 @@
             "venue-accounts",
             ":venueAccountId",
             "balances"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read one venue account's credit\n\nThe account's credit as the Treasury credit card shows it: the provider's reported line (limit, used, available, overrun), the agreed facility, open credit commitments and the signed positions, each with its own observation time. Requires current ViewWallets and ViewCredit authority; an API key or OAuth client additionally needs treasury_read. Figures come from the account's last recorded ledger observation; this read makes no provider call (read the account ledger for a live read). A component that could not be read is `unavailable` with its code, never zero. 403 INSUFFICIENT_WORKSPACE_PERMISSION without ViewCredit; 404 VENUE_ACCOUNT_NOT_FOUND, also for another workspace's account; 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for a wallet-based venue; 503 VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE when account access cannot be read.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/credit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "credit"
           ],
           "variable": [
             {
@@ -1277,6 +1484,494 @@
               "key": "venueAccountId",
               "value": "<venueAccountId>",
               "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/ledger",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read the venue account's signed positions and credit line\n\nReads the account's ledger with current ViewWallets authority. A member session reads the venue live (`source: live`). An API key or OAuth client needs treasury_read and never starts a venue read: it gets the account's last recorded observation (`source: recorded`), dated by `observedAt`, with `stale` true when it is over an hour old, or 409 LEDGER_NOT_OBSERVED when none is recorded yet, and 404 VENUE_ACCOUNT_NOT_FOUND for another workspace's account. Positions and credit retain separate observation and provider times. Failed credit remains unavailable while readable positions are returned. No background polling. 409 LEDGER_UNSUPPORTED means the venue does not report a ledger; LEDGER_SETUP_MISSING means its connection needs setup; VENUE_ACCOUNT_LEDGER_PENDING means the account has not finished setup, so nothing is observed yet. 403 LEDGER_ACCOUNT_FORBIDDEN without View wallets on this workspace's account; foreign accounts refuse before provider I/O. 502 LEDGER_DATA_INVALID when the venue's figures cannot be read as exact amounts; 503 LEDGER_READ_UNAVAILABLE or LEDGER_JOURNAL_UNAVAILABLE when the read cannot complete, with the last good read time when one is known. A failed read is never an empty ledger.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/ledger",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "ledger"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List a venue account's settlement movements\n\nDeposits to and withdrawals from the venue account that settle obligations, newest first, optionally for one window; page with cursor. lastSuccessfulReadAt and observationState say how current the recorded movements are. A member session also refreshes them from the LP's history; an API key or OAuth client reads the recorded movements and never starts that refresh. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "movements"
+          ],
+          "query": [
+            {
+              "key": "windowId",
+              "value": "<windowId>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "maxAge",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements/{movementId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read a settlement movement\n\nOne recorded movement with its finality and how it matched. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements/:movementId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "movements",
+            ":movementId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            },
+            {
+              "key": "movementId",
+              "value": "<movementId>",
+              "description": "The movement's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List a venue account's settlement obligations\n\nWhat the workspace and the LP owe each other on this account, with status and deadline, optionally for one window or one trade; page with cursor. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/obligations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "obligations"
+          ],
+          "query": [
+            {
+              "key": "windowId",
+              "value": "<windowId>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "tradeId",
+              "value": "<tradeId>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "limit",
+              "value": "50",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read a settlement obligation\n\nOne obligation with its status, deadline, origin and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/obligations/:obligationId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "obligations",
+            ":obligationId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            },
+            {
+              "key": "obligationId",
+              "value": "<obligationId>",
+              "description": "The obligation's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read a venue account's settlement schedules\n\nThe LP's published settlement schedules for this account, the one in effect with its minimum settlement, and the next window. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/schedules",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "schedules"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List a venue account's settlement windows\n\nThe account's settlement windows, newest snapshot first, each with its indicative statement once the snapshot is ready: positions, snapshot prices (an unavailable price names its stage and reason) and the minimum-settlement decision. Filter by state; page with cursor. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "windows"
+          ],
+          "query": [
+            {
+              "key": "state",
+              "value": "scheduled",
+              "disabled": true,
+              "description": "Only windows in this snapshot state."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The previous page's `nextCursor`, unchanged."
+            },
+            {
+              "key": "limit",
+              "value": "100",
+              "disabled": true,
+              "description": "Windows per page, 1 to 100 (default 100)."
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read a settlement window\n\nOne window with its indicative statement (positions, snapshot prices and the minimum-settlement decision), its obligations, the LP's own statement on an LP-issued window, and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows/:windowId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "windows",
+            ":windowId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            },
+            {
+              "key": "windowId",
+              "value": "<windowId>",
+              "description": "The window's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List a settlement window's matches\n\nThe movements matched to this window's obligations, oldest first, one page at a time. Required API-key scope: `settlements_read`; an OAuth client needs the same scope.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows/:windowId/matches",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "windows",
+            ":windowId",
+            "matches"
+          ],
+          "query": [
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            },
+            {
+              "key": "windowId",
+              "value": "<windowId>",
+              "description": "The window's id"
             }
           ]
         }
