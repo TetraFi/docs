@@ -1,75 +1,13 @@
 ---
 title: "Order status"
-description: "Follow an order to the end: one read for every order, what each status means, when it is final, and how often to poll."
+description: "Follow an order to the end: one read for every order, what each status means, when it is final, what it did and when it settles."
 ---
 
 import OrderStatus from '/snippets/samples/order-status.mdx';
 import OrdersList from '/snippets/samples/orders-list.mdx';
 import OrderExecution from '/snippets/samples/order-execution.mdx';
 
-`POST /api/v1/orders` answers as soon as the order is accepted. To follow it to the end, read it at the `statusUrl` the answer gives: `GET /api/v1/orders/{id}`. The read answers the same envelope as the order answer, for Basic and Advanced orders alike, so one parser reads both.
-
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
-
-If you lost the order answer, [recover the order by its quote](/trade/idempotency#recover-an-order-by-its-quote): it returns the same `statusUrl`. The key needs **Read orders**. Any member or key of the order's workspace with that permission can read it, not only the one that placed it. An order that does not exist, or that belongs to another workspace, answers `404 ORDER_NOT_FOUND`.
-
-See [Order lifecycle](/trade/order-lifecycle) for the status diagram and [Settlement timing](/trade/settlement-timing) for recorded deadlines and null values.
-
-## The envelope
-
-| Field | Meaning |
-| --- | --- |
-| `orderId` | The order's id: the one `GET /api/v1/orders/{id}` takes. |
-| `kind` | `basicTrade`, a trade TetraFi executes for you on a venue. New kinds may be added; keep reading the common progress fields when you do not recognise one. |
-| `status` | Where the order is (below). |
-| `terminal` | `true` when the order can no longer change. Stop polling on this, not on a particular `status`. |
-| `next` | Present only while there is something to do in the meantime (below). |
-| `statusUrl` | Where to read the order again. |
-| `quoteId` | The quote it was placed from, when known. |
-| `operation` | The venue trade's own detail on a `basicTrade` order. Do not assume another kind has the same detail. |
-
-### Kinds this client does not know
-
-The TypeScript SDK returns an order with `unknownKind: true` when its `kind` is not one this client knows. It preserves the server's `kind`, `orderId` (also available as `id`), `status`, `terminal` and `statusUrl`. `unknownKind` is an SDK marker, not a wire field or a replacement value for `kind`.
-
-Read `status` and `terminal`, and follow `statusUrl` until the order is terminal. Do not read `operation` or assume an on-chain `order` payload exists on an unknown kind. An unfamiliar kind does not mean the order failed and is never a reason to submit it again.
-
-## Statuses
-
-| `status` | What it means | Final |
-| --- | --- | --- |
-| `pending` | Accepted; nothing has been sent to a venue yet. | No |
-| `working` | Sent to the venue and executing, including an on-chain trade waiting for its transaction to confirm. | No |
-| `filled` | Executed; settlement or delivery is still to complete. | No |
-| `settled` | Executed and settled, or there was nothing to settle. | Yes |
-| `unfilled` | The venue did not fill it, or it was never sent, for example because the wallet refused to sign (`operation.dispatch.notSentCause` says why). Nothing was traded. | Yes |
-| `refused` | A pre-trade check refused it before anything was sent. `operation.complianceRefusal` names why. The order is final: to trade once the cause is cleared, request a new quote and place a new order. | Yes |
-| `cancelled` | Cancelled before it was sent. | Yes |
-| `failed` | Refused or failed; nothing more will happen. | Yes |
-| `refunded` | Your funds were returned. | Yes |
-| `reviewRequired` | A person must review it before it can continue, such as a compliance hold. | No |
-| `outcomeUnknown` | TetraFi lost track of the outcome, for example a trade whose settlement was not seen in time. It is being reconciled, and the trade may have filled. | No |
-
-An order can skip statuses: act on `terminal`, not on a particular sequence. More values may be added: treat one you do not recognise as "other" and keep following `terminal`.
-
-When an order ends `failed` or `refunded`, read it in the trade history to see why: its `settlement.failureReason` is a sentence for a person ([Read one trade](/trade/trade-history#read-one-trade)).
-
-<Warning>
-`outcomeUnknown` is not a failure. The trade may have filled. Never place a new order for it: keep reading its status.
-</Warning>
-
-## While it is not final
-
-`next` says what to do while the order is not final:
-
-| `next.kind` | What to do |
-| --- | --- |
-| `wait` | Read it again after `retryAfter`, an ISO 8601 duration such as `PT15S`. TetraFi is reconciling the outcome. |
-| `contact` | Contact support with `reference`. A person has to look at the order. |
-
-Without `next`, poll every 10 to 15 seconds until `terminal` is `true`.
+Read an order at the `statusUrl` its answer gave, `GET /api/v1/orders/{orderId}`, every 10 to 15 seconds until `terminal` is `true`, or let [webhooks](/trade/webhooks) tell you when to read it. The read answers the same envelope as the order answer, for every kind of order. The key needs **Read orders**, and any member or key of the workspace with that permission can read it. An order that does not exist, or belongs to another workspace, answers `404 ORDER_NOT_FOUND`. If you lost the order answer, [recover it by its quote](/trade/retries-and-recovery#recover-an-order-by-its-quote).
 
 <OrderStatus />
 
@@ -77,20 +15,94 @@ Without `next`, poll every 10 to 15 seconds until `terminal` is `true`.
 {"kind":"basicTrade","status":"settled","terminal":true,"next":null}
 ```
 
-## What the order did
-
-A Basic order also says what it actually did. These are recorded facts, never the quote carried forward. Read this execution detail only on a kind your client knows; an SDK order marked `unknownKind` exposes common progress, not these fields.
+## The envelope
 
 | Field | Meaning |
 | --- | --- |
-| `fills` | Each confirmed fill, in execution order: `fillId` (the fill's stable id; one row is one fill, never a running total, so deduplicate repeated reads by it), `amount` (what it delivered), `sellAmount`, `price`, `at`, `venue`, and `txHash` with its `network` for an on-chain fill. Empty until a fill is confirmed. A field that was not recorded is `null`. |
-| `quotedBuyAmount` | What the executed quote said would land. `null` when it is not known, for example before a venue order is sent. |
-| `settledBuyAmount` | What actually landed, read from the fills or the settlement. `null` until it is measured. Compare it with `quotedBuyAmount` to see what the trade delivered against its quote. |
-| `fees` | Each fee actually charged: `kind`, `amount`, `asset`, `chain` for an on-chain charge, and `includedInPrice`. When `includedInPrice` is `true`, the venue took the fee inside its price: the fill amounts already reflect it, so it is not charged on top. |
-| `unrecordedFees` | The kinds of fee the order incurred whose amount is not recorded, for example a venue fee taken inside the price without an amount. Show these as "not recorded", never as 0. A kind that is in neither list was not charged. |
-| `settlesBy` | The latest time the order settles, or can no longer execute, under its recorded terms. `null` when no deadline is recorded: an off-chain Basic trade on an exchange account, or a same-chain DEX swap, whose call carries no deadline. |
+| `orderId` | The order's id. |
+| `kind` | `basicTrade` today. New kinds may be added: keep following `status` and `terminal` for a kind you do not recognise, never resubmit it. |
+| `status` | Where the order is (below). |
+| `terminal` | `true` when the order can no longer change. Stop on this, never on a particular `status`. |
+| `next` | Present only while there is something to do meanwhile (below). |
+| `statusUrl` | Where to read the order again. |
+| `quoteId` | The quote it was placed from, when known. |
+| `operation` | The venue trade's own detail, on a `basicTrade` order only. |
 
-A fee's `kind` is `trading` (the venue's fee), `relayer`, `forwarding`, `transfer`, `network` (gas the order's wallet paid) or `platform` (the TetraFi fee). New kinds may be added: show one you do not recognise generically.
+The TypeScript SDK marks a kind it does not know with `unknownKind: true` and keeps `kind`, `orderId`, `status`, `terminal` and `statusUrl`. It is an SDK marker, not a wire field.
+
+## Statuses
+
+| `status` | What it means | Final |
+| --- | --- | --- |
+| `pending` | Accepted; nothing sent to a venue yet. | No |
+| `working` | Sent to the venue and executing, including an on-chain trade waiting to confirm. | No |
+| `filled` | Executed; settlement or delivery is still to complete. | No |
+| `reviewRequired` | A person must review it, such as for a compliance hold. | No |
+| `outcomeUnknown` | TetraFi lost track of the outcome and is reconciling it. The trade may have filled. | No |
+| `settled` | Executed and settled, or there was nothing to settle. | Yes |
+| `unfilled` | Not filled, or never sent, for example because the wallet refused to sign (`operation.dispatch.notSentCause`). Nothing traded. | Yes |
+| `refused` | A pre-trade check refused it before anything was sent; `operation.complianceRefusal` says why. To trade once the cause is cleared, request a new quote. | Yes |
+| `cancelled` | Cancelled before it was sent. | Yes |
+| `failed` | Failed; nothing more will happen. Read the fills and settlement detail: a `failed` order does not by itself prove nothing traded. | Yes |
+| `refunded` | Your funds were returned. | Yes |
+
+<Warning>
+`outcomeUnknown` is not a failure. Never place a new order for it: keep reading its status.
+</Warning>
+
+An order can skip statuses, and new values may be added: treat one you do not recognise as "other" and keep following `terminal`. For a `failed` or `refunded` order, the trade history's `settlement.failureReason` says why in words ([Read one trade](/trade/trade-history#read-one-trade)).
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> working
+    pending --> refused
+    pending --> cancelled
+    pending --> unfilled
+    pending --> reviewRequired
+    working --> filled
+    working --> unfilled
+    working --> failed
+    working --> refunded
+    working --> outcomeUnknown
+    working --> reviewRequired
+    filled --> settled
+    filled --> failed
+    filled --> reviewRequired
+    reviewRequired --> working
+    outcomeUnknown --> working: reconciled
+    outcomeUnknown --> filled: fill confirmed
+    outcomeUnknown --> unfilled: confirmed unfilled
+    outcomeUnknown --> failed
+    outcomeUnknown --> refunded
+    outcomeUnknown --> reviewRequired
+```
+
+The diagram shows common paths, not a required sequence. These statuses are final: `settled`, `unfilled`, `cancelled`, `failed`, `refunded` and `refused`.
+
+## While it is not final
+
+| `next.kind` | What to do |
+| --- | --- |
+| `wait` | Read it again after `retryAfter`, an ISO 8601 duration such as `PT15S`. |
+| `contact` | Contact support with `reference`: a person has to look at the order. |
+
+Without `next`, poll every 10 to 15 seconds.
+
+## What the order did
+
+A `basicTrade` order also records what it actually did, never the quote carried forward:
+
+| Field | Meaning |
+| --- | --- |
+| `fills` | Each confirmed fill in execution order: `fillId` (stable: deduplicate repeated reads by it), `amount` delivered, `sellAmount`, `price`, `at`, `venue`, and `txHash` with `network` for an on-chain fill. Empty until a fill is confirmed; a field not recorded is `null`. |
+| `quotedBuyAmount` | What the executed quote said would land. `null` when not known. |
+| `settledBuyAmount` | What actually landed. `null` until measured. |
+| `fees` | Each fee charged: `kind`, `amount`, `asset`, `chain` for an on-chain charge, and `includedInPrice` (`true`: the venue took it inside its price, so it is not charged on top). |
+| `unrecordedFees` | Fee kinds the order incurred whose amount is not recorded. Show these as "not recorded", never 0. |
+| `settlesBy` | The latest time the order settles or can no longer execute under its recorded terms (below). |
+
+A fee's `kind` is `trading`, `relayer`, `forwarding`, `transfer`, `network` (gas the order's wallet paid) or `platform` (the TetraFi fee). Show a kind you do not recognise generically.
 
 <OrderExecution />
 
@@ -98,20 +110,25 @@ A fee's `kind` is `trading` (the venue's fee), `relayer`, `forwarding`, `transfe
 {"orderId":"9410e38e-…","kind":"basicTrade","quotedBuyAmount":"0.499751","settledBuyAmount":"0.499751","fills":[{"amount":"0.499751","at":"2026-11-02T01:37:12Z","network":"eip155:11155111"}],"fees":[{"kind":"relayer","amount":"0.000249","asset":"USDC","includedInPrice":false},{"kind":"network","amount":"0.000000332622","asset":"ETH","includedInPrice":false},{"kind":"network","amount":"0.000000438318","asset":"ETH","includedInPrice":false},{"kind":"platform","amount":"0.000049","asset":"USDC","includedInPrice":false}],"unrecordedFees":[],"settlesBy":null}
 ```
 
+## When it settles
+
+A quote's `expiresAt` is its ordering deadline, and its `eta` an expected delivery time; neither says the order settled. `settlesBy` on the order is the recorded deadline: for an on-chain Basic swap, the last wallet step's send-by time. It is `null` when no deadline is recorded, as for an exchange account trade or a same-chain DEX swap whose call carries none. A `null` is not immediate settlement, and a passed `settlesBy` is not proof of failure: keep reading until `terminal` is `true`.
+
+Trades on venues that settle on a schedule have their obligations and windows in [Settlement and credit](/trade/settlement-and-credit).
+
 ## List your orders
 
-`GET /api/v1/orders` lists your workspace's orders, newest first, each in the same envelope as `GET /api/v1/orders/{id}`. The key needs **Read orders**.
+`GET /api/v1/orders` lists your workspace's orders, newest first, in the same envelope. The key needs **Read orders**.
 
 | Query parameter | What it filters |
 | --- | --- |
 | `status` | One status from the list above. |
 | `kind` | `basicTrade` or `advancedTrade`. |
-| `sellAsset`, `buyAsset` | The asset paid or received, such as `USDC`. |
+| `sellAsset`, `buyAsset` | The asset sold or bought, such as `USDC`. |
 | `from`, `to` | Created at or after, and at or before, an RFC 3339 time. |
-| `limit` | Up to 20 orders a page; 20 when left out. |
-| `cursor` | The previous page's `nextCursor`. |
+| `limit`, `cursor` | Up to 20 orders a page (the default); the previous page's `nextCursor`. |
 
-A page with a `status` filter keeps reading until it has `limit` orders or your orders end, up to a limit on how many orders it examines. When it stops at that limit, the page can hold fewer than `limit` orders, even none, with `scanLimitReached: true` and a `nextCursor`: more orders remain to examine. A filter that matches nothing answers one page with `nextCursor` `null`. Either way, keep following `nextCursor` until it is `null`. A cursor belongs to the key and the exact filters it came with; any other answers `400 INVALID_CURSOR`. The script [`samples/http/orders-list.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/orders-list.sh) lists the last 30 days:
+A filtered page can hold fewer than `limit` orders, even none, with `scanLimitReached: true` and a `nextCursor` while more remain. Keep following `nextCursor` until it is `null`. A cursor belongs to the key and its filters; any other answers `400 INVALID_CURSOR`. The script [`samples/http/orders-list.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/orders-list.sh) lists the last 30 days:
 
 <OrdersList />
 
@@ -121,6 +138,4 @@ orders: 100 across 5 pages
 {"orderId":"dad901ac-…","kind":"basicTrade","status":"settled","terminal":true}
 ```
 
-## In the app
-
-The same trade appears under **Trades**, with its status.
+In the app, the same orders appear under **Trades**.

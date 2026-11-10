@@ -1,138 +1,78 @@
 ---
 title: "Authentication"
-description: "Create an API key, choose its permissions, send it with every request and sign requests when the key trades on your venue accounts."
+description: "Create an API key, choose its permissions, send it with every request, and sign requests when the key trades on your venue accounts."
 ---
 
-import MeOrganisationWallets from '/snippets/samples/me-organisation-wallets.mdx';
-
-Your backend authenticates with an API key. A key belongs to you and to one workspace, and it can never do more than you can do in that workspace. For software that should not depend on one person's account, use a [service account](/service-accounts): its keys work the same way, and can also be exchanged for short-lived bearer tokens.
-
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
+Your backend authenticates with an API key. A key belongs to you and to one workspace, and it can never do more than you can do in that workspace: TetraFi checks your current permissions on every request, so if yours shrink, the key's shrink with them. For software that should not depend on one person's account, use a [service account](/service-accounts).
 
 ## Create an API key
 
-1. In the app, open **Settings**.
-2. Under **Your account**, find **Personal API keys** and select **Open API keys**.
-3. Select **Create key**.
-4. In **Create API key**, give the key a **Name**. **Description**, **Expiration** and **IP allowlist** are optional, unless your workspace requires keys to expire. A key created without an **Expiration** has none: it works until you revoke it.
-5. Under **Permissions**, tick what the key may do (see below). For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read orders**.
-6. To trade through your venue accounts, switch **Venue trading** on, then select **Create key**. You must be a workspace owner or admin with permission to manage credentials, signed in with a second factor.
-7. Copy **API Key** and, if you switched venue trading on, **Request-signing secret**. Store them in your secret manager, keeping the signing secret separate from the key. Tick **I have saved both credentials securely** (or **I have saved this key securely** for a key without venue trading), then select **Done**.
-
-These credentials are shown once and cannot be recovered. Never put them in source code or a tracked file.
+1. In the app, open **Settings**. Under **Your account**, find **Personal API keys**, select **Open API keys**, then **Create key**.
+2. Give the key a **Name**. **Description**, **Expiration** and **IP allowlist** are optional unless your workspace requires keys to expire; a key without an expiration works until you revoke it.
+3. Under **Permissions**, tick what the key may do (below). To quote and order, tick **Read quotes**, **Submit orders** and **Read orders**.
+4. To trade through your venue accounts, switch **Venue trading** on. You must be a workspace owner or admin who manages credentials, signed in with a second factor.
+5. Select **Create key**. Copy **API Key** and, with venue trading, **Request-signing secret** into your secret manager, separately. Both are shown once and cannot be recovered; never put them in source code or a tracked file.
 
 ## Permissions
 
-You choose permissions when you create the key. A key can only receive permissions you hold yourself in that workspace, and TetraFi checks your current permissions on every request: if your own permissions shrink later, the key shrinks with them.
-
-See the generated [permission matrix](/reference/permissions) for operation scopes and their matching app checkboxes when the API specification exports them.
+A key can receive only permissions you hold in that workspace.
 
 | Permission in the app | What the key can do |
 | --- | --- |
-| **Read quotes** | List the assets your workspace can trade and read prices. Together with **Submit orders**, request quotes. |
-| **Submit orders** | Place and cancel orders. Needed, with **Read quotes**, to request quotes. |
-| **Read orders** | Read an order's status. |
-| **Read trades** | Read your workspace's trade history. |
-| **Treasury read** | Read [balances](/trade/balances) and [exchange accounts](/trade/venue-balances). Never moves money. |
-| **Read fee schedule** | Read your workspace's [fee schedule](/trade/fee-schedule). Every member can read fees, but a key reads them only when you tick this: no other permission includes it. |
+| **Read quotes** | List assets and read prices. With **Submit orders**, request quotes: **Read quotes** alone cannot. |
+| **Submit orders** | Place and cancel orders, and, with **Read quotes**, request quotes. |
+| **Read orders** | Read an order's status and recover an order by its quote. |
+| **Read trades** | Read the trade history. |
+| **Treasury read** | Read [balances](/trade/balances), exchange accounts and credit. Never moves money. |
+| **Read settlements** | Read [settlement](/trade/settlement-and-credit) plans, windows, obligations and movements. |
+| **Read fee schedule** | Read your [fee schedule](/trade/fee-schedule). No other permission includes it. |
+| **Read compliance** | Read your workspace's [capabilities](/before-you-trade#check-readiness-from-your-backend). |
+| **Manage webhooks** | Create and manage [webhooks](/trade/webhooks). |
 
-For the quote-to-order flow, tick **Read quotes**, **Submit orders** and **Read orders**.
+The [permission matrix](/reference/permissions) maps every operation to its scope.
 
-### Trading on your venue accounts
+## Trade on your venue accounts
 
-Basic quotes, the ones TetraFi executes for you from one of your exchange or OTC venue accounts or from an organisation wallet (only inside the limited grant that wallet's owners approved), need more than the permissions above. With **Venue trading** switched off, a valid `POST /api/v1/quotes` still answers `200`, but returns no venue-account quote cards: the restriction appears at quote time, not as an order-time refusal on a returned venue card. A key without the venue trading scope sees those venues in `sources` as `restricted` with the reason `venueTradeScopeRequired`. A key that trades Basic quotes needs:
+Every quote you can order today is Basic: TetraFi executes it from one of your exchange or OTC venue accounts, or from an organisation wallet granted to your key. A key that trades Basic quotes needs:
 
-- **The venue trading scope.** It can only be given when the key is created, together with **Read quotes** and **Submit orders**, by the key's owner signed in with a second factor. It cannot be added to an existing key.
-- **Request signing.** A key created with venue trading always signs its requests. Its signing secret, in hexadecimal, is shown once when the key is created. Every request with the key must then be signed. To rotate that signing secret, use the signed-in session operation under [Sign requests](#sign-requests); it does not add the venue trading scope or switch venue trading on. Signing cannot be turned off on a key that can trade venues: that answers `409 VENUE_TRADE_KEY_SIGNING_REQUIRED`, and the key and its secret stay unchanged. For unsigned requests, use a key without venue trading.
-- **Venue trading switched on for the key.** A workspace owner or admin with permission to manage credentials switches **Venue trading** on while signed in with a second factor. Switching it on in **Create API key** creates the key with venue trading and request signing enabled.
-- **Organisation wallets, to trade from them.** The key may use only the organisation wallets granted to it ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)). Trades on exchange and OTC venue accounts do not need this.
+- **Venue trading**, given only when the key is created, together with **Read quotes** and **Submit orders**, by its owner signed in with a second factor. It cannot be added to an existing key.
+- **Request signing**, always on for a venue-trading key: every request it sends must be [signed](#sign-every-request). It cannot be turned off (`409 VENUE_TRADE_KEY_SIGNING_REQUIRED`). For unsigned requests, use a key without venue trading.
+- **Organisation wallets granted to it**, to trade from them. **Create API key** grants your default organisation wallets that you hold a Trade right on; change them on the key's **Wallets** tab ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). Venue accounts need no grant.
 
-<Note>
-**Create API key** with venue trading grants the key your workspace's default organisation wallets that you hold a Trade right on, and says which it granted. Until a wallet is granted, on-chain Basic venues answer `unavailable` with the reason `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`. Grant or revoke wallets later from the key's **Wallets** tab ([Give a key organisation wallets](/trade/wallets-and-accounts#give-a-key-organisation-wallets)).
-</Note>
+Without venue trading, a quote request still answers `200`, but returns no quotes from your venue accounts: they read `restricted` with `venueTradeScopeRequired`.
 
-### Check what a key can trade from
+### Check what a key can do
 
-`GET /api/v1/me` with a workspace key includes its own `organisationWallets` trading authority, so the key can see its setup before it orders. This is part of API-key introspection, not the owner's wallet list or profile:
+`GET /api/v1/me` has no side effects and describes the key that called it, not a user profile:
 
 | Field | What it says |
 | --- | --- |
-| `venueTradeScope` | The key holds the `workspace_venue_trade` scope. |
-| `venueTradeEnabled` | Venue trading is switched on for the key. `false` means a valid quote request can succeed without returning any venue-account quote cards. |
-| `requestSigningRequired` | Every request with the key must be signed. |
-| `grants` | The organisation wallets granted to the key, each with its `financialAccountId`, the id `source.tradingWallets` takes. |
-| `blockedBy` | When present, the code an order from an organisation wallet would be refused with right now, such as `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED` when no wallet is granted. |
+| `authKind`, `auth` | `apiKey`; `auth` is `oauthClientCredentials` for a [service-account token](/service-accounts). |
+| `keyId`, `name`, `origin` | The key's identity. `keyId` is also its `credentialId`. |
+| `scopes`, `permissions`, `dataScope` | Its current authority. |
+| `workspaceId` | The workspace the key is bound to. |
+| `organisationWallets` | Its venue trading and wallet grants: `venueTradeScope` and `venueTradeEnabled` must both be `true` for venue-account quotes ([Check readiness](/before-you-trade#check-readiness-from-your-backend)). |
+| `rateLimits`, `expiresAt` | The key's own request limit and expiry, when set. |
 
-Read these fields under `organisationWallets` before searching: both `venueTradeScope` and `venueTradeEnabled` must be `true` to get orderable venue-account quote cards. The top-level `scopes` list also shows whether the key holds `workspace_venue_trade`; that scope alone does not mean the key's venue trading switch is on.
-
-When TetraFi cannot read the key's grants, `/me` answers `503 API_KEY_ORGANISATION_WALLET_AUTHORITY_UNAVAILABLE`, never an empty list: retry shortly. A key reads only its own grants.
-
-Delivery to an address outside the workspace's organisation wallets is refused on the quote request with `403 API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED`, before an order is placed. Manage delivery destinations in the app, not through a per-key address allowlist; an API key cannot allowlist an outside address. Use an organisation-wallet destination the key may use instead ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)).
-
-<MeOrganisationWallets />
-
-```json Output on test networks
-{"venueTradeScope":true,"venueTradeEnabled":true,"requestSigningRequired":true,"grants":[],"blockedBy":"API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED"}
-```
+A signing key must sign this call too.
 
 ## Send the key
 
-Send your key with every request:
+Send `X-API-Key: <your key>` on every request. The key is bound to its workspace, so `X-Workspace-Id` is optional; when you send it, it must name the key's own workspace (`403 WORKSPACE_SCOPE_MISMATCH` otherwise, `400 INVALID_WORKSPACE_ID` when malformed). A signed-in member's session has no workspace of its own and must always send it (`400 MISSING_WORKSPACE`).
 
-| Header | Value |
-|---|---|
-| `X-API-Key` | Your API key |
-| `X-Workspace-Id` | Optional with an API key: the workspace the key belongs to |
+Every path under `/api/v1/workspaces/{workspaceId}/`, such as balances, trades, settlement, venue accounts, the fee schedule, capabilities and webhooks, names the workspace: use the `workspaceId` from `GET /api/v1/me`. Quotes and orders do not. A request without credentials answers `401 AUTH_REQUIRED` before anything is looked up.
 
-The key is bound to its workspace when it is created, so every request it sends works in that workspace, with or without `X-Workspace-Id`. If you send the header, it must name that same workspace: another workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a malformed one answers `400 INVALID_WORKSPACE_ID`. A signed-in member's session has no workspace of its own, so it must always send the header, or it is refused with `400 MISSING_WORKSPACE`.
+## Sign every request
 
-Order reads need authentication too. Send your key on `GET /api/v1/orders/{orderId}`. A read without credentials never returns the order: it answers `401 AUTH_REQUIRED` before any order lookup. Authentication and workspace refusals use the same [JSON error body](/trade/errors#read-a-refusal) as other API refusals.
-
-To check a key, call `GET /api/v1/me`. It has no side effects and returns `IntrospectionResponse`: the presented API key's identity and current authority, not an interactive user's profile or verification state. A key with request signing must still sign it.
-
-| Field | What it says |
-| --- | --- |
-| `authKind` | `apiKey`: this answer describes the presented key. |
-| `auth` | `apiKey`, or `oauthClientCredentials` for a bearer token exchanged from the key. |
-| `keyId`, `name`, `origin` | The key's identity. |
-| `scopes`, `permissions`, `dataScope` | The key's current authority. |
-| `workspaceId` | The workspace the key is bound to; absent or `null` for a key bound to no workspace. |
-| `organisationWallets` | Its own wallet grants and signing state ([above](#check-what-a-key-can-trade-from)); absent or `null` when the key has no workspace. |
-| `rateLimits`, `expiresAt` | The key's rate limits and expiry when present. Do not assume these optional fields are set. |
-
-Use `workspaceId` to find the workspace id of a new workspace key: a few paths, such as a Basic trade status read after [recovering an order by its quote](/trade/idempotency#recover-an-order-by-its-quote), still contain it. A programmatic client must not request a profile or verification expansion.
-
-## Sign requests
-
-### Enable or rotate signing
-
-Request signing is a credential-management operation in the app's signed-in session, not a setup call your backend can make with its API key. The route is `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`. Send `Authorization: Bearer <session JWT>` and `X-Workspace-Id: <workspaceId>`; no request body is required. The bearer must be a signed-in member's session token, **not** a service-account token exchanged at `/api/v1/oauth/token`. An API key or client-credentials bearer is refused with `403 JWT_REQUIRED`.
-
-- **Your own API key:** sign in as the member who holds it. Another member, including a credential manager, cannot change its signing: `403 CREDENTIAL_OWNER_ONLY`.
-- **A service-account key:** sign in as a workspace member with permission to manage credentials. The service account cannot enable or rotate its own signing through its OAuth token.
-- **Find `credentialId`:** it is the key's `keyId`, for both member and service-account keys, not the full API key or the service account's `client_id`. The create-key answer includes `keyId`; key introspection at `GET /api/v1/me` also returns it. From a signed-in session, list `GET /api/v1/workspaces/{workspaceId}/credentials?owner=me`, or use `owner=serviceAccount:{serviceAccountId}` with permission to manage credentials. Use `items[].credentialId`; follow `nextCursor` if another page is present.
-
-A successful `200` answer contains `signingSecret` (64 lower-case hexadecimal characters encoding 32 bytes) and `warning`. The secret is shown once: store it in your secret manager, separately from the API key. Calling `POST` again immediately replaces the signing secret; it does not rotate the API key. Do not retry a successful call to recover a secret you did not save. Once signing is enabled, every request with the key must be signed.
-
-`GET` on the same signing route returns only `requestSigningRequired` and `venueTradeEnabled`, never the secret. An unknown credential, or one from another workspace, answers `404 CREDENTIAL_NOT_FOUND`. A legacy workspace-owned key cannot use this operation (`409 CREDENTIAL_OPERATION_NOT_AVAILABLE`). Signing updates can also be refused with `SIGNING_UPDATE_FAILED`; `503 SIGNING_NOT_DURABLE` or `503 SIGNING_CACHE_UPDATE_FAILED` means the update could not be confirmed as persisted or active, respectively.
-
-The signing operation itself adds no unconditional second-factor challenge; your workspace's sign-in policy still applies. Creating a venue-trading key or enabling its venue trading has separate second-factor requirements. Enabling signing alone grants neither venue trading scope nor venue trading access.
-
-For a member's own key without venue trading, `DELETE` on the signing route disables signing. A venue-trading key must keep signing on (`409 VENUE_TRADE_KEY_SIGNING_REQUIRED`), and a service-account key cannot disable it through this route (`409 CREDENTIAL_OPERATION_NOT_AVAILABLE`). A signing-enabled service-account key can no longer be exchanged for an OAuth token ([Service accounts](/service-accounts#when-the-exchange-is-refused)).
-
-### Sign every request
-
-When signing is on for a key, every request carries more headers:
+When signing is on, every request carries three more headers:
 
 | Header | Value |
 | --- | --- |
-| `X-Timestamp` | The current time in Unix seconds. It must be within 300 seconds of TetraFi's clock, and a write's at most 10 seconds ahead of it: keep your clock NTP-synced. |
-| `X-Nonce` | A fresh random value for each request: 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`. Required on a write (`POST`, `PUT`, `PATCH` or `DELETE`); leave it off a read (`GET` or `HEAD`). |
-| `X-Signature` | Lower-case hexadecimal HMAC-SHA256 of the string below, keyed with the signing secret's 32 bytes: the secret is 64 hexadecimal characters, so decode it first. |
+| `X-Timestamp` | The current Unix time in seconds: within 300 seconds of TetraFi's clock, and a write at most 10 seconds ahead. Keep your clock NTP-synced. |
+| `X-Nonce` | On a write (`POST`, `PUT`, `PATCH`, `DELETE`) only: a fresh random value, 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`. |
+| `X-Signature` | The lower-case hexadecimal HMAC-SHA256 of the lines below, keyed with the signing secret's 32 bytes. The secret is 64 hexadecimal characters: decode it first. |
 
-A write signs five lines joined by a newline, with no newline at the end:
+A write signs five lines joined by newlines, with no trailing newline; a read leaves out the nonce line:
 
 ```text
 <X-Timestamp>
@@ -142,9 +82,7 @@ A write signs five lines joined by a newline, with no newline at the end:
 <lower-case hexadecimal SHA-256 of the exact body bytes>
 ```
 
-A read sends no `X-Nonce` and signs the same lines without the second, four in all. A request without a body signs the SHA-256 of zero bytes.
-
-Generate the nonce from a cryptographic random source, for example 18 random bytes in base64url:
+A request without a body hashes zero bytes. Generate the nonce from a cryptographic source, for example 18 random bytes in base64url:
 
 ```bash
 nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
@@ -152,32 +90,27 @@ nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
 
 In Node.js, `crypto.randomBytes(18).toString('base64url')`; in Python, `secrets.token_urlsafe(18)`.
 
-TetraFi accepts each nonce once per key and refuses it again, whatever the body. So two identical writes in the same second each carry their own nonce and both succeed, and a retry of a write signs again with a new nonce and a fresh `X-Timestamp` while its `Idempotency-Key` and body stay the same: the key, not the signature, is what makes the retry safe ([Idempotency](/trade/idempotency)). A read without a nonce changes nothing, so the same signed read is accepted again inside the 300-second window, and polling a status needs no nonce. A read that does send `X-Nonce` is signed in five lines and accepted once.
+Each nonce is accepted once per key, by every TetraFi server, restarts included. So a retry of a write signs again with a new nonce and timestamp while its `Idempotency-Key` and body stay the same ([Retries and recovery](/trade/retries-and-recovery)). A read sends no nonce, so the same signed read is accepted again within the 300-second window, and polling needs no nonce.
 
-A request that fails the signature check is refused with `401 AUTH_REQUIRED`, and `details.reason` says why:
+A failed check answers `401 AUTH_REQUIRED` with `details.reason`:
 
-| What went wrong | `details.reason` |
+| `details.reason` | What went wrong |
 | --- | --- |
-| The key needs signing and a header is missing. | `SIGNATURE_REQUIRED` |
-| The signature is malformed or does not match. | `SIGNATURE_INVALID` |
-| `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 10 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` |
-| A write has no `X-Nonce`. | `NONCE_REQUIRED` |
-| `X-Nonce` is malformed, or sent more than once. | `NONCE_INVALID` |
-| This nonce was already accepted for the key, by any TetraFi server. | `SIGNATURE_REPLAYED` |
+| `SIGNATURE_REQUIRED` | The key needs signing and a header is missing. |
+| `SIGNATURE_INVALID` | The signature is malformed or does not match. |
+| `TIMESTAMP_OUT_OF_RANGE` | `X-Timestamp` is more than 300 seconds off, or a write's is more than 10 seconds ahead. |
+| `NONCE_REQUIRED`, `NONCE_INVALID` | A write has no `X-Nonce`, or it is malformed or sent twice. |
+| `SIGNATURE_REPLAYED` | This nonce was already accepted for the key. |
 
-Every TetraFi server shares one nonce record, so a nonce accepted by one server is refused by all of them, restarts included. The rate limit is checked first: a write refused with `429` keeps its nonce, and a replay sent while the key is rate limited is answered `429`; otherwise a replay spends a rate token and is refused as above. `503 API_KEY_UNAVAILABLE` means the key or its signing state could not be confirmed. The nonce may have been recorded anyway, so sign the request again with a new `X-Timestamp` and `X-Nonce` (same `Idempotency-Key`) before you retry. `SIGNATURE_PREDATES_RESTART` and `429 REPLAY_WINDOW_FULL` are reserved and not answered today.
+The rate limit is checked first: a replay sent while the key is rate limited answers `429`. `503 API_KEY_UNAVAILABLE` means the key or its signing state could not be confirmed; the nonce may have been recorded, so sign again with a new timestamp and nonce before you retry. The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.
 
-The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.
+### Rotate the signing secret
+
+Rotating or enabling signing is a credential operation of the app's signed-in session, not something your backend does with its key: `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, where `credentialId` is the key's `keyId`, answers a new `signingSecret` once and replaces the old one at once. An API key or service-account token is refused with `403 JWT_REQUIRED`, and only the key's owner (or, for a service-account key, a member who manages credentials) may call it.
 
 ## Rotate and revoke
 
-- **Rotate.** Choose **Rotate key** on the key. A new secret is issued, and the old one keeps working for a short grace period so you can deploy the new one. The rotated key keeps its permissions and its signing secret.
-- **Revoke.** Choose **Revoke key** on the key. Revoking is permanent. A revoked key is refused within seconds, and at most 30 seconds after you revoke it: requests sent in that window may still be served. From then on, the key answers `401 AUTH_REQUIRED` with `details.reason` `INVALID_API_KEY`.
+- **Rotate.** Choose **Rotate key** on the key. A new key is issued, and the old one keeps working for one hour so you can deploy the new one. The rotated key keeps its permissions and its signing secret.
+- **Revoke.** Choose **Revoke key**. Revoking is permanent: the key is refused within seconds, at most 30 seconds later, with `401 AUTH_REQUIRED` and `details.reason` `INVALID_API_KEY`.
 
-A key past its **Expiration** answers `401 AUTH_REQUIRED` with `details.reason` `API_KEY_EXPIRED`.
-
-## Rate limits
-
-You can send one live quote request every 3 seconds per key. A faster request answers `429 QUOTE_RATE_LIMITED` with a `Retry-After` header: wait that many seconds before asking again. A quote request answered entirely from cache does not count.
-
-An answer that a rate limit counted carries `RateLimit-Policy` and `RateLimit` headers, which say how many requests you may still send and when the limit lets the next one through ([Rate limits](/reference/rate-limits)). For any `429`, honour `Retry-After`.
+A key past its expiration answers `401 AUTH_REQUIRED` with `API_KEY_EXPIRED`. Quote and other rate limits are on [Rate limits](/reference/rate-limits).

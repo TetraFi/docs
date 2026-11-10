@@ -9,17 +9,11 @@ import ConventionsValues from '/snippets/samples/conventions-values.mdx';
 
 These rules hold on every endpoint, so a client can implement them once. The examples come from one script, [`samples/http/conventions.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/conventions.sh), which reads them from live answers and stops if one is broken. It only lists assets and asks for one quote: nothing is ordered.
 
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
-
-See [Supported interfaces](/reference/supported-interfaces) for transports, SDK availability and the timestamp formats.
-
 ## Requests
 
 | Rule | Detail |
 | --- | --- |
-| Base URL | `https://api.tetrafi.io`. Every path starts with `/api/v1`. |
+| Base URL | `https://api.tetrafi.io`, or `https://api-dev.tetrafi.io` in the [sandbox](/overview#environments). Every path starts with `/api/v1`. |
 | Credentials | `X-API-Key` on every request, plus a signature when request signing is on. The key implies its workspace, so `X-Workspace-Id` is optional; when sent, it must be the key's own. See [Authentication](/authentication). |
 | Bodies | JSON, sent with `Content-Type: application/json`. |
 
@@ -69,13 +63,9 @@ You can send your own `X-Request-Id`, up to 64 letters, digits, `-` and `_`, to 
 {"requestId":"conventions-1793895638","rateLimitPolicy":"1;w=3","rateLimit":"limit=1, remaining=0, reset=3"}
 ```
 
-## Rate limits
+## Rate limits and idempotency
 
-See [Rate limits](/reference/rate-limits) for the quote allowance, response headers and how to wait before retrying a `429`.
-
-## Idempotency
-
-Send an `Idempotency-Key` with every `POST /api/v1/orders`. A retry with the same key and body returns the first answer, with the header `Idempotent-Replayed: true`. The same key with a different body is refused. [Idempotency](/trade/idempotency) covers replays, conflicts and recovering an order.
+Every limit answers `429` with `Retry-After` ([Rate limits](/reference/rate-limits)). Send an `Idempotency-Key` with every `POST /api/v1/orders`: a retry with the same key and body returns the first answer, with `Idempotent-Replayed: true` ([Retries and recovery](/trade/retries-and-recovery)).
 
 ## Versioning
 

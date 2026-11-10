@@ -1,38 +1,59 @@
 ---
 title: "API reference"
-description: "Every operation an API key can call, generated from the TetraFi API's own specification."
+description: "Every operation an API key can call, generated from the TetraFi API's own specification, with the interfaces it offers and how to read its times."
 ---
 
-These pages are generated from the API's integrator specification, so they always match what the API accepts and returns. The guides explain how the operations fit together; start with the [Quickstart](/quickstart) if you are new.
-
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog), and the [Compatibility policy](/compatibility) says what can change after launch.
-</Note>
+These pages are generated from the API's integrator specification, so they match what the API accepts and returns. The guides explain how the operations fit together; start with the [Quickstart](/quickstart) if you are new. The [Compatibility policy](/compatibility) says what can change after launch.
 
 ## Base URL and authentication
 
-Send every request to `https://api.tetrafi.io` with your API key in `X-API-Key`: the key implies its workspace. A key with venue trading also signs each request. [Authentication](/authentication) covers both.
+| Environment | Base URL |
+| --- | --- |
+| Sandbox | `https://api-dev.tetrafi.io` |
+| Production | `https://api.tetrafi.io`, from launch |
+
+Send your API key in `X-API-Key` on every request: the key implies its workspace. A key with venue trading also signs each request. [Authentication](/authentication) covers both, and [Environments](/overview#environments) what differs in the sandbox.
+
+## Supported interfaces
+
+| Interface | What you can use |
+| --- | --- |
+| REST | JSON over HTTP under `/api/v1`. |
+| Server-sent events | `POST /api/v1/quotes` with `Accept: text/event-stream` streams a new search ([JSON or a stream](/search/how-it-works#json-or-a-stream)); a requote answers JSON. `GET /api/v1/prices/stream` streams prices. |
+| Webhooks | Workspace events, including `order.updated` ([Webhooks](/trade/webhooks)). |
+| FIX | Not supported. |
+
+A quote stream reports the search, never an order's outcome: follow orders by their status or webhooks. A TypeScript SDK is coming soon to npm; the API needs no SDK.
 
 ## Download the specification
 
-Download the [OpenAPI specification](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/openapi.json) these pages are generated from (OpenAPI 3.1, JSON) to generate a client or import it into your tools. It changes with the API; the [Changelog](/changelog) lists each change.
+Download the [OpenAPI specification](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/openapi.json) (OpenAPI 3.1, JSON) to generate a client or import it into your tools. The [Changelog](/changelog) lists each change.
 
 ## Postman collection
 
-Import the [TetraFi Postman collection](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json) into Postman using **Import → Link**, or download the JSON file and import it. In the collection's **Variables** tab, set these three values locally:
+Import the [TetraFi Postman collection](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json) with **Import → Link**, then set these values locally in its **Variables** tab:
 
 | Variable | Value |
 | :--- | :--- |
-| `baseUrl` | `https://api.tetrafi.io`, or the API base URL you were given |
+| `baseUrl` | The base URL of your environment |
 | `apiKey` | Your API key |
 | `signingSecret` | The key's 64-character hexadecimal signing secret, if signing is enabled |
 
-Send **GET /api/v1/assets** to check your credentials. The collection sends `X-API-Key` and signs each request automatically when `signingSecret` is set; leave it empty only for a key without signing. Keep credentials local: do not share or export a collection with populated values.
-
-The remaining requests come from the same integrator specification as this reference. Replace angle-bracket placeholders and any path variables with real values before sending them. Review each request individually rather than running the whole collection, which includes order submission.
+Send **GET /api/v1/assets** to check your credentials. The collection signs each request when `signingSecret` is set. Replace angle-bracket placeholders and path variables before sending, and send requests one at a time: the collection includes order placement. Never share or export it with values filled in.
 
 ## Reading responses
 
 - Ignore response fields you don't recognise; objects can gain fields.
-- Treat an enum value you don't recognise as "other": every response enum in the specification is open.
-- Every refusal is one error body. [Errors and refusals](/trade/errors) explains how to read it, and [Error codes](/reference/error-codes) lists every code and source reason.
+- Treat an enum value you don't recognise as "other": every response enum is open.
+- Every refusal is one error body ([Errors and refusals](/trade/errors), [Error codes](/reference/error-codes)).
+
+Read each field's schema for its time format:
+
+| Field | Format |
+| --- | --- |
+| Quote `expiresAt`, `observedAt`, `staleAfter`; order `settlesBy`; error `timestamp` | RFC 3339 date-time in UTC, or `null` where the schema allows it. |
+| A continuation repricing offer's `expiresAt` | Integer Unix seconds, unlike the quote's `expiresAt`. |
+| `requestExpiryMs`, when present | Integer Unix milliseconds. |
+| `eta`, `retryAfter` | ISO 8601 durations. |
+
+[Conventions](/reference/conventions) covers amounts, ids, pagination, headers and versioning.

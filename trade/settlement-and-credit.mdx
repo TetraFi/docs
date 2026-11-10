@@ -1,0 +1,54 @@
+---
+title: "Settlement and credit"
+description: "Read what your venue accounts owe and are owed, when it settles, how it was matched, and the credit each account holds, with an API key."
+---
+
+Some venue accounts settle on a schedule rather than trade by trade: the liquidity provider (LP) and your workspace net what each owes over a settlement window, then settle the result. These reads let a taker's backend see that cycle and the credit behind it. They are read-only: none creates a transfer, a reservation, an approval or an instruction to the LP.
+
+Every path names your workspace, the `workspaceId` that `GET /api/v1/me` answers for your key. The venue account reads take a `venueAccountId` from [`GET …/venue-enablements`](/trade/balances#list-your-exchange-accounts).
+
+| You want to know | Read | Key permission |
+| --- | --- | --- |
+| What is due across all your venue accounts | `GET …/workspaces/{workspaceId}/settlement/plan` | **Read settlements** |
+| How one trade settled | `GET …/trades/{tradeId}/settlement` and `…/trades/{tradeId}/settlement/obligations` | **Read settlements** |
+| An account's settlement windows and statements | `GET …/venue-accounts/{venueAccountId}/settlement/windows`, `…/windows/{windowId}` and `…/windows/{windowId}/matches` | **Read settlements** |
+| What each side owes, and by when | `GET …/venue-accounts/{venueAccountId}/settlement/obligations` and `…/obligations/{obligationId}` | **Read settlements** |
+| The deposits and withdrawals that settled them | `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/movements/{movementId}` | **Read settlements** |
+| The LP's settlement schedule | `GET …/venue-accounts/{venueAccountId}/settlement/schedules` | **Read settlements** |
+| The account's credit line and positions | `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | **Treasury read** |
+
+The settlement reads need the `settlements_read` scope and, for its owner, the workspace's permission to view settlements. The [permissions table](/reference/permissions) maps every operation to its scope.
+
+## The settlement plan
+
+`GET /api/v1/workspaces/{workspaceId}/settlement/plan` is a snapshot of what is due across your venue accounts, up to `horizonDays` ahead, paged with `cursor` and `limit`. Each account has a summary and its upcoming `windows`. A deadline that is not known stays unknown, never a guess. When one source could not be read, it is listed in `failedReads` and `complete` is `false`: treat the plan as partial, not as "nothing due".
+
+## One trade's settlement
+
+`GET …/trades/{tradeId}/settlement` answers your side of one trade: its lifecycle stages, transactions and the LP's response. `…/settlement/obligations` lists the obligations that reference the trade, each with its venue account, window and state. Take `tradeId` from the [trade history](/trade/trade-history). The LP's own view of the same trade is a signed-in member read in the app.
+
+## Windows, obligations and movements
+
+A **window** is one settlement period of a venue account. Once its snapshot is ready, it carries an indicative statement: the positions, the snapshot prices (an unavailable price names its stage and reason) and the minimum-settlement decision. On an LP-issued window, the LP's own statement is included. List windows newest first, filter by `state`, and page with `cursor`.
+
+An **obligation** is what your workspace and the LP owe each other on the account, with its status, deadline and origin. Filter by `windowId` or `tradeId`. One obligation's detail lists the movements matched to it.
+
+A **movement** is a deposit to or withdrawal from the account that settles obligations, with its finality and how it matched. An API key reads the movements TetraFi has recorded: `lastSuccessfulReadAt` and `observationState` say how current they are, and the key never starts a fresh read from the LP. `…/windows/{windowId}/matches` lists the movements matched to a window's obligations, oldest first.
+
+`…/settlement/schedules` answers the LP's published schedules for the account, the one in effect with its minimum settlement, and the next window.
+
+## Credit and the ledger
+
+`GET …/venue-accounts/{venueAccountId}/credit` answers the account's credit: the provider's reported line (limit, used, available and overrun), the agreed facility, TetraFi's open credit commitments and the signed positions, each with its own observation time. It reads the account's last recorded ledger observation and makes no call to the provider.
+
+`GET …/venue-accounts/{venueAccountId}/ledger` answers the signed positions and credit line. With an API key it is the last recorded observation (`source: "recorded"`), dated by `observedAt` and `stale: true` when it is more than an hour old; the key never starts a venue read.
+
+A component that could not be read is `unavailable` with its code, never zero, and readable positions are still returned when credit is not.
+
+| Code | Status | What to do |
+| --- | --- | --- |
+| `VENUE_ACCOUNT_NOT_FOUND` | 404 | The workspace has no venue account with that id. Check the id. |
+| `LEDGER_NOT_OBSERVED` | 409 | No ledger observation is recorded yet. Read it again later, or open the account in the app, which reads the venue live. |
+| `LEDGER_UNSUPPORTED` | 409 | The venue does not report a ledger. |
+
+Every other code is in [Error codes](/reference/error-codes).

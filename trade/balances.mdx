@@ -1,40 +1,32 @@
 ---
 title: "Balances"
-description: "Read every balance your workspace holds, across its wallets and exchange accounts, in one paged list with an API key."
+description: "Read every balance your workspace holds across wallets and exchange accounts, list your exchange accounts, and read one account's balances and deposits."
 ---
 
 import BalancesList from '/snippets/samples/balances-list.mdx';
 import BalancesFilter from '/snippets/samples/balances-filter.mdx';
 import BalancesUnavailable from '/snippets/samples/balances-unavailable.mdx';
+import VenueAccountsList from '/snippets/samples/venue-accounts-list.mdx';
+import VenueBalances from '/snippets/samples/venue-balances.mdx';
+import VenueDepositHistory from '/snippets/samples/venue-deposit-history.mdx';
 
-`GET /api/v1/workspaces/{workspaceId}/balances` lists what each of your workspace's wallets and exchange accounts holds, one row per account, asset and chain. It reads the last observation TetraFi holds: it never asks a chain or a venue for a new one, and it never moves money.
+These reads need the **Treasury read** permission and never move money. Every path names your workspace: `TETRAFI_WORKSPACE_ID` is the `workspaceId` that `GET /api/v1/me` answers for your key.
 
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
+## Every balance in one list
 
-## Before you start
-
-- Switch on **Treasury read** for the key ([Authentication](/authentication#permissions)). Without it, the read is refused with `403`.
-- The path names your workspace: `TETRAFI_WORKSPACE_ID` is the `workspaceId` that `GET /api/v1/me` answers for your key.
-- The list holds the accounts the key may read: organisation wallets whose policy lets it read balances, and exchange accounts it may see. Personal wallets are never listed, and bank account balances cannot be observed.
-
-## List the balances
-
-The page holds up to `limit` rows (1 to 100). To read every row, pass `nextCursor` back as `cursor` until it is `null`. A cursor belongs to the filters and the rows it was issued for: when your accounts change while you page, start again without one.
+`GET /api/v1/workspaces/{workspaceId}/balances` lists what each wallet and exchange account the key may read holds, one row per account, asset and chain. It reads the last observation TetraFi holds and never asks a chain or venue for a new one. Personal wallets are never listed, and bank account balances cannot be observed.
 
 | Field | Meaning |
 | --- | --- |
-| `id` | The id of this account, asset and chain. It is opaque: never parse it or build one. |
-| `accountKind` | `wallet`, `venueAccount` or `bankAccount`. New kinds may be added: show a row of a kind you do not recognise as it is. |
-| `accountId` | A wallet's `walletId`, or the exchange account's `venueAccountId` ([Exchange account balances](/trade/venue-balances)). |
-| `asset`, `chain` | The asset, and its CAIP-2 chain. `chain` is `null` for a balance held off-chain, such as at an exchange. |
-| `nativeAssetId` | The asset's id at its source, such as a token contract address, when the source names one. |
-| `amount` | Everything held, as a decimal string in whole asset units (`"12.5"` is twelve and a half), never base units. |
-| `asOf` | When the balance was observed, as an RFC 3339 date-time. |
-| `freshness` | `fresh`, `stale` or `partial`. Treat a value you do not recognise as `stale`. |
+| `id` | The row's id. Opaque: never parse or build one. |
+| `accountKind` | `wallet`, `venueAccount` or `bankAccount`. Show a kind you do not recognise as it is. |
+| `accountId` | A wallet's `walletId`, or the exchange account's `venueAccountId`. |
+| `asset`, `chain` | The asset and its CAIP-2 chain; `chain` is `null` off-chain, such as at an exchange. |
+| `nativeAssetId` | The asset's id at its source, such as a token contract, when known. |
+| `amount` | Everything held, as a decimal string in whole asset units. |
+| `asOf`, `freshness` | When it was observed, and `fresh`, `stale` or `partial`. Treat an unknown freshness as `stale`. |
 
-Narrow the list with query parameters: `asset`, `accountKind` and `accountId`. Any other parameter, or an `accountKind` other than the three above (including the earlier `venue_account` and `bank_account`), answers `400 INVALID_BALANCE_LIST_QUERY`.
+Filter with `asset`, `accountKind` and `accountId`; page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`. When your accounts change while you page, start again without a cursor.
 
 <BalancesList />
 
@@ -49,22 +41,13 @@ Narrow the list with query parameters: `asset`, `accountKind` and `accountId`. A
 }
 ```
 
-To read one kind of account, pass `accountKind`. Every row of the answer is of that kind:
-
 <BalancesFilter />
 
-## Accounts whose balance is unknown
+### Balances that are unknown
 
-An account the key may read but whose balance cannot be stated is listed in `unavailable`, never as a row with a zero amount. Show it as unavailable, not as empty. `unavailable` is repeated on every page, and its `reasonCode` says why.
+An account whose balance cannot be stated is listed in `unavailable`, never as a zero row: show it as unavailable, not empty. Each entry has `accountKind`, `accountId`, the `asset` and `chain` when known, a `reasonCode` and the `asOf` of the source's last answer. It is repeated on every page.
 
-| Field | Meaning |
-| --- | --- |
-| `accountKind`, `accountId` | The account, as in the rows. |
-| `asset`, `chain` | The asset and chain, when the missing balance is for one of them. |
-| `reasonCode` | Why the balance cannot be stated, for example a source that refused the read or an observation with no amount or time. |
-| `asOf` | When the source last answered, when it did. |
-
-`incomplete`, when present, means the list may leave accounts out: its `reason` `accessSettingsUnavailable` says the workspace's access settings could not be read, so TetraFi could not tell which accounts the key may see. Read the list again shortly. New reasons may be added: treat any `incomplete` as a list that may be missing accounts.
+`incomplete`, when present, means the list may leave accounts out; `reason` `accessSettingsUnavailable` says the workspace's access settings could not be read. Read again shortly.
 
 <BalancesUnavailable />
 
@@ -79,20 +62,73 @@ An account the key may read but whose balance cannot be stated is listed in `una
 }
 ```
 
+## List your exchange accounts
+
+`GET /api/v1/workspaces/{workspaceId}/venue-enablements` lists the workspace's venue accounts, oldest first, in `items`, paged with `limit` (20 by default, at most 100) and `cursor`. Key each item by `venueEnablementId`.
+
+| Field | Meaning |
+| --- | --- |
+| `accountId` | The `venueAccountId` the reads below take. Absent for a wallet-based venue. |
+| `venueKind` | `accountBased` (the venue holds your money in the account) or `walletBased` (it trades from your own wallets: read those). |
+| `fundingTarget` | Where the money lives: `{kind: "venueAccount", accountId}` or `{kind: "tradingWallets", walletIds}`. Treat another kind as "other". |
+| `venueId`, `label` | The venue, such as `binance` (`null` when unknown), and the account's name in the app. |
+| `lifecycle` | `pending`, `configured`, `funding_only`, `disabled` or `revoked`. Read balances from a `configured` account; treat another value as unusable. |
+| `tradePaused`, `withdrawalPaused` | Whether trading or withdrawals are paused. |
+
+<VenueAccountsList />
+
+```json Output on test networks
+{"accountId":"8a31ab17-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
+{"accountId":"7e873d0e-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
+{"accountId":"169e142e-…","venueId":"keyrock","label":"Keyrock account","lifecycle":"configured","venueKind":"accountBased"}
+```
+
+## One exchange account
+
+`GET …/venue-accounts/{venueAccountId}/balances` answers what the venue last reported for the account:
+
+| Field | Meaning |
+| --- | --- |
+| `state` | `supported` when the balance could be read; otherwise a `reason` and `reasonCode` say why. |
+| `observedAt`, `expiresAt` | When the venue reported it, and when that reading stops being current. |
+| `balances` | One line per asset. `null` means no reading; `[]` means the account holds nothing. |
+| `balances[].total` | Everything held, including locked amounts. Negative on an account with credit: what it owes. |
+| `balances[].free` | What the venue says is free to trade or withdraw. |
+| `balances[].available` | `free` less what TetraFi already committed to open trades and withdrawals; `null` when not known. |
+| `balances[].usdValue` | The line's US dollar value; `null` without a reference price, never `0`. |
+
+<VenueBalances />
+
+```json Output on test networks
+{"state":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","usdValue":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","usdValue":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","usdValue":null}]}
+```
+
+### Deposits
+
+- `GET …/venue-accounts/{venueAccountId}/deposit-instructions` lists the asset and network pairs the account takes deposits on, in `options`. A venue that publishes no networks answers `options: []` and names its assets in `unconfirmedNetworkAssets`: their networks are not verified, so never send real funds on them.
+- `GET …/venue-accounts/{venueAccountId}/deposit-history` lists the deposits the venue credited for one `asset` on one network, `chainRef` (CAIP-2), both required, over the last `lookbackDays` (1 to 30, 7 by default). It is one read of the venue's history, returned whole with `since` and `until` and no cursor. `credits: null` means the history could not be read; `[]` is a real empty history. A window with more than 1,000 venue records answers no credits with `reasonCode` `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`: read a shorter one.
+
+<VenueDepositHistory />
+
+```json Output on test networks
+{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","reason":"Terminal credits reported by this venue account in the displayed window. Refresh balances separately before requesting a fresh RFQ.","credits":0}
+```
+
+An account's credit line, positions and settlement cycle are on [Settlement and credit](/trade/settlement-and-credit).
+
 ## Refusals
 
 | `error` | Status | What to do |
 | --- | --- | --- |
-| `INVALID_BALANCE_LIST_QUERY` | 400 | Use only `cursor`, `limit`, `asset`, `accountKind` and `accountId`, with valid values. |
-| `INVALID_LIMIT` | 400 | Send a `limit` from 1 to 100, or leave it out. |
-| `INVALID_CURSOR` | 400 | The `cursor` was not issued for this list and these filters. Start again without one. |
+| `INVALID_BALANCE_LIST_QUERY` | 400 | Use only `cursor`, `limit`, `asset`, `accountKind` (`wallet`, `venueAccount` or `bankAccount`) and `accountId`. |
+| `INVALID_LIMIT`, `INVALID_CURSOR` | 400 | Send a valid `limit`, or start again without a cursor. |
+| `OBSERVATION_AUTHORITY_REQUIRED`, `VENUE_READ_AUTHORITY_REFUSED` | 403 | The key has no current authority to read the account, or lost it during the read. Restore its **Treasury read** access. |
 | `WALLET_ACCESS_CHANGED` | 403 | The key's access changed while the answer was built. Read again. |
-| `WORKSPACE_ACCESS_REQUIRED` | 403 | The key's owner is no longer a member of the workspace. Use a current member's key. |
-| `VENUE_ACCOUNT_ELIGIBILITY_CHANGED` | 409 | An exchange account was disconnected or became unreadable while the answer was built. Read again: it then appears in `unavailable`. |
-| `INVENTORY_UNAVAILABLE`, `VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE` | 503 | Nothing was released. Retry shortly. |
+| `WORKSPACE_ACCESS_REQUIRED` | 403 | The key's owner is no longer a member. Use a current member's key. |
+| `VENUE_ACCOUNT_NOT_FOUND` | 404 | No exchange account with that id in the workspace. |
+| `VENUE_ACCOUNT_ELIGIBILITY_CHANGED` | 409 | An account was disconnected while the list was built. Read again. |
+| `VENUE_ACCOUNT_REVERIFY_REQUIRED`, `VENUE_ACCOUNT_REVOKED` | 409 | No current venue key reads the account, or it was disconnected. Reconnect it in the app. |
+| `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | 409 | The account's money is in your own wallets: read those. |
+| `INVENTORY_UNAVAILABLE`, `VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE` | 503 | Retry shortly. |
 
 Every other code is in [Error codes](/reference/error-codes).
-
-## In the app
-
-**Treasury** shows the same balances, account by account.

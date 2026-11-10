@@ -3,68 +3,51 @@ title: "API overview"
 description: "One quote request asks every venue your workspace can use and returns comparable quotes. Order the one you choose by its id."
 ---
 
-The TetraFi API lets your backend do what your team does in the TetraFi app: get quotes, place orders and follow them to the end.
+The TetraFi API lets your backend do what your team does in the TetraFi app: get quotes from every venue at once, place orders and follow them to the end.
 
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
+## How it works
 
-## What the API does
-
-You send one quote request: the asset you pay, the asset you receive, an amount and whether that amount is what you pay or what you receive. TetraFi asks every venue your workspace can use, at the same time:
-
-- on-chain protocols and DEXs;
-- bridges;
-- solvers;
-- the exchange and OTC venue accounts your workspace has connected.
-
-You get back comparable quotes, best first, each one net of its fees. Every venue that was considered is listed with its outcome, so when a venue did not quote, the response says why.
-
-The lifecycle has four calls:
+You send one quote request: the asset you sell, the asset you buy and one exact amount. TetraFi asks every venue your workspace can use at the same time (on-chain protocols and DEXs, bridges, solvers, and the exchange and OTC accounts your workspace has connected) and returns comparable quotes, best first, net of fees. Every venue it considered is listed with its outcome, so a missing quote always has a reason.
 
 | Step | Call | What happens |
 | --- | --- | --- |
-| Quote | `POST /api/v1/quotes` | TetraFi asks the venues and returns quotes. Each quote is held for you under its `id` until it expires. |
-| Requote | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}` | Asks the same venue again for fresh terms. The new quote names the old one in `requoteOf`. |
-| Order | `POST /api/v1/orders` with `{"quoteId": "<quote id>"}` | Places the order on the held terms. You send the quote id, never a copy of the quote, so the terms cannot change in transit. |
-| Status | `GET` the order the response names | Follow the order until it ends. |
+| Quote | `POST /api/v1/quotes` | Venues answer; each quote is held for you under its `id` until it expires. |
+| Order | `POST /api/v1/orders` with `{"quoteId": "<id>"}` | Places the order on the held terms. You send the id, never a copy of the quote. |
+| Follow | `GET` the `statusUrl` the order answer names, or a [webhook](/trade/webhooks) | Read it until `terminal` is `true`. |
+| Requote | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<id>"}` | Asks the same venue again for fresh terms. |
 
-Each quote also says what you do next in its `next` field: `order` (order it now), `fund` (the paying account is short) or `requote` (ask the venue again). `preflight`, `sign` and `transact` appear only on Advanced quotes.
+Each quote says what to do next in `next.kind`: `order`, `fund` (the paying account is short) or `requote`.
 
-## Basic and Advanced execution
+## Basic execution
 
-Every venue offers one or both ways to execute. A quote tells you which in `legs[].venue.integrationMode`.
-
-<CardGroup cols={2}>
-  <Card title="Basic" icon="building-columns">
-    TetraFi executes the trade for you, from one of your workspace's exchange or OTC venue accounts or from an organisation wallet granted to your API key, and only inside the limited grant that wallet's owners approved. You place the order with the key and TetraFi does the rest. The order answers `"kind": "basicTrade"`.
-  </Card>
-  <Card title="Advanced" icon="file-signature">
-    Your own wallet signs and settles on-chain through TetraFi's settlement contracts. Not open yet: it will be documented here when it opens.
-  </Card>
-</CardGroup>
+Every quote you can order today is **Basic**: TetraFi executes it for you, from one of your workspace's exchange or OTC venue accounts, or from an organisation wallet granted to your API key, inside the limits its owners approved. You place the order with the key and TetraFi does the rest; the order answers `"kind": "basicTrade"`.
 
 <Note>
-Advanced execution is not open yet. Advanced venues are listed in `sources` as `unavailable` with the reason `advancedModeDisabled` and are not asked, and an order on an Advanced quote answers `403 ADVANCED_MODE_DISABLED`. Every sample on this site uses Basic quotes.
+**Advanced** execution, where your own wallet signs and settles on-chain through TetraFi's settlement contracts, is not open yet. Advanced venues read `unavailable` with the reason `advancedModeDisabled` and are not asked, and an order on an Advanced quote answers `403 ADVANCED_MODE_DISABLED`. A quote's `legs[].venue.integrationMode` says which it is.
 </Note>
 
-In the app, the same quotes appear on the trade page, and each quote's details show whether it is Basic or Advanced. The trade page's **Advanced filters** button only opens more search filters: it does not choose Advanced execution.
+## Environments
 
-## Base URL
+| Environment | Base URL | Use it for |
+| --- | --- | --- |
+| Sandbox | `https://api-dev.tetrafi.io` | Building and testing. It runs on test networks with testnet assets and your workspace's sandbox and testnet venue accounts. Makers are not simulated. |
+| Production | `https://api.tetrafi.io` | Real assets and venue accounts. It opens at launch. |
 
-Production is `https://api.tetrafi.io`. Every sample on this site reads the base URL from the `TETRAFI_BASE_URL` environment variable, so the same sample runs against any TetraFi environment you have access to.
+Keys, workspaces and venue accounts belong to one environment: create sandbox keys in the sandbox app at `https://dev.tetrafi.io`. Every sample reads the base URL from `TETRAFI_BASE_URL`, so the same sample runs in either.
 
-```bash
-export TETRAFI_BASE_URL=https://api.tetrafi.io
-```
+## Your path
 
-## Next steps
-
-<CardGroup cols={2}>
-  <Card title="Authentication" icon="key" href="/authentication">
-    Create an API key, choose its permissions and send it with every request.
-  </Card>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    List assets, get quotes and place an order from your terminal.
-  </Card>
-</CardGroup>
+<Steps>
+  <Step title="Get your first quote">
+    The [Quickstart](/quickstart) creates a key, lists assets, gets quotes and places a small order in the sandbox.
+  </Step>
+  <Step title="Set up your workspace to trade">
+    [Before your first trade](/before-you-trade) covers company details, a venue account, funds and wallet grants.
+  </Step>
+  <Step title="Handle orders safely">
+    [Retries and recovery](/trade/retries-and-recovery) and [Webhooks](/trade/webhooks) make sure no order is placed twice or lost.
+  </Step>
+  <Step title="Go live">
+    The [go-live checklist](/recipes/go-live-checklist) lists what to have in place before production.
+  </Step>
+</Steps>

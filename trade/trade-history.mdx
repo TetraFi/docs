@@ -8,10 +8,6 @@ import TradeDetail from '/snippets/samples/trade-detail.mdx';
 
 `GET /api/v1/workspaces/{workspaceId}/trades` is your workspace's one trade history. It lists the orders placed through the API or the app and the trades on your connected exchange accounts together, newest first. Use it for reconciliation and reporting; to follow one order to the end, read it at its `statusUrl` instead ([Order status](/trade/order-status)).
 
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
-
 The key needs **Read trades** ([Authentication](/authentication)). The path names your workspace: the `workspaceId` that `GET /api/v1/me` answers for your key. Another workspace answers `404 WORKSPACE_NOT_FOUND`.
 
 ## Read a page
@@ -55,7 +51,7 @@ An unknown `tradeId`, or one from another workspace, answers `404`.
 <TradeDetail />
 
 ```json Output on test networks
-{"tradeId":"673828c6…","kind":"order","settlement":{"status":"failed","failureReason":"Profitability validation failed: Bad Request: Accepted output differs from the priced post-fill payload"}}
+{"tradeId":"673828c6…","kind":"order","settlement":{"status":"failed","failureReason":"…"}}
 ```
 
 ## When a page is partial
@@ -67,6 +63,6 @@ Two fields say when the list holds less than it could:
 
 A `503 TRADE_PROJECTION_UNAVAILABLE` means the trade history cannot be read on this deployment right now. Retry later.
 
-## Exchange account balances
+## Related reads
 
-What your exchange accounts hold, and the deposits their venues credited, are read with the same key: see [Exchange account balances](/trade/venue-balances).
+What your accounts hold is on [Balances](/trade/balances). How a trade on a scheduled venue settles is on [Settlement and credit](/trade/settlement-and-credit).

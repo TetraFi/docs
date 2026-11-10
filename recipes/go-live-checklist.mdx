@@ -1,0 +1,54 @@
+---
+title: "Go-live checklist"
+description: "What a production integration needs before it trades real assets: safe order retries, deduplicated webhooks, a synced clock, fresh nonces, key rotation and tolerant parsing."
+---
+
+import SearchPrices from '/snippets/samples/search-prices.mdx';
+import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
+
+Run each item in the [sandbox](/overview#environments) first, then place your first production order at the [smallest amount a venue takes](/quickstart#find-the-smallest-amount-a-venue-takes).
+
+## Orders survive a crash
+
+- **Store the idempotency key before you send.** Write `{quoteId, idempotencyKey, exactBody}` to durable storage, then send `POST /api/v1/orders`. A retry sends the same key and the same body bytes ([Retries and recovery](/trade/retries-and-recovery)).
+- **Recover, never reorder.** A timeout, `5xx` or `outcomeUnknown` does not mean the order failed. Replay with the same key, or find the order by its quote. Order again, on a new quote, only when the order is shown not to exist or ended without filling.
+
+<OrderRecoverByQuote />
+
+- **Follow every order to the end.** Read its `statusUrl` until `terminal` is `true`, every 10 to 15 seconds or when a webhook arrives ([Order status](/trade/order-status)).
+
+## Webhooks are handled once
+
+- Verify every delivery's signature over the raw body before parsing it.
+- Deduplicate on `webhook-id`; deliveries arrive at least once and out of order.
+- Answer `2xx` within 10 seconds, then work. Read `statusUrl` for the current state.
+- Watch for a paused endpoint, resume it and redeliver what it missed; the delivery log does not survive a TetraFi restart ([Webhooks](/trade/webhooks#retries-pauses-and-missed-events)).
+
+## Signing holds up
+
+- **Clock.** Keep your servers NTP-synced. `X-Timestamp` must be within 300 seconds of TetraFi's clock, and a write's at most 10 seconds ahead.
+- **Nonces.** Generate every `X-Nonce` from a cryptographic random source, and sign each send, retries included, with a new nonce and timestamp ([Sign every request](/authentication#sign-every-request)).
+- **Secrets.** Keep the API key and signing secret in a secret manager, never in code or a tracked file.
+
+## Keys can be rotated
+
+- Rotate a key with **Rotate key**: the old one keeps working for one hour. Make your deployment pick up the new key within that hour ([Rotate and revoke](/authentication#rotate-and-revoke)).
+- Give each key only the permissions it uses, and use a [service account](/service-accounts) for software that should outlive one person's access.
+- Know how to revoke a leaked key at once.
+
+## Limits are respected
+
+- Watch markets with prices, never by polling quotes: each key may send one live quote request every 3 seconds ([Rate limits](/reference/rate-limits)).
+
+<SearchPrices />
+
+- On any `429`, wait `Retry-After` seconds and retry once.
+- Requote a held quote instead of searching again ([Requotes and expiry](/trade/requotes-and-expiry)).
+
+## Parsing tolerates change
+
+- Ignore response fields you do not recognise.
+- Treat every enum value you do not recognise, such as a status, source reason or `next.kind`, as "other": keep following `terminal`, show `detail` or `message`, and carry on.
+- Match refusals on `error`, never `message`, and treat an unknown code by its status class ([Errors and refusals](/trade/errors#codes-you-do-not-know)).
+- Parse amounts as decimals, never floats ([Conventions](/reference/conventions)).
+- Read the [Changelog](/changelog) before each release of your integration.
