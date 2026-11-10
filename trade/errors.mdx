@@ -175,9 +175,9 @@ These can answer any request. [Authentication](/authentication) explains keys, p
 | 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading settings changed while the request ran. | Send it again. |
 | 413 `REQUEST_BODY_TOO_LARGE` | The body is larger than TetraFi accepts. | Send a smaller body. |
 | 415 `UNSUPPORTED_CONTENT_TYPE` | A body was sent without `Content-Type: application/json`. | Send that header. |
-| 429 `REPLAY_WINDOW_FULL` | A signing key holds as many accepted nonces as its replay record allows (100,000 per signing secret over ten minutes). Nothing was done. | Retry shortly with a fresh `X-Timestamp` and `X-Nonce`; spread sustained write volume across keys. |
+| 429 `REPLAY_WINDOW_FULL` | Reserved and not answered today: the shared nonce record has no per-key bound. If answered, nothing was done. | Retry shortly with a fresh `X-Timestamp` and `X-Nonce`. |
 | 429 `RATE_LIMITED` | The key's own request budget, or the limit for your address, is used up, or TetraFi is briefly at capacity. Nothing was sent. | Wait `Retry-After` seconds, then send it again. For an order, use the same `Idempotency-Key`. |
-| 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | TetraFi could not check the key or the workspace just now. | Send it again after a second or two. |
+| 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | TetraFi could not check the key or the workspace just now. | Send it again after a second or two. A signed write may have had its nonce recorded: sign it again with a new `X-Timestamp` and `X-Nonce`, keeping the same `Idempotency-Key`. |
 | 408 `REQUEST_TIMEOUT` | The request took too long to complete. | Retry with backoff. For an order, use the same `Idempotency-Key`. |
 | 500 `INTERNAL_ERROR` | Something went wrong on TetraFi's side. | Retry with backoff, and quote `requestId` to support if it persists. |
 | 503 `SERVICE_UNAVAILABLE` | The service is briefly unavailable. | Retry with backoff. |
@@ -194,8 +194,8 @@ Every authentication failure is the one code `401 AUTH_REQUIRED`. Its `details.r
 | `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 10 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` | Keep your clock NTP-synced, then sign again with a fresh timestamp and nonce. |
 | A write (`POST`, `PUT`, `PATCH` or `DELETE`) has no `X-Nonce`. | `NONCE_REQUIRED` | Send a fresh `X-Nonce` and sign it as the second line. |
 | `X-Nonce` is malformed (not 16 to 128 of `A-Z a-z 0-9 - _`) or sent more than once. | `NONCE_INVALID` | Send one well-formed nonce. |
-| This nonce was already accepted for the key. | `SIGNATURE_REPLAYED` | Sign each send with a new nonce, retries included; keep the same `Idempotency-Key`. A repeated signed read without a nonce is accepted. |
-| The request was timestamped before TetraFi restarted. | `SIGNATURE_PREDATES_RESTART` | Sign again with a fresh timestamp and nonce, and send it once more. |
+| This nonce was already accepted for the key, by any TetraFi server. | `SIGNATURE_REPLAYED` | Sign each send with a new nonce, retries included; keep the same `Idempotency-Key`. A repeated signed read without a nonce is accepted. A replay sent while the key is rate limited is answered `429` instead. |
+| Reserved, not answered today. | `SIGNATURE_PREDATES_RESTART` | If it is answered, sign again with a fresh timestamp and nonce, and send it once more. |
 
 More reasons may be added: treat one you do not recognise as "fix the credentials".
 

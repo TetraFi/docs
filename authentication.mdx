@@ -163,10 +163,9 @@ A request that fails the signature check is refused with `401 AUTH_REQUIRED`, an
 | `X-Timestamp` is more than 300 seconds from TetraFi's clock, or a write's is more than 10 seconds ahead. | `TIMESTAMP_OUT_OF_RANGE` |
 | A write has no `X-Nonce`. | `NONCE_REQUIRED` |
 | `X-Nonce` is malformed, or sent more than once. | `NONCE_INVALID` |
-| This nonce was already accepted for the key. | `SIGNATURE_REPLAYED` |
-| The request was timestamped before TetraFi restarted. Sign it again with a fresh timestamp and nonce, and send it once more. | `SIGNATURE_PREDATES_RESTART` |
+| This nonce was already accepted for the key, by any TetraFi server. | `SIGNATURE_REPLAYED` |
 
-Two more answers are about the key rather than the signature. `429 REPLAY_WINDOW_FULL` means the key holds as many accepted nonces as its replay record allows (100,000 per signing secret over ten minutes); nothing was done, so retry shortly with a fresh timestamp and nonce, and spread sustained write volume across keys. `503 API_KEY_UNAVAILABLE` means the key or its signing state could not be confirmed; retry shortly.
+Every TetraFi server shares one nonce record, so a nonce accepted by one server is refused by all of them, restarts included. The rate limit is checked first: a write refused with `429` keeps its nonce, and a replay sent while the key is rate limited is answered `429`; otherwise a replay spends a rate token and is refused as above. `503 API_KEY_UNAVAILABLE` means the key or its signing state could not be confirmed. The nonce may have been recorded anyway, so sign the request again with a new `X-Timestamp` and `X-Nonce` (same `Idempotency-Key`) before you retry. `SIGNATURE_PREDATES_RESTART` and `429 REPLAY_WINDOW_FULL` are reserved and not answered today.
 
 The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.
 
