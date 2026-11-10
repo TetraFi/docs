@@ -3,7 +3,11 @@ title: "Settlement & Smart Contracts"
 description: "TetraFi's on-chain architecture - your own immutable router, shared venue modules, and escrow settlement."
 ---
 
-Every workspace gets its **own on-chain router**: an immutable contract deployed for you, owned by you. Trades enter through it, flow through shared immutable venue modules, and settle delivery-versus-payment through a compliance-gated escrow: the counterparty delivers, or you are refunded. TetraFi holds no custody key and no upgrade key anywhere in the stack.
+<Note>
+This is the Advanced execution path, which is not open yet. Today every order is Basic: TetraFi executes it on your venue accounts or from organisation wallets granted to your key, without these contracts ([Basic execution](/overview#basic-execution)).
+</Note>
+
+With Advanced execution, every workspace gets its **own on-chain router**: an immutable contract deployed for you, owned by you. Trades enter through it, flow through shared immutable venue modules, and settle delivery-versus-payment through a compliance-gated escrow: the counterparty delivers, or you are refunded. TetraFi holds no custody key and no upgrade key anywhere in the stack.
 
 ## The Contract Stack
 
@@ -22,7 +26,7 @@ Your router's address is deterministic, predicted before deployment, and yours p
 
 ## Settlement Lifecycle
 
-Every quote carries its own [EIP-712](/trade/orders) `escrow-v0` payload. Your signature authorizes it, your router locks the input into escrow on those terms, and only a delivery proof moves the funds onward.
+An Advanced quote carries its own EIP-712 `escrow-v0` payload. Your signature authorizes it, your router locks the input into escrow on those terms, and only a delivery proof moves the funds onward.
 
 ```mermaid
 sequenceDiagram
