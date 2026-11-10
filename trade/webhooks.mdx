@@ -13,16 +13,16 @@ You can subscribe to any event in the [event catalogue](/reference/webhook-event
 
 The key needs **Manage webhooks** (`webhooks_manage`), and its owner must still hold the workspace's permission to manage webhooks. For `order.updated`, the endpoint's owner must also be able to read the workspace's orders: events it cannot read are withheld, not sent. Give the key **Read orders** if it follows an event's `statusUrl`.
 
-Every call below sends `X-API-Key`, and a signing key [signs it](/authentication#sign-every-request) with `X-Timestamp`, `X-Signature` and, on these writes, a fresh `X-Nonce`. Use the workspace bound to your key for `{workspaceId}`. The request-signing secret is not the webhook secret.
+Every call below sends `X-API-Key`, and a signing key [signs it](/authentication#sign-requests) with `X-Timestamp`, `X-Signature` and, on these writes, a fresh `X-Nonce`. Use the workspace bound to your key for `{workspaceId}`. The request-signing secret is not the webhook secret.
 
 | Step | Call | Notes |
 | --- | --- | --- |
 | Create | `POST /api/v1/workspaces/{workspaceId}/webhooks` with an `Idempotency-Key` and `{"url": "https://…", "events": ["order.updated"]}` | `201` with `webhook`, `secret` and `secretShownOnce`. Store the `whsec_` secret at once: a replay within 24 hours returns `201` with `secret: null`. |
 | Test | `POST …/webhooks/{webhookId}/deliveries` with a new `Idempotency-Key` and `{"kind":"test"}` | `201` with a delivery record. Check its `success`, `statusCode` and `errorMessage`: the `201` is not your receiver's acknowledgement. Your endpoint receives a `webhook.test` event. |
-| Rotate the secret | `POST …/webhooks/{webhookId}/rotate` with a new `Idempotency-Key` | `200` with the new `secret`. For 24 hours, deliveries carry signatures from both the new and the previous secret, so either verifies while you deploy. |
+| Rotate the secret | `POST …/webhooks/{webhookId}/rotate` with a new `Idempotency-Key` | `200` with the new `secret` (a replay of the same key returns `secret: null`). If you lost the secret from create, rotate it. For 24 hours, deliveries carry signatures from both the new and the previous secret, so either verifies while you deploy. |
 | List deliveries | `GET …/webhooks/{webhookId}/deliveries` | `items`, `totalCount`, `nextCursor` and `retention`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. |
-| Redeliver | `POST …/webhooks/{webhookId}/deliveries/{deliveryId}/retry` | Sends the retained payload again to the current URL, signed with the current secret. Not deduplicated: it can deliver the event again. |
-| Resume | `POST …/webhooks/{webhookId}/resume` | Reactivates a paused endpoint. Then redeliver what it missed. |
+| Redeliver | `POST …/webhooks/{webhookId}/deliveries/{deliveryId}/retry` with a new `Idempotency-Key` | `200` with a delivery record: check its `success`. Sends the retained payload again to the current URL, signed with the current secret. Not deduplicated: it can deliver the event again. |
+| Resume | `POST …/webhooks/{webhookId}/resume` with a new `Idempotency-Key` | Reactivates a paused endpoint. Then redeliver what it missed. |
 
 `GET`, `PATCH` and `DELETE` on `…/webhooks/{webhookId}` read, change and remove an endpoint. In the app, a member with **Manage webhooks** does the same under **Integrations**, on the **Webhooks** tab.
 

@@ -28,7 +28,7 @@ The same body with the same key returns the first answer, with the header `Idemp
 {"replayedSameOrder":true}
 ```
 
-On a signed key, a replay still signs again with a fresh `X-Timestamp` and `X-Nonce`: the idempotency key, not the signature, is what makes the retry safe ([Sign every request](/authentication#sign-every-request)).
+On a signed key, a replay still signs again with a fresh `X-Timestamp` and `X-Nonce`: the idempotency key, not the signature, is what makes the retry safe ([Sign requests](/authentication#sign-requests)).
 
 ## Conflict: same key, different body
 
@@ -47,8 +47,8 @@ A conflict means your code reused a key by mistake. Use a new key for a new orde
 | Answer | What it means | What to do |
 | --- | --- | --- |
 | No answer (timeout, dropped connection) | The order may or may not have been placed. | Send the same body with the same key. |
-| `409 ORDER_IN_PROGRESS` | An order with this key is still being placed. | Wait a few seconds, then send the same body and key. |
-| `503 IDEMPOTENCY_UNAVAILABLE`, `QUOTE_STORE_UNAVAILABLE` | The key or the held quote could not be read just now. The request did not run. | Send the same body and key after a second. |
+| `409 ORDER_IN_PROGRESS` | An order with this key is still being placed. | Wait `Retry-After`, then read the order. |
+| `503 IDEMPOTENCY_UNAVAILABLE`, `QUOTE_STORE_UNAVAILABLE` | The key or the held quote could not be read just now. | Send the same body and key after a second. |
 | `403 IDEMPOTENCY_AUTHORITY_REQUIRED` | A replay, but the key no longer holds the permission the first order needed. | Restore the permission, then replay. |
 | `409 QUOTE_ALREADY_ORDERED` | Another order, sent with a different key, already used this quote. It is not a failure. | Recover by quote. |
 | `409 IDEMPOTENCY_CONFLICT` | The key was used for a different body. | Fix your code, then recover by quote. |

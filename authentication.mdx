@@ -36,7 +36,7 @@ The [permission matrix](/reference/permissions) maps every operation to its scop
 Every quote you can order today is Basic: TetraFi executes it from one of your exchange or OTC venue accounts, or from an organisation wallet granted to your key. A key that trades Basic quotes needs:
 
 - **Venue trading**, given only when the key is created, together with **Read quotes** and **Submit orders**, by its owner signed in with a second factor. It cannot be added to an existing key.
-- **Request signing**, always on for a venue-trading key: every request it sends must be [signed](#sign-every-request). It cannot be turned off (`409 VENUE_TRADE_KEY_SIGNING_REQUIRED`). For unsigned requests, use a key without venue trading.
+- **Request signing**, always on for a venue-trading key: every request it sends must be [signed](#sign-requests). It cannot be turned off (`409 VENUE_TRADE_KEY_SIGNING_REQUIRED`). For unsigned requests, use a key without venue trading.
 - **Organisation wallets granted to it**, to trade from them. **Create API key** grants your default organisation wallets that you hold a Trade right on; change them on the key's **Wallets** tab ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). Venue accounts need no grant.
 
 Without venue trading, a quote request still answers `200`, but returns no quotes from your venue accounts: they read `restricted` with `venueTradeScopeRequired`.
@@ -62,7 +62,7 @@ Send `X-API-Key: <your key>` on every request. The key is bound to its workspace
 
 Every path under `/api/v1/workspaces/{workspaceId}/`, such as balances, trades, settlement, venue accounts, the fee schedule, capabilities and webhooks, names the workspace: use the `workspaceId` from `GET /api/v1/me`. Quotes and orders do not. A request without credentials answers `401 AUTH_REQUIRED` before anything is looked up.
 
-## Sign every request
+## Sign requests
 
 When signing is on, every request carries three more headers:
 
@@ -99,7 +99,7 @@ A failed check answers `401 AUTH_REQUIRED` with `details.reason`:
 | `SIGNATURE_REQUIRED` | The key needs signing and a header is missing. |
 | `SIGNATURE_INVALID` | The signature is malformed or does not match. |
 | `TIMESTAMP_OUT_OF_RANGE` | `X-Timestamp` is more than 300 seconds off, or a write's is more than 10 seconds ahead. |
-| `NONCE_REQUIRED`, `NONCE_INVALID` | A write has no `X-Nonce`, or it is malformed or sent twice. |
+| `NONCE_REQUIRED`, `NONCE_INVALID` | A write has no `X-Nonce`, or it is malformed or the header appears twice. |
 | `SIGNATURE_REPLAYED` | This nonce was already accepted for the key. |
 
 The rate limit is checked first: a replay sent while the key is rate limited answers `429`. `503 API_KEY_UNAVAILABLE` means the key or its signing state could not be confirmed; the nonce may have been recorded, so sign again with a new timestamp and nonce before you retry. The [quickstart](/quickstart) script signs every request when `TETRAFI_SIGNING_SECRET` is set.

@@ -15,9 +15,9 @@ Every path names your workspace, the `workspaceId` that `GET /api/v1/me` answers
 | What each side owes, and by when | `GET …/venue-accounts/{venueAccountId}/settlement/obligations` and `…/obligations/{obligationId}` | **Read settlements** |
 | The deposits and withdrawals that settled them | `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/movements/{movementId}` | **Read settlements** |
 | The LP's settlement schedule | `GET …/venue-accounts/{venueAccountId}/settlement/schedules` | **Read settlements** |
-| The account's credit line and positions | `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | **Treasury read** |
+| The account's credit line and positions | `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | **Treasury read**, and the owner's **View wallets** (plus **View credit** for `/credit`) |
 
-The settlement reads need the `settlements_read` scope and, for its owner, the workspace's permission to view settlements. The [permissions table](/reference/permissions) maps every operation to its scope.
+The settlement reads need the `settlements_read` scope, and the key's owner needs the workspace's **View settlements** permission. Without an owner permission a read answers `403 INSUFFICIENT_WORKSPACE_PERMISSION` (`LEDGER_ACCOUNT_FORBIDDEN` for the ledger). The [permissions table](/reference/permissions) maps every operation to its scope.
 
 ## The settlement plan
 
@@ -50,5 +50,8 @@ A component that could not be read is `unavailable` with its code, never zero, a
 | `VENUE_ACCOUNT_NOT_FOUND` | 404 | The workspace has no venue account with that id. Check the id. |
 | `LEDGER_NOT_OBSERVED` | 409 | No ledger observation is recorded yet. Read it again later, or open the account in the app, which reads the venue live. |
 | `LEDGER_UNSUPPORTED` | 409 | The venue does not report a ledger. |
+| `LEDGER_SETUP_MISSING` | 409 | The account has no current key, or its connection needs setup. A member with **Manage credentials** adds or verifies the key, then reads again. |
+| `VENUE_ACCOUNT_LEDGER_PENDING` | 409 | The account has not finished setup. A member with **Manage credentials** finishes it (the `finishVenueAccountSetup` fix), then reads again. |
+| `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | 409 | A wallet-based venue keeps funds in its linked wallets. Read them with `GET …/balances` instead. |
 
 Every other code is in [Error codes](/reference/error-codes).

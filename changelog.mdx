@@ -6,7 +6,7 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
 <Update label="2026-11-10" description="Shared nonces, firm prices that lapse, and settlement detail">
-  - Every TetraFi server shares one nonce record, so a nonce accepted by one server is refused as `SIGNATURE_REPLAYED` by every other, restarts included. A replay sent while the key is rate limited answers `429`, no longer `401` ([Sign every request](/authentication#sign-every-request)).
+  - Every TetraFi server shares one nonce record, so a nonce accepted by one server is refused as `SIGNATURE_REPLAYED` by every other, restarts included. A replay sent while the key is rate limited answers `429`, no longer `401` ([Sign requests](/authentication#sign-requests)).
   - `POST /api/v1/orders` on a venue-account quote whose firm price lapsed before it could be sent is refused with `409 VENUE_QUOTE_SEND_WINDOW_CLOSED` and `next: requote`, instead of answering `200` with an order that was never sent. Request a new price and order that ([Place an order](/trade/orders#refusals)).
   - `GET …/trades/{tradeId}/settlement` no longer sends `complianceChecks` or `evidence`: both were placeholders. An order's compliance checks are on the order ([Settlement and credit](/trade/settlement-and-credit)).
   - Firm-ask source reasons ending in `BudgetExhausted` now end in `TimedOut`, such as `firmAskFundsTimedOut`, with the same meaning.
@@ -16,7 +16,7 @@ The API is in preview until launch, so a change here can still remove or rename 
 </Update>
 
 <Update label="2026-11-09" description="A nonce on every signed write">
-  - **Breaking for signing keys.** A key with request signing on must send `X-Nonce` on every write (`POST`, `PUT`, `PATCH`, `DELETE`): 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`, new for each request. A write signs five lines, `{timestamp}\n{nonce}\n{METHOD}\n{path}\n{bodySha256}`; a read without a nonce keeps the four-line form. A write without one answers `401 AUTH_REQUIRED` with `details.reason` `NONCE_REQUIRED` ([Sign every request](/authentication#sign-every-request)).
+  - **Breaking for signing keys.** A key with request signing on must send `X-Nonce` on every write (`POST`, `PUT`, `PATCH`, `DELETE`): 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`, new for each request. A write signs five lines, `{timestamp}\n{nonce}\n{METHOD}\n{path}\n{bodySha256}`; a read without a nonce keeps the four-line form. A write without one answers `401 AUTH_REQUIRED` with `details.reason` `NONCE_REQUIRED` ([Sign requests](/authentication#sign-requests)).
   - A nonce is accepted once per key, so two identical writes in the same second both succeed with their own nonces, and a retry signs again with a new nonce while keeping its `Idempotency-Key`. A reused nonce answers `SIGNATURE_REPLAYED`.
   - New `details.reason` values on `401 AUTH_REQUIRED`: `NONCE_REQUIRED` and `NONCE_INVALID`. A write's `X-Timestamp` may be at most 10 seconds ahead of TetraFi's clock: keep your clock NTP-synced.
   - `503 API_KEY_UNAVAILABLE` also covers a signing state that could not be confirmed: sign again with a new timestamp and nonce before you retry ([Errors](/trade/errors)).
@@ -50,7 +50,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Each quote and price row carries `quality`: `firm`, `executable` or `indicative`. New values may be added ([Firm only](/search/firmness-and-lifetime#firm-executable-and-indicative)).
   - Each order fill carries `fillId`, its stable id: deduplicate repeated reads by it ([What the order did](/trade/order-status#what-the-order-did)).
   - `POST /quotes` now requires `kind`: send `"kind":"pair"` for a new search or `"kind":"requote"` with `requote` for a held quote. A missing tag answers `400 QUOTE_REQUEST_KIND_REQUIRED`; an unknown or non-string tag answers `400 QUOTE_REQUEST_KIND_INVALID` ([How search works](/search/how-it-works), [Requotes](/trade/requotes-and-expiry)).
-  - Enable request signing or rotate its secret with `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, using a signed-in member's session JWT, not an API key or service-account OAuth token ([Sign requests](/authentication#sign-every-request)).
+  - Enable request signing or rotate its secret with `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, using a signed-in member's session JWT, not an API key or service-account OAuth token ([Sign requests](/authentication#sign-requests)).
   - Rate-limit headers are now `RateLimit-Policy` (for example `1;w=3`) and `RateLimit` (`limit=1, remaining=0, reset=3`), sent on every answer a limit counted, refusals included. `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` are no longer sent ([Rate limits](/reference/rate-limits#read-the-headers)).
   - Two new source reasons: `belowVenueMinimum` (the amount is below the venue's verified minimum: raise it) and `pilotMinimumAboveTradeCap` (the venue's minimum order is above its Pilot per-trade cap: choose another venue) ([Limits and minimums](/search/how-it-works#size-limits-and-minimums)).
   - Webhooks are available to API keys: create, test, rotate the secret, list deliveries and redeliver ([Webhooks](/trade/webhooks)).
@@ -66,7 +66,7 @@ The API is in preview until launch, so a change here can still remove or rename 
 
 <Update label="2026-11-03" description="Firm only, and repeated signed reads">
   - The search filter `filters.executableOnly` is renamed `filters.firmOnly`, and it now keeps only firm quotes (`firm: true`): executable estimates held to `minOut`, such as order-book and AMM quotes, are left out too, as are indicative quotes. A request still sending `filters.executableOnly` is refused with `400 INVALID_REQUEST` ([Firm only](/search/firmness-and-lifetime)).
-  - A signed read (`GET` or `HEAD`) sent again unchanged inside the 300-second window is accepted, so polling needs no nonce. A signed write is still accepted once ([Sign requests](/authentication#sign-every-request)).
+  - A signed read (`GET` or `HEAD`) sent again unchanged inside the 300-second window is accepted, so polling needs no nonce. A signed write is still accepted once ([Sign requests](/authentication#sign-requests)).
   - An API key placing an order without an `Idempotency-Key` header is refused with `400 IDEMPOTENCY_KEY_REQUIRED` ([Idempotency](/trade/retries-and-recovery)).
   - The source refusal `BINDING_NOT_ON_CHAIN` is renamed `WALLET_NOT_ON_CHAIN`, with the same meaning ([Wallets and accounts](/trade/wallets-and-accounts)).
   - Every path that names a workspace calls its parameter `workspaceId`, for example `GET /api/v1/workspaces/{workspaceId}/venue-enablements`. The URLs themselves are unchanged.

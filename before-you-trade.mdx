@@ -52,7 +52,9 @@ An API key trades from an organisation wallet only when the wallet is granted to
 **Create API key** with venue trading already grants your workspace's default organisation wallets that you hold a Trade right on. To change the grant, open **Settings**, then **Open API keys** under **Personal API keys**, expand the key and choose its **Wallets** tab: **Grant** adds a wallet, **Revoke** removes one.
 
 - **The key's owner** can add the workspace's default organisation wallets they hold a Trade right on, and revoke any grant. Another wallet is refused with `API_KEY_ORGANISATION_WALLET_NOT_A_DEFAULT`, one without your Trade right with `API_KEY_ORGANISATION_WALLET_TRADE_RIGHT_REQUIRED`.
-- **A workspace owner, or an admin who manages credentials**, can grant any active organisation wallet of the workspace they hold a Trade right on.
+- **A workspace owner, or an admin who manages credentials**, can grant any active organisation wallet of the workspace. A service-account key gets wallets only this way.
+
+At trade time the key's owner still needs trading rights on the wallet, and the key needs **Read quotes** and **Submit orders**: an admin-granted wallet its owner cannot trade is refused.
 
 Every change needs a sign-in with a second factor (otherwise `MFA_REQUIRED`). The grants are managed only in the app: the key cannot change its own. Once granted, the wallets appear in the key's [`sourceOptions`](/trade/wallets-and-accounts#read-sourceoptions). Until then, on-chain Basic venues read `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`.
 

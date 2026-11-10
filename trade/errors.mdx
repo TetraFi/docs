@@ -42,7 +42,7 @@ Here the script asks for a quote on an asset TetraFi does not list and acts on t
 use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 ```
 
-Unless a code says otherwise, a refused request placed and sent nothing.
+A 4xx refusal placed nothing. A timeout or 5xx on an order is unknown until you [recover it](/trade/retries-and-recovery).
 
 ## What next tells you
 
@@ -85,7 +85,7 @@ A workspace that cannot trade yet answers `403 CAPABILITY_BLOCKED`, naming each 
 
 | Status and code | When it happens | What to do |
 | --- | --- | --- |
-| 401 `AUTH_REQUIRED` | The request did not authenticate. `details.reason` says why: `MISSING_CREDENTIALS`, `INVALID_API_KEY` (unknown or revoked), `API_KEY_EXPIRED`, or a [signing reason](/authentication#sign-every-request). | Act on `details.reason`; treat one you do not know as "fix the credentials". |
+| 401 `AUTH_REQUIRED` | The request did not authenticate. `details.reason` says why: `MISSING_CREDENTIALS`, `INVALID_API_KEY` (unknown or revoked), `API_KEY_EXPIRED`, or a [signing reason](/authentication#sign-requests). | Act on `details.reason`; treat one you do not know as "fix the credentials". |
 | 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. | Send the workspace id. |
 | 400 `INVALID_WORKSPACE_ID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is malformed or not yours. | Use the `workspaceId` from `GET /api/v1/me`. |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
