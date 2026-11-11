@@ -88,7 +88,7 @@ This recipe places a real order that moves funds out of your organisation wallet
   </Step>
 
   <Step title="Place the order">
-    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and keep. When the quote's `minReceiveRequired` is `true`, also send `minReceive`.
+    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and keep: a retry with the same key and body returns the first answer, never a second move. When the quote's `minReceiveRequired` is `true`, also send `minReceive`.
 
     <CrossChainOrder />
 
@@ -97,7 +97,7 @@ This recipe places a real order that moves funds out of your organisation wallet
     ```
 
     <Accordion title="Retries, minReceive and the operation ids">
-      A retry with the same key and body returns the first answer, never a second move ([Idempotency](/trade/orders#retries-and-recovery)).
+      Retrying and recovering an order: [Retries and recovery](/trade/orders#retries-and-recovery).
 
       Bridges usually quote indicatively. `minReceive` is the least you accept, such as the quoted amount less 50 basis points ([Orders](/trade/orders#venues-that-execute-within-your-limit)). Without it, the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent.
 
@@ -106,7 +106,7 @@ This recipe places a real order that moves funds out of your organisation wallet
   </Step>
 
   <Step title="Follow it until it ends">
-    The order answers `"kind": "basicTrade"` once accepted. Read its `statusUrl` every 10 seconds until `terminal` is `true`, or after `retryAfter` when `next` says `wait` ([Order status](/trade/order-status)).
+    The order answers `"kind": "basicTrade"` once accepted. Read its `statusUrl` every 10 seconds until `terminal` is `true`, or after `retryAfter` when `next` says `wait` ([Order status](/trade/order-status)). `working` and `outcomeUnknown` are not failures: keep reading, and never order it again.
 
     <CrossChainStatus />
 
@@ -115,8 +115,8 @@ This recipe places a real order that moves funds out of your organisation wallet
     {"kind":"basicTrade","status":"settled","terminal":true,"next":null}
     ```
 
-    <Accordion title="Working, outcomeUnknown and timing">
-      `working` and `outcomeUnknown` are not failures: keep reading, and never order it again. On test networks, Base Sepolia to Ethereum Sepolia finished about two and a half minutes after the order.
+    <Accordion title="Timing">
+      On test networks, Base Sepolia to Ethereum Sepolia finished about two and a half minutes after the order.
     </Accordion>
   </Step>
 

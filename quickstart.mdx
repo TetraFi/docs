@@ -118,15 +118,14 @@ You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic)
   </Step>
 
   <Step title="Place the order">
-    `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` you generate and keep: a retry with the same key and body returns the first answer, never a second order.
+    `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` you generate and keep: a retry with the same key and body returns the first answer, never a second order. Before sending, save `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you, and keep it after success.
 
     <Warning>
     An order cannot be undone, and in production it trades real assets. The cURL step orders only with `TETRAFI_PLACE_ORDER=1`: start with the [smallest amount the venue takes](#find-the-smallest-amount-a-venue-takes).
     </Warning>
 
-    <Accordion title="minReceive and the order record">
+    <Accordion title="minReceive">
       - When `minReceiveRequired` is `true`, send `minReceive`: the quoted `buy.amount` less your slippage tolerance (50 basis points in the example), rounded down to the asset's decimals, calculated on decimal strings.
-      - Before sending, save `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you. Keep it after success.
     </Accordion>
 
     <QuickstartOrder />

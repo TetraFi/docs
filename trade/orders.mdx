@@ -15,7 +15,7 @@ Order a quote you hold by naming its id: ordering it is the accept, with no sepa
 
 | Endpoint | Permission | Result |
 | --- | --- | --- |
-| `POST /api/v1/orders` | Venue trading and request signing ([Authentication](/authentication#trade-on-your-venue-accounts)) | The recorded order. |
+| `POST /api/v1/orders` | Submit orders, with venue trading and request signing ([Authentication](/authentication#trade-on-your-venue-accounts)) | The recorded order. |
 | `GET /api/v1/orders/by-quote/{quoteId}` | Read orders | What a quote produced. |
 | `POST /api/v1/orders/{orderId}/cancel` | Submit orders | The order, `cancelled`. |
 
@@ -24,7 +24,8 @@ flowchart LR
   A[Quote id] --> B[POST order with Idempotency-Key]
   B --> C[Answer]
   B --> D[Timeout]
-  D --> E[Recover by quote]
+  D --> R[Replay same key and body]
+  R --> E[Read by quote]
 ```
 
 You need a quote whose `next.kind` is `order`, and an account or wallet that holds what you sell ([Before your first trade](/before-you-trade)).

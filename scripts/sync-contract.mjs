@@ -385,7 +385,7 @@ const ENDPOINT_GROUPS = [
   { group: 'Orders', tags: ['orders'], guide: '/trade/orders', purpose: 'Order a quote by its id, follow the order, recover it by quote and cancel it.' },
   { group: 'Trades and settlement', tags: ['trades', 'settlements'], guide: '/trade/settlement-and-credit', purpose: 'Read your trades, how each settles, and the settlement plan, windows and movements per venue account.' },
   { group: 'Balances and accounts', tags: ['treasury', 'venue-accounts', 'venue-enablements', 'workspaces'], guide: '/trade/balances', purpose: 'Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do.' },
-  { group: 'Webhooks', tags: ['webhooks'], guide: '/trade/webhooks', purpose: 'Receive order and trade updates by webhook, and manage endpoints, deliveries and secrets.' },
+  { group: 'Webhooks', tags: ['webhooks'], guide: '/trade/webhooks', purpose: 'Receive order and settlement updates by webhook, and manage endpoints, deliveries and secrets.' },
   { group: 'Batch', tags: ['batch'], guide: '/reference/conventions#read-several-resources-at-once', purpose: 'Run up to 20 reads in one request.' },
 ];
 // An operation whose guide is not its group's.
@@ -402,18 +402,26 @@ const ENDPOINT_GUIDES = {
 const WORKSPACE_PREFIX = '/api/v1/workspaces/{workspaceId}';
 const pageSlug = (text) => text.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 function endpointMap() {
-  if (!permissions.operations) return { page: null, nav: null };
+  if (!permissions.operations) {
+    // Without exported scopes the operation list is not built; a stale endpoint map must not pass.
+    if (reference.spec) throw new Error('ENDPOINT_MAP_UNAVAILABLE the spec exports no operation scopes');
+    return { page: null, nav: null };
+  }
   const ops = permissions.operations;
   for (const tag of new Set(ops.map((op) => op.tag))) {
     if (!ENDPOINT_GROUPS.some(({ tags }) => tags.includes(tag))) throw new Error(`SPEC_TAG_UNGROUPED ${tag}`);
   }
   const verbs = { GET: 0, POST: 1, PATCH: 2, PUT: 3, DELETE: 4 };
   const order = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : verbs[a.method] - verbs[b.method];
-  const groups = ENDPOINT_GROUPS.map((g) => ({ ...g, ops: g.tags.flatMap((tag) => ops.filter((op) => op.tag === tag).sort(order)) }));
+  const groups = ENDPOINT_GROUPS.map((g) => ({ ...g, ops: g.tags.flatMap((tag) => ops.filter((op) => op.tag === tag).sort(order)) }))
+    .filter((g) => g.ops.length);
   const title = (op) => (op.summary ?? '').split(/\r?\n/).find((part) => part.trim())?.trim() ?? '';
   // One stub page per operation, so the sidebar, the links below and `mint broken-links` all see a
   // real page; Mintlify renders it from the spec.
-  const stubPath = (op) => `api-reference/${pageSlug(op.tag)}/${pageSlug(title(op))}`;
+  const stubPath = (op) => {
+    if (!pageSlug(title(op))) throw new Error(`ENDPOINT_SUMMARY_MISSING ${op.method} ${op.route}`);
+    return `api-reference/${pageSlug(op.tag)}/${pageSlug(title(op))}`;
+  };
   const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', ''].join('\n')]);
   const seen = new Set();
   for (const [file] of stubs) {
