@@ -6,7 +6,7 @@ description: "Read the one error body every refusal uses and decide whether to f
 import ErrorsParse from '/snippets/samples/errors-parse.mdx';
 import ErrorsWrongWorkspace from '/snippets/samples/errors-wrong-workspace.mdx';
 
-Every refusal, `413` and `415` included, is the same JSON object, so one parser reads them all. Match on `error`; act on the status class only for a code you do not know. Look up codes in the [error-code reference](/reference/error-codes).
+Every refusal, `413` and `415` included, is the same JSON object, so one parser reads them all: match on `error`, and act on the status class only for a code you do not know.
 
 ## Decide what to do
 
@@ -18,12 +18,23 @@ Every refusal, `413` and `415` included, is the same JSON object, so one parser 
 | `408`, `500`, `502`, `504` or a timeout | It did not complete, or its outcome is unknown. | Recover an order by its quote first. Otherwise retry with backoff only when the code's `retryable` is `true`. |
 | Any other `4xx` | Refused. Nothing was placed. | Do not retry. Fix the request, or act on [`next`](#what-next-tells-you). |
 
+<AccordionGroup>
+  <Accordion title="Waits and order retries">
+
 A 4xx refusal placed nothing. A timeout or 5xx on an order is unknown until you [recover it](/trade/retries-and-recovery).
 
-- **Waits:** `Retry-After` is whole seconds; `details.retryAfter` is an ISO 8601 duration that can carry a fraction, such as `PT1.5S`. Sending sooner is refused again.
-- **Orders:** retry only with the same `Idempotency-Key` and body. When you do not know whether it was placed, never send it with a new key.
+- Waits: `Retry-After` is whole seconds; `details.retryAfter` is an ISO 8601 duration that can carry a fraction, such as `PT1.5S`. Sending sooner is refused again.
+- Orders: retry only with the same `Idempotency-Key` and body. When you do not know whether it was placed, never send it with a new key.
+
+</Accordion>
+</AccordionGroup>
 
 ## Read a refusal
+
+Every refusal carries `error`, `message`, `requestId`, `timestamp`, `docUrl` and, when there is one, `next`. Look up codes in the [error-code reference](/reference/error-codes).
+
+<AccordionGroup>
+  <Accordion title="The body, field by field">
 
 ```json
 {
@@ -46,6 +57,9 @@ A 4xx refusal placed nothing. A timeout or 5xx on an order is unknown until you 
 | `next` | The way forward, when there is one. |
 | `details` | Optional detail. Read the camelCase keys you know; more can appear. `details.value` names a refused value, `details.reason` says why, `details.retryAfter` how long to wait. |
 
+  </Accordion>
+  <Accordion title="Example: act on a refused asset">
+
 Act on the code of a quote for an asset TetraFi does not list:
 
 <ErrorsParse />
@@ -55,7 +69,15 @@ Act on the code of a quote for an asset TetraFi does not list:
 use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 ```
 
+  </Accordion>
+</AccordionGroup>
+
 ## What next tells you
+
+`next.kind` names the way forward; a `kind` you do not recognise is a step you cannot take automatically.
+
+<AccordionGroup>
+  <Accordion title="Every next.kind">
 
 | `next.kind` | What to do |
 | --- | --- |
@@ -66,17 +88,35 @@ use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 
 A `kind` you do not recognise is a step you cannot take automatically: show `message` and stop.
 
+  </Accordion>
+</AccordionGroup>
+
 ## Codes you do not know
+
+<AccordionGroup>
+  <Accordion title="Handle an unknown code">
 
 Codes can be added at any time. Handle an unknown one by its status class, as in [Decide what to do](#decide-what-to-do) and the [compatibility policy](/compatibility#what-your-client-should-do); show `message` and log `requestId`.
 
+  </Accordion>
+</AccordionGroup>
+
 ## The wrong workspace
+
+<AccordionGroup>
+  <Accordion title="404 WORKSPACE_NOT_FOUND for a workspace that is not yours">
 
 A key may leave `X-Workspace-Id` out; one it sends must be its own. A path naming a workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
 
 <ErrorsWrongWorkspace />
 
+  </Accordion>
+</AccordionGroup>
+
 ## Refusals on any request
+
+<AccordionGroup>
+  <Accordion title="Authentication, workspace, limits and availability">
 
 | Status and code | When | What to do |
 | --- | --- | --- |
@@ -95,7 +135,13 @@ A key may leave `X-Workspace-Id` out; one it sends must be its own. A path namin
 | 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked. | Sign again with a new timestamp and nonce, then retry. |
 | 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It did not complete. | Retry with backoff; quote `requestId` if it persists. |
 
+  </Accordion>
+</AccordionGroup>
+
 ## Refusals by task
+
+<AccordionGroup>
+  <Accordion title="Where each task's refusals are">
 
 | You are | Refusals |
 | --- | --- |
@@ -104,10 +150,13 @@ A key may leave `X-Workspace-Id` out; one it sends must be its own. A path namin
 | Requoting | [Requotes and expiry](/trade/requotes-and-expiry#refusals) |
 | Placing or cancelling an order | [Place an order](/trade/orders#refusals), [Retries and recovery](/trade/retries-and-recovery#conflict-same-key-different-body) |
 | Choosing a wallet or account | [When a source is refused](/trade/wallets-and-accounts#when-a-source-is-refused) |
-| Reading balances, settlement or fees | [Balances](/trade/balances#refusals), [Settlement and credit](/trade/settlement-and-credit#refusals), [Fee schedule](/trade/fee-schedule#refusals) |
+| Reading balances, settlement or fees | [Balances and fees](/trade/balances#refusals), [Trades and settlement](/trade/settlement-and-credit#refusals) |
 | Managing webhooks | [Webhooks](/trade/webhooks#retries-pauses-and-missed-events) |
 
 A venue left out of a successful quote request is not a refusal: its line in `sources` says why ([Sources](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote), [Source reasons](/reference/error-codes#source-reasons)).
+
+  </Accordion>
+</AccordionGroup>
 
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/errors.sh">Provokes three refusals and places no order.</Card>
 
