@@ -5,28 +5,36 @@ description: "Read every venue's current price for a pair before you ask for quo
 
 import SearchPrices from '/snippets/samples/search-prices.mdx';
 
-`GET /api/v1/prices` returns each venue's current price for a pair from prices TetraFi already holds. Use it to show prices, size a trade or choose venues, then [request quotes](/search/how-it-works) to trade.
+Read every venue's current price for a pair from prices TetraFi already holds, without asking any venue.
 
+## At a glance
+
+| Endpoint | You need | Result |
+| --- | --- | --- |
+| `GET /api/v1/prices` | A key with [Read quotes](/authentication#permissions) (`prices_read`) ([Before your first trade](/before-you-trade)) | One row per venue, location and variant pair, sorted like quotes. |
+| `GET /api/v1/prices/stream` | The same | A `snapshot` server-sent event when a watched pair changes. |
+
+- Use prices to show prices, size a trade or choose venues, then [request quotes](/search/how-it-works) to trade.
 - No venue is asked, so it is fast and does not use the [quote limit](/reference/rate-limits).
 - A price is never firm and can never be ordered: every row carries `firm: false`. Only a quote has an `id` you can order.
 - A venue that publishes no price (`priceSourceNone`) answers only a quote request.
 
-You need a key with [**Read quotes**](/authentication#permissions) (`prices_read`) ([Before your first trade](/before-you-trade)).
-
 <SearchPrices />
 
-## Query parameters
+<AccordionGroup>
+  <Accordion title="Query parameters">
 
 | Parameter | Required | Value |
 | --- | --- | --- |
 | `sell`, `buy` | Yes | Asset ids from [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery). |
 | `sellAmount`, `buyAmount` or `sizes` | Exactly one | One amount you sell or buy, or `sizes`: 1 to 8 comma-separated sell amounts, such as `100,1000,10000`. |
 | `sell.chain`, `buy.chain` | No | A CAIP-2 chain id to pin that side. |
-| `locations`, `modalities`, `venues.include`, `venues.exclude`, `variants.sell`, `variants.buy` | No | The [quote filters](/search/filters-and-sort), comma-separated. A venue they exclude has no row. |
+| `locations`, `modalities`, `venues.include`, `venues.exclude`, `variants.sell`, `variants.buy` | No | The [quote filters](/search/how-it-works#filters-and-sort), comma-separated. A venue they exclude has no row. |
 
-## The response
+  </Accordion>
+  <Accordion title="Response example">
 
-```json Response expandable
+```json Response
 {
   "sell": "USDC",
   "buy": "ETH",
@@ -71,6 +79,9 @@ You need a key with [**Read quotes**](/authentication#permissions) (`prices_read
 }
 ```
 
+  </Accordion>
+  <Accordion title="Row fields">
+
 There is one row per venue, location and variant pair, sorted like quotes, with rows that hold no price last.
 
 | Field | Meaning |
@@ -84,6 +95,9 @@ There is one row per venue, location and variant pair, sorted like quotes, with 
 | `computedAt` | When this snapshot was built; it is reused for about a second. |
 | `sellBalances` | Always empty for an API key. |
 
+  </Accordion>
+  <Accordion title="Row statuses">
+
 | `status` | Meaning |
 | --- | --- |
 | `priced` | A current price. |
@@ -95,13 +109,19 @@ There is one row per venue, location and variant pair, sorted like quotes, with 
 
 Treat a status you do not recognise as "other".
 
-## Caching, streaming and limits
+  </Accordion>
+  <Accordion title="Caching, streaming and limits" id="caching-streaming-and-limits">
 
 - Each response carries an `ETag`: send it back in `If-None-Match` to get `304 Not Modified` when nothing changed.
 - `GET /api/v1/prices/stream` watches up to 25 pairs (`pairs=USDC:ETH,USDC:EURC` instead of `sell` and `buy`) and sends a `snapshot` server-sent event when a pair changes. Each caller may hold 4 streams at once.
 - Price reads have their own limit: `429 PRICES_RATE_LIMIT`, or `429 PRICES_STREAM_LIMIT` for a fifth stream, both with `Retry-After`.
 
+</Accordion>
+</AccordionGroup>
+
 ## Refusals
+
+<Accordion title="Price refusals">
 
 | Status and code | Why | What to do |
 | --- | --- | --- |
@@ -109,9 +129,11 @@ Treat a status you do not recognise as "other".
 | `400 INVALID_AMOUNT` | An amount or a size is not a positive decimal. | Send positive decimals. |
 | `400 SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same asset with no chain pinned. | Add `sell.chain` or `buy.chain`. |
 | `400 INVALID_REQUEST` | Both amounts, `sizes` with an amount, no amount at all, or an unknown parameter, such as `pay`, `receive`, `amount` or `side`. | Send `sell`, `buy` and one of `sellAmount`, `buyAmount` or `sizes`. |
-| `403 INSUFFICIENT_SCOPE` | The key lacks `prices_read`. | Use a key with **Read quotes**. |
+| `403 INSUFFICIENT_SCOPE` | The key lacks `prices_read`. | Use a key with Read quotes. |
 | `429 PRICES_RATE_LIMIT`, `PRICES_STREAM_LIMIT` | Too many price reads, or streams. | Wait `Retry-After` seconds, or close a stream. |
 | `503 PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. | Retry after `Retry-After` (about 1 second). |
+
+</Accordion>
 
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/search-basics.sh">
   Reads prices for a pair and runs the basic quote searches, without placing an order.
@@ -123,7 +145,7 @@ Treat a status you do not recognise as "other".
   <Card title="Request quotes" icon="magnifying-glass" href="/search/how-it-works">
     Get orderable quotes from every venue your workspace can use.
   </Card>
-  <Card title="Filters and sort" icon="filter" href="/search/filters-and-sort">
+  <Card title="Filters and sort" icon="filter" href="/search/how-it-works#filters-and-sort">
     Apply the same filters to prices and quotes.
   </Card>
 </CardGroup>
