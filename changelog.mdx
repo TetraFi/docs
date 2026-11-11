@@ -7,7 +7,7 @@ The API is in preview until launch, so a change here can still remove or rename 
 
 <Update label="2026-11-10" description="Shared nonces, firm prices that lapse, and settlement detail">
   - Every TetraFi server shares one nonce record, so a nonce accepted by one server is refused as `SIGNATURE_REPLAYED` by every other, restarts included. A replay sent while the key is rate limited answers `429`, no longer `401` ([Sign requests](/authentication#sign-requests)).
-  - `POST /api/v1/orders` on a venue-account quote whose firm price lapsed before it could be sent is refused with `409 VENUE_QUOTE_SEND_WINDOW_CLOSED` and `next: requote`, instead of answering `200` with an order that was never sent. Request a new price and order that ([Place an order](/trade/orders#refusals)).
+  - `POST /api/v1/orders` on a venue-account quote whose firm price lapsed before it could be sent is refused with `409 VENUE_QUOTE_SEND_WINDOW_CLOSED` (the venue's send window closed) or the new `409 QUOTE_RECONFIRMATION_REQUIRED`, both with `next: requote`, instead of answering `200` with an order that was never sent. Request a new price and order that ([Place an order](/trade/orders#refusals)).
   - `GET …/trades/{tradeId}/settlement` no longer sends `complianceChecks` or `evidence`: both were placeholders. An order's compliance checks are on the order ([Settlement and credit](/trade/settlement-and-credit)).
   - Firm-ask source reasons ending in `BudgetExhausted` now end in `TimedOut`, such as `firmAskFundsTimedOut`, with the same meaning.
   - A venue account whose key has no current verified balance read answers the source reason `accountFundingReadUnverified`: verify the account in the app.

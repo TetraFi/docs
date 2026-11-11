@@ -25139,7 +25139,7 @@
     },
     "/api/v1/batch": {
       "post": {
-        "description": "Each item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately.",
+        "description": "Each item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. Item bodies are limited to 8 MiB in all (an item past it answers 413 `BATCH_RESPONSE_TOO_LARGE`), and a batch with its related reads makes at most 200 reads (past it an item answers 429 `SUB_REQUEST_BUDGET_EXHAUSTED`). The answer is `Cache-Control: private, no-store`. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately.",
         "operationId": "batch_reads",
         "parameters": [
           {
@@ -25213,7 +25213,7 @@
                 }
               }
             },
-            "description": "`BATCH_INVALID`, `BATCH_TOO_MANY_ITEMS`, `BATCH_METHOD_NOT_ALLOWED`, `BATCH_UNKNOWN_ROUTE`, `BATCH_ITEM_NOT_BATCHABLE` or `BATCH_SIGNED_REQUEST_UNSUPPORTED`; nothing ran",
+            "description": "`BATCH_INVALID`, `BATCH_TOO_MANY_ITEMS`, `BATCH_METHOD_NOT_ALLOWED`, `BATCH_UNKNOWN_ROUTE`, `BATCH_ITEM_NOT_BATCHABLE`, `BATCH_SIGNED_REQUEST_UNSUPPORTED`, or `BATCH_EXCEEDS_RATE_BURST` when the credential's rate limit admits fewer requests at once than the batch holds; nothing ran",
             "headers": {
               "Deprecation": {
                 "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
