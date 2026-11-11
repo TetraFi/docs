@@ -3,7 +3,22 @@ title: "API reference"
 description: "Every operation an API key can call, generated from the TetraFi API's own specification, with the interfaces it offers and how to read its times."
 ---
 
-Every operation an API key can call, generated from the API's own specification. Start with the [Quickstart](/quickstart) if you are integrating for the first time; the [Compatibility policy](/compatibility) says what can change after launch.
+Every operation an API key can call, generated from the API's own specification.
+
+<CardGroup cols={2}>
+  <Card title="Endpoints at a glance" icon="list" href="/reference/endpoints">
+    Every operation on one page, grouped by what it does.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Integrating for the first time? Start here.
+  </Card>
+  <Card title="Conventions" icon="ruler" href="/reference/conventions">
+    Amounts, ids, pagination, headers and versioning.
+  </Card>
+  <Card title="Compatibility policy" icon="shield-check" href="/compatibility">
+    What can change after launch.
+  </Card>
+</CardGroup>
 
 ## Base URL and authentication
 
@@ -12,42 +27,64 @@ Every operation an API key can call, generated from the API's own specification.
 | Sandbox | `https://api-dev.tetrafi.io` |
 | Production | `https://api.tetrafi.io`, from launch |
 
-Send your API key in `X-API-Key` on every request: the key implies its workspace. A key with venue trading also signs each request ([Authentication](/authentication)). [Environments](/overview#environments) lists what differs in the sandbox.
+Send your API key in `X-API-Key` on every request; a key with venue trading also signs each request ([Authentication](/authentication)).
+
+<Accordion title="Workspace and sandbox differences">
+  The key implies its workspace. [Environments](/overview#environments) lists what differs in the sandbox.
+</Accordion>
 
 ## Supported interfaces
 
 | Interface | What you can use |
 | --- | --- |
 | REST | JSON over HTTP under `/api/v1`. |
-| Server-sent events | `POST /api/v1/quotes` with `Accept: text/event-stream` streams a new search ([JSON or a stream](/search/how-it-works#json-or-a-stream)); a requote answers JSON. `GET /api/v1/prices/stream` streams prices. |
+| Server-sent events | Quote searches and `GET /api/v1/prices/stream`. |
 | Webhooks | Workspace events, including `order.updated` ([Webhooks](/trade/webhooks)). |
 | FIX | Not supported. |
 
-A quote stream reports the search, never an order's outcome: follow orders by their status or webhooks. The API needs no SDK; a TypeScript SDK is coming soon to npm.
+<Accordion title="Streams, SDKs and what a stream reports">
+  `POST /api/v1/quotes` with `Accept: text/event-stream` streams a new search ([JSON or a stream](/search/how-it-works#json-or-a-stream)); a requote answers JSON. `GET /api/v1/prices/stream` streams prices.
+
+  A quote stream reports the search, never an order's outcome: follow orders by their status or webhooks. The API needs no SDK; a TypeScript SDK is coming soon to npm.
+</Accordion>
 
 ## Download the specification
 
-Download the [OpenAPI specification](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/openapi.json) (OpenAPI 3.1, JSON) to generate a client or import it into your tools. The [Changelog](/changelog) lists each change.
+<CardGroup cols={2}>
+  <Card title="OpenAPI specification" icon="file-code" href="https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/openapi.json">
+    OpenAPI 3.1, JSON: generate a client or import it into your tools.
+  </Card>
+  <Card title="Changelog" icon="clock-rotate-left" href="/changelog">
+    Each change to the API.
+  </Card>
+</CardGroup>
 
 ## Postman collection
 
-<Steps>
-  <Step title="Import the collection">
-    Import the [TetraFi Postman collection](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json) with **Import → Link**.
-  </Step>
-  <Step title="Set your variables">
-    Set these values locally in its **Variables** tab:
+<Card title="TetraFi Postman collection" icon="paper-plane" href="https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json">
+  Import it with **Import → Link**, set your variables, then send **GET /api/v1/assets**.
+</Card>
 
-    | Variable | Value |
-    | :--- | :--- |
-    | `baseUrl` | The base URL of your environment |
-    | `apiKey` | Your API key |
-    | `signingSecret` | The key's 64-character hexadecimal signing secret, if signing is enabled |
-  </Step>
-  <Step title="Check your credentials">
-    Send **GET /api/v1/assets**. The collection signs each request when `signingSecret` is set.
-  </Step>
-</Steps>
+<Accordion title="Set it up">
+  <Steps>
+    <Step title="Import the collection">
+      Import the [TetraFi Postman collection](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json) with **Import → Link**.
+    </Step>
+    <Step title="Set your variables">
+      Set these values locally in its **Variables** tab:
+
+| Variable | Value |
+| :--- | :--- |
+| `baseUrl` | The base URL of your environment |
+| `apiKey` | Your API key |
+| `signingSecret` | The key's 64-character hexadecimal signing secret, if signing is enabled |
+
+    </Step>
+    <Step title="Check your credentials">
+      Send **GET /api/v1/assets**. The collection signs each request when `signingSecret` is set.
+    </Step>
+  </Steps>
+</Accordion>
 
 <Warning>
 The collection includes order placement. Replace angle-bracket placeholders and path variables before sending, and send requests one at a time. Never share or export it with values filled in.
@@ -59,7 +96,7 @@ The collection includes order placement. Replace angle-bracket placeholders and 
 - Treat an enum value you don't recognise as "other": every response enum is open.
 - Every refusal is one error body ([Errors and refusals](/trade/errors), [Error codes](/reference/error-codes)).
 
-Read each field's schema for its time format:
+<Accordion title="Time formats by field">
 
 | Field | Format |
 | --- | --- |
@@ -68,4 +105,5 @@ Read each field's schema for its time format:
 | `requestExpiryMs`, when present | Integer Unix milliseconds. |
 | `eta`, `retryAfter` | ISO 8601 durations. |
 
-[Conventions](/reference/conventions) covers amounts, ids, pagination, headers and versioning.
+  Read each field's schema for its time format.
+</Accordion>

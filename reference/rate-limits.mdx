@@ -15,20 +15,29 @@ On a `429`, wait `Retry-After` seconds, then retry once; for an order, keep the 
 | Price reads | Price reads per caller, separate from quotes. | `429 PRICES_RATE_LIMIT` |
 | Price streams | At most 4 open price streams per caller. | `429 PRICES_STREAM_LIMIT`: close one first. |
 
-`RATE_LIMITED` also answers, before anything is sent, when TetraFi is briefly at capacity. Then no quota was counted.
+<Accordion title="RATE_LIMITED when TetraFi is at capacity">
+  `RATE_LIMITED` also answers, before anything is sent, when TetraFi is briefly at capacity. Then no quota was counted.
+</Accordion>
 
 ## Why quotes are limited
 
 A live quote request asks venues, and each venue limits how often it answers. Watch a market with [prices](/search/prices), and request a quote only when you intend to trade.
+
+<AccordionGroup>
+  <Accordion title="When a venue is asked too often">
 
 | A venue asked too often | What you see |
 | --- | --- |
 | Stops quoting you for a while | Its source reads [`askLimitReached`](/reference/error-codes#askLimitReached), with a `fix` naming when it reopens, or [`firmQuoteLimited`](/reference/error-codes#firmQuoteLimited). |
 | Its own quote budget runs out on a requote | `429 VENUE_FIRM_QUOTE_LIMITED` or `BUDGET_EXHAUSTED`. |
 
-This example sends two quote requests at once, waits for the refused one's `details.retryAfter`, then sends it again. It places no order.
+  </Accordion>
+  <Accordion title="Example: wait out a 429 and retry">
+    This example sends two quote requests at once, waits for the refused one's `details.retryAfter`, then sends it again. It places no order.
 
-<ErrorsRateLimit />
+    <ErrorsRateLimit />
+  </Accordion>
+</AccordionGroup>
 
 ## Read the headers
 
@@ -39,6 +48,10 @@ Any answer a limit counted carries two headers in the [IETF RateLimit header fie
 | `RateLimit-Policy` | The limit and its window in seconds. | `1;w=3`: one request every 3 seconds. |
 | `RateLimit` | `limit`; `remaining`, the requests you may send now; `reset`, whole seconds until quota next frees up. | `limit=1, remaining=0, reset=3` |
 
+`reset` is a wait, not a timestamp or a promise that the whole allowance refills.
+
+<Accordion title="Which limit the headers describe">
+
 | Case | What the headers describe |
 | --- | --- |
 | Several limits counted the request | The one closest to running out: the lowest `remaining`, then the longest `reset`. |
@@ -46,4 +59,4 @@ Any answer a limit counted carries two headers in the [IETF RateLimit header fie
 | A refusal with no known quota, such as a venue's cooldown or TetraFi at capacity | No `RateLimit` headers; `Retry-After` only. |
 | An answer no limit counted | Neither header. Treat an absent header as "not counted", never as zero. |
 
-`reset` is a wait, not a timestamp or a promise that the whole allowance refills.
+</Accordion>

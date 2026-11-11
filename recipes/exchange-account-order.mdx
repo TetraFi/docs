@@ -10,21 +10,43 @@ import ExchangeOrder from '/snippets/samples/recipe-exchange-order.mdx';
 import ExchangeRecover from '/snippets/samples/recipe-exchange-recover.mdx';
 import ExchangeStatus from '/snippets/samples/recipe-exchange-status.mdx';
 
-Swap 5 USDC for USDT on an exchange account your workspace has connected. TetraFi trades on that account with its own balance, so no wallet signs anything.
+Swap 5 USDC for USDT on an exchange account your workspace has connected; TetraFi trades with that account's own balance, so no wallet signs anything.
+
+## At a glance
+
+| | |
+| --- | --- |
+| You trade | 5 USDC for USDT on your connected exchange account. |
+| Endpoints | `POST /api/v1/quotes`, `POST /api/v1/orders`, `GET /api/v1/orders/by-quote/{quoteId}`, then the order's `statusUrl`. |
+| Result | A filled Basic trade, with what the account spent and received under `operation`. |
+
+```mermaid
+flowchart LR
+  A[Find venue] --> B[Quote that venue]
+  B --> C[Check funds]
+  C --> D[Order]
+  D --> E[Read status]
+```
 
 ## Before you begin
 
 - `bash`, `curl`, `jq` and `openssl`.
-- **A connected exchange account** that holds the asset you sell ([Connect a venue account](/before-you-trade#connect-a-venue-account)).
-- **An API key with Read quotes, Submit orders, Read orders and [venue trading](/authentication#trade-on-your-venue-accounts).** Without venue trading, the venue reads `restricted` with `venueTradeScopeRequired` in `sources`.
-- **The key's signing secret.** Sign every request: see [Sign requests](/authentication#sign-requests).
+- A connected exchange account that holds the asset you sell ([Connect a venue account](/before-you-trade#connect-a-venue-account)).
+- An API key with Read quotes, Submit orders, Read orders and [venue trading](/authentication#trade-on-your-venue-accounts), and its signing secret ([Sign requests](/authentication#sign-requests)).
 
-Export your environment as in the [Quickstart](/quickstart), plus:
+<AccordionGroup>
+  <Accordion title="Without venue trading">
+    The venue reads `restricted` with `venueTradeScopeRequired` in `sources`. Sign every request: see [Sign requests](/authentication#sign-requests).
+  </Accordion>
+  <Accordion title="Environment variables">
+    Export your environment as in the [Quickstart](/quickstart), plus:
 
-```bash
-export TETRAFI_WORKSPACE_ID=...    # the workspace the key belongs to (see Authentication)
-export TETRAFI_VENUE=...           # optional: the venue id of your exchange account; if unset, step 1 finds it
-```
+    ```bash
+    export TETRAFI_WORKSPACE_ID=...    # the workspace the key belongs to (see Authentication)
+    export TETRAFI_VENUE=...           # optional: the venue id of your exchange account; if unset, step 1 finds it
+    ```
+  </Accordion>
+</AccordionGroup>
 
 <Warning>
 This recipe places a real order on your exchange account and spends its balance.
@@ -36,87 +58,107 @@ This recipe places a real order on your exchange account and spends its balance.
 
     <ExchangeVenue />
 
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"venue":"okx-rfq","status":"unavailable","reason":"notConnected"}
     {"venue":"binance-orderbook","status":"answered","reason":null}
     ```
 
-    `notConnected` means your workspace has no account at that venue.
+    <Accordion title="notConnected">
+      `notConnected` means your workspace has no account at that venue.
+    </Accordion>
   </Step>
 
   <Step title="Search that venue only">
-    Set `filters.venues.include` to that venue id; every other venue reads `filteredOut` in `sources` and is not asked. The quote's `tradingSource` has `kind` `venueAccount`, and `fundingModel` says whether the account must already hold the funds (`prefunded`) or takes them in (`payIn`).
+    Set `filters.venues.include` to that venue id; every other venue reads `filteredOut` in `sources` and is not asked.
 
     <ExchangeQuote />
 
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"quoteId":"q_01M5XSRC…","venue":"binance-orderbook","mode":"basic","firm":false,"sell":"5","buy":"5.00675","minOut":"4.99172","next":"order","expiresAt":"2026-10-27T04:26:42.527Z"}
     ```
+
+    <Accordion title="tradingSource and fundingModel">
+      The quote's `tradingSource` has `kind` `venueAccount`, and `fundingModel` says whether the account must already hold the funds (`prefunded`) or takes them in (`payIn`).
+    </Accordion>
   </Step>
 
   <Step title="Check the account holds enough">
-    `readiness` says whether the account holds enough. To see all it holds, read [its balances](/trade/balances#one-exchange-account).
-
-    | `readiness.kind` | What it means |
-    | --- | --- |
-    | `funded` | The account holds enough. `next` is `order`. |
-    | `shortfall` | `amount` is what is missing and `next` is `fund`. Fund the account, then get a new price. |
+    `readiness` says whether the account holds enough: `funded` means `next` is `order`.
 
     <ExchangeFunds />
 
-    ```json Output
+    ```json Output expandable
     {"readiness":{"kind":"funded"}}
     ```
+
+    <Accordion title="Readiness values and balances">
+
+| `readiness.kind` | What it means |
+| --- | --- |
+| `funded` | The account holds enough. `next` is `order`. |
+| `shortfall` | `amount` is what is missing and `next` is `fund`. Fund the account, then get a new price. |
+
+      To see all it holds, read [its balances](/trade/balances#one-exchange-account).
+    </Accordion>
   </Step>
 
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and store before you send it. A Basic quote takes no signature.
 
-    When the quote reads `minReceiveRequired: true`, send `minReceive`, the least you accept, such as the quoted amount less 50 basis points ([Orders](/trade/orders#venues-that-execute-within-your-limit)). Otherwise, as on this order-book quote, it is optional.
-
     <ExchangeOrder />
 
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"kind":"basicTrade","quoteId":"q_01M5XSRC…","operation":{"connectionId":"15862432-…","operationId":"0b23326f-…"}}
     ```
+
+    <Accordion title="When to send minReceive">
+      When the quote reads `minReceiveRequired: true`, send `minReceive`, the least you accept, such as the quoted amount less 50 basis points ([Orders](/trade/orders#venues-that-execute-within-your-limit)). Otherwise, as on this order-book quote, it is optional.
+    </Accordion>
   </Step>
 
   <Step title="Recover the order by its quote">
-    If the order response never reaches you, never order again with a new key: that is a second order. Read it with `GET /api/v1/orders/by-quote/{quoteId}`, which places nothing ([Recover an order](/trade/retries-and-recovery#recover-an-order-by-its-quote)).
-
-    | `state` | What to do |
-    | --- | --- |
-    | `ordered` | Read its status at `statusUrl`. Do not order again. |
-    | `notOrdered` | Nothing was placed. If `expired` is `false`, you can order it. |
-    | `unknown` | Wait and read again. Do not order again. |
+    If the order response never reaches you, read it with `GET /api/v1/orders/by-quote/{quoteId}`, which places nothing. Never order again with a new key: that is a second order.
 
     <ExchangeRecover />
 
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"state":"ordered","orderId":"0b23326f-…","statusUrl":"/api/v1/orders/0b23326f-…"}
     ```
+
+    <Accordion title="What each state means">
+
+| `state` | What to do |
+| --- | --- |
+| `ordered` | Read its status at `statusUrl`. Do not order again. |
+| `notOrdered` | Nothing was placed. If `expired` is `false`, you can order it. |
+| `unknown` | Wait and read again. Do not order again. |
+
+      See [Recover an order](/trade/retries-and-recovery#recover-an-order-by-its-quote).
+    </Accordion>
   </Step>
 
   <Step title="Read the status">
-    Read `statusUrl` every 10 seconds until `terminal` is `true`, or after `next.retryAfter` when `next` says `wait`. `outcomeUnknown` is not a failure: the trade may have filled, so keep reading ([Order status](/trade/order-status)).
+    Read `statusUrl` every 10 seconds until `terminal` is `true`, or after `next.retryAfter` when `next` says `wait` ([Order status](/trade/order-status)).
 
     <ExchangeStatus />
 
-    ```json Output
+    ```json Output expandable
     {"status":"settled","terminal":true,"next":null}
     {"executionStatus":"filled","settlementStatus":null,"bounds":{"sell":{"asset":"USDC","amount":"5"},"buy":{"asset":"USDT","amount":"4.99172"}},"dispatch":{"inputSpent":"5","outputReceived":"5.00675","venueOrderId":"229377"}}
     ```
 
-    The venue's own detail is under `operation`:
+    <Accordion title="outcomeUnknown and the fields under operation">
+      `outcomeUnknown` is not a failure: the trade may have filled, so keep reading. The venue's own detail is under `operation`:
 
-    | Field | Meaning |
-    | --- | --- |
-    | `dispatch.inputSpent`, `dispatch.outputReceived` | What the trade took from and added to the account, when reported. Missing or `null` is unknown, never zero. |
-    | `bounds.sell.amount`, `bounds.buy.amount` | Your accepted limits (most spent, least delivered), not fill amounts. |
-    | `dispatch.venueOrderId` | The venue's native order id, when present. |
-    | `settlementStatus` | Any later money movement. |
+| Field | Meaning |
+| --- | --- |
+| `dispatch.inputSpent`, `dispatch.outputReceived` | What the trade took from and added to the account, when reported. Missing or `null` is unknown, never zero. |
+| `bounds.sell.amount`, `bounds.buy.amount` | Your accepted limits (most spent, least delivered), not fill amounts. |
+| `dispatch.venueOrderId` | The venue's native order id, when present. |
+| `settlementStatus` | Any later money movement. |
 
-    To confirm the balance independently, open the account under **Treasury** in the app.
+      To confirm the balance independently, open the account under **Treasury** in the app.
+    </Accordion>
   </Step>
 </Steps>
 

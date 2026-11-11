@@ -31,11 +31,13 @@ These rules hold on every endpoint, so implement them once. The examples order n
 | Ids | Opaque strings. Store and compare them whole; never parse. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
 | Enumerations | Open sets that can gain values. Treat an unknown value as "other". | `"status": "answered"` |
 
-<ConventionsValues />
+<Accordion title="Example: read amounts and times">
+  <ConventionsValues />
 
-```json Output on test networks
-{"buy":"10.0147","buyIsString":true,"expiresAt":"2026-10-30T00:40:13.162Z","observedAt":"2026-10-30T00:40:04.126Z"}
-```
+  ```json Output on test networks
+  {"buy":"10.0147","buyIsString":true,"expiresAt":"2026-10-30T00:40:13.162Z","observedAt":"2026-10-30T00:40:04.126Z"}
+  ```
+</Accordion>
 
 ## Paging
 
@@ -50,11 +52,13 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 | `GET /api/v1/assets` | 1 to 200 assets a page. |
 | `GET /api/v1/orders` | Up to 20 orders a page; a page can hold fewer than `limit`, even none, while more follow. |
 
-<ConventionsPaging />
+<Accordion title="Example: page through every asset">
+  <ConventionsPaging />
 
-```json Output on test networks
-assets: 52 across 11 pages
-```
+  ```json Output on test networks
+  assets: 52 across 11 pages
+  ```
+</Accordion>
 
 ## Errors
 
@@ -74,11 +78,13 @@ assets: 52 across 11 pages
 | Your own id | Send `X-Request-Id` (up to 64 letters, digits, `-` and `_`) to trace a request in your logs and ours; the response echoes it. |
 | Invalid id | Replaced with a generated UUID, which the response carries instead. |
 
-<ConventionsRequestId />
+<Accordion title="Example: send your own request id">
+  <ConventionsRequestId />
 
-```json Output on test networks
-{"requestId":"conventions-1793895638","rateLimitPolicy":"1;w=3","rateLimit":"limit=1, remaining=0, reset=3"}
-```
+  ```json Output on test networks
+  {"requestId":"conventions-1793895638","rateLimitPolicy":"1;w=3","rateLimit":"limit=1, remaining=0, reset=3"}
+  ```
+</Accordion>
 
 ## Rate limits and idempotency
 
@@ -96,22 +102,34 @@ assets: 52 across 11 pages
 | Items | 1 to 20 `{id, method, url}`. `method` is `GET`; `url` is the path and query of a `GET` operation in this reference, such as `/api/v1/orders?limit=20`. |
 | Authority | Each item runs as its own `GET` by the same caller: same permissions, scopes, workspace checks, body and error body. |
 | Rate limit | Each item counts as one request, all taken before any item runs. A `429 RATE_LIMITED` refuses the whole batch. |
-| Answer | `200` once admitted. Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers` (`Deprecation`, `Sunset`, `Link`, `Retry-After`, `Cache-Control`), in request order. Items are independent, not atomic. |
+| Answer | `200` once admitted, items in request order. Items are independent, not atomic. |
+| Not batchable | Signed API-key requests: send those reads separately. |
+
+<Accordion title="Item answers, limits and whole-batch refusals">
+
+| Rule | Detail |
+| --- | --- |
+| Item answer | Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers` (`Deprecation`, `Sunset`, `Link`, `Retry-After`, `Cache-Control`). |
 | Limits | Item bodies total at most 8 MiB (past it an item answers `413 BATCH_RESPONSE_TOO_LARGE`), and at most 200 reads with related reads (past it `429 SUB_REQUEST_BUDGET_EXHAUSTED`). |
 | Refused as a whole | A malformed batch, more than 20 items, a non-`GET` item, an unknown operation, or a stream, export or file read. `details.itemId` names the item. |
-| Not batchable | Signed API-key requests: send those reads separately. |
+
+</Accordion>
 
 ## Versioning
 
 The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes.
 
-A removal is announced in the changelog at least 6 months ahead. Until it happens, every answer of the affected operation, successes and refusals alike, carries three headers:
+A removal is announced in the changelog at least 6 months ahead. Until it happens, every answer of the affected operation, successes and refusals alike, carries three headers.
+
+<Accordion title="Deprecation headers">
 
 | Header | Meaning |
 | --- | --- |
 | `Deprecation` | When the operation was deprecated: `@` and Unix seconds, such as `@1735689600` ([RFC 9745](https://www.rfc-editor.org/rfc/rfc9745)). |
 | `Sunset` | When it stops working, as an HTTP date such as `Tue, 01 Jul 2025 00:00:00 GMT` ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)). |
 | `Link` | The notice that says what to move to, marked `rel="deprecation"`. |
+
+</Accordion>
 
 No operation is deprecated today, so no answer carries them yet; log any answer that does. Before launch, a change can still remove or rename something.
 
