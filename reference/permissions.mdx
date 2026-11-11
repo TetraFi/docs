@@ -35,127 +35,127 @@ Each API operation below lists the API-key scopes it needs and the matching chec
 
 Exchange service-account credentials for a token, and read the credential you are calling with: its identity, scopes and rate limits.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| Get the current credential | GET `/api/v1/me` | None | None |
-| Exchange client credentials for a token | POST `/api/v1/oauth/token` | No API key required | Not applicable |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| Get the current credential<br />GET `/api/v1/me` | None | None |
+| Exchange client credentials for a token<br />POST `/api/v1/oauth/token` | No API key required | Not applicable |
 
 ## Trading
 
 Discover the assets, chains and venues you can trade, and read or stream their indicative prices.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| List tradable assets | GET `/api/v1/assets` | `prices_read` | Read quotes |
-| Get indicative prices | GET `/api/v1/prices` | `prices_read` | Read quotes |
-| Stream indicative prices | GET `/api/v1/prices/stream` | `prices_read` | Read quotes |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| List tradable assets<br />GET `/api/v1/assets` | `prices_read` | Read quotes |
+| Get indicative prices<br />GET `/api/v1/prices` | `prices_read` | Read quotes |
+| Stream indicative prices<br />GET `/api/v1/prices/stream` | `prices_read` | Read quotes |
 
 ## Quotes
 
 Request firm or indicative quotes for an asset pair from every eligible venue, requote one, and read a quote request again.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| Request quotes | POST `/api/v1/quotes` | `quotes_request` | Read quotes + Submit orders |
-| Read a quote request's recorded answer | GET `/api/v1/quotes/requests/{quoteRequestId}` | `quotes_read` | Read quotes |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| Request quotes<br />POST `/api/v1/quotes` | `quotes_request` | Read quotes + Submit orders |
+| Read a quote request's recorded answer<br />GET `/api/v1/quotes/requests/{quoteRequestId}` | `quotes_read` | Read quotes |
 
 ## Orders
 
 Place an order from a quote you hold, follow its status, and cancel it before it is sent to a venue.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| List orders | GET `/api/v1/orders` | `orders_read` | Read orders |
-| Place an order | POST `/api/v1/orders` | `orders_write` | Submit orders |
-| Recover the order produced by a held quote | GET `/api/v1/orders/by-quote/{quoteId}` | `orders_read` | Read orders |
-| Get an order | GET `/api/v1/orders/{orderId}` | `orders_read` | Read orders |
-| Cancel an order | POST `/api/v1/orders/{orderId}/cancel` | `orders_write` | Submit orders |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| List orders<br />GET `/api/v1/orders` | `orders_read` | Read orders |
+| Place an order<br />POST `/api/v1/orders` | `orders_write` | Submit orders |
+| Recover the order produced by a held quote<br />GET `/api/v1/orders/by-quote/{quoteId}` | `orders_read` | Read orders |
+| Get an order<br />GET `/api/v1/orders/{orderId}` | `orders_read` | Read orders |
+| Cancel an order<br />POST `/api/v1/orders/{orderId}/cancel` | `orders_write` | Submit orders |
 
 ## Trades
 
 Your trade history: every order and venue trade, with its settlement and settlement obligations.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| List trades | GET `/api/v1/workspaces/{workspaceId}/trades` | `trades_read` | Read trades |
-| Get a trade | GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}` | `trades_read` | Read trades |
-| Get trade settlement | GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement` | `settlements_read` | Read settlements |
-| List a trade's settlement obligations | GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations` | `settlements_read` | Read settlements |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| List trades<br />GET `/api/v1/workspaces/{workspaceId}/trades` | `trades_read` | Read trades |
+| Get a trade<br />GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}` | `trades_read` | Read trades |
+| Get trade settlement<br />GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement` | `settlements_read` | Read settlements |
+| List a trade's settlement obligations<br />GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations` | `settlements_read` | Read settlements |
 
 ## Settlements
 
 Your venue accounts' settlement windows, obligations, movements and schedules, and the plan of what is due across them.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| Read the cross-venue settlement plan | GET `/api/v1/workspaces/{workspaceId}/settlement/plan` | `settlements_read` | Read settlements |
-| List a venue account's settlement movements | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements` | `settlements_read` | Read settlements |
-| Read a settlement movement | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements/{movementId}` | `settlements_read` | Read settlements |
-| List a venue account's settlement obligations | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations` | `settlements_read` | Read settlements |
-| Read a settlement obligation | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}` | `settlements_read` | Read settlements |
-| Read a venue account's settlement schedules | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules` | `settlements_read` | Read settlements |
-| List a venue account's settlement windows | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows` | `settlements_read` | Read settlements |
-| Read a settlement window | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}` | `settlements_read` | Read settlements |
-| List a settlement window's matches | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches` | `settlements_read` | Read settlements |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| Read the cross-venue settlement plan<br />GET `/api/v1/workspaces/{workspaceId}/settlement/plan` | `settlements_read` | Read settlements |
+| List a venue account's settlement movements<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements` | `settlements_read` | Read settlements |
+| Read a settlement movement<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements/{movementId}` | `settlements_read` | Read settlements |
+| List a venue account's settlement obligations<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations` | `settlements_read` | Read settlements |
+| Read a settlement obligation<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}` | `settlements_read` | Read settlements |
+| Read a venue account's settlement schedules<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules` | `settlements_read` | Read settlements |
+| List a venue account's settlement windows<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows` | `settlements_read` | Read settlements |
+| Read a settlement window<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}` | `settlements_read` | Read settlements |
+| List a settlement window's matches<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches` | `settlements_read` | Read settlements |
 
 ## Treasury
 
 Balances across the workspace's wallets and venue accounts.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| Read balances across workspace accounts | GET `/api/v1/workspaces/{workspaceId}/balances` | `treasury_read` | Treasury read |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| Read balances across workspace accounts<br />GET `/api/v1/workspaces/{workspaceId}/balances` | `treasury_read` | Treasury read |
 
 ## Venue accounts
 
 One venue account's balances, deposit instructions and history, credit and ledger.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| Read the venue account's balances at its venue | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances` | `treasury_read` | Treasury read |
-| Read one venue account's credit | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit` | `treasury_read` | Treasury read |
-| Read the venue account's deposit history | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history` | `treasury_read` | Treasury read |
-| Read how to deposit into the venue account | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` | `treasury_read` | Treasury read |
-| Read the venue account's signed positions and credit line | GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/ledger` | `treasury_read` | Treasury read |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| Read the venue account's balances at its venue<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances` | `treasury_read` | Treasury read |
+| Read one venue account's credit<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit` | `treasury_read` | Treasury read |
+| Read the venue account's deposit history<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history` | `treasury_read` | Treasury read |
+| Read how to deposit into the venue account<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` | `treasury_read` | Treasury read |
+| Read the venue account's signed positions and credit line<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/ledger` | `treasury_read` | Treasury read |
 
 ## Venue enablements
 
 The workspace's venue accounts, with where their funds are held and each venue's key state.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| List the workspace's venue accounts | GET `/api/v1/workspaces/{workspaceId}/venue-enablements` | `treasury_read` | Treasury read |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| List the workspace's venue accounts<br />GET `/api/v1/workspaces/{workspaceId}/venue-enablements` | `treasury_read` | Treasury read |
 
 ## Webhooks
 
 Register endpoints for signed event deliveries, rotate their secrets, send test deliveries and read the delivery log.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| List webhooks | GET `/api/v1/workspaces/{workspaceId}/webhooks` | `webhooks_manage` | Manage webhooks |
-| Create a webhook | POST `/api/v1/workspaces/{workspaceId}/webhooks` | `webhooks_manage` | Manage webhooks |
-| Delete a webhook | DELETE `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
-| Get a webhook | GET `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
-| Update a webhook | PATCH `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
-| List a webhook's deliveries | GET `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `webhooks_manage` | Manage webhooks |
-| Send a test delivery | POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `webhooks_manage` | Manage webhooks |
-| Retry a delivery | POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry` | `webhooks_manage` | Manage webhooks |
-| Resume a paused webhook | POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume` | `webhooks_manage` | Manage webhooks |
-| Rotate a webhook secret | POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate` | `webhooks_manage` | Manage webhooks |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| List webhooks<br />GET `/api/v1/workspaces/{workspaceId}/webhooks` | `webhooks_manage` | Manage webhooks |
+| Create a webhook<br />POST `/api/v1/workspaces/{workspaceId}/webhooks` | `webhooks_manage` | Manage webhooks |
+| Delete a webhook<br />DELETE `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
+| Get a webhook<br />GET `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
+| Update a webhook<br />PATCH `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
+| List a webhook's deliveries<br />GET `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `webhooks_manage` | Manage webhooks |
+| Send a test delivery<br />POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `webhooks_manage` | Manage webhooks |
+| Retry a delivery<br />POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry` | `webhooks_manage` | Manage webhooks |
+| Resume a paused webhook<br />POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume` | `webhooks_manage` | Manage webhooks |
+| Rotate a webhook secret<br />POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate` | `webhooks_manage` | Manage webhooks |
 
 ## Workspaces
 
 The workspace's verification state, the capabilities it allows, and its fee schedule.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| Read the workspace's verification state and the capabilities it allows | GET `/api/v1/workspaces/{workspaceId}/capabilities` | `compliance_read` | Read compliance |
-| Read the workspace's effective fee schedule | GET `/api/v1/workspaces/{workspaceId}/fee-schedule` | `fee_schedule_read` | Read fee schedule |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| Read the workspace's verification state and the capabilities it allows<br />GET `/api/v1/workspaces/{workspaceId}/capabilities` | `compliance_read` | Read compliance |
+| Read the workspace's effective fee schedule<br />GET `/api/v1/workspaces/{workspaceId}/fee-schedule` | `fee_schedule_read` | Read fee schedule |
 
 ## Batch
 
 Read up to 20 resources in one request, each answered exactly as its own GET.
 
-| Operation | Endpoint | API-key scopes | Permission in the app |
-| :--- | :--- | :--- | :--- |
-| Read up to 20 resources in one request | POST `/api/v1/batch` | None | None |
+| Operation | API-key scopes | Permission in the app |
+| :--- | :--- | :--- |
+| Read up to 20 resources in one request<br />POST `/api/v1/batch` | None | None |

@@ -328,7 +328,7 @@ function permissionsPage() {
         'No API key required' : 'Session only';
       permissions = 'Not applicable';
     }
-    return `| ${operationName(summary)} | ${method} ${code(route)} | ${scopes} | ${permissions} |`;
+    return `| ${operationName(summary)}<br />${method} ${code(route)} | ${scopes} | ${permissions} |`;
   };
   // Operations are grouped by their tag, in the spec's tag order, so each section matches the API reference.
   const byRoute = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : a.method < b.method ? -1 : a.method > b.method ? 1 : 0;
@@ -360,8 +360,8 @@ function permissionsPage() {
       `## ${cell(tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, " "))}`,
       '',
       ...(tagDescription.get(tag) ? [cell(tagDescription.get(tag)), ''] : []),
-      '| Operation | Endpoint | API-key scopes | Permission in the app |',
-      '| :--- | :--- | :--- | :--- |',
+      '| Operation | API-key scopes | Permission in the app |',
+      '| :--- | :--- | :--- |',
       ...operations.filter((op) => op.tag === tag).sort(byRoute).map(row),
       '',
     ]),
