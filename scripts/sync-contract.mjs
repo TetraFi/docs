@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The public contract pages come from the RFQ repository's committed contract files, never from a hand copy:
 //   - tetrafi-rfq/docs/api/COMPATIBILITY.md         → compatibility.mdx
-//   - tetrafi-rfq/docs/api/integrator/openapi.json  → api-reference/openapi.json (when it exists), reference/permissions.mdx
+//   - tetrafi-rfq/docs/api/integrator/openapi.json  → api-reference/openapi.json (when it exists), reference/permissions.mdx,
+//     reference/endpoints.mdx and the API reference tab's endpoint groups in docs.json
 //   - tetrafi-rfq/docs/api/integrator/error-codes.json → reference/error-codes.mdx
 //   - tetrafi-rfq/docs/api/openapi.json, its x-tetrafi-webhook-event-catalogue → reference/webhook-events.mdx
 // TETRAFI_RFQ_API_DOCS overrides the source directory.
@@ -316,7 +317,7 @@ function permissionsPage() {
     missingLabels.add(scope);
     return `SCOPE_LABEL_MISSING (${cell(scope)})`;
   };
-  const row = ({ route, method, summary, security }) => {
+  const access = ({ security }) => {
     const keyRequirements = security.filter((requirement) => Object.hasOwn(requirement, 'api_key'));
     let scopes;
     let permissions;
@@ -330,7 +331,11 @@ function permissionsPage() {
         'No API key required' : 'Session only';
       permissions = 'Not applicable';
     }
-    return `| ${operationName(summary)}<br />${method} ${code(route)} | ${scopes} | ${permissions} |`;
+    return { scopes, permissions };
+  };
+  const row = (op) => {
+    const { scopes, permissions } = access(op);
+    return `| ${operationName(op.summary)}<br />${op.method} ${code(op.route)} | ${scopes} | ${permissions} |`;
   };
   // Operations are grouped by their tag, in the spec's tag order, so each section matches the API reference.
   const byRoute = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : a.method < b.method ? -1 : a.method > b.method ? 1 : 0;
@@ -367,15 +372,100 @@ function permissionsPage() {
       ...operations.filter((op) => op.tag === tag).sort(byRoute).map(row),
       '',
     ]),
-  ].join('\n'), withheld: null, missingLabels: [...missingLabels].sort() };
+  ].join('\n'), withheld: null, missingLabels: [...missingLabels].sort(), operations, access, operationName, code };
 }
 const permissions = permissionsPage();
+
+// The API reference sidebar and its "Endpoints at a glance" page group the operations by task, not by
+// spec tag. Every tag must belong to a group, so a new tag fails the sync instead of vanishing.
+const ENDPOINT_GROUPS = [
+  { group: 'Authentication', tags: ['auth'], guide: '/authentication', purpose: 'Check the credential you call with, or exchange service-account credentials for a token.' },
+  { group: 'Assets and prices', tags: ['trading'], guide: '/search/prices', purpose: 'Discover what you can trade and read indicative prices before you ask for a quote.' },
+  { group: 'Quotes', tags: ['quotes'], guide: '/search/how-it-works', purpose: 'Ask every venue your workspace can use for a quote in one request, and read a request back.' },
+  { group: 'Orders', tags: ['orders'], guide: '/trade/orders', purpose: 'Order a quote by its id, follow the order, recover it by quote and cancel it.' },
+  { group: 'Trades and settlement', tags: ['trades', 'settlements'], guide: '/trade/settlement-and-credit', purpose: 'Read your trades, how each settles, and the settlement plan, windows and movements per venue account.' },
+  { group: 'Balances and accounts', tags: ['treasury', 'venue-accounts', 'venue-enablements', 'workspaces'], guide: '/trade/balances', purpose: 'Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do.' },
+  { group: 'Webhooks', tags: ['webhooks'], guide: '/trade/webhooks', purpose: 'Receive order and trade updates by webhook, and manage endpoints, deliveries and secrets.' },
+  { group: 'Batch', tags: ['batch'], guide: '/reference/conventions#read-several-resources-at-once', purpose: 'Run up to 20 reads in one request.' },
+];
+// An operation whose guide is not its group's.
+const ENDPOINT_GUIDES = {
+  'GET /api/v1/assets': '/search/how-it-works',
+  'GET /api/v1/quotes/requests/{quoteRequestId}': '/search/how-it-works',
+  'GET /api/v1/orders': '/trade/order-status',
+  'GET /api/v1/orders/{orderId}': '/trade/order-status',
+  'GET /api/v1/workspaces/{workspaceId}/capabilities': '/before-you-trade',
+  'GET /api/v1/workspaces/{workspaceId}/venue-enablements': '/trade/wallets-and-accounts',
+};
+// Mintlify names an operation page api-reference/<tag>/<summary>, lowercased and hyphenated, with
+// apostrophes dropped ("account's" becomes "accounts").
+const WORKSPACE_PREFIX = '/api/v1/workspaces/{workspaceId}';
+const pageSlug = (text) => text.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function endpointMap() {
+  if (!permissions.operations) return { page: null, nav: null };
+  const ops = permissions.operations;
+  for (const tag of new Set(ops.map((op) => op.tag))) {
+    if (!ENDPOINT_GROUPS.some(({ tags }) => tags.includes(tag))) throw new Error(`SPEC_TAG_UNGROUPED ${tag}`);
+  }
+  const verbs = { GET: 0, POST: 1, PATCH: 2, PUT: 3, DELETE: 4 };
+  const order = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : verbs[a.method] - verbs[b.method];
+  const groups = ENDPOINT_GROUPS.map((g) => ({ ...g, ops: g.tags.flatMap((tag) => ops.filter((op) => op.tag === tag).sort(order)) }));
+  const nav = groups.map(({ group, ops: list }) => ({ group, openapi: 'api-reference/openapi.json', pages: list.map((op) => `${op.method} ${op.route}`) }));
+  const title = (op) => (op.summary ?? '').split(/\r?\n/).find((part) => part.trim())?.trim() ?? '';
+  const page = [
+    '---',
+    'title: "Endpoints at a glance"',
+    `description: "All ${ops.length} API operations by task, with the scopes each needs and the guide that walks through it."`,
+    '---',
+    '',
+    '{/* Generated by scripts/sync-contract.mjs from tetrafi-rfq docs/api/integrator/openapi.json. Edit the source, then run npm run sync. */}',
+    '',
+    `Paths are relative to the [base URL](/reference/conventions#requests); \`…\` stands for \`${WORKSPACE_PREFIX}\`. Click an endpoint for its parameters, responses and a request you can try; [Permissions](/reference/permissions) explains the scopes.`,
+    '',
+    '<CardGroup cols={2}>',
+    ...groups.map(({ group, purpose, ops: list }) => `  <Card title="${group}" href="#${pageSlug(group)}">${list.length} ${list.length === 1 ? 'endpoint' : 'endpoints'}. ${purpose}</Card>`),
+    '</CardGroup>',
+    '',
+    ...groups.flatMap(({ group, purpose, guide, ops: list }) => [
+      `## ${group}`,
+      '',
+      `${purpose} Guide: [${group}](${guide}).`,
+      '',
+      '| Endpoint | What it does | API-key scopes |',
+      '| :--- | :--- | :--- |',
+      ...list.map((op) => {
+        const href = `/api-reference/${pageSlug(op.tag)}/${pageSlug(title(op))}`;
+        const guideLink = ENDPOINT_GUIDES[`${op.method} ${op.route}`];
+        const what = permissions.operationName(op.summary) + (guideLink ? ` ([guide](${guideLink}))` : '');
+        const shown = op.route.replace(WORKSPACE_PREFIX, '…');
+        return `| [${op.method} ${permissions.code(shown)}](${href}) | ${what} | ${permissions.access(op).scopes} |`;
+      }),
+      '',
+    ]),
+  ].join('\n');
+  return { page, nav };
+}
+const endpoints = endpointMap();
+// docs.json keeps its hand-written navigation; only the API reference tab's endpoint groups are generated.
+function docsJson() {
+  if (!endpoints.nav) return null;
+  const doc = JSON.parse(readFileSync(path.join(root, 'docs.json'), 'utf8'));
+  const tab = doc.navigation?.tabs?.find((t) => t.tab === 'API reference');
+  if (!tab) throw new Error('DOCS_JSON_API_REFERENCE_TAB_MISSING');
+  const first = tab.groups.findIndex((g) => g.openapi);
+  if (first < 0) throw new Error('DOCS_JSON_ENDPOINT_GROUPS_MISSING');
+  const kept = tab.groups.filter((g) => !g.openapi);
+  kept.splice(first, 0, ...endpoints.nav);
+  tab.groups = kept;
+  return `${JSON.stringify(doc, null, 2)}\n`;
+}
 
 const outputs = [['compatibility.mdx', compatibilityPage()]];
 if (reference.spec) outputs.push([path.join('api-reference', 'openapi.json'), reference.spec]);
 if (errorCodes.page) outputs.push([path.join('reference', 'error-codes.mdx'), errorCodes.page]);
 if (webhookEvents.page) outputs.push([path.join('reference', 'webhook-events.mdx'), webhookEvents.page]);
 if (permissions.page) outputs.push([path.join('reference', 'permissions.mdx'), permissions.page]);
+if (endpoints.page) outputs.push([path.join('reference', 'endpoints.mdx'), endpoints.page], ['docs.json', docsJson()]);
 
 const staleReference = !reference.spec && existsSync(path.join(root, 'api-reference', 'openapi.json'));
 const staleErrorCodes = !errorCodes.page && existsSync(path.join(root, 'reference', 'error-codes.mdx'));

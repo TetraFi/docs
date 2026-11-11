@@ -26,7 +26,7 @@ function anchors(page) {
 
 const files = execFileSync('git', ['ls-files', '*.mdx'], { encoding: 'utf8' })
   .split('\n')
-  .filter((f) => f && !f.startsWith('.archive/') && !f.startsWith('snippets/'));
+  .filter((f) => f && !f.startsWith('.archive/') && !f.startsWith('snippets/') && existsSync(f));
 
 const link = /(?:\]\(|href=["'])(\/[a-z0-9/_-]*)?#([a-z0-9_-]+)[)"']/g;
 const broken = [];
