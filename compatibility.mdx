@@ -58,20 +58,20 @@ your last upgrade before you update a client.
 
 ## What your client should do
 
-- [ ] **Ignore fields you don't know.** Response objects can gain fields at any time, so don't
+- **Ignore fields you don't know.** Response objects can gain fields at any time, so don't
   validate them as closed.
-- [ ] **Treat unknown enum values as "other".** Every response enum and tagged union in the spec is
+- **Treat unknown enum values as "other".** Every response enum and tagged union in the spec is
   marked `x-extensible-enum`. Handle the values you know, and give anything else a neutral fallback:
   - a quote source with an unknown `status` is a source you can't use;
   - a `next` action with an unknown `kind` is a step you can't take automatically.
-- [ ] **Handle unknown error codes by status.** Act on the codes you know, and treat any other code by
+- **Handle unknown error codes by status.** Act on the codes you know, and treat any other code by
   its HTTP status class:
   - `429` or `503`: retry after `Retry-After`;
   - any other `4xx`: fix the request;
   - `5xx`: retry with backoff.
-- [ ] **Send only documented request fields.** Request bodies stay strict: an unknown field answers
+- **Send only documented request fields.** Request bodies stay strict: an unknown field answers
   `400 INVALID_REQUEST` naming it, so a typo never passes silently.
-- [ ] **Discover values instead of hard-coding them.** Assets, chains and venues come from
+- **Discover values instead of hard-coding them.** Assets, chains and venues come from
   `GET /api/v1/assets` and from quote responses. A venue or asset can be added without any change to
   your code.
 
