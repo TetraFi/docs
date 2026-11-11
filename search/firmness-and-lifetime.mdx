@@ -9,8 +9,8 @@ Each quote states what its venue commits to in `quality`, and until when in `exp
 
 | `quality` | What it guarantees | How to recognise it | Can you order it? |
 | --- | --- | --- | --- |
-| `firm` | The venue delivers exactly `buy.amount` until `expiresAt`. | `firm: true` and `expiresAt` set. `minOut` and `staleAfter` are `null`. | Yes, until `expiresAt`. |
-| `executable` | The venue trades until `expiresAt`. Delivery may move, but never below `minOut`. Order-book and AMM quotes are executable. | `firm: false`, `expiresAt` set and `minOut` set by your [price protection](/search/filters-and-sort#price-protection). `staleAfter` is `null`. | Yes, until `expiresAt`. |
+| `firm` | The venue delivers exactly `buy.amount` until `expiresAt`. | `firm: true` and `expiresAt` set. `minOut` and `staleAfter` are `null`. | When `next.kind` is `order`, until `expiresAt`. A `fund` quote is refused with `409 FUNDING_SHORTFALL`. |
+| `executable` | The venue trades until `expiresAt`. Delivery may move, but never below `minOut`. Order-book and AMM quotes are executable. | `firm: false`, `expiresAt` set and `minOut` set by your [price protection](/search/filters-and-sort#price-protection). `staleAfter` is `null`. | When `next.kind` is `order`, until `expiresAt`. A `fund` quote is refused with `409 FUNDING_SHORTFALL`. |
 | `indicative` | Nothing: it is the venue's current price, not a commitment. | `firm: false`, `expiresAt` `null` and `staleAfter` set. `minOut` is `null`. | Only when `next.kind` is `order`, with `minReceive` ([below](#order-an-indicative-quote)). |
 
 - `firm` and `expiresAt` repeat `quality` in two fields. Treat a `quality` you do not recognise as `indicative`.

@@ -80,7 +80,7 @@ Paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`. Every `
 | Test | `POST …/deliveries` with `{"kind":"test"}` | `201` with a delivery record; your endpoint receives `webhook.test`. The `201` is not your receiver's acknowledgement: check `success`, `statusCode` and `errorMessage`. |
 | Rotate the secret | `POST …/rotate` | `200` with the new `secret`; a replay of the same key returns `secret: null`. For 24 hours, deliveries carry both secrets' signatures, so either verifies while you deploy. |
 | List deliveries | `GET …/deliveries` | `items`, `totalCount`, `nextCursor` and `retention`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. |
-| Redeliver | `POST …/deliveries/{deliveryId}/retry` | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Not deduplicated. |
+| Redeliver | `POST …/deliveries/{deliveryId}/retry` | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Not deduplicated: it can deliver the event again. |
 | Resume | `POST …/resume` | Reactivates a paused endpoint. Then redeliver what it missed. |
 | Read, change, remove | `GET`, `PATCH`, `DELETE` on the endpoint | |
 
