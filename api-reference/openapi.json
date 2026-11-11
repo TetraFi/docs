@@ -833,6 +833,19 @@
               "null"
             ]
           },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The item's `Deprecation`, `Sunset`, `Link`, `Retry-After` and `Cache-Control` headers,\nlower-case names, when it sends any.",
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
           "id": {
             "description": "The item's `id`.",
             "type": "string"
@@ -13663,13 +13676,13 @@
             "changeAmount": "#/components/schemas/QuoteSourceFix/oneOf/4",
             "changePair": "#/components/schemas/QuoteSourceFix/oneOf/15",
             "changeSide": "#/components/schemas/QuoteSourceFix/oneOf/14",
-            "createOrganisationWallet": "#/components/schemas/QuoteSourceFix/oneOf/17",
+            "createOrganisationWallet": "#/components/schemas/QuoteSourceFix/oneOf/18",
             "enableVenue": "#/components/schemas/QuoteSourceFix/oneOf/5",
             "finishOnboarding": "#/components/schemas/QuoteSourceFix/oneOf/11",
-            "grantKeyOrganisationWallet": "#/components/schemas/QuoteSourceFix/oneOf/18",
+            "grantKeyOrganisationWallet": "#/components/schemas/QuoteSourceFix/oneOf/19",
             "linkWallet": "#/components/schemas/QuoteSourceFix/oneOf/3",
             "manageVenueAccount": "#/components/schemas/QuoteSourceFix/oneOf/6",
-            "none": "#/components/schemas/QuoteSourceFix/oneOf/19",
+            "none": "#/components/schemas/QuoteSourceFix/oneOf/20",
             "reduceAmount": "#/components/schemas/QuoteSourceFix/oneOf/7",
             "refreshCredit": "#/components/schemas/QuoteSourceFix/oneOf/10",
             "requestAgain": "#/components/schemas/QuoteSourceFix/oneOf/13",
@@ -13677,6 +13690,7 @@
             "reviewPositions": "#/components/schemas/QuoteSourceFix/oneOf/8",
             "reviewSettlementSchedule": "#/components/schemas/QuoteSourceFix/oneOf/9",
             "setUpEmbeddedWallets": "#/components/schemas/QuoteSourceFix/oneOf/16",
+            "setUpSigningGrant": "#/components/schemas/QuoteSourceFix/oneOf/17",
             "switchWallet": "#/components/schemas/QuoteSourceFix/oneOf/2",
             "topUp": "#/components/schemas/QuoteSourceFix/oneOf/1",
             "waitUntil": "#/components/schemas/QuoteSourceFix/oneOf/12"
@@ -14075,6 +14089,33 @@
             "type": "object"
           },
           {
+            "description": "Set up a signing grant for `venueId` on the paying wallet (Treasury › the wallet › Signing):\nthe wallet has no active grant for this venue, so it was not asked. One of the wallet's\nowners sets it up; no permission request reaches a grant. `walletId` is absent when the\nsource can't name the paying wallet, never guessed.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "setUpSigningGrant"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "venueId": {
+                "type": "string"
+              },
+              "walletId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "venueId",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
             "description": "Create an organisation wallet on `network`: the workspace has none there that the caller\ncan trade from, so the venue (a Basic on-chain account) has nothing to quote for. Treasury\ncreates it; the venue's own setup follows.",
             "properties": {
               "kind": {
@@ -14411,6 +14452,18 @@
             "properties": {
               "amount": {
                 "$ref": "#/components/schemas/DecimalAmount"
+              },
+              "held": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DecimalAmount",
+                    "description": "The pay asset already held for this wallet's or account's own trades that have\nnot settled; absent when nothing is held."
+                  }
+                ],
+                "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
               },
               "how": {
                 "$ref": "#/components/schemas/FundingMethod"
@@ -25139,7 +25192,7 @@
     },
     "/api/v1/batch": {
       "post": {
-        "description": "Each item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. Item bodies are limited to 8 MiB in all (an item past it answers 413 `BATCH_RESPONSE_TOO_LARGE`), and a batch with its related reads makes at most 200 reads (past it an item answers 429 `SUB_REQUEST_BUDGET_EXHAUSTED`). The answer is `Cache-Control: private, no-store`. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately.",
+        "description": "Each item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. Item bodies are limited to 8 MiB in all (an item past it answers 413 `BATCH_RESPONSE_TOO_LARGE`), and a batch with its related reads makes at most 200 reads (past it an item answers 429 `SUB_REQUEST_BUDGET_EXHAUSTED`). The answer is `Cache-Control: private, no-store`. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately. An API key or OAuth client batches only operations of this reference; each item must be dispatched to the operation it names, else it answers `BATCH_UNKNOWN_ROUTE`. An item keeps its `Deprecation`, `Sunset`, `Link`, `Retry-After` and `Cache-Control` headers in `headers`.",
         "operationId": "batch_reads",
         "parameters": [
           {
