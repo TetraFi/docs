@@ -10,24 +10,27 @@ import QuickstartOrder from '/snippets/samples/quickstart-order.mdx'
 import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
 import TestSafelyMinimums from '/snippets/samples/test-safely-minimums.mdx'
 
-This guide walks through one script, [`samples/http/quickstart.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/quickstart.sh): it lists the assets your workspace can trade, asks every venue for a quote on 10 USDC to USDT, and orders the best one. Start in the [sandbox](/overview#environments), where assets are testnet assets.
+Get quotes on 10 USDC to USDT from every venue your workspace can use, and order the best one. Start in the [sandbox](/overview#environments), with testnet assets.
 
-Each step shows the script's code under **cURL**, which you can paste into one Bash session. The **TypeScript SDK** tab shows the same step in TetraFi's TypeScript SDK, which is coming soon to npm; its example quotes USDC for ETH and waits for the order to end.
+Paste the **cURL** steps into one Bash session. The **TypeScript SDK** tab (SDK coming soon to npm) quotes USDC for ETH and waits for the order to end.
 
-You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic).
+**You need:**
 
-## Get a key
-
-Create the key in the app of the environment you use: the sandbox app at `https://dev.tetrafi.io`, or production. You must be a workspace owner or admin who manages credentials, signed in with a second factor.
-
-1. Open **Settings**, find **Personal API keys** under **Your account**, then select **Open API keys** and **Create key**.
-2. Enter a **Name**, and under **Permissions** tick **Read quotes**, **Submit orders** and **Read orders**.
-3. Switch **Venue trading** on and select **Create key**.
-4. Copy **API Key** and **Request-signing secret** to your secret manager, separately: both are shown once.
-
-Venue trading lets TetraFi trade on your venue accounts with this key, and turns on request signing. [Authentication](/authentication) explains each permission. To order, your workspace also needs company details, a connected venue account and funds in it: [Before your first trade](/before-you-trade) covers them. Quotes work without them.
+- `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic).
+- To order (not to quote): company details, a venue account and funds ([Before your first trade](/before-you-trade)).
 
 <Steps>
+  <Step title="Get a key">
+    In the app of your environment (the sandbox app is `https://dev.tetrafi.io`), sign in with a second factor as a workspace owner or admin who manages credentials.
+
+    1. Open **Settings**, find **Personal API keys** under **Your account**, then select **Open API keys** and **Create key**.
+    2. Enter a **Name**, and under **Permissions** tick **Read quotes**, **Submit orders** and **Read orders**.
+    3. Switch **Venue trading** on and select **Create key**. It lets TetraFi trade on your venue accounts with this key, and turns on request signing.
+    4. Copy **API Key** and **Request-signing secret** to your secret manager, separately: both are shown once.
+
+    [Authentication](/authentication) explains each permission.
+  </Step>
+
   <Step title="Set your environment">
     ```bash
     export TETRAFI_BASE_URL=https://api-dev.tetrafi.io   # the sandbox
@@ -36,19 +39,19 @@ Venue trading lets TetraFi trade on your venue accounts with this key, and turns
     export TETRAFI_WORKSPACE_ID=...                      # the TypeScript SDK example needs it
     ```
 
-    The cURL script needs no workspace id: the key implies its workspace. The TypeScript SDK example does: find it in the app's workspace settings, on the **General** tab, as **Workspace ID**.
+    cURL needs no workspace id: the key implies it. The SDK does: find it under workspace settings, **General**, **Workspace ID**.
 
-    The script starts with one helper, `tetrafi`, that sends a request with your key, signs it, and fails on a transport error or any non-2xx status, printing the response body. Requests time out after 60 seconds.
+    The code below sends each request with your key and [signs it](/authentication#sign-requests). It stops on a transport error or non-2xx status, printing the body. Requests time out after 60 seconds.
 
     <QuickstartClient />
   </Step>
 
   <Step title="List the assets you can trade">
-    `GET /api/v1/assets` returns every asset your workspace can trade, with its variants and chains. The script checks that both sides of the pair are listed.
+    `GET /api/v1/assets` returns every asset your workspace can trade, with its variants and chains. Check that both sides of your pair are listed.
 
     <QuickstartAssets />
 
-    ```json Response (shortened)
+    ```json Response (shortened) expandable
     {
       "items": [
         {
@@ -66,11 +69,11 @@ Venue trading lets TetraFi trade on your venue accounts with this key, and turns
   </Step>
 
   <Step title="Request quotes and pick the best">
-    `POST /api/v1/quotes` asks every venue at once. The body names what you sell, what you buy and `sellAmount`, the exact amount you sell ([Request quotes](/search/how-it-works)). Quotes come back best first; the script takes the first whose `next.kind` is `order`. If none is, it prints every venue's outcome from `sources` and stops.
+    `POST /api/v1/quotes` asks every venue at once for what you sell, what you buy and `sellAmount`, the exact amount you sell ([Request quotes](/search/how-it-works)). Take the first quote whose `next.kind` is `order`; if none is, read `sources` ([below](#if-something-goes-wrong)).
 
     <QuickstartQuote />
 
-    ```json Response (shortened)
+    ```json Response (shortened) expandable
     {
       "quoteRequestId": "rq_01M5…",
       "venueAsked": true,
@@ -94,7 +97,7 @@ Venue trading lets TetraFi trade on your venue accounts with this key, and turns
     }
     ```
 
-    | Variable | Default | What it changes |
+    | Variable | Default | Sets |
     | --- | --- | --- |
     | `TETRAFI_SELL`, `TETRAFI_BUY` | `USDC`, `USDT` | The pair. |
     | `TETRAFI_AMOUNT` | `10` | The amount you sell. |
@@ -104,15 +107,16 @@ Venue trading lets TetraFi trade on your venue accounts with this key, and turns
   </Step>
 
   <Step title="Place the order">
-    `POST /api/v1/orders` with the quote id places the order on the held terms, with an `Idempotency-Key` you generate and keep: a retry with the same key and body returns the first answer instead of a second order.
+    `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` you generate and keep: a retry with the same key and body returns the first answer, never a second order.
 
-    When the quote's `minReceiveRequired` is `true`, the script sends `minReceive`: the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS`, rounded down to the asset's decimals, calculated as decimal strings in `bc`. Before sending, it saves `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you; keep it even after success.
-
-    <QuickstartOrder />
+    - When `minReceiveRequired` is `true`, send `minReceive`: the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS`, rounded down to the asset's decimals, calculated on decimal strings.
+    - Before sending, save `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you. Keep it after success.
 
     <Warning>
-    The script orders only when you set `TETRAFI_PLACE_ORDER=1`, and an order cannot be undone. In production it trades real assets: start with the smallest amount the venue takes ([below](#find-the-smallest-amount-a-venue-takes)).
+    An order cannot be undone, and in production it trades real assets. The cURL step orders only with `TETRAFI_PLACE_ORDER=1`: start with the [smallest amount the venue takes](#find-the-smallest-amount-a-venue-takes).
     </Warning>
+
+    <QuickstartOrder />
 
     ```json Response (shortened)
     {
@@ -125,49 +129,22 @@ Venue trading lets TetraFi trade on your venue accounts with this key, and turns
       "operation": { "connectionId": "1586…", "operationId": "acb8…" }
     }
     ```
-
-    A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable answer does not prove the order failed. The script stops with recovery commands that resend the saved body and key and read the order by its quote. Never rerun the whole script or place a fresh order for this trade ([Retries and recovery](/trade/retries-and-recovery)).
   </Step>
 
   <Step title="Read the status">
-    Read the order at its `statusUrl`. The script reads once; your code polls every 10 to 15 seconds until `terminal` is `true`. `outcomeUnknown` is not a failure: keep reading ([Order status](/trade/order-status)).
+    Read the order at its `statusUrl` every 10 to 15 seconds until `terminal` is `true` (the cURL step reads once). `outcomeUnknown` is not a failure: keep reading ([Order status](/trade/order-status)). The trade also appears in the app under **Trades**.
 
     <QuickstartStatus />
 
     ```json Output
     {"kind":"basicTrade","id":"f507…","status":"filled","idempotencyKey":"bef0…"}
     ```
-
-    In the app, the same trade appears under **Trades**.
   </Step>
 </Steps>
 
-## Run the whole script
-
-```bash
-TETRAFI_PLACE_ORDER=1 bash samples/http/quickstart.sh
-```
-
-Progress goes to stderr and the one-line summary to stdout, so `| jq` works on it. Without `TETRAFI_PLACE_ORDER=1`, the summary reads `"ordered": false`.
-
-## If nothing quotes
-
-When no quote's `next.kind` is `order`, the script stops with `NO_ACTIONABLE_QUOTE` and lists each venue's `status` and `reason`:
-
-| `status` and `reason` | What to do |
-| --- | --- |
-| `restricted`, `venueTradeScopeRequired` | Use a key with venue trading. |
-| `unavailable`, `notConnected` | [Connect a venue account](/before-you-trade#connect-a-venue-account), or ignore that venue. |
-| `unavailable`, `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | [Grant the key organisation wallets](/before-you-trade#give-a-key-organisation-wallets). |
-| `unavailable`, `advancedModeDisabled` | Nothing: the venue is Advanced, which is not open yet. |
-| `unsupported`, `pairNotServed` | Nothing, or try another pair. |
-| A quote whose `next.kind` is `fund` | The account holds less than you sell, by `readiness.amount`: fund it. |
-
-[Error codes](/reference/error-codes#source-reasons) lists every reason.
-
 ## Find the smallest amount a venue takes
 
-Quotes cost nothing; only an order moves assets. Before your first production order, find each venue's minimum: [`samples/http/test-safely.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/test-safely.sh) asks for quotes at 1, 5, 10 and 25 USDC, one request every 3 seconds, and prints the smallest amount each venue answered at. It orders nothing.
+Quotes cost nothing; only an order moves assets. Before your first production order, quote 1, 5, 10 and 25 USDC, one request every 3 seconds, and note the smallest amount each venue answers. Nothing is ordered.
 
 <TestSafelyMinimums />
 
@@ -177,4 +154,43 @@ Quotes cost nothing; only an order moves assets. Before your first production or
 {"venue":"keyrock-rfq","smallest":null,"triedUpTo":"25","status":"unsupported","reason":"pairNotServed"}
 ```
 
-A venue that needs more reads a reason such as `sizeNotEligible` or `amountBelowMinimum`. Set `TETRAFI_AMOUNT` to that minimum for your first order, and revoke test keys when you are done. Next: [Before your first trade](/before-you-trade) and the [go-live checklist](/recipes/go-live-checklist).
+A venue that needs more reads a reason such as `sizeNotEligible` or `amountBelowMinimum`. Use that minimum as `TETRAFI_AMOUNT` for your first order, and revoke test keys when done.
+
+## If something goes wrong
+
+<AccordionGroup>
+  <Accordion title="No quote can be ordered">
+    Read each venue's `status` and `reason` in `sources`:
+
+    | `status` and `reason` | What to do |
+    | --- | --- |
+    | `restricted`, `venueTradeScopeRequired` | Use a key with venue trading. |
+    | `unavailable`, `notConnected` | [Connect a venue account](/before-you-trade#connect-a-venue-account), or ignore that venue. |
+    | `unavailable`, `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable` | [Grant the key organisation wallets](/before-you-trade#give-a-key-organisation-wallets). |
+    | `unavailable`, `advancedModeDisabled` | Nothing: the venue is Advanced, which is not open yet. |
+    | `unsupported`, `pairNotServed` | Nothing, or try another pair. |
+    | A quote whose `next.kind` is `fund` | The account holds less than you sell, by `readiness.amount`: fund it. |
+
+    [Error codes](/reference/error-codes#source-reasons) lists every reason.
+  </Accordion>
+
+  <Accordion title="The order answer is unclear">
+    A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable answer does not prove the order failed. Resend the saved body with the same `Idempotency-Key`, or read the order by its quote. Never place a fresh order for this trade ([Retries and recovery](/trade/retries-and-recovery)).
+  </Accordion>
+</AccordionGroup>
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh">
+  Lists assets, gets quotes and, with `TETRAFI_PLACE_ORDER=1`, orders the best one.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Before your first trade" icon="list-check" href="/before-you-trade">
+    Company details, a venue account, funds and wallet grants.
+  </Card>
+
+  <Card title="Go-live checklist" icon="flag-checkered" href="/recipes/go-live-checklist">
+    What to have in place before production.
+  </Card>
+</CardGroup>

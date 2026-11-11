@@ -1,17 +1,26 @@
 ---
 title: "Before your first trade"
-description: "Set up your workspace once so orders can execute: company details, a connected venue account, funds, wallet grants for your key, and one readiness check."
+description: "Set up your workspace once so orders can execute: company details, a venue account, funds, wallet grants for your key, and a readiness check."
 ---
 
 import MeOrganisationWallets from '/snippets/samples/me-organisation-wallets.mdx';
 
-Quotes only need a key. An order also needs a workspace that may trade, an account or wallet to trade from, and funds in it. Do these once, in the app, then check them from your backend.
+Quotes only need a key. An order also needs a workspace that may trade, an account or wallet to trade from, and funds in it: set these up once in the app, then check them from your backend.
 
 ## Complete your company details
 
-A company, broker or liquidity provider workspace can request quotes, place orders and connect to counterparties once its company details are on file: legal name, country of incorporation, registration number and registered address. Add them in the app under **Company profile**. Until then, those requests answer `403 CAPABILITY_BLOCKED`, and each entry in `details.capabilityBlockers` names one thing to fix:
+A company, broker or liquidity provider workspace can request quotes, place orders and connect to counterparties once its company details are on file. Add its legal name, country of incorporation, registration number and registered address in the app under **Company profile**.
 
-```json Refusal
+Until then, those requests answer `403 CAPABILITY_BLOCKED`, and each entry in `details.capabilityBlockers` names one thing to fix:
+
+| Code | What to do |
+| --- | --- |
+| `BASE_PROFILE_INCOMPLETE` | Add the company details listed in `currentlyDue`. |
+| `KYC_NOT_VERIFIED` | In a direct user's own workspace: complete the user's identity verification in the app. |
+| `503 CAPABILITY_UNAVAILABLE` with `BASE_PROFILE_UNREADABLE` | The details could not be read just now: send the request again shortly. |
+| A blocker you do not recognise | Follow its `message` and `unlockStep`. |
+
+```json Refusal expandable
 {
   "error": "CAPABILITY_BLOCKED",
   "message": "Add your company details (legal name, country of incorporation, registration number and registered address) in the TetraFi app under Company profile to start trading",
@@ -28,35 +37,45 @@ A company, broker or liquidity provider workspace can request quotes, place orde
 }
 ```
 
-In a direct user's own workspace, the blocker `KYC_NOT_VERIFIED` asks for the user's identity verification, also in the app. `503 CAPABILITY_UNAVAILABLE` with `BASE_PROFILE_UNREADABLE` means the details could not be read just now: send the request again shortly. Treat a blocker code you do not recognise by its `message` and `unlockStep`.
-
 ## Connect a venue account
 
-Exchange and OTC venue accounts are connected in the app by someone who can manage your workspace's venues:
+Someone who can manage your workspace's venues connects exchange and OTC venue accounts in the app:
 
-1. Open **Counterparties** and choose the venue's liquidity provider.
-2. Select **Set up \<provider\> account**.
-3. Work through **Integration mode**, **Account** and **Venues**, entering the credentials the venue asks for.
-4. In **Verification**, TetraFi checks each venue you added. Select **Check again** to repeat a check, then **Review setup**.
+<Steps>
+  <Step title="Choose the provider">
+    Open **Counterparties**, choose the venue's liquidity provider and select **Set up \<provider\> account**.
+  </Step>
+
+  <Step title="Enter the account">
+    Work through **Integration mode**, **Account** and **Venues**, entering the credentials the venue asks for.
+  </Step>
+
+  <Step title="Verify">
+    In **Verification**, TetraFi checks each venue you added. Select **Check again** to repeat a check, then **Review setup**.
+  </Step>
+</Steps>
 
 Its quotes then appear for members and keys allowed to trade on venue accounts, with `tradingSource.kind` `venueAccount`. Without an account, a venue reads `unavailable` with `notConnected`.
 
 ## Fund it
 
-A Basic order spends what the account or wallet already holds. `GET …/venue-accounts/{venueAccountId}/deposit-instructions` lists where an exchange account takes deposits, and [Balances](/trade/balances) shows what each account holds. A quote whose `next.kind` is `fund` has a paying account that is short by `readiness.amount`, and an order on it is refused with `409 FUNDING_SHORTFALL`: fund the account, then get a new price.
+A Basic order spends what the account or wallet already holds.
+
+- `GET …/venue-accounts/{venueAccountId}/deposit-instructions` lists where an exchange account takes deposits; [Balances](/trade/balances) shows what each account holds.
+- A quote whose `next.kind` is `fund` has a paying account short by `readiness.amount`. An order on it is refused with `409 FUNDING_SHORTFALL`: fund the account, then get a new price.
 
 ## Give a key organisation wallets
 
-An API key trades from an organisation wallet only when the wallet is granted to it, and the key must already have venue trading ([Authentication](/authentication#trade-on-your-venue-accounts)). Exchange and OTC venue accounts need no wallet grant.
+An API key trades from an organisation wallet only when the wallet is granted to it, and only with venue trading ([Authentication](/authentication#trade-on-your-venue-accounts)). Venue accounts need no wallet grant.
 
-**Create API key** with venue trading already grants your workspace's default organisation wallets that you hold a Trade right on. To change the grant, open **Settings**, then **Open API keys** under **Personal API keys**, expand the key and choose its **Wallets** tab: **Grant** adds a wallet, **Revoke** removes one.
+**Create API key** with venue trading grants your workspace's default organisation wallets that you hold a Trade right on. To change it, open **Settings**, **Open API keys** under **Personal API keys**, expand the key and choose **Wallets**: **Grant** adds a wallet, **Revoke** removes one.
 
-- **The key's owner** can add the workspace's default organisation wallets they hold a Trade right on, and revoke any grant. Another wallet is refused with `API_KEY_ORGANISATION_WALLET_NOT_A_DEFAULT`, one without your Trade right with `API_KEY_ORGANISATION_WALLET_TRADE_RIGHT_REQUIRED`.
-- **A workspace owner, or an admin who manages credentials**, can grant any active organisation wallet of the workspace. A service-account key gets wallets only this way.
+- **The key's owner** can grant the workspace's default organisation wallets they hold a Trade right on, and revoke any grant. Another wallet is refused with `API_KEY_ORGANISATION_WALLET_NOT_A_DEFAULT`, one without your Trade right with `API_KEY_ORGANISATION_WALLET_TRADE_RIGHT_REQUIRED`.
+- **A workspace owner, or an admin who manages credentials**, can grant any active organisation wallet of the workspace. This is the only way a service-account key gets wallets.
+- **Every change** needs a sign-in with a second factor (otherwise `MFA_REQUIRED`), in the app: a key cannot change its own grants.
+- **At trade time** the key's owner still needs trading rights on the wallet, and the key needs **Read quotes** and **Submit orders**. An admin-granted wallet its owner cannot trade is refused.
 
-At trade time the key's owner still needs trading rights on the wallet, and the key needs **Read quotes** and **Submit orders**: an admin-granted wallet its owner cannot trade is refused.
-
-Every change needs a sign-in with a second factor (otherwise `MFA_REQUIRED`). The grants are managed only in the app: the key cannot change its own. Once granted, the wallets appear in the key's [`sourceOptions`](/trade/wallets-and-accounts#read-sourceoptions). Until then, on-chain Basic venues read `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`.
+Granted wallets appear in the key's [`sourceOptions`](/trade/wallets-and-accounts#read-sourceoptions). Until then, on-chain Basic venues read `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`.
 
 ## Check readiness from your backend
 
@@ -77,6 +96,16 @@ Every change needs a sign-in with a second factor (otherwise `MFA_REQUIRED`). Th
 
 `503 API_KEY_ORGANISATION_WALLET_AUTHORITY_UNAVAILABLE` means the grants could not be read, never an empty list: retry shortly.
 
-`GET /api/v1/workspaces/{workspaceId}/capabilities`, with the **Read compliance** permission, says for each capability, such as `request_quotes` or `submit_order`, whether it is `allowed` now, with the same `blockers` when it is not. The quote and order routes enforce the same decision.
+`GET /api/v1/workspaces/{workspaceId}/capabilities` (**Read compliance** permission) says whether each capability, such as `request_quotes` or `submit_order`, is `allowed`, with the same `blockers` when not. The quote and order routes enforce the same decision.
 
-Then run the [Quickstart](/quickstart) order step, starting with a small amount.
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Place your first order, with a small amount.
+  </Card>
+
+  <Card title="Authentication" icon="key" href="/authentication">
+    Permissions, venue trading and request signing.
+  </Card>
+</CardGroup>
