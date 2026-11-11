@@ -14,22 +14,23 @@ import SearchFirmOnly from '/snippets/samples/search-firm-only.mdx';
 import SearchSortEta from '/snippets/samples/search-sort-eta.mdx';
 import SearchPriceProtection from '/snippets/samples/search-price-protection.mdx';
 
-A search asks every venue your workspace can use. These fields narrow or reorder it:
+Narrow or reorder a search with these fields of the quote request. Each section below shows a full request.
 
-| Field | Value | Effect |
+| Field | Effect | Example |
 | --- | --- | --- |
-| `sell.chain`, `buy.chain` | A CAIP-2 chain id | That side trades on that chain. |
-| `filters.locations` | Any of `singleChain`, `crossChain`, `offChain` | Keeps only quotes that execute there. |
-| `filters.modalities` | Any of `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat` | Keeps only venues of those types. |
-| `filters.venues` | `{"include": [...], "exclude": [...]}` | Asks only the venues you name, or every venue except them. An empty `include` keeps every venue. |
-| `filters.variants` | `{"sell": "nativeOnly", "buy": "nativeOnly"}`, each `any` by default | Keeps only the native form of that side's asset. |
-| `filters.firmOnly` | `true` or `false` (default) | Keeps only firm quotes ([Firmness and lifetime](/search/firmness-and-lifetime#ask-for-firm-prices)). |
-| `sort` | `netReceived` (default) or `eta` | The order of `quotes`. |
-| `priceProtectionBps` | 0 to 1000, 30 when omitted | How far a non-firm executable quote may deliver below its quote. |
+| `sell.chain`, `buy.chain` | That side trades on that CAIP-2 chain. | `"sell": {"asset": "USDC", "chain": "eip155:8453"}` |
+| `filters.locations` | Keeps only quotes that execute there: any of `singleChain`, `crossChain`, `offChain`. | `"locations": ["singleChain"]` |
+| `filters.modalities` | Keeps only venues of those types: any of `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat`. | `"modalities": ["rfq", "orderBook"]` |
+| `filters.venues` | Asks only the venues you name (`include`), or every venue except them (`exclude`). An empty `include` keeps every venue. | `"venues": {"exclude": ["binance-orderbook"]}` |
+| `filters.variants` | `nativeOnly` keeps only the native form of that side's asset; each side is `any` by default. | `"variants": {"buy": "nativeOnly"}` |
+| `filters.firmOnly` | `true` keeps only firm quotes; `false` by default. | `"firmOnly": true` |
+| `sort` | The order of `quotes`: `netReceived` (default) or `eta`. | `"sort": "eta"` |
+| `priceProtectionBps` | How far a non-firm executable quote may deliver below its quote: 0 to 1000, 30 when omitted. | `"priceProtectionBps": 100` |
 
-A filter you leave out keeps everything. A venue must pass every filter you send to be asked. A venue that does not is listed in `sources` with `status: "filteredOut"` and `asked: false`, so you can always see what you left out; when nothing is left, `quotes` is empty and `sources` shows why.
-
-The cURL blocks below are excerpts from two quote-only scripts, [`search-basics.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/search-basics.sh) (chains) and [`search-filters.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/search-filters.sh) (everything else). Each defines `sell`, `buy`, `amount` and its signed request helper; run them with the [Quickstart](/quickstart) environment.
+- A filter you leave out keeps everything.
+- A venue must pass every filter you send to be asked.
+- A venue that does not is listed in `sources` with `status: "filteredOut"` and `asked: false`.
+- When nothing is left, `quotes` is empty and `sources` shows why.
 
 ## Chains and routes
 
@@ -42,47 +43,70 @@ An asset such as `USDC` carries no chain. Left open, a side can trade on any cha
 | `offChain` | Traded on one of your venue accounts. | `chain` is `null` on a side held on the account. |
 | `mixed` | Legs that execute in different places. Each leg has its own location. | Not a filter value: sending it is `400 INVALID_REQUEST`. |
 
-Single-chain: pin both sides to the same chain and keep `singleChain`.
+<Tabs>
+  <Tab title="Single-chain">
+    Pin both sides to the same chain and keep `singleChain`.
 
-<SearchSingleChain />
+    <SearchSingleChain />
+  </Tab>
+  <Tab title="Cross-chain">
+    Pin the two sides to different chains. To move one asset between chains, put the same asset on both sides and pin at least one. A cross-chain quote's `eta` is the expected delivery time, such as `PT10S`.
 
-Cross-chain: pin the two sides to different chains. To move one asset between chains, put the same asset on both sides and pin at least one. A cross-chain quote's `eta` is the expected delivery time, such as `PT10S`.
+    <SearchCrossChain />
+  </Tab>
+  <Tab title="Off-chain">
+    Keep `offChain` and pin no chain. Only your venue accounts answer.
 
-<SearchCrossChain />
-
-Off-chain: keep `offChain` and pin no chain. Only your venue accounts answer.
-
-<SearchOffChain />
+    <SearchOffChain />
+  </Tab>
+</Tabs>
 
 ## Venue types and venues
 
-Every venue has one type, in `venue.modality` on each source and quote leg: `amm` (an on-chain pool), `solver` (fills your order on-chain), `bridge` (moves an asset between chains), `rfq` (a desk that quotes on request through your venue account), `orderBook` (an exchange book, through your venue account) or `fiat` (between bank money and digital assets). New types can appear: treat one you do not recognise as "other".
+Every venue has one type, in `venue.modality` on each source and quote leg. Treat a type you do not recognise as "other".
+
+| `modality` | Venue |
+| --- | --- |
+| `amm` | An on-chain pool. |
+| `solver` | Fills your order on-chain. |
+| `bridge` | Moves an asset between chains. |
+| `rfq` | A desk that quotes on request, through your venue account. |
+| `orderBook` | An exchange book, through your venue account. |
+| `fiat` | Between bank money and digital assets. |
 
 <SearchModalities />
 
-`filters.venues` matches `venue.id`, the id of the route that executes, such as `binance-orderbook`. It does not match `venue.venueId`, the named venue, such as `binance`, which can have several routes. Take ids from `sources[].venue.id` or a [price](/search/prices) row's `venue.id`.
+`filters.venues` matches `venue.id`, the route that executes, such as `binance-orderbook`. It does not match `venue.venueId`, the named venue (`binance`), which can have several routes. Take ids from `sources[].venue.id` or a [price](/search/prices) row's `venue.id`.
 
 ```json
 { "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": true }
 ```
 
-<SearchVenueInclude />
+<Tabs>
+  <Tab title="Include">
+    <SearchVenueInclude />
+  </Tab>
+  <Tab title="Exclude">
+    <SearchVenueExclude />
+  </Tab>
+</Tabs>
 
-<SearchVenueExclude />
-
-Naming a desk in `filters.venues.include` is also how you ask it for a firm price when it quotes only on request; its source says so in `detail` when a broad search did not ask it.
+To ask a desk that quotes only on request for a firm price, name it in `filters.venues.include`. When a broad search did not ask it, its source says so in `detail`.
 
 ## Native only
 
-An asset can exist in several variants, listed by `GET /api/v1/assets` with a `kind`: `native` (the asset itself), `bridged` (such as `USDC.e`), `wrapped` (such as `WETH`), `omnichain` or `test`. Treat a kind you do not recognise as not native. Each quote states its variants in `sell.variant` and `buy.variant`.
+`GET /api/v1/assets` lists each asset's variants with a `kind`: `native` (the asset itself), `bridged` (such as `USDC.e`), `wrapped` (such as `WETH`), `omnichain` or `test`. Treat a kind you do not recognise as not native. Each quote states its variants in `sell.variant` and `buy.variant`.
 
-`filters.variants` with `nativeOnly` acts on each venue's routes, not on whole venues: a venue whose only route uses another variant is not asked and reads `unavailable` with the reason `onchainAssetVariantFiltered`. For example, a pool that pays out WETH drops out of a search for ETH with `buy: "nativeOnly"`, while venue accounts holding native ETH still quote.
+`nativeOnly` acts on each venue's routes, not on whole venues:
+
+- a venue whose only route uses another variant is not asked, and reads `unavailable` with the reason `onchainAssetVariantFiltered`;
+- with `buy: "nativeOnly"` on a search for ETH, a pool that pays out WETH drops out, while venue accounts holding native ETH still quote.
 
 <SearchNativeOnly />
 
 ## Firm only
 
-`filters.firmOnly: true` keeps only quotes with `quality: "firm"`. It filters after venues answer, so the same venues are asked.
+`filters.firmOnly: true` keeps only quotes with `quality: "firm"`, after the same venues answer ([Ask for firm prices](/search/firmness-and-lifetime#ask-for-firm-prices)).
 
 <SearchFirmOnly />
 
@@ -127,3 +151,18 @@ A [requote](/trade/requotes-and-expiry) can send its own `priceProtectionBps`, o
 | `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that asset; `details.value` is the chain. | Pin a chain the asset is deployed on. |
 | `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A chain or venue id TetraFi does not know; `details.value` names it. | Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
 | `INVALID_REQUEST` | A filter value is not one listed above, `filters.locations` includes `mixed`, `firmOnly` is not a boolean, `sort` is unknown, or `priceProtectionBps` is outside 0 to 1000. `message` names the field. | Fix that field. |
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/search-filters.sh">
+  Runs one quote request per filter, sort and price protection setting, without placing an order.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Firmness and lifetime" icon="clock" href="/search/firmness-and-lifetime">
+    What a quote commits to, and until when.
+  </Card>
+  <Card title="Place an order" icon="cart-shopping" href="/trade/orders">
+    Order a quote you hold by its id.
+  </Card>
+</CardGroup>

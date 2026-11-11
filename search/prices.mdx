@@ -5,11 +5,13 @@ description: "Read every venue's current price for a pair before you ask for quo
 
 import SearchPrices from '/snippets/samples/search-prices.mdx';
 
-`GET /api/v1/prices` returns each venue's current price for a pair from prices TetraFi already holds. No venue is asked, so it is fast and does not use the [quote limit](/reference/rate-limits). Use it to show prices, size a trade or choose venues, then [request quotes](/search/how-it-works) to trade.
+`GET /api/v1/prices` returns each venue's current price for a pair from prices TetraFi already holds. Use it to show prices, size a trade or choose venues, then [request quotes](/search/how-it-works) to trade.
 
-A price is never firm and can never be ordered: every row carries `firm: false`. Only a quote has an `id` you can order, and a venue that publishes no price (`priceSourceNone`) answers only a quote request.
+- No venue is asked, so it is fast and does not use the [quote limit](/reference/rate-limits).
+- A price is never firm and can never be ordered: every row carries `firm: false`. Only a quote has an `id` you can order.
+- A venue that publishes no price (`priceSourceNone`) answers only a quote request.
 
-The cURL block is an excerpt from the quote-only [`search-basics.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/search-basics.sh) script; run it with the [Quickstart](/quickstart) environment. The key needs **Read quotes** (`prices_read`).
+You need a key with **Read quotes** (`prices_read`) ([Before your first trade](/before-you-trade)).
 
 <SearchPrices />
 
@@ -24,7 +26,7 @@ The cURL block is an excerpt from the quote-only [`search-basics.sh`](https://gi
 
 ## The response
 
-```json
+```json Response expandable
 {
   "sell": "USDC",
   "buy": "ETH",
@@ -106,7 +108,22 @@ Treat a status you do not recognise as "other".
 | `400 UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. | Use values from `GET /api/v1/assets`. |
 | `400 INVALID_AMOUNT` | An amount or a size is not a positive decimal. | Send positive decimals. |
 | `400 SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same asset with no chain pinned. | Add `sell.chain` or `buy.chain`. |
-| `400 INVALID_REQUEST` | Both amounts, `sizes` with an amount, no amount at all, or an unknown parameter, such as the retired `pay`, `receive`, `amount` or `side`. | Send `sell`, `buy` and one of `sellAmount`, `buyAmount` or `sizes`. |
+| `400 INVALID_REQUEST` | Both amounts, `sizes` with an amount, no amount at all, or an unknown parameter, such as `pay`, `receive`, `amount` or `side`. | Send `sell`, `buy` and one of `sellAmount`, `buyAmount` or `sizes`. |
 | `403 INSUFFICIENT_SCOPE` | The key lacks `prices_read`. | Use a key with **Read quotes**. |
 | `429 PRICES_RATE_LIMIT`, `PRICES_STREAM_LIMIT` | Too many price reads, or streams. | Wait `Retry-After` seconds, or close a stream. |
 | `503 PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. | Retry after `Retry-After` (about 1 second). |
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/search-basics.sh">
+  Reads prices for a pair and runs the basic quote searches, without placing an order.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Request quotes" icon="magnifying-glass" href="/search/how-it-works">
+    Get orderable quotes from every venue your workspace can use.
+  </Card>
+  <Card title="Filters and sort" icon="filter" href="/search/filters-and-sort">
+    Apply the same filters to prices and quotes.
+  </Card>
+</CardGroup>

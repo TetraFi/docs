@@ -7,7 +7,7 @@ import RequoteAgain from '/snippets/samples/requote-again.mdx';
 import RequoteProtection from '/snippets/samples/requote-protection.mdx';
 import RequoteExpired from '/snippets/samples/requote-expired.mdx';
 
-A requote asks the venue of a quote you hold for a new price. You send the quote's id instead of a new search, and you get back one new quote from that venue. Requote when you want to:
+Send a quote's id to ask its venue for a new price, and get back one new quote from that venue. Requote to:
 
 - **change how it executes**: another trading wallet or venue account (`source`), destination (`deliverTo`), corridor (`corridor`) or price protection (`priceProtectionBps`);
 - **get an executable price** for an indicative quote, or a desk's firm price when its quote reads `next.kind: "requote"`;
@@ -94,3 +94,18 @@ An expired quote is refused with `410 QUOTE_EXPIRED` and nothing is sent. Requot
 | `QUOTE_RATE_LIMITED`, `VENUE_FIRM_QUOTE_LIMITED`, `BUDGET_EXHAUSTED` | 429 | The quote limit, the venue's firm-quote limit or the venue's quote budget is used up. | Wait `Retry-After` seconds; `firmAskAvailableAt` says when a desk reopens, where known. |
 | `QUOTE_STORE_UNAVAILABLE` | 503 | Held quotes cannot be read just now. | Send the same requote again after a second. |
 | `REQUOTE_TIMED_OUT` | 504 | The venue did not answer in time. | Try again, or order the original while it holds. |
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/orders.sh">
+  Requotes a quote at another price protection and refreshes a quote that expired.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Place an order" icon="cart-shopping" href="/trade/orders">
+    Order the new quote by its id.
+  </Card>
+  <Card title="Firmness and lifetime" icon="clock" href="/search/firmness-and-lifetime">
+    Every quote time and what it commits to.
+  </Card>
+</CardGroup>

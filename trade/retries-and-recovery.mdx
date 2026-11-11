@@ -7,7 +7,7 @@ import OrderIdempotentReplay from '/snippets/samples/order-idempotent-replay.mdx
 import OrderIdempotencyConflict from '/snippets/samples/order-idempotency-conflict.mdx';
 import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
 
-A timeout, dropped connection or `5xx` does not prove an order failed, and neither does `status: "outcomeUnknown"`: the trade may have filled. An order placed twice is the costly mistake, so every order carries an `Idempotency-Key`, and every uncertain outcome is resolved by reading, never by ordering again.
+Send every order with an `Idempotency-Key`, and resolve every uncertain outcome by reading, never by ordering again. A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` does not prove an order failed: the trade may have filled.
 
 ## Send a key with every order
 
@@ -15,12 +15,14 @@ Every `POST /api/v1/orders` with an API key needs an `Idempotency-Key` header, o
 
 - Generate a new random value per order, such as 32 hexadecimal characters: exactly one value, 1 to 255 bytes, with no surrounding spaces (otherwise `400 IDEMPOTENCY_KEY_INVALID`).
 - Store the key and the exact body with your record of the order **before** you send it, so a retry after a crash can reuse both.
-
-Keys are scoped to your workspace and the endpoint. Cancelling an order takes its own key the same way.
+- Keys are scoped to your workspace and the endpoint. Cancelling an order takes its own key the same way.
 
 ## Replay: same key, same body
 
-The same body with the same key returns the first answer, with the header `Idempotent-Replayed: true`, and places nothing new. The body is compared by content, so whitespace and key order do not matter. A replay of a placed order returns that order even after the quote expired.
+The same body with the same key returns the first answer, with the header `Idempotent-Replayed: true`, and places nothing else.
+
+- The body is compared by content, so whitespace and key order do not matter.
+- A replay of a placed order returns that order even after the quote expired.
 
 <OrderIdempotentReplay />
 
@@ -74,8 +76,33 @@ An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND
 
 ## The recovery sequence
 
-1. **Replay** the saved body with the saved key.
-2. **Read by quote**, even if the replay failed.
-3. **Follow** the order it names until `terminal` is `true`, through `outcomeUnknown`, `next.kind: "wait"` (read again after `retryAfter`) or `next.kind: "contact"` (contact support with `reference`).
+<Steps>
+  <Step title="Replay">
+    Send the saved body with the saved key.
+  </Step>
+  <Step title="Read by quote">
+    Read `GET /api/v1/orders/by-quote/{quoteId}`, even if the replay failed.
+  </Step>
+  <Step title="Follow">
+    Follow the order it names until `terminal` is `true`, through `outcomeUnknown`, `next.kind: "wait"` (read again after `retryAfter`) or `next.kind: "contact"` (contact support with `reference`).
+  </Step>
+</Steps>
 
-Never retry with a new key, change the body, or treat `unknown` or a failed read as "not ordered": only `notOrdered`, or a final status that did not fill, makes it safe to order again, on a new quote.
+<Warning>
+Never retry with a new key, change the body, or treat `unknown` or a failed read as "not ordered". Only `notOrdered`, or a final status that did not fill, makes it safe to order again, on a new quote.
+</Warning>
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/orders.sh">
+  Places one order, replays it with the same key, reuses the key on a changed body and recovers the order by quote.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Order status" icon="list-check" href="/trade/order-status">
+    What each status means and when it is final.
+  </Card>
+  <Card title="Errors" icon="triangle-exclamation" href="/trade/errors">
+    Read a refusal and decide whether to retry.
+  </Card>
+</CardGroup>

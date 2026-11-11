@@ -7,7 +7,11 @@ import OrderStatus from '/snippets/samples/order-status.mdx';
 import OrdersList from '/snippets/samples/orders-list.mdx';
 import OrderExecution from '/snippets/samples/order-execution.mdx';
 
-Read an order at the `statusUrl` its answer gave, `GET /api/v1/orders/{orderId}`, every 10 to 15 seconds until `terminal` is `true`, or let [webhooks](/trade/webhooks) tell you when to read it. The read answers the same envelope as the order answer, for every kind of order. The key needs **Read orders**, and any member or key of the workspace with that permission can read it. An order that does not exist, or belongs to another workspace, answers `404 ORDER_NOT_FOUND`. If you lost the order answer, [recover it by its quote](/trade/retries-and-recovery#recover-an-order-by-its-quote).
+Read an order at the `statusUrl` its answer gave, `GET /api/v1/orders/{orderId}`, every 10 to 15 seconds until `terminal` is `true`, or let [webhooks](/trade/webhooks) tell you when to read it. The read answers the same envelope as the order answer, for every kind of order.
+
+- The key needs **Read orders**; any member or key of the workspace with that permission can read the order.
+- An order that does not exist, or belongs to another workspace, answers `404 ORDER_NOT_FOUND`.
+- If you lost the order answer, [recover it by its quote](/trade/retries-and-recovery#recover-an-order-by-its-quote).
 
 <OrderStatus />
 
@@ -20,7 +24,7 @@ Read an order at the `statusUrl` its answer gave, `GET /api/v1/orders/{orderId}`
 | Field | Meaning |
 | --- | --- |
 | `orderId` | The order's id. |
-| `kind` | `basicTrade` today. New kinds may be added: keep following `status` and `terminal` for a kind you do not recognise, never resubmit it. |
+| `kind` | `basicTrade`. For a kind you do not recognise, keep following `status` and `terminal`, and never resubmit it. |
 | `status` | Where the order is (below). |
 | `terminal` | `true` when the order can no longer change. Stop on this, never on a particular `status`. |
 | `next` | Present only while there is something to do meanwhile (below). |
@@ -32,25 +36,26 @@ The TypeScript SDK marks a kind it does not know with `unknownKind: true` and ke
 
 ## Statuses
 
-| `status` | What it means | Final |
-| --- | --- | --- |
-| `pending` | Accepted; nothing sent to a venue yet. | No |
-| `working` | Sent to the venue and executing, including an on-chain trade waiting to confirm. | No |
-| `filled` | Executed; settlement or delivery is still to complete. | No |
-| `reviewRequired` | A person must review it, such as for a compliance hold. | No |
-| `outcomeUnknown` | TetraFi lost track of the outcome and is reconciling it. The trade may have filled. | No |
-| `settled` | Executed and settled, or there was nothing to settle. | Yes |
-| `unfilled` | Not filled, or never sent, for example because the wallet refused to sign (`operation.dispatch.notSentCause`). Nothing traded. | Yes |
-| `refused` | A pre-trade check refused it before anything was sent; `operation.complianceRefusal` says why. To trade once the cause is cleared, request a new quote. | Yes |
-| `cancelled` | Cancelled before it was sent. | Yes |
-| `failed` | Failed; nothing more will happen. Read the fills and settlement detail: a `failed` order does not by itself prove nothing traded. | Yes |
-| `refunded` | Your funds were returned. | Yes |
+| `status` | What it means | Final? | What to do |
+| --- | --- | --- | --- |
+| `pending` | Accepted; nothing sent to a venue yet. | No | Keep reading. |
+| `working` | Sent to the venue and executing, including an on-chain trade waiting to confirm. | No | Keep reading. |
+| `filled` | Executed; settlement or delivery is still to complete. | No | Keep reading until it is final. |
+| `reviewRequired` | A person must review it, such as for a compliance hold. | No | Keep reading. |
+| `outcomeUnknown` | TetraFi lost track of the outcome and is reconciling it. The trade may have filled. | No | Keep reading. Never place a new order for it. |
+| `settled` | Executed and settled, or there was nothing to settle. | Yes | Nothing. |
+| `unfilled` | Not filled, or never sent, for example because the wallet refused to sign (`operation.dispatch.notSentCause`). Nothing traded. | Yes | To trade, order a new quote. |
+| `refused` | A pre-trade check refused it before anything was sent; `operation.complianceRefusal` says why. | Yes | Clear the cause, then request a new quote. |
+| `cancelled` | Cancelled before it was sent. | Yes | To trade, order a new quote. |
+| `failed` | Failed; nothing more will happen. A `failed` order does not by itself prove nothing traded. | Yes | Read the fills and settlement detail, and `settlement.failureReason`. |
+| `refunded` | Your funds were returned. | Yes | Read `settlement.failureReason`. |
 
 <Warning>
 `outcomeUnknown` is not a failure. Never place a new order for it: keep reading its status.
 </Warning>
 
-An order can skip statuses, and new values may be added: treat one you do not recognise as "other" and keep following `terminal`. For a `failed` or `refunded` order, the trade history's `settlement.failureReason` says why in words ([Read one trade](/trade/trade-history#read-one-trade)).
+- An order can skip statuses. Treat a status you do not recognise as "other" and keep following `terminal`.
+- For a `failed` or `refunded` order, the trade history's `settlement.failureReason` says why in words ([Read one trade](/trade/trade-history#read-one-trade)).
 
 ```mermaid
 stateDiagram-v2
@@ -78,7 +83,7 @@ stateDiagram-v2
     outcomeUnknown --> reviewRequired
 ```
 
-The diagram shows common paths, not a required sequence. These statuses are final: `settled`, `unfilled`, `cancelled`, `failed`, `refunded` and `refused`.
+The diagram shows common paths, not a required sequence.
 
 ## While it is not final
 
@@ -112,7 +117,11 @@ A fee's `kind` is `trading`, `relayer`, `forwarding`, `transfer`, `network` (gas
 
 ## When it settles
 
-A quote's `expiresAt` is its ordering deadline, and its `eta` an expected delivery time; neither says the order settled. `settlesBy` on the order is the recorded deadline: for an on-chain Basic swap, the last wallet step's send-by time. It is `null` when no deadline is recorded, as for an exchange account trade or a same-chain DEX swap whose call carries none. A `null` is not immediate settlement, and a passed `settlesBy` is not proof of failure: keep reading until `terminal` is `true`.
+A quote's `expiresAt` is its ordering deadline, and its `eta` an expected delivery time; neither says the order settled. `settlesBy` on the order is the recorded deadline:
+
+- for an on-chain Basic swap, it is the last wallet step's send-by time;
+- it is `null` when no deadline is recorded, as for an exchange account trade or a same-chain DEX swap whose call carries none;
+- a `null` is not immediate settlement, and a passed `settlesBy` is not proof of failure: keep reading until `terminal` is `true`.
 
 Trades on venues that settle on a schedule have their obligations and windows in [Settlement and credit](/trade/settlement-and-credit).
 
@@ -128,7 +137,10 @@ Trades on venues that settle on a schedule have their obligations and windows in
 | `from`, `to` | Created at or after, and at or before, an RFC 3339 time. |
 | `limit`, `cursor` | Up to 20 orders a page (the default); the previous page's `nextCursor`. |
 
-A filtered page can hold fewer than `limit` orders, even none, with `scanLimitReached: true` and a `nextCursor` while more remain. Keep following `nextCursor` until it is `null`. A cursor belongs to the key and its filters; any other answers `400 INVALID_CURSOR`. The script [`samples/http/orders-list.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/orders-list.sh) lists the last 30 days:
+- A filtered page can hold fewer than `limit` orders, even none, with `scanLimitReached: true` and a `nextCursor` while more remain. Keep following `nextCursor` until it is `null`.
+- A cursor belongs to the key and its filters; any other answers `400 INVALID_CURSOR` ([Conventions](/reference/conventions)).
+
+This lists the last 30 days:
 
 <OrdersList />
 
@@ -139,3 +151,18 @@ orders: 100 across 5 pages
 ```
 
 In the app, the same orders appear under **Trades**.
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/orders-list.sh">
+  Lists your orders with filters, pages through them and reads what one order did.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Webhooks" icon="bell" href="/trade/webhooks">
+    Get told when an order changes instead of polling.
+  </Card>
+  <Card title="Trade history" icon="clock-rotate-left" href="/trade/trade-history">
+    Read one trade's settlement and failure reason.
+  </Card>
+</CardGroup>

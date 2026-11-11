@@ -6,57 +6,83 @@ description: "Order a quote you hold by its id. TetraFi executes it through your
 import OrderPlace from '/snippets/samples/order-place.mdx';
 import OrderCancel from '/snippets/samples/order-cancel.mdx';
 
-You place an order by naming a quote you hold. TetraFi kept the quote's terms, so the body is the quote id plus anything only you can supply, such as the least you accept to receive. Ordering the quote is the accept: there is no separate accept call.
+Order a quote you hold by naming its id: ordering it is the accept, with no separate accept call. TetraFi kept the quote's terms, so you send only what you alone can supply, such as the least you accept to receive.
 
-Order a quote whose `next.kind` is `order`. Every quote you can order today is Basic (`legs[].venue.integrationMode` `basic`): TetraFi executes it from your venue account, or from an organisation wallet granted to your key inside the limits its owners approved. You need a key with venue trading and request signing ([Authentication](/authentication#trade-on-your-venue-accounts)), and the account or wallet must hold what you sell.
+You need:
+
+- a quote whose `next.kind` is `order`. You can order Basic quotes (`legs[].venue.integrationMode` `basic`): TetraFi executes them from your venue account, or from an organisation wallet granted to your key inside the limits its owners approved;
+- a key with venue trading and request signing ([Authentication](/authentication#trade-on-your-venue-accounts));
+- an account or wallet that holds what you sell ([Before your first trade](/before-you-trade)).
 
 ## Place an order
 
-`POST /api/v1/orders`, with an `Idempotency-Key` header:
+<Steps>
+  <Step title="Choose an Idempotency-Key">
+    Generate a new random value and save it with the exact body before you send ([Retries and recovery](/trade/retries-and-recovery)). An API key must send one with every order; a retry with the same key and body returns the first answer instead of placing a second order.
 
-| Field | Required | Value |
-| --- | --- | --- |
-| `quoteId` | Yes | The quote id (`q_…`). |
-| `minReceive` | When the quote's `minReceiveRequired` is `true` | The least you accept, in units of the asset you buy, such as `"4.99"`. |
+    <Warning>
+    Retry only with the same key and body. A new key on a retry can place a second order.
+    </Warning>
+  </Step>
+  <Step title="Send the order">
+    `POST /api/v1/orders`, with the `Idempotency-Key` header:
 
-Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them. An API key must send an `Idempotency-Key` with every order; a retry with the same key and body returns the first answer instead of placing a second order ([Retries and recovery](/trade/retries-and-recovery)).
+    | Field | Required | Value |
+    | --- | --- | --- |
+    | `quoteId` | Yes | The quote id (`q_…`). |
+    | `minReceive` | When the quote's `minReceiveRequired` is `true` | The least you accept, in units of the asset you buy, such as `"4.99"`. |
 
-<OrderPlace />
+    Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them. Each quote can be ordered once.
 
-```json Response (shortened)
-{
-  "kind": "basicTrade",
-  "orderId": "acb84378-…",
-  "quoteId": "q_01M5XJXR…",
-  "status": "working",
-  "terminal": false,
-  "statusUrl": "/api/v1/orders/acb84378-…",
-  "operation": {
-    "connectionId": "15862432-…",
-    "operationId": "acb84378-…"
-  }
-}
-```
+    <OrderPlace />
 
-The answer comes as soon as the order is recorded, not when it completes: a `2xx` only means the order exists. Follow it at `statusUrl` until `terminal` is `true`, or with [webhooks](/trade/webhooks) ([Order status](/trade/order-status)). Each quote can be ordered once.
+    ```json Response (shortened)
+    {
+      "kind": "basicTrade",
+      "orderId": "acb84378-…",
+      "quoteId": "q_01M5XJXR…",
+      "status": "working",
+      "terminal": false,
+      "statusUrl": "/api/v1/orders/acb84378-…",
+      "operation": {
+        "connectionId": "15862432-…",
+        "operationId": "acb84378-…"
+      }
+    }
+    ```
+  </Step>
+  <Step title="Follow it to the end">
+    The answer comes as soon as the order is recorded, not when it completes: a `2xx` only means the order exists. Follow it at `statusUrl` until `terminal` is `true`, or with [webhooks](/trade/webhooks) ([Order status](/trade/order-status)).
 
-A Basic order on an on-chain venue answers `working` before its wallet signs. If the wallet then refuses to sign, nothing is sent and the order ends `unfilled`, with the cause in `operation.dispatch.notSentCause`.
+    A Basic order on an on-chain venue answers `working` before its wallet signs. If the wallet then refuses to sign, nothing is sent and the order ends `unfilled`, with the cause in `operation.dispatch.notSentCause`.
+  </Step>
+</Steps>
 
 ## Minimum receive
 
 ### Venues that execute within your limit
 
-Some venues are asked for their price only when you order: desks whose firm prices last too few seconds to confirm, and on-chain venues such as bridges that TetraFi trades for you from an organisation wallet. Their quotes are often indicative with `next.kind: "order"`, and read `minReceiveRequired: true`. Order them with `minReceive`: the trade happens only if the venue delivers at least that. Without it the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent. Read the flag rather than working it out from `quality`.
+Some venues are asked for their price only when you order:
 
-On any other Basic quote, `minReceive` is optional and sets your own floor. If the venue's held firm price already delivers less, the order is refused with `409 VENUE_QUOTE_OUTSIDE_BOUNDS`.
+- desks whose firm prices last too few seconds to confirm;
+- on-chain venues, such as bridges, that TetraFi trades for you from an organisation wallet.
+
+Their quotes are often indicative with `next.kind: "order"`, and read `minReceiveRequired: true`. Read the flag rather than working it out from `quality`.
+
+| Quote | `minReceive` | If it is not met |
+| --- | --- | --- |
+| `minReceiveRequired: true` | Required. The trade happens only if the venue delivers at least that. | Missing: `400 MIN_RECEIVE_REQUIRED`, and nothing is sent. |
+| Any other Basic quote | Optional: your own floor. | The venue's held firm price already delivers less: `409 VENUE_QUOTE_OUTSIDE_BOUNDS`. |
 
 `priceProtectionBps` belongs on the quote request, where it sets `minOut` ([Price protection](/search/filters-and-sort#price-protection)); `minReceive` belongs on the order.
 
 ## Cancel an order
 
-`POST /api/v1/orders/{orderId}/cancel`, with an `Idempotency-Key` and **Submit orders**, cancels an order that has not been sent to a venue yet, or a pay-in still waiting for your funds. It answers the order with `status` `cancelled`, and cancelling again changes nothing.
+`POST /api/v1/orders/{orderId}/cancel`, with an `Idempotency-Key` and **Submit orders**, cancels an order not yet sent to a venue, or a pay-in still waiting for your funds. It answers the order with `status` `cancelled`; cancelling again changes nothing.
 
-A Basic venue trade is sent as soon as it is placed, so in practice you can cancel only while it waits for a pay-in. After it is sent, its funding or delivery moved, or it ended, the cancel is refused with `409 ORDER_NOT_CANCELLABLE` and the status in `details.status`. TetraFi never cancels at the venue and never refunds.
+- A Basic venue trade is sent as soon as it is placed, so in practice you can cancel only while it waits for a pay-in.
+- After it is sent, its funding or delivery moved, or it ended, the cancel is refused with `409 ORDER_NOT_CANCELLABLE` and the status in `details.status`.
+- TetraFi never cancels at the venue and never refunds.
 
 <OrderCancel />
 
@@ -88,3 +114,18 @@ A refused order answers the standard [error body](/trade/errors#read-a-refusal).
 | `QUOTE_STORE_UNAVAILABLE`, `VENUE_TEMPORARILY_REFUSED` | 503 | Held quotes cannot be read just now, or the venue briefly refused. | Send the same request with the same key shortly. |
 
 [Error codes](/reference/error-codes) lists every code.
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/orders.sh">
+  Places one order with an Idempotency-Key, replays it, recovers it by quote and reads its status.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Order status" icon="list-check" href="/trade/order-status">
+    Follow the order until it is final.
+  </Card>
+  <Card title="Retries and recovery" icon="rotate-right" href="/trade/retries-and-recovery">
+    Retry safely and find out what happened after a timeout.
+  </Card>
+</CardGroup>
