@@ -96,20 +96,12 @@ The **cURL** steps show the API calls of [one Bash script](https://github.com/Te
       ]
     }
     ```
-
-    | Variable | Default | Sets |
-    | --- | --- | --- |
-    | `TETRAFI_SELL`, `TETRAFI_BUY` | `USDC`, `USDT` | The pair. |
-    | `TETRAFI_AMOUNT` | `10` | The amount you sell. |
-    | `TETRAFI_VENUES` | every venue | Comma-separated venue ids to ask, from `sources[].venue.id`. |
-    | `TETRAFI_SLIPPAGE_BPS` | `50` | How far below the quoted amount you accept when the quote needs `minReceive`. |
-    | `TETRAFI_PLACE_ORDER` | not set | `1` places the order. |
   </Step>
 
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` you generate and keep: a retry with the same key and body returns the first answer, never a second order.
 
-    - When `minReceiveRequired` is `true`, send `minReceive`: the quoted `buy.amount` less `TETRAFI_SLIPPAGE_BPS`, rounded down to the asset's decimals, calculated on decimal strings.
+    - When `minReceiveRequired` is `true`, send `minReceive`: the quoted `buy.amount` less your slippage tolerance (50 basis points in the example), rounded down to the asset's decimals, calculated on decimal strings.
     - Before sending, save `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you. Keep it after success.
 
     <Warning>
@@ -154,7 +146,7 @@ Quotes cost nothing; only an order moves assets. Before your first production or
 {"venue":"keyrock-rfq","smallest":null,"triedUpTo":"25","status":"unsupported","reason":"pairNotServed"}
 ```
 
-A venue that needs more reads a reason such as `sizeNotEligible` or `amountBelowMinimum`. Use that minimum as `TETRAFI_AMOUNT` for your first order, and revoke test keys when done.
+A venue that needs more reads a reason such as `sizeNotEligible` or `amountBelowMinimum`. Use that minimum as the amount you sell in your first order, and revoke test keys when done.
 
 ## If something goes wrong
 
@@ -175,13 +167,25 @@ A venue that needs more reads a reason such as `sizeNotEligible` or `amountBelow
   </Accordion>
 
   <Accordion title="The order answer is unclear">
-    A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable answer does not prove the order failed. Resend the saved body with the same `Idempotency-Key`, or read the order by its quote. Never place a fresh order for this trade ([Retries and recovery](/trade/retries-and-recovery)).
+    A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable answer does not prove the order failed. Resend the saved body with the same `Idempotency-Key`, then read the order by its quote even if that replay fails. Never place a fresh order for this trade ([Retries and recovery](/trade/retries-and-recovery)).
   </Accordion>
 </AccordionGroup>
 
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh">
   Lists assets, gets quotes and, with `TETRAFI_PLACE_ORDER=1`, orders the best one.
 </Card>
+
+<Accordion title="Run it with other values">
+  The script reads these optional variables:
+
+  | Variable | Default | Sets |
+  | --- | --- | --- |
+  | `TETRAFI_SELL`, `TETRAFI_BUY` | `USDC`, `USDT` | The pair. |
+  | `TETRAFI_AMOUNT` | `10` | The amount you sell. |
+  | `TETRAFI_VENUES` | every venue | Comma-separated venue ids to ask, from `sources[].venue.id`. |
+  | `TETRAFI_SLIPPAGE_BPS` | `50` | How far below the quoted amount you accept when the quote needs `minReceive`. |
+  | `TETRAFI_PLACE_ORDER` | not set | `1` places the order. |
+</Accordion>
 
 ## Next
 

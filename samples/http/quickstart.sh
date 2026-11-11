@@ -261,7 +261,7 @@ fi
 load_order_record "$quote_id" # every retry for this quote reuses the saved key and body
 
 # A timeout, 5xx, 409 IDEMPOTENCY_* or unreadable answer does not prove the order failed:
-# resend the saved body with the same key, or read GET /api/v1/orders/by-quote/{quoteId}.
+# resend the saved body with the same key, then read GET /api/v1/orders/by-quote/{quoteId}.
 if ! placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key") \
   || ! check_order_answer "$placed" "$quote_id"; then
   order_recovery
