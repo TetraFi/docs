@@ -87,6 +87,20 @@ assets: 52 across 11 pages
 | Rate limits | Every limit answers `429` with `Retry-After` ([Rate limits](/reference/rate-limits)). |
 | Idempotency | Send an `Idempotency-Key` with every `POST /api/v1/orders`. A retry with the same key and body returns the first answer, with `Idempotent-Replayed: true` ([Retries and recovery](/trade/retries-and-recovery)). |
 
+## Read several resources at once
+
+`POST /api/v1/batch` runs up to 20 reads in one request. Use it to load a page of related resources in one round trip.
+
+| Rule | Detail |
+| --- | --- |
+| Items | 1 to 20 `{id, method, url}`. `method` is `GET`; `url` is the path and query of a `GET` operation in this reference, such as `/api/v1/orders?limit=20`. |
+| Authority | Each item runs as its own `GET` by the same caller: same permissions, scopes, workspace checks, body and error body. |
+| Rate limit | Each item counts as one request, all taken before any item runs. A `429 RATE_LIMITED` refuses the whole batch. |
+| Answer | `200` once admitted. Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers` (`Deprecation`, `Sunset`, `Link`, `Retry-After`, `Cache-Control`), in request order. Items are independent, not atomic. |
+| Limits | Item bodies total at most 8 MiB (past it an item answers `413 BATCH_RESPONSE_TOO_LARGE`), and at most 200 reads with related reads (past it `429 SUB_REQUEST_BUDGET_EXHAUSTED`). |
+| Refused as a whole | A malformed batch, more than 20 items, a non-`GET` item, an unknown operation, or a stream, export or file read. `details.itemId` names the item. |
+| Not batchable | Signed API-key requests: send those reads separately. |
+
 ## Versioning
 
 The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes.
