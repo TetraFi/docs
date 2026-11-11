@@ -1,35 +1,22 @@
 ---
-title: "Fee schedule"
-description: "Read the fees your workspace pays now, per venue, and the changes already scheduled, with an API key."
+title: "Read your fee schedule"
+description: "Read the TetraFi fees your workspace pays now, per venue, and the changes already scheduled."
 ---
 
 import FeeScheduleRead from '/snippets/samples/fee-schedule-read.mdx';
 
-`GET /api/v1/workspaces/{workspaceId}/fee-schedule` answers the TetraFi fees your workspace pays: the schedule in force now, and every change already scheduled. It reads only.
+`GET /api/v1/workspaces/{workspaceId}/fee-schedule` answers the schedule in force now and every change already scheduled. It reads only.
 
-## Before you start
+## You need
 
-- Switch on **Read fee schedule** for the key ([Authentication](/authentication#permissions)). Every member of a workspace can read its fees, but a key reads them only when this permission is ticked: no other permission includes it.
-- The path names your workspace: `TETRAFI_WORKSPACE_ID` is the `workspaceId` that `GET /api/v1/me` answers for your key.
+- **Read fee schedule** on the key ([Permissions](/authentication#permissions)). Every member can read fees, but a key needs this permission: no other includes it.
+- `TETRAFI_WORKSPACE_ID`, the `workspaceId` from `GET /api/v1/me`.
 
 ## Read the schedule
 
-`current` is the schedule in force. `upcoming` lists the changes already scheduled, oldest first, each with the `effectiveFrom` it starts at and the whole `schedule` from then on. `[]` means no change is scheduled.
-
-A schedule has one set of `defaultRates` and, in `venues`, the venues whose rates differ: a venue listed there uses its own `rates`, and every other venue uses `defaultRates`. `partnerArrangementApplies` is `true` when your workspace has a partner arrangement with the venue.
-
-| Rate | Meaning |
-| --- | --- |
-| `platform` | The rate you are charged, after any taker incentive. |
-| `grossPlatform` | The rate before the taker incentive. |
-| `takerIncentive` | The share of the gross fee rebated to your workspace. `null` when there is none. |
-| `makerShare` | The share of fees your workspace earns as the venue's partner maker. `null` when there is none. It never shows another workspace's arrangement. |
-
-Each rate has `ratePpm`, a decimal string in parts per million (100 ppm is one basis point, 0.01%), and the `effectiveFrom` it applies from, as an RFC 3339 date-time. Read `ratePpm` as a decimal, not a float.
-
 <FeeScheduleRead />
 
-```json Response (shortened)
+```json Response (shortened) expandable
 {
   "workspaceId": "36ff6481-…",
   "current": {
@@ -46,11 +33,44 @@ Each rate has `ratePpm`, a decimal string in parts per million (100 ppm is one b
 }
 ```
 
+<ResponseField name="current" type="object">
+  The schedule in force.
+  <Expandable title="schedule">
+    <ResponseField name="defaultRates" type="object">The rates every venue uses unless it is listed in `venues`.</ResponseField>
+    <ResponseField name="venues" type="array">The venues whose rates differ, each with its own `rates`.</ResponseField>
+    <ResponseField name="partnerArrangementApplies" type="boolean">`true` when your workspace has a partner arrangement with the venue.</ResponseField>
+  </Expandable>
+</ResponseField>
+<ResponseField name="upcoming" type="array">
+  Scheduled changes, oldest first, each with its `effectiveFrom` and the whole `schedule` from then. `[]` means none.
+</ResponseField>
+
+| Rate | Meaning |
+| --- | --- |
+| `platform` | Your charged rate, after any taker incentive. |
+| `grossPlatform` | The rate before the taker incentive. |
+| `takerIncentive` | The share of the gross fee rebated to you; `null` if none. |
+| `makerShare` | The fee share you earn as the venue's partner maker; `null` if none. Never shows another workspace's arrangement. |
+
+Each rate has `ratePpm` and `effectiveFrom`:
+
+- `ratePpm`: a decimal string in parts per million (100 ppm is one basis point, 0.01%). Read it as a decimal, not a float.
+- `effectiveFrom`: the RFC 3339 date-time it applies from.
+
 ## Refusals
 
 | `error` | Status | What to do |
 | --- | --- | --- |
 | `INVALID_REQUEST` | 400 | The path's workspace id is not a UUID. |
-| `FEE_SCHEDULE_UNAVAILABLE` | 503 | The schedule could not be read, and no partial or zero schedule was sent. Retry shortly. |
+| `FEE_SCHEDULE_UNAVAILABLE` | 503 | Unreadable; no partial or zero schedule is sent. Retry shortly. |
 
 A key without **Read fee schedule** is refused with `403`. Every other code is in [Error codes](/reference/error-codes).
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/fee-schedule.sh">Reads your current and upcoming fees.</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Trade history" icon="clock-rotate-left" href="/trade/trade-history">Your trades.</Card>
+  <Card title="Errors and refusals" icon="triangle-exclamation" href="/trade/errors">Fix, retry or recover.</Card>
+</CardGroup>

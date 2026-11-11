@@ -1,14 +1,27 @@
 ---
-title: "Errors and refusals"
-description: "Read the one error body every refusal uses, know which refusals to retry and when, and find the codes for what you are doing."
+title: "Handle errors and refusals"
+description: "Read the one error body every refusal uses and decide whether to fix, retry or recover."
 ---
 
 import ErrorsParse from '/snippets/samples/errors-parse.mdx';
 import ErrorsWrongWorkspace from '/snippets/samples/errors-wrong-workspace.mdx';
 
-Every refusal is the same JSON object, whatever the status and whichever call you made, including `413` and `415` answers. One parser reads them all. The [error-code reference](/reference/error-codes) lists every code; this page shows how to read one and what to do.
+Every refusal, `413` and `415` included, is the same JSON object, so one parser reads them all. Match on `error`, act on its status class, and look up codes in the [error-code reference](/reference/error-codes).
 
-The examples come from [`samples/http/errors.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/errors.sh), which provokes three refusals and places no order.
+## Decide what to do
+
+| Answer | What happened | What to do |
+| --- | --- | --- |
+| `4xx` refusal | Refused. Nothing was placed. | Do not retry. Fix the request, or act on [`next`](#what-next-tells-you). |
+| `409` conflict | It conflicts with the current state. | Retry only where the code says so, such as `ORDER_IN_PROGRESS`; otherwise the state has to change first. |
+| `429` | A request limit is used up, or TetraFi is briefly at capacity. | Retry after `Retry-After` ([Rate limits](/reference/rate-limits)). |
+| `503` | It could not be served just now. | Retry after `Retry-After`, or after a second or two with backoff when it is not set. A signed write signs again with a new `X-Timestamp` and `X-Nonce`. |
+| `408`, `500`, `502`, `504` or a timeout | It did not complete. | Retry with backoff. Recover an order first. |
+
+A 4xx refusal placed nothing. A timeout or 5xx on an order is unknown until you [recover it](/trade/retries-and-recovery).
+
+- **Waits:** `Retry-After` is whole seconds; `details.retryAfter` is an ISO 8601 duration that can carry a fraction, such as `PT1.5S`. Sending sooner is refused again.
+- **Orders:** retry only with the same `Idempotency-Key` and body. When you do not know whether it was placed, never send it with a new key.
 
 ## Read a refusal
 
@@ -23,17 +36,17 @@ The examples come from [`samples/http/errors.sh`](https://github.com/tetrafi/doc
 }
 ```
 
-| Field | What to do with it |
+| Field | Use |
 | --- | --- |
 | `error` | The stable code. Match on it. |
-| `message` | A sentence for people. Show or log it, never match on it. |
-| `requestId` | The `X-Request-Id` response header. Log it and quote it to support. |
-| `timestamp` | When it was refused, in RFC 3339 UTC. |
-| `docUrl` | The code's entry in the error-code reference. |
-| `next` | The way forward, when there is one ([below](#what-next-tells-you)). |
-| `details` | The code's detail, when it has any. Read the camelCase keys you know; more can appear. `details.value` names a refused value, `details.reason` a token saying why, and `details.retryAfter` how long to wait. |
+| `message` | For people. Show or log it, never match on it. |
+| `requestId` | The `X-Request-Id` header. Log it; quote it to support. |
+| `timestamp` | When it was refused, RFC 3339 UTC. |
+| `docUrl` | The code's reference entry. |
+| `next` | The way forward, when there is one. |
+| `details` | Optional detail. Read the camelCase keys you know; more can appear. `details.value` names a refused value, `details.reason` says why, `details.retryAfter` how long to wait. |
 
-Here the script asks for a quote on an asset TetraFi does not list and acts on the code:
+Act on the code of a quote for an asset TetraFi does not list:
 
 <ErrorsParse />
 
@@ -42,67 +55,47 @@ Here the script asks for a quote on an asset TetraFi does not list and acts on t
 use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 ```
 
-A 4xx refusal placed nothing. A timeout or 5xx on an order is unknown until you [recover it](/trade/retries-and-recovery).
-
 ## What next tells you
 
 | `next.kind` | What to do |
 | --- | --- |
-| `requote` | Send `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`. `next.needs` lists what the new quote needs, such as a wallet; empty means requote as it is ([Requotes and expiry](/trade/requotes-and-expiry)). |
+| `requote` | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`. `next.needs` lists what the new quote needs, such as a wallet; empty means requote as it is ([Requotes and expiry](/trade/requotes-and-expiry)). |
 | `fund` | The paying account holds too little. Fund it, then get a new price. |
-| `order` | The quote can be ordered as it is. |
-| `preflight`, `sign`, `transact` | Advanced steps, not open yet. Order a Basic quote instead. |
+| `order` | Order the quote as it is. |
+| `preflight`, `sign`, `transact` | Advanced steps, not open yet. Order a Basic quote. |
 
-Treat a `kind` you do not recognise as a step you cannot take automatically: show `message` and stop.
-
-## Retries
-
-| Answer | Retry? |
-| --- | --- |
-| `429` | Yes, after `Retry-After` ([Rate limits](/reference/rate-limits)). |
-| `503` | Yes, after `Retry-After` when it is set, otherwise after a second or two, with backoff. A signed write signs again with a new `X-Timestamp` and `X-Nonce`. |
-| `408`, `500`, `502`, `504` | Yes, with backoff. |
-| `409` | Only where the code says so, such as `ORDER_IN_PROGRESS`. Otherwise the state has to change first. |
-| Any other `4xx` | No. Fix the request, or act on `next`. |
-
-A wait comes twice: the `Retry-After` header in whole seconds, and `details.retryAfter` as an ISO 8601 duration, which can carry a fraction such as `PT1.5S`. Sending sooner is refused again.
-
-Retry an order only with the same `Idempotency-Key` and body. When you do not know whether it was placed, never send it with a new key ([Retries and recovery](/trade/retries-and-recovery)).
+A `kind` you do not recognise is a step you cannot take automatically: show `message` and stop.
 
 ## Codes you do not know
 
-New codes can be added at any time. Treat one you do not know by its status class, as the [compatibility policy](/compatibility#what-your-client-should-do) says: retry a `429` or `503` after `Retry-After`, retry a `5xx` with backoff, and fix the request on any other `4xx`. Show `message` and log `requestId` either way.
+Codes can be added at any time. Handle an unknown one by its status class, as in [Decide what to do](#decide-what-to-do) and the [compatibility policy](/compatibility#what-your-client-should-do); show `message` and log `requestId`.
 
 ## The wrong workspace
 
-A key may leave `X-Workspace-Id` out. When it sends one, it must be the key's own: another workspace answers `403 WORKSPACE_SCOPE_MISMATCH`, and a value that is not a workspace id `400 INVALID_WORKSPACE_ID`. A path under `/api/v1/workspaces/{workspaceId}/` that names a workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
+A key may leave `X-Workspace-Id` out; one it sends must be its own. A path naming a workspace that is not yours answers `404 WORKSPACE_NOT_FOUND`, exactly as one that does not exist.
 
 <ErrorsWrongWorkspace />
 
-A workspace that cannot trade yet answers `403 CAPABILITY_BLOCKED`, naming each thing to fix in `details.capabilityBlockers` ([Before your first trade](/before-you-trade#complete-your-company-details)).
-
 ## Refusals on any request
 
-| Status and code | When it happens | What to do |
+| Status and code | When | What to do |
 | --- | --- | --- |
-| 401 `AUTH_REQUIRED` | The request did not authenticate. `details.reason` says why: `MISSING_CREDENTIALS`, `INVALID_API_KEY` (unknown or revoked), `API_KEY_EXPIRED`, or a [signing reason](/authentication#sign-requests). | Act on `details.reason`; treat one you do not know as "fix the credentials". |
-| 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. | Send the workspace id. |
-| 400 `INVALID_WORKSPACE_ID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is malformed or not yours. | Use the `workspaceId` from `GET /api/v1/me`. |
+| 401 `AUTH_REQUIRED` | Not authenticated. `details.reason`: `MISSING_CREDENTIALS`, `INVALID_API_KEY` (unknown or revoked), `API_KEY_EXPIRED`, or a [signing reason](/authentication#sign-requests). | Act on `details.reason`; treat an unknown one as "fix the credentials". |
+| 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. | Send it. |
+| 400 `INVALID_WORKSPACE_ID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is not a workspace id, or not yours. | Use the `workspaceId` from `GET /api/v1/me`. |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
-| 403 `CAPABILITY_BLOCKED`, 503 `CAPABILITY_UNAVAILABLE` | The workspace cannot do this yet, or that could not be read just now. | Fix each blocker in the app; retry a `503` shortly. |
-| 403 `IP_NOT_ALLOWED` | The request came from outside the key's IP allowlist. | Send from an allowed address. |
-| 403 `INSUFFICIENT_SCOPE` | The key lacks the permission this call needs. | Use a key with it ([Permissions](/authentication#permissions)). |
-| 403 `INSUFFICIENT_PERMISSION` | You, the key's owner, no longer hold the permission. | Ask a workspace admin for it. |
-| 403 `VENUE_TRADE_SCOPE_REQUIRED`, `VENUE_TRADE_KEY_DISABLED`, `VENUE_TRADE_SIGNATURE_REQUIRED` | The call trades on a venue account and the key lacks venue trading, has it switched off, or did not sign. | [Trade on your venue accounts](/authentication#trade-on-your-venue-accounts). |
-| 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading changed while the request ran. | Send it again. |
-| 413 `REQUEST_BODY_TOO_LARGE`, 415 `UNSUPPORTED_CONTENT_TYPE` | The body is too large, or not sent as `application/json`. | Fix the body or its header. |
-| 429 `RATE_LIMITED` | A request limit is used up, or TetraFi is briefly at capacity. | Wait `Retry-After` seconds. |
-| 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked just now. | Sign again with a new timestamp and nonce, then retry. |
-| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | The request did not complete. | Retry with backoff; quote `requestId` to support if it persists. |
+| 403 `CAPABILITY_BLOCKED`, 503 `CAPABILITY_UNAVAILABLE` | The workspace cannot do this yet (each blocker in `details.capabilityBlockers`), or that could not be read. | Fix each blocker ([Before your first trade](/before-you-trade#complete-your-company-details)); retry a `503` shortly. |
+| 403 `IP_NOT_ALLOWED` | Outside the key's IP allowlist. | Send from an allowed address. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks this call's permission. | Use a key with it ([Permissions](/authentication#permissions)). |
+| 403 `INSUFFICIENT_PERMISSION` | The key's owner no longer holds the permission. | Ask a workspace admin. |
+| 403 `VENUE_TRADE_SCOPE_REQUIRED`, `VENUE_TRADE_KEY_DISABLED`, `VENUE_TRADE_SIGNATURE_REQUIRED` | A venue-account trade by a key without venue trading, with it off, or unsigned. | [Trade on your venue accounts](/authentication#trade-on-your-venue-accounts). |
+| 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading changed mid-request. | Send it again. |
+| 413 `REQUEST_BODY_TOO_LARGE`, 415 `UNSUPPORTED_CONTENT_TYPE` | The body is too large, or not `application/json`. | Fix the body or header. |
+| 429 `RATE_LIMITED` | A limit is used up, or TetraFi is briefly at capacity. | Wait `Retry-After` seconds. |
+| 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked. | Sign again with a new timestamp and nonce, then retry. |
+| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It did not complete. | Retry with backoff; quote `requestId` if it persists. |
 
 ## Refusals by task
-
-Each guide ends with the refusals of its own calls:
 
 | You are | Refusals |
 | --- | --- |
@@ -111,7 +104,16 @@ Each guide ends with the refusals of its own calls:
 | Requoting | [Requotes and expiry](/trade/requotes-and-expiry#refusals) |
 | Placing or cancelling an order | [Place an order](/trade/orders#refusals), [Retries and recovery](/trade/retries-and-recovery#conflict-same-key-different-body) |
 | Choosing a wallet or account | [When a source is refused](/trade/wallets-and-accounts#when-a-source-is-refused) |
-| Reading balances, settlement or fees | [Balances](/trade/balances#refusals), [Settlement and credit](/trade/settlement-and-credit), [Fee schedule](/trade/fee-schedule#refusals) |
+| Reading balances, settlement or fees | [Balances](/trade/balances#refusals), [Settlement and credit](/trade/settlement-and-credit#refusals), [Fee schedule](/trade/fee-schedule#refusals) |
 | Managing webhooks | [Webhooks](/trade/webhooks#retries-pauses-and-missed-events) |
 
-A quote request that succeeds can still leave venues out: each one's line in `sources` says why, and is not a refusal ([Sources](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote), [Source reasons](/reference/error-codes#source-reasons)).
+A venue left out of a successful quote request is not a refusal: its line in `sources` says why ([Sources](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote), [Source reasons](/reference/error-codes#source-reasons)).
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/errors.sh">Provokes three refusals and places no order.</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Retries and recovery" icon="rotate" href="/trade/retries-and-recovery">Retry or recover an order.</Card>
+  <Card title="Error codes" icon="list" href="/reference/error-codes">Every code.</Card>
+</CardGroup>
