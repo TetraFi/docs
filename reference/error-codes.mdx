@@ -11,29 +11,31 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 
 ## Refusal codes
 
-| Status | Codes | Usually means | What to do |
-| :--- | :--- | :--- | :--- |
-| [400 Bad request](#400-bad-request) | 133 | The request is malformed or a value is out of range. | Fix the request; resending it unchanged fails again. |
-| [401 Unauthorized](#401-unauthorized) | 1 | The credential or its signature was not accepted. | Check the key, token and signature. |
-| [403 Forbidden](#403-forbidden) | 90 | The credential lacks a permission, scope or grant. | Use a credential that holds it, or ask an admin to grant it. |
-| [404 Not found](#404-not-found) | 23 | The resource does not exist or is not visible to this credential. | Check the id and the workspace. |
-| [405 Method not allowed](#405-method-not-allowed) | 1 | The method is not supported on this path. | Use the documented method. |
-| [408 Request timeout](#408-request-timeout) | 1 | The request took too long to arrive. | Retry. |
-| [409 Conflict](#409-conflict) | 218 | The resource is in a state that does not allow this, or a replay does not match. | Read the resource, then act on its current state. |
-| [410 Gone](#410-gone) | 4 | The resource or quote no longer exists. | Request a new one. |
-| [412 Precondition failed](#412-precondition-failed) | 1 | The `If-Match` revision is stale. | Read the resource again and retry with its revision. |
-| [413 Payload too large](#413-payload-too-large) | 2 | The request body is too large. | Send less in one request. |
-| [415 Unsupported media type](#415-unsupported-media-type) | 1 | The body is not JSON. | Send `Content-Type: application/json`. |
-| [422 Unprocessable](#422-unprocessable) | 58 | The request is valid but cannot be carried out as asked. | Change what you ask for. |
-| [423 Locked](#423-locked) | 1 | The workspace or resource is frozen. | An admin must lift the freeze first. |
-| [428 Precondition required](#428-precondition-required) | 1 | A required header such as `If-Match` is missing. | Send the header. |
-| [429 Too many requests](#429-too-many-requests) | 15 | A rate limit or budget was reached. | Wait `Retry-After`, then retry. |
-| [500 Internal error](#500-internal-error) | 9 | TetraFi failed while handling the request. | Retry with the same `Idempotency-Key`; recover orders by quote. |
-| [501 Not implemented](#501-not-implemented) | 1 | The operation is not available. | Do not retry. |
-| [502 Bad gateway](#502-bad-gateway) | 6 | A venue or provider failed. | Retry, or use another venue. |
-| [503 Unavailable](#503-unavailable) | 137 | A dependency is temporarily unavailable. | Retry after `Retry-After`; recover orders by quote. |
-| [504 Gateway timeout](#504-gateway-timeout) | 3 | A venue or provider did not answer in time. | Recover the order by its quote before retrying. |
-| [Stream events](#stream-events) | 1 | Sent on a stream, not as an HTTP response. | See the code. |
+| Status | Codes | Usually means |
+| :--- | :--- | :--- |
+| [400 Bad request](#400-bad-request) | 133 | The request is malformed or a value is out of range. |
+| [401 Unauthorized](#401-unauthorized) | 1 | The credential or its signature was not accepted. |
+| [403 Forbidden](#403-forbidden) | 90 | The credential lacks a permission, scope or grant, or the workspace cannot do this yet. |
+| [404 Not found](#404-not-found) | 23 | The resource does not exist or is not visible to this credential. |
+| [405 Method not allowed](#405-method-not-allowed) | 1 | The method is not supported on this path. |
+| [408 Request timeout](#408-request-timeout) | 1 | The request timed out on the server. |
+| [409 Conflict](#409-conflict) | 218 | The resource is in a state that does not allow this, or a replay does not match. |
+| [410 Gone](#410-gone) | 4 | The resource or quote no longer exists. |
+| [412 Precondition failed](#412-precondition-failed) | 1 | The `If-Match` revision is stale. |
+| [413 Payload too large](#413-payload-too-large) | 2 | The request body is too large. |
+| [415 Unsupported media type](#415-unsupported-media-type) | 1 | The body is not JSON. |
+| [422 Unprocessable](#422-unprocessable) | 58 | The request is valid but cannot be carried out as asked. |
+| [423 Locked](#423-locked) | 1 | The workspace or resource is frozen. |
+| [428 Precondition required](#428-precondition-required) | 1 | A required header such as `If-Match` is missing. |
+| [429 Too many requests](#429-too-many-requests) | 15 | A rate limit, budget or credit limit was reached. |
+| [500 Internal error](#500-internal-error) | 9 | TetraFi failed while handling the request. |
+| [501 Not implemented](#501-not-implemented) | 1 | The operation is not available. |
+| [502 Bad gateway](#502-bad-gateway) | 6 | A venue or provider failed. |
+| [503 Unavailable](#503-unavailable) | 137 | A dependency is temporarily unavailable. |
+| [504 Gateway timeout](#504-gateway-timeout) | 3 | A venue or provider did not answer in time. |
+| [Stream events](#stream-events) | 1 | Sent on a stream, not as an HTTP response. |
+
+Act on each code's own **What to do** and **Retryable**, not on its status: codes under one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/retries-and-recovery).
 
 ### 400 Bad request
 

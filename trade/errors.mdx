@@ -6,17 +6,17 @@ description: "Read the one error body every refusal uses and decide whether to f
 import ErrorsParse from '/snippets/samples/errors-parse.mdx';
 import ErrorsWrongWorkspace from '/snippets/samples/errors-wrong-workspace.mdx';
 
-Every refusal, `413` and `415` included, is the same JSON object, so one parser reads them all. Match on `error`, act on its status class, and look up codes in the [error-code reference](/reference/error-codes).
+Every refusal, `413` and `415` included, is the same JSON object, so one parser reads them all. Match on `error`; act on the status class only for a code you do not know. Look up codes in the [error-code reference](/reference/error-codes).
 
 ## Decide what to do
 
 | Answer | What happened | What to do |
 | --- | --- | --- |
-| `4xx` refusal | Refused. Nothing was placed. | Do not retry. Fix the request, or act on [`next`](#what-next-tells-you). |
-| `409` conflict | It conflicts with the current state. | Retry only where the code says so, such as `ORDER_IN_PROGRESS`; otherwise the state has to change first. |
-| `429` | A request limit is used up, or TetraFi is briefly at capacity. | Retry after `Retry-After` ([Rate limits](/reference/rate-limits)). |
-| `503` | It could not be served just now. | Retry after `Retry-After`, or after a second or two with backoff when it is not set. A signed write signs again with a new `X-Timestamp` and `X-Nonce`. |
-| `408`, `500`, `502`, `504` or a timeout | It did not complete. | Retry with backoff. Recover an order first. |
+| `409` conflict | It conflicts with the current state. | On an order, `QUOTE_ALREADY_ORDERED` or an `IDEMPOTENCY_*` code means an order may exist: [recover it by its quote](/trade/retries-and-recovery). Otherwise retry only where the code says so, such as `ORDER_IN_PROGRESS`; else the state has to change first. |
+| `429` | A request limit is used up, or TetraFi is briefly at capacity. | Retry after `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
+| `503` | It could not be served just now. | Recover an order by its quote first. Otherwise retry after `Retry-After`, or after a second or two with backoff when it is not set. A signed write signs again with a new `X-Timestamp` and `X-Nonce`. |
+| `408`, `500`, `502`, `504` or a timeout | It did not complete, or its outcome is unknown. | Recover an order by its quote first. Otherwise retry with backoff only when the code's `retryable` is `true`. |
+| Any other `4xx` | Refused. Nothing was placed. | Do not retry. Fix the request, or act on [`next`](#what-next-tells-you). |
 
 A 4xx refusal placed nothing. A timeout or 5xx on an order is unknown until you [recover it](/trade/retries-and-recovery).
 
