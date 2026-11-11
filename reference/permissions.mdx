@@ -11,26 +11,27 @@ Scopes within one requirement are all required. Requirements separated by â€œorâ
 
 | Method | Path | Operation | API-key scopes | Permission in the app |
 | :--- | :--- | :--- | :--- | :--- |
-| GET | `/api/v1/assets` | `GET /api/v1/assets`: the Assets, variants and deployments the workspace can trade. | `prices_read` | Read quotes |
-| GET | `/api/v1/me` | GET /api/v1/me | None | None |
-| POST | `/api/v1/oauth/token` |  | No API key required | Not applicable |
-| GET | `/api/v1/orders` | List the active workspace's Basic and Advanced orders in newest-first order. | `orders_read` | Read orders |
-| POST | `/api/v1/orders` | Submit a new order | `orders_write` | Submit orders |
+| GET | `/api/v1/assets` | List tradable assets | `prices_read` | Read quotes |
+| POST | `/api/v1/batch` | Read up to 20 resources in one request | None | None |
+| GET | `/api/v1/me` | Get the current credential | None | None |
+| POST | `/api/v1/oauth/token` | Exchange client credentials for a token | No API key required | Not applicable |
+| GET | `/api/v1/orders` | List orders | `orders_read` | Read orders |
+| POST | `/api/v1/orders` | Place an order | `orders_write` | Submit orders |
 | GET | `/api/v1/orders/by-quote/{quoteId}` | Recover the order produced by a held quote | `orders_read` | Read orders |
-| GET | `/api/v1/orders/{orderId}` | Get order status by ID | `orders_read` | Read orders |
-| POST | `/api/v1/orders/{orderId}/cancel` | Cancel an order before it is dispatched to a venue. | `orders_write` | Submit orders |
-| GET | `/api/v1/prices` | `GET /api/v1/prices`: indicative per-venue prices for one pair, from memory. | `prices_read` | Read quotes |
-| GET | `/api/v1/prices/stream` | `GET /api/v1/prices/stream`: `snapshot` events per pair on change. | `prices_read` | Read quotes |
-| POST | `/api/v1/quotes` | Unified protocol and venue-account quote auction | `quotes_request` | Read quotes + Submit orders |
+| GET | `/api/v1/orders/{orderId}` | Get an order | `orders_read` | Read orders |
+| POST | `/api/v1/orders/{orderId}/cancel` | Cancel an order | `orders_write` | Submit orders |
+| GET | `/api/v1/prices` | Get indicative prices | `prices_read` | Read quotes |
+| GET | `/api/v1/prices/stream` | Stream indicative prices | `prices_read` | Read quotes |
+| POST | `/api/v1/quotes` | Request quotes | `quotes_request` | Read quotes + Submit orders |
 | GET | `/api/v1/quotes/requests/{quoteRequestId}` | Read a quote request's recorded answer | `quotes_read` | Read quotes |
 | GET | `/api/v1/workspaces/{workspaceId}/balances` | Read balances across workspace accounts | `treasury_read` | Treasury read |
 | GET | `/api/v1/workspaces/{workspaceId}/capabilities` | Read the workspace's verification state and the capabilities it allows | `compliance_read` | Read compliance |
 | GET | `/api/v1/workspaces/{workspaceId}/fee-schedule` | Read the workspace's effective fee schedule | `fee_schedule_read` | Read fee schedule |
 | GET | `/api/v1/workspaces/{workspaceId}/settlement/plan` | Read the cross-venue settlement plan | `settlements_read` | Read settlements |
-| GET | `/api/v1/workspaces/{workspaceId}/trades` | GET /api/v1/workspaces/&#123;workspaceId&#125;/trades | `trades_read` | Read trades |
-| GET | `/api/v1/workspaces/{workspaceId}/trades/{tradeId}` | GET /api/v1/workspaces/&#123;workspaceId&#125;/trades/&#123;tradeId&#125; | `trades_read` | Read trades |
-| GET | `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement` | GET /api/v1/workspaces/&#123;workspaceId&#125;/trades/&#123;tradeId&#125;/settlement | `settlements_read` | Read settlements |
-| GET | `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations` | GET /api/v1/workspaces/&#123;workspaceId&#125;/trades/&#123;tradeId&#125;/settlement/obligations | `settlements_read` | Read settlements |
+| GET | `/api/v1/workspaces/{workspaceId}/trades` | List trades | `trades_read` | Read trades |
+| GET | `/api/v1/workspaces/{workspaceId}/trades/{tradeId}` | Get a trade | `trades_read` | Read trades |
+| GET | `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement` | Get trade settlement | `settlements_read` | Read settlements |
+| GET | `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations` | List a trade's settlement obligations | `settlements_read` | Read settlements |
 | GET | `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances` | Read the venue account's balances at its venue | `treasury_read` | Treasury read |
 | GET | `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit` | Read one venue account's credit | `treasury_read` | Treasury read |
 | GET | `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history` | Read the venue account's deposit history | `treasury_read` | Treasury read |
@@ -45,13 +46,13 @@ Scopes within one requirement are all required. Requirements separated by â€œorâ
 | GET | `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}` | Read a settlement window | `settlements_read` | Read settlements |
 | GET | `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches` | List a settlement window's matches | `settlements_read` | Read settlements |
 | GET | `/api/v1/workspaces/{workspaceId}/venue-enablements` | List the workspace's venue accounts | `treasury_read` | Treasury read |
-| GET | `/api/v1/workspaces/{workspaceId}/webhooks` | `GET /api/v1/workspaces/{workspaceId}/webhooks` | `webhooks_manage` | Manage webhooks |
-| POST | `/api/v1/workspaces/{workspaceId}/webhooks` | `POST /api/v1/workspaces/{workspaceId}/webhooks` | `webhooks_manage` | Manage webhooks |
-| DELETE | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `DELETE /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
-| GET | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | `webhooks_manage` | Manage webhooks |
-| PATCH | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` |  | `webhooks_manage` | Manage webhooks |
-| GET | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `webhooks_manage` | Manage webhooks |
-| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | `webhooks_manage` | Manage webhooks |
-| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry` | Send one retained payload again with current URL and signing secret. | `webhooks_manage` | Manage webhooks |
-| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume` | `POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume` | `webhooks_manage` | Manage webhooks |
-| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate` | `POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate` | `webhooks_manage` | Manage webhooks |
+| GET | `/api/v1/workspaces/{workspaceId}/webhooks` | List webhooks | `webhooks_manage` | Manage webhooks |
+| POST | `/api/v1/workspaces/{workspaceId}/webhooks` | Create a webhook | `webhooks_manage` | Manage webhooks |
+| DELETE | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | Delete a webhook | `webhooks_manage` | Manage webhooks |
+| GET | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | Get a webhook | `webhooks_manage` | Manage webhooks |
+| PATCH | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}` | Update a webhook | `webhooks_manage` | Manage webhooks |
+| GET | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | List a webhook's deliveries | `webhooks_manage` | Manage webhooks |
+| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries` | Send a test delivery | `webhooks_manage` | Manage webhooks |
+| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry` | Retry a delivery | `webhooks_manage` | Manage webhooks |
+| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume` | Resume a paused webhook | `webhooks_manage` | Manage webhooks |
+| POST | `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate` | Rotate a webhook secret | `webhooks_manage` | Manage webhooks |

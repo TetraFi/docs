@@ -104,7 +104,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/assets`: the Assets, variants and deployments the workspace can trade.",
+        "description": "List tradable assets\n\nThe Assets, variants and deployments the workspace can trade.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/assets",
           "host": [
@@ -134,6 +134,44 @@
       "response": []
     },
     {
+      "name": "POST /api/v1/batch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Read up to 20 resources in one request\n\nEach item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/batch",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "batch"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    {\n      \"id\": \"<id>\",\n      \"method\": \"GET\",\n      \"url\": \"<url>\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
       "name": "GET /api/v1/me",
       "request": {
         "method": "GET",
@@ -143,7 +181,7 @@
             "value": "application/json"
           }
         ],
-        "description": "GET /api/v1/me",
+        "description": "Get the current credential",
         "url": {
           "raw": "{{baseUrl}}/api/v1/me",
           "host": [
@@ -172,7 +210,7 @@
             "value": "application/x-www-form-urlencoded"
           }
         ],
-        "description": "RFC 6749 client-credentials grant for active service accounts. Supply grant_type=client_credentials, client_id=<service-account UUID>, and client_secret=<full tfk_live_... or tfk_test_... service-account API key>. Client credentials may instead be sent with HTTP Basic authentication. Tokens use the configured auth.jwtExpirySeconds capped at 900 seconds and carry the service account's current workspace role, effective permissions, and effective API scopes.",
+        "description": "Exchange client credentials for a token\n\nRFC 6749 client-credentials grant for active service accounts. Supply grant_type=client_credentials, client_id=<service-account UUID>, and client_secret=<full tfk_live_... or tfk_test_... service-account API key>. Client credentials may instead be sent with HTTP Basic authentication. Tokens use the configured auth.jwtExpirySeconds capped at 900 seconds and carry the service account's current workspace role, effective permissions, and effective API scopes.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/oauth/token",
           "host": [
@@ -205,7 +243,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List the active workspace's Basic and Advanced orders in newest-first order.\n\nLists Basic orders using the same envelope as GET /orders/{orderId}. Requires orders_read on an API key, or ViewOrders/PlaceOrder on a session. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
+        "description": "List orders\n\nLists Basic orders using the same envelope as GET /orders/{orderId}. Required API-key scope: `orders_read`; a member session needs permission to view or place orders. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A page shorter than limit carries a nextCursor only when that scan reached its limit, and then says so with scanLimitReached: follow nextCursor until null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -296,7 +334,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Submit a new order\nPOST /api/v1/orders - Submit an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A Basic venue quote becomes a venue trade (`basicTrade`). Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
+        "description": "Place an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A Basic venue quote becomes a venue trade (`basicTrade`). Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with GET /orders/by-quote/{quoteId}.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -330,7 +368,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Get order status by ID\nGET /api/v1/orders/:id - Get order details by ID\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. After a webhook delivery, perform this GET to obtain the complete current projection. Never put an API key in a URL. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
+        "description": "Get an order\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. After a webhook delivery, perform this GET to obtain the complete current projection. Never put an API key in a URL. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/:orderId",
           "host": [
@@ -369,7 +407,7 @@
             "description": "Required for API keys. Cancellation is naturally idempotent by order id."
           }
         ],
-        "description": "Cancel an order before it is dispatched to a venue.\n\nCancels an undispatched Basic order or a pay-in still awaiting funds. Returns the same order envelope as GET, with status cancelled and terminal true. Repeating cancellation leaves the order unchanged. A durable dispatch claim, a progressed funding leg, or a terminal outcome refuses with ORDER_NOT_CANCELLABLE and details.status. Requires current PlaceOrder authority; API keys need orders_write and Idempotency-Key. No venue cancellation is attempted.",
+        "description": "Cancel an order\n\nCancels an undispatched Basic order or a pay-in still awaiting funds. Returns the same order envelope as GET, with status cancelled and terminal true. Repeating cancellation leaves the order unchanged. A durable dispatch claim, a progressed funding leg, or a terminal outcome refuses with ORDER_NOT_CANCELLABLE and details.status. Required API-key scope: `orders_write`, with an Idempotency-Key; a member session needs permission to place orders. No venue cancellation is attempted.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/:orderId/cancel",
           "host": [
@@ -403,7 +441,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Requires current view_orders in the selected workspace and orders_read for API keys. ordered names the Basic venue trade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
+        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Required API-key scope: `orders_read`; the caller must be allowed to view orders in the selected workspace. ordered names the Basic venue trade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/by-quote/:quoteId",
           "host": [
@@ -437,7 +475,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/prices`: indicative per-venue prices for one pair, from memory.",
+        "description": "Get indicative prices\n\nIndicative per-venue prices for one pair, from the latest observed prices; no venue is called.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/prices",
           "host": [
@@ -542,7 +580,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/prices/stream`: `snapshot` events per pair on change.",
+        "description": "Stream indicative prices\n\nServer-sent `snapshot` events for each pair whenever its prices change.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/prices/stream",
           "host": [
@@ -646,7 +684,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Unified protocol and venue-account quote auction\n\nThe asset-pair contract uses required `kind: pair` or `kind: requote` to select its strict request body. Missing kind is 400 QUOTE_REQUEST_KIND_REQUIRED; a non-string or unknown kind is 400 QUOTE_REQUEST_KIND_INVALID (details.field is kind). The legacy intent body and shape inference are retired. Validated in order (INVALID_REQUEST naming the field, REQUOTE_FIELDS_CONFLICT, UNKNOWN_ASSET / UNKNOWN_CHAIN / UNKNOWN_VENUE naming the value, ASSET_NOT_ON_CHAIN (a side's Asset has no deployment on the chain pinned for it), INVALID_AMOUNT, SAME_ASSET_NEEDS_CHAIN, CHAIN_PIN_NEEDS_ON_CHAIN, out-of-range INVALID_REQUEST, ROUTING_OPTIONS_FORBIDDEN), then the request_quotes capability, and answered with a PairQuoteSet: every venue planned, venue-hitting plans limited to one every 3 s per principal (429 QUOTE_RATE_LIMITED with Retry-After; cache-only plans are not limited), quotes held for their owner and the set recorded for GET /quotes/requests/{quoteRequestId}. A requote body asks only the earlier quote's venue again (every venue of a multi-leg route, which answers that same route), as JSON (never a stream), and answers a PairQuoteSet whose one quote names it in requoteOf; the earlier quote stays held until its own expiry. Requote refusals: 400 CORRIDOR_NOT_OFFERED / WALLET_NOT_ON_CHAIN (a custody vault or registered workspace address bound to a chain it is not an account of; also on a fresh request), 403 SOURCE_NOT_OWNED / ACCOUNT_NOT_AVAILABLE / VENUE_NOT_AVAILABLE_TO_CREDENTIAL, 404 QUOTE_NOT_FOUND (unknown and another principal's quote alike), 409 REQUOTE_REFUSED (details.reason) / REQUOTE_NEEDS_WALLET / PERSONAL_TARGET_NOT_ALLOWED / QUOTE_CANNOT_BE_REFRESHED (a quote recorded before it could be refreshed for a broker's client), 410 REQUOTE_WINDOW_CLOSED (10 minutes after its expiry, past retainUntil; next search: request quotes again), 429 QUOTE_RATE_LIMITED / VENUE_FIRM_QUOTE_LIMITED /BUDGET_EXHAUSTED with Retry-After, 503 QUOTE_STORE_UNAVAILABLE / QUOTE_NOT_READY, 504 REQUOTE_TIMED_OUT. Every refusal, at every status, uses the shared ApiError schema. Optional filters narrow the auction. Orderable venue-account cards require a current MFA human Company/Broker session, or an API key holding workspace_venue_trade with its venue switch enabled and HMAC request signing. A member key with quotes_request but no venue-trading authority receives native indicative cards (firm false, expiresAt null) with sourceRefusal venueTradeScopeRequired and a re-issuance remedy, without any firm ask. On-chain sources without an organisation wallet grant are indicative with sourceRefusal onchainWalletNotUsable and a wallet-grant remedy; no signer is resolved. Quote-only observations never spend firm-quote budget, and their held refusal is returned if ordered. An API key quotes with quotes_request (which needs orders_write on the same key); it has no Default wallet of a member, so it selects a trading wallet in source.tradingWallets, a map from CAIP-2 chain to financial-account id (not a wallet address or native wallet id): a workspace custody wallet, or an organisation wallet the key was granted (without that grant the source reads API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED), never a personal one (409 PERSONAL_TARGET_NOT_ALLOWED); its protocol venues remain non-orderable until it binds one; quote-only observations may show a native indicative price without borrowing a wallet. Optional firmness is indicative, firm or auto (absent means auto); unknown values return 400 INVALID_REQUEST with details.field firmness. Indicative never makes a firm desk ask. Firm explicitly asks every eligible desk, with a named source refusal for each desk that cannot be asked, under the existing authority, limits and collection deadline. filters.firmOnly remains a result filter. Requote is renewed explicit firm intent, not inherited indicative intent. In auto, a production desk is firm-asked only by naming it in filters.venues.include or requoting its card; an automatic broad request leaves it indicative or unavailable priceOnRequest when it publishes no price. Its next is requote, except where its firm quote lives 5 s or less: then it is order (execute within my limit), and that order makes the one ask, trading only at or above the person's minReceive; a requote of that card (Get firm quote) also asks it once under the same desk limits and returns a firm, executable card with its expiresAt. A sandbox or testnet desk that publishes nothing is firm-asked on a person's or API caller's request within the desk limits (firmQuoteLimited with retryAfter when they are reached); automation principals get it on requote only. On a venue-account card, top-level deliverTo {kind: address, chain, address, destinationTag?} names where the trade's output is withdrawn when the order for it fills: one of the workspace's own wallets that is an approved withdrawal destination of that venue account, for the receipt asset, with exactly that destination tag or memo. The card then carries that deliverTo, a network fee line for the venue's withdrawal fee (the most the order will pay; a higher fee at send refuses) and a receive net of it (netReceived unavailable withdrawalFeeUnread when the fee could not be read), and a requote keeps it. A venue that cannot deliver there answers its source unavailable with DESTINATION_NOT_APPROVED, DELIVER_TO_NOT_A_WORKSPACE_WALLET, WITHDRAWAL_CHAIN_UNSUPPORTED (no withdrawal network for that chain on the site; test sites have none), DELIVER_TO_AMBIGUOUS, WITHDRAWAL_FEE_EXCEEDS_AMOUNT, deliverToCalldataUnsupported or deliverToNotPermitted (deliverTo needs a member session with ViewWallets; an API key lists no deliverTo candidates, and a requote naming one answers 409 REQUOTE_REFUSED with details.reason deliverToNotPermitted). The request spends one Quote token; connection indicative pacing is reported on cards.",
+        "description": "Request quotes\n\nAsk every eligible venue for prices on one asset pair. `kind` selects the request body: `pair` for a new request, or `requote` to ask an earlier quote's venue again (the new quote names it in `requoteOf`; the earlier quote stays held until it expires, and a requote more than 10 minutes after that expiry is 410 REQUOTE_WINDOW_CLOSED). A missing `kind` is 400 QUOTE_REQUEST_KIND_REQUIRED and an unknown one 400 QUOTE_REQUEST_KIND_INVALID. The answer is a PairQuoteSet: its quotes are held for you, and GET /quotes/requests/{quoteRequestId} reads it again. A request that asks a venue is limited to one every 3 seconds per caller (429 QUOTE_RATE_LIMITED with Retry-After). `firmness` is `indicative`, `firm` or `auto` (the default): indicative never asks a desk for a firm price, firm asks every eligible desk, and auto asks a production desk only when you name it in filters.venues.include or requote its card. Required API-key scope: `quotes_request`, on a key that also holds `orders_write`. A firm venue-account quote also needs `workspace_venue_trade`, the venue's switch on for the key and request signing; without them the card is indicative, with sourceRefusal venueTradeScopeRequired. A key has no default wallet: name a trading wallet per chain in source.tradingWallets (CAIP-2 chain to financial-account id), either a workspace custody wallet or an organisation wallet granted to the key; a personal wallet is 409 PERSONAL_TARGET_NOT_ALLOWED. deliverTo is for member sessions only: a key's requote naming one is 409 REQUOTE_REFUSED (details.reason deliverToNotPermitted). Every refusal uses the ApiError body.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes",
           "host": [
@@ -680,7 +718,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer. Required API-key scope: `quotes_read`. Immediate reads use the same held request handed to the asynchronous evidence writer; later reads recover its durable record. Readable by the principal that asked, by a member session with view_orders in its workspace, and by an API key with the additional orders_read scope when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. A request lost in a crash before persistence returns 404 QUOTE_REQUEST_NOT_FOUND; its unpersisted quotes are also lost, so request fresh quotes. Genuine store or read failures return retryable 503 QUOTE_REQUEST_UNAVAILABLE with details.retryAfter and Retry-After. requestedByYou says whether the caller asked; only then can it order these quotes.",
+        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer. Required API-key scope: `quotes_read`. Immediate reads use the same held request handed to the asynchronous evidence writer; later reads recover its durable record. Readable by the principal that asked, by a member session allowed to view the workspace's orders, and by an API key with the additional orders_read scope when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. A request lost in a crash before persistence returns 404 QUOTE_REQUEST_NOT_FOUND; its unpersisted quotes are also lost, so request fresh quotes. Genuine store or read failures return retryable 503 QUOTE_REQUEST_UNAVAILABLE with details.retryAfter and Retry-After. requestedByYou says whether the caller asked; only then can it order these quotes.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes/requests/:quoteRequestId",
           "host": [
@@ -714,7 +752,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read balances across workspace accounts\n\nCache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; venue accounts require current ViewWallets and company/broker or admitted LP authority, exactly as their per-account balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Cursors bind to the workspace, caller, filters and ordered visible row identities; restart if those identities change.",
+        "description": "Read balances across workspace accounts\n\nCache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; a venue account needs the caller to be allowed to view wallets, in a company or broker workspace or as an admitted LP taker, exactly as its own balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Cursors bind to the workspace, caller, filters and ordered visible row identities; restart if those identities change.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/balances",
           "host": [
@@ -848,7 +886,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the cross-venue settlement plan\n\nA read-only snapshot of what is due across the workspace's venue accounts. Unknown deadlines remain unknown. Per-source read failures are explicit and make the plan incomplete. Reading creates no transfer, reservation, approval request or LP instruction. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "Read the cross-venue settlement plan\n\nA read-only snapshot of what is due across the workspace's venue accounts. Unknown deadlines remain unknown. Per-source read failures are explicit and make the plan incomplete. Reading creates no transfer, reservation, approval request or LP instruction. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/settlement/plan",
           "host": [
@@ -903,7 +941,7 @@
             "value": "application/json"
           }
         ],
-        "description": "GET /api/v1/workspaces/{workspaceId}/trades\n\nThe one trade history. Projections: scope=workspace (default) reads the workspace's taker orders and venue trades; a member without view_compliance reads only their own, whatever the scope. scope=mine reads the caller's own (a member session only). scope=umbrella reads a broker's clients' orders with each client category's field visibility (view_umbrella_compliance). perspective=maker reads an LP workspace's fills with pseudonymised counterparties (view_settlements); with settlementStage or minAgeSeconds, its unsettled orders by stage (view_bilateral_documents). The default perspective is taker in every workspace. Every row carries tradeId, kind (order or venueTrade) and projection. Page with limit and cursor; format=csv returns the same filtered rows. Accepts a member session or an API key with trades_read; CSV is a member session only.",
+        "description": "List trades\n\nThe one trade history. Projections: scope=workspace (default) reads the workspace's taker orders and venue trades; a caller not allowed to view the workspace's compliance records reads only their own, whatever the scope. scope=mine reads the caller's own (a member session only). scope=umbrella reads a broker's clients' orders with each client category's field visibility (a member session allowed to view client compliance records). perspective=maker reads an LP workspace's fills with pseudonymised counterparties (a member session allowed to view settlements); with settlementStage or minAgeSeconds, its unsettled orders by stage (a member session allowed to view bilateral documents). The default perspective is taker in every workspace. Every row carries tradeId, kind (order or venueTrade) and projection. Page with limit and cursor; format=csv returns the same filtered rows. Required API-key scope: `trades_read`; CSV is a member session only.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades",
           "host": [
@@ -921,13 +959,13 @@
               "key": "scope",
               "value": "mine",
               "disabled": true,
-              "description": "mine, workspace or umbrella. Default: workspace. umbrella needs a broker\nworkspace and view_umbrella_compliance; mine needs a member session."
+              "description": "mine, workspace or umbrella. Default: workspace. umbrella needs a broker\nworkspace and permission to view its clients' compliance records; mine needs a\nmember session."
             },
             {
               "key": "perspective",
               "value": "taker",
               "disabled": true,
-              "description": "taker (default, in every workspace) or maker. maker needs an LP workspace and\nview_settlements."
+              "description": "taker (default, in every workspace) or maker. maker needs an LP workspace and\npermission to view settlements."
             },
             {
               "key": "kind",
@@ -1095,7 +1133,7 @@
             "value": "application/json"
           }
         ],
-        "description": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}\n\nOne trade through the same projection as the list: the workspace's or the caller's own taker order or venue trade, a broker umbrella record with the client category's field visibility, or an LP's fill with pseudonymised counterparties. Taker orders keep their detail fields at the top level. Accepts a member session or an API key with trades_read.",
+        "description": "Get a trade\n\nOne trade through the same projection as the list: the workspace's or the caller's own taker order or venue trade, a broker umbrella record with the client category's field visibility, or an LP's fill with pseudonymised counterparties. Taker orders keep their detail fields at the top level. Accepts a member session or an API key with trades_read.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId",
           "host": [
@@ -1161,7 +1199,7 @@
             "value": "application/json"
           }
         ],
-        "description": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement\n\nOne trade's settlement state. The taker perspective is the order's settlement detail (view_settlements; an API key with settlements_read). The maker perspective is the LP's settlement pipeline for the order, a member-session read with view_bilateral_documents. Each perspective answers exactly what its own route answers.",
+        "description": "Get trade settlement\n\nOne trade's settlement state. The taker perspective is the order's settlement detail (required API-key scope: `settlements_read`; the caller must be allowed to view settlements). The maker perspective is the LP's settlement pipeline for the order, a member-session read for a member allowed to view bilateral documents. Each perspective answers exactly what its own route answers.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement",
           "host": [
@@ -1216,7 +1254,7 @@
             "value": "application/json"
           }
         ],
-        "description": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations\n\nThe Basic settlement obligations that reference one trade, with their venue account, window and state (view_settlements; an API key with settlements_read).",
+        "description": "List a trade's settlement obligations\n\nThe Basic settlement obligations that reference one trade, with their venue account, window and state. Required API-key scope: `settlements_read`; the caller must be allowed to view settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement/obligations",
           "host": [
@@ -1272,7 +1310,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the venue account's balances at its venue\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in the company's own wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "description": "Read the venue account's balances at its venue\n\nThe caller must be allowed to view wallets in a company or broker workspace (or be an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in the company's own wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its owner lost permission to view wallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/balances",
           "host": [
@@ -1313,7 +1351,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read one venue account's credit\n\nThe account's credit as the Treasury credit card shows it: the provider's reported line (limit, used, available, overrun), the agreed facility, open credit commitments and the signed positions, each with its own observation time. Requires current ViewWallets and ViewCredit authority; an API key or OAuth client additionally needs treasury_read. Figures come from the account's last recorded ledger observation; this read makes no provider call (read the account ledger for a live read). A component that could not be read is `unavailable` with its code, never zero. 403 INSUFFICIENT_WORKSPACE_PERMISSION without ViewCredit; 404 VENUE_ACCOUNT_NOT_FOUND, also for another workspace's account; 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for a wallet-based venue; 503 VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE when account access cannot be read.",
+        "description": "Read one venue account's credit\n\nThe account's credit as the Treasury credit card shows it: the provider's reported line (limit, used, available, overrun), the agreed facility, open credit commitments and the signed positions, each with its own observation time. The caller must be allowed to view the workspace's wallets and credit; an API key or OAuth client additionally needs treasury_read. Figures come from the account's last recorded ledger observation; this read makes no provider call (read the account ledger for a live read). A component that could not be read is `unavailable` with its code, never zero. 403 INSUFFICIENT_WORKSPACE_PERMISSION without permission to view credit; 404 VENUE_ACCOUNT_NOT_FOUND, also for another workspace's account; 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for a wallet-based venue; 503 VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE when account access cannot be read.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/credit",
           "host": [
@@ -1354,7 +1392,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the venue account's deposit history\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. Each first answer reads the venue's credit history for `lookbackDays` (1 to 30, default 7), ending now. Optional `limit` (1 to 200) and `cursor` page credits oldest first by observation time and venue deposit id. Follow `nextCursor` until null. A cursor freezes the window and binds its workspace, account, asset, network and complete credit fingerprint; its window takes precedence over lookbackDays. A changed observation refuses the cursor, never skips or repeats a credit. Omit paging for the whole bounded observation. A window holding more than 1,000 records answers no credits with DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "description": "Read the venue account's deposit history\n\nThe caller must be allowed to view wallets in a company or broker workspace (or be an admitted LP taker). API keys and OAuth clients additionally require treasury_read. Read through the configured connection holding the account's balance credential, with the venue-connection deposit-history rules. Each first answer reads the venue's credit history for `lookbackDays` (1 to 30, default 7), ending now. Optional `limit` (1 to 200) and `cursor` page credits oldest first by observation time and venue deposit id. Follow `nextCursor` until null. A cursor freezes the window and binds its workspace, account, asset, network and complete credit fingerprint; its window takes precedence over lookbackDays. A changed observation refuses the cursor, never skips or repeats a credit. Omit paging for the whole bounded observation. A window holding more than 1,000 records answers no credits with DEPOSIT_HISTORY_WINDOW_TOO_LARGE; read a shorter window. The 409 refusals of the account balance read, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its owner lost permission to view wallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-history",
           "host": [
@@ -1427,7 +1465,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read how to deposit into the venue account\n\nRequires current ViewWallets authority in a Company/Broker workspace (or an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. Select payInLegId (a summary pay-in window's legId) for one open pay-in leg's payment details: the read uses that leg's currency and, for a dedicated fiat venue, the paying bank its deposit declaration recorded when that bank is linked at the venue; send it alone (400 PAY_IN_LEG_SELECTION_EXCLUSIVE). 404 PAY_IN_LEG_NOT_FOUND for a leg that is not this account's pay-in, 409 PAY_IN_LEG_NOT_OPEN once it is no longer waiting for funds, 409 PAY_IN_LEG_NOT_BANK_CURRENCY for a leg paid in a digital asset (no bank payment details; read the deposit address with asset and chainRef). VENUE_ACCOUNT_FUNDING_VENUE_DISABLED is answered before any payInLegId is read. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "description": "Read how to deposit into the venue account\n\nThe caller must be allowed to view wallets in a company or broker workspace (or be an admitted LP taker). API keys additionally require treasury_read; this read never authorizes a payment. Read through the configured connection holding the account's balance credential. Select currency for bank instructions: bankDeposit states available, referenceOnly, notOffered or unread, with a reason and reasonCode. Available receiving coordinates or a reference-only result are in bankInstructions. notOffered comes only from the venue's declared bank offering; failed source reads are unread, never notOffered. The answer is Cache-Control no-store and every receiving-account or full-reference disclosure is audited. The connection read's selection and fee rules apply. Select payInLegId (a summary pay-in window's legId) for one open pay-in leg's payment details: the read uses that leg's currency and, for a dedicated fiat venue, the paying bank its deposit declaration recorded when that bank is linked at the venue; send it alone (400 PAY_IN_LEG_SELECTION_EXCLUSIVE). 404 PAY_IN_LEG_NOT_FOUND for a leg that is not this account's pay-in, 409 PAY_IN_LEG_NOT_OPEN once it is no longer waiting for funds, 409 PAY_IN_LEG_NOT_BANK_CURRENCY for a leg paid in a digital asset (no bank payment details; read the deposit address with asset and chainRef). VENUE_ACCOUNT_FUNDING_VENUE_DISABLED is answered before any payInLegId is read. The account balance read's 409 refusals also apply, plus VENUE_ACCOUNT_FUNDING_VENUE_DISABLED when only a disabled venue holds the balance key. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its owner lost permission to view wallets, its membership or taker admission); a session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-instructions",
           "host": [
@@ -1500,7 +1538,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read the venue account's signed positions and credit line\n\nReads the account's ledger with current ViewWallets authority. A member session reads the venue live (`source: live`). An API key or OAuth client needs treasury_read and never starts a venue read: it gets the account's last recorded observation (`source: recorded`), dated by `observedAt`, with `stale` true when it is over an hour old, or 409 LEDGER_NOT_OBSERVED when none is recorded yet, and 404 VENUE_ACCOUNT_NOT_FOUND for another workspace's account. Positions and credit retain separate observation and provider times. Failed credit remains unavailable while readable positions are returned. No background polling. 409 LEDGER_UNSUPPORTED means the venue does not report a ledger; LEDGER_SETUP_MISSING means its connection needs setup; VENUE_ACCOUNT_LEDGER_PENDING means the account has not finished setup, so nothing is observed yet. 403 LEDGER_ACCOUNT_FORBIDDEN without View wallets on this workspace's account; foreign accounts refuse before provider I/O. 502 LEDGER_DATA_INVALID when the venue's figures cannot be read as exact amounts; 503 LEDGER_READ_UNAVAILABLE or LEDGER_JOURNAL_UNAVAILABLE when the read cannot complete, with the last good read time when one is known. A failed read is never an empty ledger.",
+        "description": "Read the venue account's signed positions and credit line\n\nReads the account's ledger for a caller allowed to view the workspace's wallets. A member session reads the venue live (`source: live`). An API key or OAuth client needs treasury_read and never starts a venue read: it gets the account's last recorded observation (`source: recorded`), dated by `observedAt`, with `stale` true when it is over an hour old, or 409 LEDGER_NOT_OBSERVED when none is recorded yet, and 404 VENUE_ACCOUNT_NOT_FOUND for another workspace's account. Positions and credit retain separate observation and provider times. Failed credit remains unavailable while readable positions are returned. No background polling. 409 LEDGER_UNSUPPORTED means the venue does not report a ledger; LEDGER_SETUP_MISSING means its connection needs setup; VENUE_ACCOUNT_LEDGER_PENDING means the account has not finished setup, so nothing is observed yet. 403 LEDGER_ACCOUNT_FORBIDDEN without permission to view wallets on this workspace's account; foreign accounts refuse before provider I/O. 502 LEDGER_DATA_INVALID when the venue's figures cannot be read as exact amounts; 503 LEDGER_READ_UNAVAILABLE or LEDGER_JOURNAL_UNAVAILABLE when the read cannot complete, with the last good read time when one is known. A failed read is never an empty ledger.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/ledger",
           "host": [
@@ -1541,7 +1579,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List a venue account's settlement movements\n\nDeposits to and withdrawals from the venue account that settle obligations, newest first, optionally for one window; page with cursor. lastSuccessfulReadAt and observationState say how current the recorded movements are. A member session also refreshes them from the LP's history; an API key or OAuth client reads the recorded movements and never starts that refresh. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "List a venue account's settlement movements\n\nDeposits to and withdrawals from the venue account that settle obligations, newest first, optionally for one window; page with cursor. lastSuccessfulReadAt and observationState say how current the recorded movements are. A member session also refreshes them from the LP's history; an API key or OAuth client reads the recorded movements and never starts that refresh. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements",
           "host": [
@@ -1609,7 +1647,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read a settlement movement\n\nOne recorded movement with its finality and how it matched. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "Read a settlement movement\n\nOne recorded movement with its finality and how it matched. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements/:movementId",
           "host": [
@@ -1657,7 +1695,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List a venue account's settlement obligations\n\nWhat the workspace and the LP owe each other on this account, with status and deadline, optionally for one window or one trade; page with cursor. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "List a venue account's settlement obligations\n\nWhat the workspace and the LP owe each other on this account, with status and deadline, optionally for one window or one trade; page with cursor. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/obligations",
           "host": [
@@ -1725,7 +1763,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read a settlement obligation\n\nOne obligation with its status, deadline, origin and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "Read a settlement obligation\n\nOne obligation with its status, deadline, origin and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/obligations/:obligationId",
           "host": [
@@ -1773,7 +1811,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read a venue account's settlement schedules\n\nThe LP's published settlement schedules for this account, the one in effect with its minimum settlement, and the next window. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "Read a venue account's settlement schedules\n\nThe LP's published settlement schedules for this account, the one in effect with its minimum settlement, and the next window. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/schedules",
           "host": [
@@ -1815,7 +1853,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List a venue account's settlement windows\n\nThe account's settlement windows, newest snapshot first, each with its indicative statement once the snapshot is ready: positions, snapshot prices (an unavailable price names its stage and reason) and the minimum-settlement decision. Filter by state; page with cursor. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "List a venue account's settlement windows\n\nThe account's settlement windows, newest snapshot first, each with its indicative statement once the snapshot is ready: positions, snapshot prices (an unavailable price names its stage and reason) and the minimum-settlement decision. Filter by state; page with cursor. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows",
           "host": [
@@ -1877,7 +1915,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read a settlement window\n\nOne window with its indicative statement (positions, snapshot prices and the minimum-settlement decision), its obligations, the LP's own statement on an LP-issued window, and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The credential also needs the workspace's view_settlements permission.",
+        "description": "Read a settlement window\n\nOne window with its indicative statement (positions, snapshot prices and the minimum-settlement decision), its obligations, the LP's own statement on an LP-issued window, and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows/:windowId",
           "host": [
@@ -1988,7 +2026,7 @@
             "value": "application/json"
           }
         ],
-        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose principal holds ViewWallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. An account-based item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`; a walletBased item has no venue account and carries no `accountId` (its `fundingTarget` names the organisation's trading wallets). Key items by `venueEnablementId`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. A foreign or unknown path workspace answers the same 404 WORKSPACE_NOT_FOUND without reading that workspace. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its principal lost ViewWallets, its membership or taker admission). A session that has itself ended answers 401.",
+        "description": "List the workspace's venue accounts\n\nA Company/Broker current human session, or an API key or service account with treasury_read whose owner is allowed to view wallets. Each venue account with its venue, where its funds are held, its wallets, linked accounts and execution types, each venue's key state, and whether disabling that venue would retire its key. An account-based item's `accountId` is the `{venueAccountId}` of `GET …/venue-accounts/{venueAccountId}/balances`, `/deposit-history` and `/deposit-instructions`; a walletBased item has no venue account and carries no `accountId` (its `fundingTarget` names the organisation's trading wallets). Key items by `venueEnablementId`. Oldest first, paged by `limit` (default 20, at most 100) and the opaque `cursor` from the previous page's `nextCursor`; `nextCursor` is null on the last page. A foreign or unknown path workspace answers the same 404 WORKSPACE_NOT_FOUND without reading that workspace. 400 INVALID_CURSOR for a cursor this list did not issue. 403 VENUE_READ_AUTHORITY_REFUSED when the caller's authority to read venue accounts has ended (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its owner lost permission to view wallets, its membership or taker admission). A session that has itself ended answers 401.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-enablements",
           "host": [
@@ -2012,7 +2050,7 @@
               "key": "limit",
               "value": "0",
               "disabled": true,
-              "description": "Page size, default 20, clamped to 1..=100."
+              "description": "Page size from 1 to 100, default 20. A value outside that range is\nrefused with 400 `INVALID_LIMIT`, never clamped."
             }
           ],
           "variable": [
@@ -2036,7 +2074,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/workspaces/{workspaceId}/webhooks`",
+        "description": "List webhooks",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
           "host": [
@@ -2094,7 +2132,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks`\n\nCreate a webhook with a shown-once whsec_<base64> secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: v1,<base64 HMAC-SHA256>, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "Create a webhook\n\nCreate a webhook with a shown-once whsec_<base64> secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: v1,<base64 HMAC-SHA256>, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
           "host": [
@@ -2137,7 +2175,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`",
+        "description": "Get a webhook",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -2187,7 +2225,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Update any of url, events or active without recreating the endpoint. URLs use the same HTTPS and SSRF validation as creation; events must be current subscription names. Changing url or events makes the caller the endpoint's accountable principal, whose read rights then govern protected event delivery; changing only active keeps the existing principal. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "Update a webhook\n\nUpdate any of url, events or active without recreating the endpoint. URLs use the same HTTPS and SSRF validation as creation; events must be current subscription names. Changing url or events makes the caller the endpoint's accountable principal, whose read rights then govern protected event delivery; changing only active keeps the existing principal. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -2236,7 +2274,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`DELETE /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`\n\nDelete a webhook. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "Delete a webhook\n\nDelete a webhook. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -2276,7 +2314,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`",
+        "description": "List a webhook's deliveries",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
           "host": [
@@ -2341,7 +2379,7 @@
             "value": "application/json"
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries`\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "Send a test delivery\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
           "host": [
@@ -2397,7 +2435,7 @@
             "description": "Required for API-key and OAuth writes. Replaying the same key and body returns the retained result; a different body under the same key is 409 IDEMPOTENCY_CONFLICT."
           }
         ],
-        "description": "Send one retained payload again with current URL and signing secret.",
+        "description": "Retry a delivery\n\nSend one retained payload again with current URL and signing secret.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/retry",
           "host": [
@@ -2451,7 +2489,7 @@
             "description": "Required for API-key and OAuth writes. Replaying the same key and body returns the retained result; a different body under the same key is 409 IDEMPOTENCY_CONFLICT."
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume`\n\nReactivate an auto-paused webhook. Resets consecutive_failures + paused_at. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "Resume a paused webhook\n\nReactivate an auto-paused webhook, resetting its failure count and pause time. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/resume",
           "host": [
@@ -2498,7 +2536,7 @@
             "description": "Required for every caller (1 to 255 bytes; missing or empty is 400 IDEMPOTENCY_KEY_REQUIRED). The same key within 24 hours replays the stored 200 without rotating again: secret is null and secretShownOnce true. A new key rotates again. Reuse with a different request is 409 IDEMPOTENCY_CONFLICT."
           }
         ],
-        "description": "`POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate`\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. API keys require webhooks_manage and current manage_webhooks permission. Human sessions require manage_webhooks or manage_credentials.",
+        "description": "Rotate a webhook secret\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once whsec_<base64> secret. For 24 hours, webhook-signature carries space-separated v1,<base64> signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate",
           "host": [

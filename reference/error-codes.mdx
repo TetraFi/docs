@@ -38,6 +38,8 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="ASSET_CATALOGUE_UNAVAILABLE"></span>`ASSET_CATALOGUE_UNAVAILABLE` | 503 | The asset catalogue is not loaded just now. | Retry the same request shortly, with backoff. | Yes |
 | <span id="ASSET_CATALOG_UNAVAILABLE"></span>`ASSET_CATALOG_UNAVAILABLE` | 503 | The asset catalogue could not be read to check the deposit network. | Retry the same request shortly, with backoff. | Yes |
 | <span id="ASSET_HAS_NO_CHAIN_DEPOSIT"></span>`ASSET_HAS_NO_CHAIN_DEPOSIT` | 400 | The selected asset has no on-chain deposit. | Use bank-deposit instructions for this currency, or select an asset with an on-chain token. | No |
+| <span id="ASSET_ISSUER_EXCLUDED"></span>`ASSET_ISSUER_EXCLUDED` | 422 | An Asset in the request is issued by an asset issuer the workspace excluded in its counterparty management; details.issuerId names the issuer and details.assetId the Asset. | Include the issuer again in counterparty management, or quote another Asset. | No |
+| <span id="ASSET_ISSUER_UNVERIFIABLE"></span>`ASSET_ISSUER_UNVERIFIABLE` | 503 | An Asset of the held quote is no longer in the Asset catalogue, so whether its issuer is excluded could not be checked; nothing was placed. | Request a new quote, then place the order on it. | No |
 | <span id="ASSET_NOT_ON_CHAIN"></span>`ASSET_NOT_ON_CHAIN` | 400 | The asset has no deployment on the chain pinned for that side. | Pin a chain the asset is on (see GET /assets), or remove the pin. | No |
 | <span id="AUTHORIZATION_UNAVAILABLE"></span>`AUTHORIZATION_UNAVAILABLE` | 503 | Current workspace access could not be verified. | Retry the same request shortly, with backoff. | Yes |
 | <span id="AUTH_NOT_CONFIGURED"></span>`AUTH_NOT_CONFIGURED` | 500 | Authentication is enabled but the token service is not configured on this server. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
@@ -49,6 +51,14 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="BANK_DESTINATION_NOT_SCREENED"></span>`BANK_DESTINATION_NOT_SCREENED` | 403 | The payout's bank destination has not been screened. | Screen the bank destination, then place the order again. | No |
 | <span id="BANK_DESTINATION_SCREEN_UNAVAILABLE"></span>`BANK_DESTINATION_SCREEN_UNAVAILABLE` | 503 | The bank destination's screening could not be read; nothing was admitted. | Retry the same request shortly, with backoff. | Yes |
 | <span id="BASE_PROFILE_INCOMPLETE"></span>`BASE_PROFILE_INCOMPLETE` | 403 | The company's base profile (legal name, country of incorporation, registration number, registered address) is incomplete, so an order it originates on a venue's own rails cannot be checked; details.capabilityBlockers names the missing fields in currentlyDue. Nothing was admitted or sent. | Complete the company details in the TetraFi app under Entity profile, then place the order again. | No |
+| <span id="BATCH_INVALID"></span>`BATCH_INVALID` | 400 | The batch body is malformed, empty, or has an item without a unique 1 to 64 character id or with a url that is not a path and query; details.itemId names the item when one is at fault. | Correct the request body as the message says, then send it again. | No |
+| <span id="BATCH_ITEM_NOT_BATCHABLE"></span>`BATCH_ITEM_NOT_BATCHABLE` | 400 | An item reads a stream, an export or a file, which cannot be batched; details.itemId names the item. | Read it as a separate request. | No |
+| <span id="BATCH_ITEM_UNREADABLE"></span>`BATCH_ITEM_UNREADABLE` | 502 | Answered as one item's status and body inside a 200 batch: that item's answer could not be read. | Send that read as a separate request. | No |
+| <span id="BATCH_METHOD_NOT_ALLOWED"></span>`BATCH_METHOD_NOT_ALLOWED` | 400 | A batch item can only be a GET; details.itemId names the item. | Send writes as separate requests. | No |
+| <span id="BATCH_SIGNED_REQUEST_UNSUPPORTED"></span>`BATCH_SIGNED_REQUEST_UNSUPPORTED` | 400 | A signed API-key request cannot be batched: each read would need its own signature. | Send the reads as separate signed requests. | No |
+| <span id="BATCH_TOO_MANY_ITEMS"></span>`BATCH_TOO_MANY_ITEMS` | 400 | A batch holds at most 20 items. | Split the reads across several batches. | No |
+| <span id="BATCH_UNAVAILABLE"></span>`BATCH_UNAVAILABLE` | 503 | Batches cannot be admitted just now; nothing ran. | Retry shortly, or send the reads separately. | Yes |
+| <span id="BATCH_UNKNOWN_ROUTE"></span>`BATCH_UNKNOWN_ROUTE` | 400 | An item url is not a GET operation of the API reference; details.itemId names the item. | Correct the item's path, or read it as a separate request. | No |
 | <span id="BROWSER_STEP_CONTINUATION_REFUSED"></span>`BROWSER_STEP_CONTINUATION_REFUSED` | 409 | This wallet step cannot continue under its current deadline or authority; an earlier step may already have signed or sent. | Read the original trade and wallet transaction; do not start another trade or send its source again. | No |
 | <span id="BUDGET_EXHAUSTED"></span>`BUDGET_EXHAUSTED` | 429 | This venue's quote budget is used up for now. | Wait for the Retry-After period, then requote. | Yes |
 | <span id="CAPABILITIES_UNAVAILABLE"></span>`CAPABILITIES_UNAVAILABLE` | 503 | The workspace's verification could not be read, or changed during the read; no capability snapshot was released. | Retry the same request shortly, with backoff. | Yes |
@@ -153,6 +163,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="DELIVER_TO_NOT_A_WORKSPACE_WALLET"></span>`DELIVER_TO_NOT_A_WORKSPACE_WALLET` | 409 | deliverTo is not one of the workspace's own wallets. A quote source answers unavailable with it; an order or requote on that source is refused. | Deliver to a workspace wallet. | No |
 | <span id="DEPOSIT_SCREENING_PENDING"></span>`DEPOSIT_SCREENING_PENDING` | 503 | Screening of the sending address is still running. | Retry the same request shortly, with backoff. | Yes |
 | <span id="DEPOSIT_SCREENING_UNSUPPORTED_CHAIN"></span>`DEPOSIT_SCREENING_UNSUPPORTED_CHAIN` | 403 | Wallet screening does not cover the sending chain, so the order is refused. | Send from a chain that screening covers. | No |
+| <span id="DESK_FIRM_RESERVED_FOR_EXECUTORS"></span>`DESK_FIRM_RESERVED_FOR_EXECUTORS` | 403 | Firm prices on this desk are kept for members who can place orders: today's remaining firm asks are the share reserved for them. | Use the desk's indicative price, ask a member with Place orders, or retry after 00:00 UTC. | No |
 | <span id="DESTINATION_NOT_APPROVED"></span>`DESTINATION_NOT_APPROVED` | 409 | deliverTo is not an approved withdrawal destination of the venue account. A quote source answers unavailable with it; an order or requote on that source is refused. | Approve the destination on the venue account, or deliver elsewhere. | No |
 | <span id="DIRECT_DEX_EVIDENCE_UNAVAILABLE"></span>`DIRECT_DEX_EVIDENCE_UNAVAILABLE` | 503 | The swap route's preflight record could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="DIRECT_DEX_PREFLIGHT_REQUIRED"></span>`DIRECT_DEX_PREFLIGHT_REQUIRED` | 400 | This swap route needs a matching preflight before the order. | Call POST /orders/preflight for this quote, then place the order. | No |
@@ -254,6 +265,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="LP_ORDER_REJECTED"></span>`LP_ORDER_REJECTED` | 422 | The liquidity provider rejected the order's terms. | Review the order terms, or choose another quote. | No |
 | <span id="LP_PAGE_IDENTITY_CONFLICT"></span>`LP_PAGE_IDENTITY_CONFLICT` | 503 | Two rows of the listing share a paging identity, so no consistent page could be built; nothing was released. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
 | <span id="LP_PREFUNDED_BALANCE_REQUIRED"></span>`LP_PREFUNDED_BALANCE_REQUIRED` | 422 | This liquidity provider needs a prefunded balance before it can quote. | Deposit funds with the provider, then request quotes again. | No |
+| <span id="LP_RELATIONSHIP_UNAVAILABLE"></span>`LP_RELATIONSHIP_UNAVAILABLE` | 503 | The workspace's relationship with the liquidity provider, or its counterparty selection, could not be read; nothing was placed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="LP_REQUIREMENT_FACT_UNREADABLE"></span>`LP_REQUIREMENT_FACT_UNREADABLE` | 409 | The liquidity provider enforces a serving requirement on a fact recorded for this workspace that could not be read (for example a placeholder country); nothing was sent. | Check the fact in the workspace's company profile and correct it, or contact TetraFi support. | No |
 | <span id="LP_REQUIREMENT_INFORMATION_NEEDED"></span>`LP_REQUIREMENT_INFORMATION_NEEDED` | 409 | The liquidity provider enforces a serving requirement on information this workspace has not recorded; nothing was sent. details.items names the onboarding items that supply it, and lpId the provider. | Record the named items in the workspace's company profile, then request a new quote. | No |
 | <span id="LP_WORKSPACE_LINK_MISSING"></span>`LP_WORKSPACE_LINK_MISSING` | 503 | This LP workspace has no recorded LP link, so its trades cannot be read. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
@@ -627,7 +639,7 @@ Both tables are sorted by their first column. New codes and reasons can be added
 | <span id="VENUE_KEY_IP_RESTRICTION_REQUIRED"></span>`VENUE_KEY_IP_RESTRICTION_REQUIRED` | 409 | The account's key does not have the required IP restriction. | Apply the required IP restriction at the venue, then verify the key. | No |
 | <span id="VENUE_KEY_REFUSED_LIKELY_IP_ALLOWLIST"></span>`VENUE_KEY_REFUSED_LIKELY_IP_ALLOWLIST` | 409 | The venue refused this key; TetraFi's egress IPs may not be allowlisted. | Allowlist TetraFi's current egress IPs on this key at the venue, check the key's permissions, then retry the operation. | No |
 | <span id="VENUE_NOT_AVAILABLE"></span>`VENUE_NOT_AVAILABLE` | 409 | This venue is not available for the funding read. | Use an available venue account. | No |
-| <span id="VENUE_NOT_AVAILABLE_TO_CREDENTIAL"></span>`VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | 403 | This credential cannot ask this venue for a firm quote. | Use a credential with Request quotes and Place orders, or a member session. | No |
+| <span id="VENUE_NOT_AVAILABLE_TO_CREDENTIAL"></span>`VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | 403 | This credential cannot ask this venue for a firm quote. | Use a credential with Request quotes, or a member session. | No |
 | <span id="VENUE_OPERATION_MISMATCH"></span>`VENUE_OPERATION_MISMATCH` | 409 | The order does not match the venue operation it continues. | Read the operation, or request a new quote. | No |
 | <span id="VENUE_ORDER_PREPARATION_REFUSED"></span>`VENUE_ORDER_PREPARATION_REFUSED` | 409 | The venue order could not be built from this firm price; nothing was sent. | Request a new quote, then place the order on it. | No |
 | <span id="VENUE_POLICY_UNAVAILABLE"></span>`VENUE_POLICY_UNAVAILABLE` | 503 | How this venue executes cannot be read right now; nothing was sent. | Retry the same request shortly, with backoff. | Yes |
@@ -827,6 +839,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="lpQuoteUnavailable"></span>`lpQuoteUnavailable` | The LP's indicative quote could not be read. | Request prices again shortly. | Yes |
 | <span id="lpUnknown"></span>`lpUnknown` | The venue's provider is not known. | Choose another venue. | No |
 | <span id="marketDataUnavailable"></span>`marketDataUnavailable` | Market data returned no usable observation for the pair or its reference assets. | Request prices again shortly. | Yes |
+| <span id="marketSymbolAmbiguous"></span>`marketSymbolAmbiguous` | The venue lists more than one market for this pair, so none was asked. | Choose another pair or venue. | No |
 | <span id="mfaEnrolmentRequired"></span>`mfaEnrolmentRequired` | The workspace requires a second factor and the member has none. | Enrol an authenticator. | No |
 | <span id="mfaRequired"></span>`mfaRequired` | The venue needs a session that completed its second factor. | Complete the second factor. | No |
 | <span id="minimumUnverified"></span>`minimumUnverified` | The venue's minimum amount is not verified yet: its size limits are being read. | Request quotes again shortly. | Yes |
@@ -891,6 +904,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="pilotMinimumAboveTradeCap"></span>`pilotMinimumAboveTradeCap` | The venue's minimum order is above its Pilot per-trade cap; detail names the native minimum, its USD value and the cap. | Choose another venue; changing the amount cannot fit both limits. | No |
 | <span id="pilotTradeCapExceeded"></span>`pilotTradeCapExceeded` | The amount is above the venue's pilot trade cap. | Lower the amount. | No |
 | <span id="placeOrderNotPermitted"></span>`placeOrderNotPermitted` | The caller cannot place orders. | Use a credential with Place orders. | No |
+| <span id="placementSignedPastDeadline"></span>`placementSignedPastDeadline` | The quote request's time ran out before the venue was asked; nothing was sent. | Request quotes again. | Yes |
 | <span id="platformFeeRateUnavailable"></span>`platformFeeRateUnavailable` | The TetraFi fee rate for this trade could not be read, so the quote was withheld. | Request quotes again shortly. | Yes |
 | <span id="platformJurisdictionBlocked"></span>`platformJurisdictionBlocked` | The platform's mandatory denylist blocks an applicable entity jurisdiction; no venue was asked. | Trading is unavailable in this jurisdiction under platform rules. | No |
 | <span id="platformJurisdictionCountryRequired"></span>`platformJurisdictionCountryRequired` | A primary or applicable address country is missing; mandatory platform clearance was not established. | Record the entity's primary and applicable address countries, then request quotes again. | No |
@@ -909,6 +923,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="providerFeeTreatmentUnknown"></span>`providerFeeTreatmentUnknown` | How the venue's fee is applied could not be read. | Request quotes again. | No |
 | <span id="providerSiteUnrecorded"></span>`providerSiteUnrecorded` | The venue site's network is not recorded. | Choose another venue. | No |
 | <span id="quoteIdUnissuable"></span>`quoteIdUnissuable` | A quote id could not be issued. | Request quotes again shortly. | Yes |
+| <span id="quoteIdentityConflict"></span>`quoteIdentityConflict` | The venue's answer named another quote request, so it was not used; no quote was offered. | Request quotes again. | Yes |
 | <span id="quoteNotHeld"></span>`quoteNotHeld` | The quote could not be held, so it cannot be ordered. | Request quotes again. | Yes |
 | <span id="quotePreparationFailed"></span>`quotePreparationFailed` | The venue quote could not be prepared and verified (its size limits, fees or price could not be read); no quote was offered. | Request quotes again. | Yes |
 | <span id="quoteReconfirmationRequired"></span>`quoteReconfirmationRequired` | The venue's price changed before it could be confirmed. | Request quotes again. | Yes |
@@ -928,6 +943,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="relaySwapImpactTooHigh"></span>`relaySwapImpactTooHigh` | Relay will not quote this size on this route because its price impact is too high. | Try another amount or another bridge. | No |
 | <span id="releaseRecheckUnavailable"></span>`releaseRecheckUnavailable` | The final checks of the caller's authority and venue account could not be completed before the quote was returned. | Request quotes again shortly. | Yes |
 | <span id="requestUnbuildable"></span>`requestUnbuildable` | The request for this route could not be built. | Change the request, or choose another route. | No |
+| <span id="rfqQuoteRefused"></span>`rfqQuoteRefused` | The venue declined this quote request with a code outside its documented list. | Request quotes again, or choose another venue. | Yes |
 | <span id="rfqQuoteRefusedClientProfileNotLoaded"></span>`rfqQuoteRefusedClientProfileNotLoaded` | The venue could not load this account's profile. | Request quotes again shortly; if it persists, contact the venue. | Yes |
 | <span id="rfqQuoteRefusedClientRfqNotConfigured"></span>`rfqQuoteRefusedClientRfqNotConfigured` | The venue has not set up quotes for this account yet. | Ask the venue to finish the account's quote setup. | No |
 | <span id="rfqQuoteRefusedInvalidCurrency"></span>`rfqQuoteRefusedInvalidCurrency` | The venue does not accept the amount's currency for this pair. | Choose another venue. | No |
@@ -970,6 +986,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="solanaFinalityUnavailable"></span>`solanaFinalityUnavailable` | The paying wallet's Solana balance could not be read at the required finality. | Request quotes again shortly. | Yes |
 | <span id="solverChainUnready"></span>`solverChainUnready` | The solver is not ready to settle on the chain named by network and detail. | Choose another route while the solver operator restores settlement readiness. | No |
 | <span id="submitOrderBlocked"></span>`submitOrderBlocked` | The workspace cannot submit orders now. | Resolve what blocks order submission. | No |
+| <span id="symbolUnsupported"></span>`symbolUnsupported` | The venue lists no market for this pair. | Choose another pair or venue. | No |
 | <span id="takerOnboardingIncomplete"></span>`takerOnboardingIncomplete` | The workspace has not finished taker onboarding. | Finish taker onboarding. | No |
 | <span id="tetrafiSolverCallbackNotAuthorized"></span>`tetrafiSolverCallbackNotAuthorized` | TetraFi has not yet enabled delivery to this receiving wallet on that network. | Choose an enabled receiving wallet, or ask TetraFi support to enable this one. | No |
 | <span id="tierNotQuoted"></span>`tierNotQuoted` | The venue no longer quotes this size tier. | Request fresh quotes. | No |
@@ -978,7 +995,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="tradePaused"></span>`tradePaused` | Trading on the venue account is paused. | Request quotes again after it resumes. | Yes |
 | <span id="tradingLinkSnapshotChanged"></span>`tradingLinkSnapshotChanged` | The venue account's trading links changed while the quote was qualified. | Request quotes again. | Yes |
 | <span id="tradingLinkSnapshotUnavailable"></span>`tradingLinkSnapshotUnavailable` | The venue account's trading links could not be read. | Request quotes again shortly. | Yes |
-| <span id="tradingPermissionRequired"></span>`tradingPermissionRequired` | Firm prices from this venue need Request quotes and Place orders. | Use a credential with both permissions. | No |
+| <span id="tradingPermissionRequired"></span>`tradingPermissionRequired` | Prices from this venue need Request quotes. | Use a credential with Request quotes. | No |
 | <span id="tradingSourceNetworkUnavailable"></span>`tradingSourceNetworkUnavailable` | The network of the selected trading source could not be resolved. | Choose another trading source, then request quotes again. | No |
 | <span id="tradingSourceNotLinked"></span>`tradingSourceNotLinked` | The selected trading source is not linked to this venue's account. | Choose a linked trading source, or link it on the venue account. | No |
 | <span id="tronSolidBlockUnavailable"></span>`tronSolidBlockUnavailable` | The paying wallet's Tron balance could not be read at a solidified block. | Request quotes again shortly. | Yes |
@@ -989,6 +1006,7 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="uniswapUnwrapAboveDailyCap"></span>`uniswapUnwrapAboveDailyCap` | A native receive's swap could deliver more wrapped token than the wallet's Uniswap v3 grant still unwraps today. | Lower the amount, or have a wallet manager raise the wrapped token's daily cap. | No |
 | <span id="uniswapUnwrapAboveTradeCap"></span>`uniswapUnwrapAboveTradeCap` | A native receive's swap could deliver more wrapped token than the wallet's Uniswap v3 grant unwraps per trade. | Lower the amount, or have a wallet manager raise the wrapped token's per-trade cap. | No |
 | <span id="venueAnsweredAfterQuoteWindow"></span>`venueAnsweredAfterQuoteWindow` | The venue answered after the quote window closed. | Request quotes again. | Yes |
+| <span id="venueBodyUnreadable"></span>`venueBodyUnreadable` | The venue's answer could not be read; no quote was offered. | Request quotes again shortly. | Yes |
 | <span id="venueConnectionStorageUnavailable"></span>`venueConnectionStorageUnavailable` | The venue account's quote-admission records could not be read or written. | Request quotes again shortly. | Yes |
 | <span id="venueDataStale"></span>`venueDataStale` | The venue could not read its own balances or prices just now. | Request quotes again shortly. | Yes |
 | <span id="venueDeclined"></span>`venueDeclined` | The venue declined to quote. | Choose another venue. | No |
@@ -1001,10 +1019,14 @@ A source reason explains why a venue did not quote. It does not mean the whole r
 | <span id="venueNotEnabled"></span>`venueNotEnabled` | The venue is not enabled on the selected trading source's venue account; `fix` names who can enable it. | A credentials manager enables the venue, then request quotes again. | No |
 | <span id="venueNotEnabledForWorkspace"></span>`venueNotEnabledForWorkspace` | The venue is not enabled for this workspace. | Enable the venue for the workspace. | No |
 | <span id="venueNotListed"></span>`venueNotListed` | The venue no longer quotes this pair. | Request fresh quotes. | No |
+| <span id="venueOutcomeIndeterminate"></span>`venueOutcomeIndeterminate` | The venue may have received the quote request, but no readable answer arrived; no quote was offered. | Request quotes again. | Yes |
 | <span id="venuePoliciesUnavailable"></span>`venuePoliciesUnavailable` | The venue quote policies could not be read. | Request quotes again shortly. | Yes |
+| <span id="venueQuoteAdmissionExpired"></span>`venueQuoteAdmissionExpired` | The quote request's time ran out before it could be sent to the venue; nothing was sent. | Request quotes again. | Yes |
 | <span id="venueQuoteIntentMismatch"></span>`venueQuoteIntentMismatch` | The venue account or the request changed while it was being quoted. | Request quotes again; if it repeats, verify the venue account. | Yes |
+| <span id="venueRateLimited"></span>`venueRateLimited` | TetraFi's request allowance for this venue is used for now; no quote request was sent. | Request quotes again shortly. | Yes |
 | <span id="venueRelationship"></span>`venueRelationship` | The workspace's relationship with this venue does not allow trading. | Resolve the relationship with the venue. | No |
 | <span id="venueRelationshipUnavailable"></span>`venueRelationshipUnavailable` | The workspace's relationship with this venue could not be read. | Request quotes again shortly. | Yes |
+| <span id="venueResponseUnmapped"></span>`venueResponseUnmapped` | The venue answered with a refusal that has no documented cause; no quote was offered. | Request quotes again, or choose another venue. | Yes |
 | <span id="venueTradeKeyUnavailable"></span>`venueTradeKeyUnavailable` | The API key's venue-trading settings could not be read. | Request quotes again shortly. | Yes |
 | <span id="venueTradeScopeRequired"></span>`venueTradeScopeRequired` | The API key can read indicative prices but cannot order without venue-trading authority. | Re-issue the key with two-factor authentication, venue trading on and HMAC signing. | No |
 | <span id="venueTradeUnreadable"></span>`venueTradeUnreadable` | The venue's trade terms could not be read. | Request quotes again. | No |
