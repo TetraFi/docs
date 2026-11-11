@@ -4,51 +4,87 @@ description: "Common questions about TetraFi, answered."
 mode: "wide"
 ---
 
-The questions we hear most from teams arriving straight at the Build tab. The team is a message away for anything the docs don't cover.
+Answers to the questions teams ask most on arrival. For anything else, [ask the team](/support).
+
+## Platform
 
 <AccordionGroup>
   <Accordion title="What is live today, and what is coming?">
-    Basic execution is live: through [the TetraFi API](/overview) you get [quotes](/search/how-it-works) from every venue your workspace can use, [orders](/trade/orders) that TetraFi executes on your exchange and OTC venue accounts or from organisation wallets granted to your key, and [prices](/search/prices). Escrow-settled delivery-versus-payment through your own router (Advanced) is not open yet. [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design; their pages describe the planned primitives, and their integration shapes are sketched under [netting](/netting-api/introduction) and [shared collateral](/collateral-api/introduction) so you can design against them early. [propAMM](/propamm/introduction) is also coming soon.
+    Basic execution is live through [the TetraFi API](/overview):
+
+    - [quotes](/search/how-it-works) from every venue your workspace can use;
+    - [orders](/trade/orders) that TetraFi executes on your exchange and OTC venue accounts, or from organisation wallets granted to your key;
+    - [prices](/search/prices).
+
+    Escrow-settled delivery-versus-payment through your own router (Advanced) is not open yet. [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design, with integration shapes sketched under [netting](/netting-api/introduction) and [shared collateral](/collateral-api/introduction) so you can design against them early; [propAMM](/propamm/introduction) is also coming soon.
   </Accordion>
 
   <Accordion title="What are the three primitives?">
-    Every institutional settlement carries three costs, and TetraFi runs one primitive against each: **settlement rails** retire principal risk with atomic delivery-versus-payment from any chain, asset, or venue to any other; **Multilateral Netting** retires the gross settlement toll by clearing obligations through atomic multilateral set-off, so only each participant's net residual settles; the **Shared Collateral Network** retires trapped liquidity with capital committed once and cross-collateralised across every settlement gap. The rails are the pipes; netting and shared collateral are where the capital efficiency comes from. [How TetraFi Works](/how-tetrafi-works) tells the whole story.
+    Every institutional settlement carries three costs, and TetraFi runs one primitive against each:
+
+    - **Settlement rails** retire principal risk with atomic delivery-versus-payment from any chain, asset, or venue to any other.
+    - **Multilateral Netting** retires the gross settlement toll by clearing obligations through atomic multilateral set-off, so only each participant's net residual settles.
+    - The **Shared Collateral Network** retires trapped liquidity with capital committed once and cross-collateralised across every settlement gap.
+
+    The rails are the pipes; netting and shared collateral are where the capital efficiency comes from. [How TetraFi Works](/how-tetrafi-works) tells the whole story.
   </Accordion>
 
   <Accordion title="Do I have to adopt all three?">
-    No. The primitives are composable: use one or all three, and each plugs into the same shared liquidity and settlement network. A workspace can run firm RFQ liquidity and never touch netting; a book that settles gross today can adopt netting without running any of TetraFi's other rails; a solver can use Solver Credit and nothing else. Own the deployment, share the network.
-  </Accordion>
+    No: use one or all three, and each plugs into the same shared liquidity and settlement network.
 
+    - A workspace can run firm RFQ liquidity and never touch netting.
+    - A book that settles gross today can adopt netting without TetraFi's other rails.
+    - A solver can use Solver Credit and nothing else.
+  </Accordion>
+</AccordionGroup>
+
+## Custody and security
+
+<AccordionGroup>
   <Accordion title="Who holds custody?">
-    Today, your assets stay in your own venue accounts and organisation wallets, and TetraFi executes orders there for you. With Advanced execution, not open yet, every workspace gets its own immutable on-chain router, owned by the workspace, and trades settle delivery-versus-payment through a compliance-gated escrow: the counterparty delivers, or your funds are refunded through a path that is permissionless and cannot be paused. TetraFi holds no custody key and no upgrade key anywhere in the stack. See [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts).
+    Today, your assets stay in your own venue accounts and organisation wallets, and TetraFi executes orders there for you. With Advanced execution, not open yet, each workspace gets its own immutable on-chain router: the counterparty delivers through a compliance-gated escrow, or your funds are refunded through a permissionless path that cannot be paused. TetraFi holds no custody key and no upgrade key anywhere in the stack ([Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts)).
   </Accordion>
 
   <Accordion title="What does the compliance policy mean for my integration?">
-    One policy, composed per deployment and controlled by your institution, enforced on-chain at the escrow against attested credentials. Your RFQ requests reach only workspace-approved LPs, with jurisdiction filtering applied before a request ever reaches a desk, and the same policy re-runs on every clearing run entry and every vault draw when those layers ship. [Compliance Policy](/core-concepts/compliance-policy) covers where each check runs.
+    One policy, composed per deployment and controlled by your institution, is enforced on-chain at the escrow against attested credentials. RFQ requests reach only workspace-approved LPs, with jurisdiction filtering before a request reaches a desk, and the same policy re-runs on every clearing run entry and vault draw when those layers ship. [Compliance Policy](/core-concepts/compliance-policy) covers where each check runs.
   </Accordion>
 
   <Accordion title="Where does my workspace's router come from, and can it be upgraded?">
-    It is provisioned automatically when your workspace is created, at a deterministic address predicted before deployment, and it belongs to your workspace permanently. It is immutable: capability upgrades only ever add venue modules to an allowlist, and an existing module can never be swapped out from under you. Never hardcode addresses - the ones carried in quote responses are authoritative for every trade.
+    It is provisioned when your workspace is created, at a deterministic address predicted before deployment, and belongs to your workspace permanently. It is immutable: upgrades only add venue modules to an allowlist, and an existing module can never be swapped out. Never hardcode addresses: the ones in quote responses are authoritative for every trade.
   </Accordion>
+</AccordionGroup>
 
-  <Accordion title="I already run a solver. What does Solver Credit change?">
-    Nothing about your engine. Today a cross-chain fill needs your balance sheet copied onto every chain you serve; with [Solver Credit](/collateral/solver-credit) (coming soon) the draw funds the fill transaction itself, never your wallet, repayment is verified in the same transaction, and the escrow releases to the vault when the fill is proven. You fill TetraFi intents on the chains you already stock and on the ones you never did, and adopt nothing else of ours if you don't want to. If you would rather not run a solver at all, the [engine is also offered as a service](/use-cases/market-makers), leaving your desk with price construction only.
-  </Accordion>
+## Keys, wallets and agents
 
+<AccordionGroup>
   <Accordion title="Does an API key let my backend spend from a wallet?">
-    Only from organisation wallets granted to it. A key with venue trading trades from your venue accounts and from the organisation wallets a workspace owner, an admin who manages credentials, or the key's owner grants it in the app; the key cannot grant itself one, and every call is re-checked against its owner's live permissions ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). Treasury transfers stay in the app.
+    Only from organisation wallets granted to it: a key with venue trading trades from your venue accounts and from the organisation wallets that a workspace owner, an admin who manages credentials, or the key's owner grants it in the app. The key cannot grant itself one, and every call is re-checked against its owner's live permissions ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). Treasury transfers stay in the app.
   </Accordion>
 
   <Accordion title="Can my backend sign orders without holding keys?">
-    Yes (rolling out). A governed wallet puts a quorum of approvers you define behind each signature; an embedded wallet signs in its owner's own session; a bounded delegate is a limited, expiring, revocable signer the owners approve. No root key or provider token ever reaches TetraFi.
+    Yes (rolling out), with one of three signers:
+
+    - a governed wallet puts a quorum of approvers you define behind each signature;
+    - an embedded wallet signs in its owner's own session;
+    - a bounded delegate is a limited, expiring, revocable signer the owners approve.
+
+    No root key or provider token ever reaches TetraFi.
   </Accordion>
 
   <Accordion title="Can I let an agent run part of my treasury?">
-    Yes (rolling out). An [agent](/core-concepts/agents) is a service account with a human sponsor, an expiry, and a kill switch, acting inside an envelope of per-asset caps, velocity, destinations, chains, and hours. Every transfer it makes is checked at the gateway before any signer is asked.
+    Yes (rolling out). An [agent](/core-concepts/agents) is a service account with a human sponsor, an expiry and a kill switch, acting inside an envelope of per-asset caps, velocity, destinations, chains and hours. Every transfer it makes is checked at the gateway before any signer is asked.
+  </Accordion>
+</AccordionGroup>
+
+## Solvers, netting and collateral
+
+<AccordionGroup>
+  <Accordion title="I already run a solver. What does Solver Credit change?">
+    Nothing about your engine. With [Solver Credit](/collateral/solver-credit) (coming soon), the draw funds the fill transaction itself, never your wallet, so you fill on chains you never stocked; repayment is verified in the same transaction and the escrow releases to the vault when the fill is proven. If you would rather not run a solver, the [engine is also offered as a service](/use-cases/market-makers), leaving your desk with price construction only.
   </Accordion>
 
   <Accordion title="How do I register interest in netting or the collateral network?">
-    Use the routes on the [support page](/support): there is one for netting adopters and one for depositors and curators, and issuers and solvers have their own. Tell us who owes whom and how often, or what capital you would commit and under what mandate, and the team opens a channel to work in.
+    Use the routes on the [support page](/support): one for netting adopters, one for depositors and curators, and their own for issuers and solvers. Tell us who owes whom and how often, or what capital you would commit and under what mandate, and the team opens a channel to work in.
   </Accordion>
 </AccordionGroup>
 

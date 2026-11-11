@@ -3,7 +3,7 @@ title: "API reference"
 description: "Every operation an API key can call, generated from the TetraFi API's own specification, with the interfaces it offers and how to read its times."
 ---
 
-These pages are generated from the API's integrator specification, so they match what the API accepts and returns. The guides explain how the operations fit together; start with the [Quickstart](/quickstart) if you are new. The [Compatibility policy](/compatibility) says what can change after launch.
+Every operation an API key can call, generated from the API's own specification. Start with the [Quickstart](/quickstart) if you are integrating for the first time; the [Compatibility policy](/compatibility) says what can change after launch.
 
 ## Base URL and authentication
 
@@ -12,7 +12,7 @@ These pages are generated from the API's integrator specification, so they match
 | Sandbox | `https://api-dev.tetrafi.io` |
 | Production | `https://api.tetrafi.io`, from launch |
 
-Send your API key in `X-API-Key` on every request: the key implies its workspace. A key with venue trading also signs each request. [Authentication](/authentication) covers both, and [Environments](/overview#environments) what differs in the sandbox.
+Send your API key in `X-API-Key` on every request: the key implies its workspace. A key with venue trading also signs each request ([Authentication](/authentication)). [Environments](/overview#environments) lists what differs in the sandbox.
 
 ## Supported interfaces
 
@@ -23,7 +23,7 @@ Send your API key in `X-API-Key` on every request: the key implies its workspace
 | Webhooks | Workspace events, including `order.updated` ([Webhooks](/trade/webhooks)). |
 | FIX | Not supported. |
 
-A quote stream reports the search, never an order's outcome: follow orders by their status or webhooks. A TypeScript SDK is coming soon to npm; the API needs no SDK.
+A quote stream reports the search, never an order's outcome: follow orders by their status or webhooks. The API needs no SDK; a TypeScript SDK is coming soon to npm.
 
 ## Download the specification
 
@@ -31,15 +31,27 @@ Download the [OpenAPI specification](https://raw.githubusercontent.com/TetraFi/d
 
 ## Postman collection
 
-Import the [TetraFi Postman collection](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json) with **Import → Link**, then set these values locally in its **Variables** tab:
+<Steps>
+  <Step title="Import the collection">
+    Import the [TetraFi Postman collection](https://raw.githubusercontent.com/TetraFi/docs/main/api-reference/tetrafi.postman_collection.json) with **Import → Link**.
+  </Step>
+  <Step title="Set your variables">
+    Set these values locally in its **Variables** tab:
 
-| Variable | Value |
-| :--- | :--- |
-| `baseUrl` | The base URL of your environment |
-| `apiKey` | Your API key |
-| `signingSecret` | The key's 64-character hexadecimal signing secret, if signing is enabled |
+    | Variable | Value |
+    | :--- | :--- |
+    | `baseUrl` | The base URL of your environment |
+    | `apiKey` | Your API key |
+    | `signingSecret` | The key's 64-character hexadecimal signing secret, if signing is enabled |
+  </Step>
+  <Step title="Check your credentials">
+    Send **GET /api/v1/assets**. The collection signs each request when `signingSecret` is set.
+  </Step>
+</Steps>
 
-Send **GET /api/v1/assets** to check your credentials. The collection signs each request when `signingSecret` is set. Replace angle-bracket placeholders and path variables before sending, and send requests one at a time: the collection includes order placement. Never share or export it with values filled in.
+<Warning>
+The collection includes order placement. Replace angle-bracket placeholders and path variables before sending, and send requests one at a time. Never share or export it with values filled in.
+</Warning>
 
 ## Reading responses
 
