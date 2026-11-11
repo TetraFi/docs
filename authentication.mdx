@@ -1,125 +1,212 @@
 ---
-title: "Authentication"
-description: "Create an API key, choose its permissions, send it with every request, and sign requests when the key trades on your venue accounts."
+title: "Authenticate"
+description: "Authenticate with an API key or a service account's short-lived token, choose permissions, and sign requests when a key trades on your venue accounts."
 ---
 
-Your backend authenticates with an API key bound to you and one workspace. TetraFi checks your current permissions on every request, so if yours shrink, the key's shrink with them.
+import OauthToken from '/snippets/samples/oauth-token.mdx';
+import OauthMe from '/snippets/samples/oauth-me.mdx';
+import OauthCall from '/snippets/samples/oauth-call.mdx';
+import OauthSignedRefused from '/snippets/samples/oauth-signed-refused.mdx';
 
-For software that should not depend on one person's account, use a [service account](/service-accounts).
+Authenticate your backend with an API key bound to you and one workspace, or with a service account for software.
 
-## Create an API key
+## At a glance
 
-<Steps>
-  <Step title="Open the form">
-    In the app, open **Settings**. Under **Your account**, find **Personal API keys**, select **Open API keys**, then **Create key**.
-  </Step>
+| | API key | Service account |
+| --- | --- | --- |
+| Acts as | You, within your current permissions | Software, within its role and its sponsor's permissions |
+| Send | `X-API-Key` | `X-API-Key`, or a bearer token from `POST /api/v1/oauth/token` |
+| Trades on venue accounts | With venue trading, [signed](#sign-requests) | As a signed `X-API-Key` only |
 
-  <Step title="Name it">
-    Enter a **Name**. **Description**, **Expiration** and **IP allowlist** are optional unless your workspace requires keys to expire. A key without an expiration works until revoked.
-  </Step>
+Both are checked with `GET /api/v1/me`.
 
-  <Step title="Choose permissions">
-    Tick what the key may do ([below](#permissions)). To quote and order: **Read quotes**, **Submit orders** and **Read orders**.
-  </Step>
+## Get a credential
 
-  <Step title="Turn on venue trading (to trade)">
-    Switch **Venue trading** on. You must be a workspace owner or admin who manages credentials, signed in with a second factor.
-  </Step>
+<Tabs>
+  <Tab title="API key">
+    <Steps>
+      <Step title="Create the key">
+        In **Settings**, **Open API keys**, select **Create key** and tick [permissions](#permissions): to quote and order, **Read quotes**, **Submit orders** and **Read orders**.
+      </Step>
 
-  <Step title="Create and store it">
-    Select **Create key**. Copy **API Key** and, with venue trading, **Request-signing secret** into your secret manager, separately. Both are shown once and cannot be recovered; never put them in source code or a tracked file.
-  </Step>
-</Steps>
+      <Step title="Turn on venue trading (to trade)">
+        Switch **Venue trading** on, as an owner or credentials admin signed in with a second factor.
+      </Step>
+
+      <Step title="Store it">
+        Copy **API Key** and **Request-signing secret** to your secret manager, separately: both are shown once.
+      </Step>
+    </Steps>
+
+    <Accordion title="Every field and how to store it">
+      **Settings** lists **Personal API keys** under **Your account**. Enter a **Name**; **Description**, **Expiration** and **IP allowlist** are optional unless your workspace requires keys to expire. A key without an expiration works until revoked.
+
+      The **Request-signing secret** is shown only with venue trading. The key and secret cannot be recovered; never put them in source code or a tracked file.
+    </Accordion>
+  </Tab>
+
+  <Tab title="Service account">
+    Software, such as a CI job or trading bot, exchanges its key for a short-lived token (OAuth 2.0 client credentials).
+
+    <Steps>
+      <Step title="Create the account and a key">
+        In **Identity & access**, **Service accounts**, create the account, then a key. Its user ID is the `client_id`; the key is the `client_secret`.
+      </Step>
+
+      <Step title="Exchange the key for a token">
+        Send a form-encoded `POST /api/v1/oauth/token` with `grant_type` `client_credentials`.
+
+        <OauthToken />
+
+        ```json Output on test networks expandable
+        {"token_type":"Bearer","expires_in":900,"scope":"compliance_read dashboard_read flow_read orders_read permission_requests_read permission_requests_write prices_read settlements_read trades_read"}
+        ```
+      </Step>
+
+      <Step title="Send the token">
+        Send `Authorization: Bearer <access_token>` in place of `X-API-Key`.
+
+        <OauthCall />
+
+        ```json Output on test networks expandable
+        {"orders":[{"orderId":"ba5a2e31-…","kind":"basicTrade","status":"pending","terminal":false}]}
+        ```
+      </Step>
+    </Steps>
+
+    <Accordion title="Who can create it, and every field">
+      You need to be a workspace owner or admin who manages credentials, in a signed-in session. No API key or token can create another credential.
+
+      1. In the app, open **Identity & access**, then **Service accounts**. Select **Create service account**, enter a **Name** and choose a **Role**; **Description** and **Expires** are optional.
+      2. Copy its user ID: it is the `client_id` of the token request.
+      3. Open the account, then **API keys**, and select **New key**. Enter a **Key name** and select **Create key**. Copy the key, the `client_secret` of the token request, to your secret manager, never source code or a tracked file: it is shown once.
+
+      Any OAuth client library works. You can also send the key itself as `X-API-Key`. Token details: [Service account tokens](#service-account-tokens).
+    </Accordion>
+  </Tab>
+</Tabs>
 
 ## Permissions
 
-A key can receive only permissions you hold in that workspace.
+A key can receive only permissions you hold in that workspace; TetraFi checks them on every request, so if yours shrink, the key's shrink with them.
 
+<Accordion title="What each permission allows">
 | Permission in the app | What the key can do |
 | --- | --- |
-| **Read quotes** | List assets and read prices. With **Submit orders**, request quotes: **Read quotes** alone cannot. |
-| **Submit orders** | Place and cancel orders, and, with **Read quotes**, request quotes. |
-| **Read orders** | Read an order's status and recover an order by its quote. |
-| **Read trades** | Read the trade history. |
-| **Treasury read** | Read [balances](/trade/balances), exchange accounts and credit. Never moves money. |
-| **Read settlements** | Read [settlement](/trade/settlement-and-credit) plans, windows, obligations and movements. |
-| **Read fee schedule** | Read your [fee schedule](/trade/fee-schedule). No other permission includes it. |
-| **Read compliance** | Read your workspace's [capabilities](/before-you-trade#check-readiness-from-your-backend). |
-| **Manage webhooks** | Create and manage [webhooks](/trade/webhooks). |
+| Read quotes | List assets and read prices. With Submit orders, request quotes: Read quotes alone cannot. |
+| Submit orders | Place and cancel orders, and, with Read quotes, request quotes. |
+| Read orders | Read an order's status and recover an order by its quote. |
+| Read trades | Read the trade history. |
+| Treasury read | Read [balances](/trade/balances), exchange accounts and credit. Never moves money. |
+| Read settlements | Read [settlement](/trade/settlement-and-credit) plans, windows, obligations and movements. |
+| Read fee schedule | Read your [fee schedule](/trade/fee-schedule). No other permission includes it. |
+| Read compliance | Read your workspace's [capabilities](/before-you-trade#check-readiness-from-your-backend). |
+| Manage webhooks | Create and manage [webhooks](/trade/webhooks). |
 
-The [permission matrix](/reference/permissions) maps every operation to its scope.
-
-## Trade on your venue accounts
-
-Every quote you can order today is Basic: TetraFi executes it from your exchange or OTC venue account, or an organisation wallet granted to your key. A key that trades Basic quotes needs:
-
-- **Venue trading**, given only at creation, with **Read quotes** and **Submit orders**, by its owner signed in with a second factor. It cannot be added to an existing key.
-- **Request signing**, always on for a venue-trading key: every request must be [signed](#sign-requests). It cannot be turned off (`409 VENUE_TRADE_KEY_SIGNING_REQUIRED`); for unsigned requests, use a key without venue trading.
-- **Organisation wallets granted to it**, to trade from them. **Create API key** grants your default organisation wallets you hold a Trade right on ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). Venue accounts need no grant.
-
-Without venue trading, a quote request still answers `200`, but your venue accounts read `restricted` with `venueTradeScopeRequired` and return no quotes.
-
-### Check what a key can do
-
-`GET /api/v1/me` has no side effects and describes the calling key, not a user profile. A signing key must sign it too.
-
-| Field | What it says |
-| --- | --- |
-| `authKind`, `auth` | `apiKey`; `auth` is `oauthClientCredentials` for a [service-account token](/service-accounts). |
-| `keyId`, `name`, `origin` | The key's identity. `keyId` is also its `credentialId`. |
-| `scopes`, `permissions`, `dataScope` | Its current authority. |
-| `workspaceId` | The workspace the key is bound to. |
-| `organisationWallets` | Venue trading and wallet grants: `venueTradeScope` and `venueTradeEnabled` must both be `true` for venue-account quotes ([Check readiness](/before-you-trade#check-readiness-from-your-backend)). |
-| `rateLimits`, `expiresAt` | The key's own request limit and expiry, when set. |
+  The [permission matrix](/reference/permissions) maps every operation to its scope.
+</Accordion>
 
 ## Send the key
 
 Send `X-API-Key: <your key>` on every request. Without credentials, a request answers `401 AUTH_REQUIRED` before anything is looked up.
 
-- **`X-Workspace-Id`** is optional with a key. When sent, it must name the key's own workspace: `403 WORKSPACE_SCOPE_MISMATCH` otherwise, `400 INVALID_WORKSPACE_ID` when malformed. A signed-in member's session must always send it (`400 MISSING_WORKSPACE`).
-- **Workspace paths** (`/api/v1/workspaces/{workspaceId}/…`: balances, trades, settlement, venue accounts, fee schedule, capabilities, webhooks) take the `workspaceId` from `GET /api/v1/me`. Quotes and orders do not.
+<Accordion title="Workspace header and workspace paths">
+  - `X-Workspace-Id` is optional with a key. When sent, it must name the key's own workspace: `403 WORKSPACE_SCOPE_MISMATCH` otherwise, `400 INVALID_WORKSPACE_ID` when malformed. A signed-in member's session must always send it (`400 MISSING_WORKSPACE`).
+  - Workspace paths (`/api/v1/workspaces/{workspaceId}/…`: balances, trades, settlement, venue accounts, fee schedule, capabilities, webhooks) take the `workspaceId` from `GET /api/v1/me`. Quotes and orders do not.
+</Accordion>
+
+## Trade on your venue accounts
+
+Every quote you can order today is Basic: TetraFi executes it from your exchange or OTC venue account, or an organisation wallet granted to your key. That takes venue trading and request signing.
+
+<Accordion title="Without venue trading">
+  A quote request still answers `200`, but your venue accounts read `restricted` with `venueTradeScopeRequired` and return no quotes.
+</Accordion>
+
+<Accordion title="What a trading key needs">
+  - Venue trading, given only at creation, with Read quotes and Submit orders, by its owner signed in with a second factor. It cannot be added to an existing key.
+  - Request signing, always on for a venue-trading key: every request must be [signed](#sign-requests). It cannot be turned off (`409 VENUE_TRADE_KEY_SIGNING_REQUIRED`); for unsigned requests, use a key without venue trading.
+  - Organisation wallets granted to it, to trade from them. Create API key grants your default organisation wallets you hold a Trade right on ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). Venue accounts need no grant.
+</Accordion>
+
+### Check what a key can do
+
+`GET /api/v1/me` has no side effects and describes the calling key's current authority. A signing key must sign it too.
+
+<OauthMe />
+
+```json Output with a token, on test networks expandable
+{"authKind":"apiKey","auth":"oauthClientCredentials","keyId":"322229a8","workspaceId":"5f56c3dd-…","scopes":["compliance_read","dashboard_read","flow_read","orders_read","permission_requests_read","permission_requests_write","prices_read","settlements_read","trades_read"],"blockedBy":"VENUE_TRADE_SCOPE_REQUIRED"}
+```
+
+<Accordion title="IntrospectionResponse fields">
+| Field | What it says |
+| --- | --- |
+| `authKind` | `apiKey`: the answer describes an API key. |
+| `auth` | `apiKey` for the key itself; `oauthClientCredentials` for a service-account token. |
+| `keyId`, `name`, `origin` | The key's identity. `keyId` is also its `credentialId`, and for a token, the key it was exchanged from. |
+| `scopes`, `permissions`, `dataScope` | Its current authority. A token's `scopes` are its issued scopes, narrowed by the key's and its sponsor's current permissions. |
+| `workspaceId` | The one workspace the key or token works in. |
+| `organisationWallets` | Venue trading and wallet grants: `venueTradeScope` and `venueTradeEnabled` must both be `true` for venue-account quotes ([Check readiness](/before-you-trade#check-readiness-from-your-backend)). Its `blockedBy` is the code an organisation-wallet order would be refused with now. |
+| `rateLimits`, `expiresAt` | The key's own request limit and expiry, when set. |
+
+  It describes a key or token, not a user profile or verification record. `workspaceId` and `organisationWallets` may be absent or `null` when the key is bound to no workspace; rate limits and expiry are optional. With a token, `GET /api/v1/me` returns `IntrospectionResponse` for the key it came from, as for that key sent as `X-API-Key`.
+
+  Scopes can shrink while a token is valid. `/me` reads them live: call it again rather than trusting the token's `scope`.
+</Accordion>
 
 ## Sign requests
 
-When signing is on, every request carries three more headers:
+A signing key sends `X-Timestamp`, `X-Signature` (HMAC-SHA256 with the signing secret) and, on a write, `X-Nonce` on every request.
 
+<AccordionGroup>
+  <Accordion title="Headers">
 | Header | Value |
 | --- | --- |
 | `X-Timestamp` | The current Unix time in seconds: within 300 seconds of TetraFi's clock, and a write at most 10 seconds ahead. Keep your clock NTP-synced. |
 | `X-Nonce` | On a write (`POST`, `PUT`, `PATCH`, `DELETE`) only: a fresh random value, 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`. |
 | `X-Signature` | The lower-case hexadecimal HMAC-SHA256 of the lines below, keyed with the signing secret's 32 bytes. The secret is 64 hexadecimal characters: decode it first. |
 
-A write signs these five lines joined by newlines, with no trailing newline; a read leaves out the nonce line. A request without a body hashes zero bytes.
+  </Accordion>
 
-```text
-<X-Timestamp>
-<X-Nonce>
-<HTTP method in upper case>
-<path with its query string, exactly as sent>
-<lower-case hexadecimal SHA-256 of the exact body bytes>
-```
+  <Accordion title="The string to sign">
+    A write signs these five lines joined by newlines, with no trailing newline; a read leaves out the nonce line. A request without a body hashes zero bytes.
 
-Generate the nonce from a cryptographic source, for example 18 random bytes in base64url:
+    ```text
+    <X-Timestamp>
+    <X-Nonce>
+    <HTTP method in upper case>
+    <path with its query string, exactly as sent>
+    <lower-case hexadecimal SHA-256 of the exact body bytes>
+    ```
+  </Accordion>
 
-<CodeGroup>
-```bash Bash
-nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
-```
+  <Accordion title="Generate the nonce">
+    Generate the nonce from a cryptographic source, for example 18 random bytes in base64url:
 
-```javascript Node.js
-crypto.randomBytes(18).toString('base64url')
-```
+    <CodeGroup>
+    ```bash Bash
+    nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+    ```
 
-```python Python
-secrets.token_urlsafe(18)
-```
-</CodeGroup>
+    ```javascript Node.js
+    crypto.randomBytes(18).toString('base64url')
+    ```
 
-Each nonce is accepted once per key, by every TetraFi server, restarts included.
+    ```python Python
+    secrets.token_urlsafe(18)
+    ```
+    </CodeGroup>
 
-A retried write signs again with a new nonce and timestamp, keeping its `Idempotency-Key` and body ([Retries and recovery](/trade/retries-and-recovery)). A read has no nonce, so the same signed read is accepted again within 300 seconds: polling needs none.
+    Each nonce is accepted once per key, by every TetraFi server, restarts included.
+  </Accordion>
 
-A failed check answers `401 AUTH_REQUIRED` with `details.reason`:
+  <Accordion title="Retries and polling">
+    A retried write signs again with a new nonce and timestamp, keeping its `Idempotency-Key` and body ([Retries and recovery](/trade/retries-and-recovery)). A read has no nonce, so the same signed read is accepted again within 300 seconds: polling needs none.
+  </Accordion>
+
+  <Accordion title="Signature refusals">
+    A failed check answers `401 AUTH_REQUIRED` with `details.reason`:
 
 | `details.reason` | What went wrong |
 | --- | --- |
@@ -129,18 +216,92 @@ A failed check answers `401 AUTH_REQUIRED` with `details.reason`:
 | `NONCE_REQUIRED`, `NONCE_INVALID` | A write has no `X-Nonce`, or it is malformed or the header appears twice. |
 | `SIGNATURE_REPLAYED` | This nonce was already accepted for the key. |
 
+  </Accordion>
+</AccordionGroup>
+
 ### Rotate the signing secret
 
-Only the app's signed-in session rotates or enables signing, never your backend's key. `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, with the key's `keyId` as `credentialId`, answers a new `signingSecret` once and replaces the old one at once.
+Only a signed-in session in the app rotates or enables signing, never a key or token.
 
-Only the key's owner (or, for a service-account key, a member who manages credentials) may call it. An API key or service-account token is refused with `403 JWT_REQUIRED`.
+<Accordion title="The rotation call">
+  `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, with the key's `keyId` as `credentialId`, answers a new `signingSecret` once and replaces the old one at once.
+
+  Only the key's owner (or, for a service-account key, a member who manages credentials) may call it. An API key or service-account token is refused with `403 JWT_REQUIRED`.
+</Accordion>
+
+## Service account tokens
+
+A token lasts at most 900 seconds; exchange the key again before expiry.
+
+<Accordion title="Refresh and storage">
+  There is no refresh token: exchange the key again before expiry. Keep tokens in memory only; the key is the credential to protect. Enabling or rotating a service-account key's request signing is a signed-in member's operation, never the account's own.
+</Accordion>
+
+<AccordionGroup>
+  <Accordion title="Token request and response">
+    `POST /api/v1/oauth/token` follows [RFC 6749, section 4.4](https://www.rfc-editor.org/rfc/rfc6749#section-4.4). `client_id` and `client_secret` may go in an HTTP Basic `Authorization` header instead.
+
+| Field | Value |
+| --- | --- |
+| `grant_type` | `client_credentials` |
+| `client_id` | The service account's user ID. |
+| `client_secret` | One of its API keys, the full `tfk_live_…` or `tfk_test_…` value. |
+
+    The answer is the standard token response:
+
+| Field | Meaning |
+| --- | --- |
+| `access_token` | The bearer token. |
+| `token_type` | `Bearer`. |
+| `expires_in` | Seconds until the token expires, at most 900 (15 minutes). |
+| `scope` | What the token may do, space-separated. |
+
+  </Accordion>
+
+  <Accordion title="When the exchange is refused">
+    A refused exchange answers the RFC 6749 error body, `{"error", "error_description", "error_uri"}`, not the [JSON error body](/trade/errors#read-a-refusal) of other refusals.
+
+| `error`, status | Cause and fix |
+| --- | --- |
+| `invalid_client`, 401 | The `client_id` or `client_secret` is wrong, or the key is not an active key of an active service account. Carries a `WWW-Authenticate: Basic` challenge. Check both values; create a new key if this one was revoked or expired. |
+| `invalid_grant`, 400 | `grant_type` is missing, or the form is unreadable. Send the three fields, form-encoded. |
+| `unsupported_grant_type`, 400 | `grant_type` is not `client_credentials`. |
+| `unauthorized_client`, 400 | The key requires request signing or holds venue trading; `error_uri` ends with `#SIGNED_KEY_NOT_EXCHANGEABLE`. Use another key, or send this one as a signed `X-API-Key` ([Sign requests](#sign-requests)). |
+| `temporarily_unavailable`, 503 | TetraFi could not read the account's current authority. Retry shortly. |
+
+    A key with request signing on is never exchanged: a bearer token cannot carry a request signature.
+
+    <OauthSignedRefused />
+
+    ```json Output on test networks
+    {"status":400,"error":"unauthorized_client","error_uri":"https://tetrafi.mintlify.app/reference/error-codes#SIGNED_KEY_NOT_EXCHANGEABLE"}
+    ```
+  </Accordion>
+
+  <Accordion title="Expired tokens">
+    An expired token is refused with `401` and `WWW-Authenticate: Bearer error="invalid_token"` ([RFC 6750](https://www.rfc-editor.org/rfc/rfc6750#section-3)): exchange the key again. A refused API key carries no challenge.
+  </Accordion>
+</AccordionGroup>
+
+### Its sponsor
+
+The sponsor is the member accountable for the account, by default its creator.
+
+<Accordion title="How the sponsor limits the account">
+  - Its permissions are its role intersected with the sponsor's current permissions, checked on every request. If the sponsor's permissions shrink, the account's shrink with them.
+  - When the sponsor stops being a current, unsuspended workspace member, the account's keys cannot trade from organisation wallets. Those orders, and later steps of trades already placed, are refused with `409 SERVICE_ACCOUNT_SPONSOR_NOT_CURRENT`. Set a current member as sponsor to resume.
+</Accordion>
 
 ## Rotate and revoke
 
-- **Rotate key** issues a new key; the old key keeps working for one hour while you deploy the new one. The rotated key keeps its permissions and its signing secret.
-- **Revoke key** is permanent: within at most 30 seconds the key is refused with `401 AUTH_REQUIRED` and `details.reason` `INVALID_API_KEY`.
+Rotate key issues a new key, and Revoke key ends one for good, both in the app.
 
-Quote and other rate limits are on [Rate limits](/reference/rate-limits).
+<Accordion title="Rotation overlap and revocation timing">
+  - Rotate key issues a new key; the old key keeps working for one hour while you deploy the new one. The rotated key keeps its permissions and its signing secret.
+  - Revoke key is permanent: within at most 30 seconds the key is refused with `401 AUTH_REQUIRED` and `details.reason` `INVALID_API_KEY`.
+
+  Quote and other rate limits are on [Rate limits](/reference/rate-limits).
+</Accordion>
 
 ## If something goes wrong
 
@@ -158,6 +319,10 @@ Quote and other rate limits are on [Rate limits](/reference/rate-limits).
   </Accordion>
 </AccordionGroup>
 
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/oauth.sh">
+  Exchanges a key for a token, checks it, calls the API and shows a signing key refused.
+</Card>
+
 ## Next
 
 <CardGroup cols={2}>
@@ -165,7 +330,7 @@ Quote and other rate limits are on [Rate limits](/reference/rate-limits).
     Company details, a venue account, funds and wallet grants.
   </Card>
 
-  <Card title="Service accounts" icon="robot" href="/service-accounts">
-    A backend identity with short-lived tokens.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get quotes and place a small order.
   </Card>
 </CardGroup>
