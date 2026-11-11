@@ -13,12 +13,9 @@ request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
 quotes=$(tetrafi POST /api/v1/quotes "$request")
 
 # Quotes arrive best first (most received, net of fees). Take the best one you can order now.
+# If there is none, sources lists every venue asked with its status and reason.
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
-if [[ -z $quote ]]; then
-  # Every venue asked is listed in sources with its outcome, so an empty result says why.
-  jq -c '{error: "NO_ACTIONABLE_QUOTE", sources: [.sources[] | {venue: .venue.id, status, reason}]}' <<<"$quotes" >&2
-  exit 1
-fi
+[[ -n $quote ]] || fail_no_actionable_quote "$quotes"
 quote_id=$(jq -r '.id' <<<"$quote")
 jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode,
   sell: .sell.amount, buy: .buy.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2

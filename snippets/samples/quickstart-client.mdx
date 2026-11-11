@@ -6,51 +6,19 @@
 : "${TETRAFI_BASE_URL:?Set TETRAFI_BASE_URL}"
 : "${TETRAFI_API_KEY:?Set TETRAFI_API_KEY}"
 
-# tetrafi METHOD PATH [BODY] [HEADER]
-# Sends one request and prints the response body. On an error status it also prints
-# the body to stderr and returns 1. With TETRAFI_SIGNING_SECRET set, it signs the request.
+# tetrafi METHOD PATH [BODY] [HEADER]: sends one request with your key and prints the response body.
 tetrafi() {
   local method=$1 path=$2 body=${3:-} extra=${4:-}
-  local headers=(
-    -H "X-API-Key: $TETRAFI_API_KEY"
-    -H "Accept: application/json"
-  )
+  local headers=(-H "X-API-Key: $TETRAFI_API_KEY" -H "Accept: application/json")
   if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
-  if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature canonical
-    timestamp=$(date +%s)
-    digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    canonical=$timestamp
-    case $method in POST | PUT | PATCH | DELETE)
-      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
-      local nonce
-      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
-      canonical+=$'\n'$nonce
-      headers+=(-H "X-Nonce: $nonce") ;;
-    esac
-    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
-      | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
-    headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
-  fi
-  local response status
-  if ! response=$(curl -sS --connect-timeout 10 --max-time 60 -X "$method" \
-    "$TETRAFI_BASE_URL$path" "${headers[@]}" ${body:+--data "$body"} -w $'\n%{http_code}'); then
-    echo 'Request failed in transport; its outcome may be unknown.' >&2
-    return 1
-  fi
-  status=${response##*$'\n'}
-  response=${response%$'\n'*}
-  printf '%s\n' "$response"
-  if [[ ! $status =~ ^2[0-9]{2}$ ]]; then
-    printf '%s\n' "$response" >&2
-    return 1
-  fi
+  # With request signing on, sign every request: X-Timestamp and X-Signature, plus X-Nonce on writes.
+  if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then add_signature "$method" "$path" "$body"; fi
+  send_request "$method" "$TETRAFI_BASE_URL$path" "$body" "${headers[@]}"
 }
 
-# Pair and amount used by the following steps. Keep these in the client snippet
-# so copying the guide's cURL blocks works just like running this script.
+# The pair and the amount you sell.
 sell=${TETRAFI_SELL:-USDC}
 buy=${TETRAFI_BUY:-USDT}
 amount=${TETRAFI_AMOUNT:-10}

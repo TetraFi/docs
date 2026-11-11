@@ -3,104 +3,24 @@
 <CodeGroup>
 
 ```bash cURL
-# Only decimal strings enter bc: no binary floats, exponent notation or rounding up.
-minimum_receive() {
-  local amount=$1 bps=$2 decimals=$3 minimum
-  if [[ ! $amount =~ ^[0-9]+([.][0-9]+)?$ ||
-        ! $bps =~ ^(0|[1-9][0-9]{0,3})$ ||
-        ! $decimals =~ ^(0|[1-9][0-9]{0,2})$ ]] || (( decimals > 255 )); then
-    echo 'Invalid decimal amount, slippage (0-9999 bps), or asset decimals (0-255).' >&2
-    return 1
-  fi
-  minimum=$(printf 'scale=%s; %s * (10000 - %s) / 10000\n' "$decimals" "$amount" "$bps" | bc)
-  minimum=${minimum//$'\\\n'/} # bc may wrap a long result; remove only its line continuations.
-  [[ $minimum != .* ]] || minimum="0$minimum"
-  if [[ ! $minimum =~ ^[0-9]+([.][0-9]+)?$ || ! $minimum =~ [1-9] ]]; then
-    echo 'Minimum receive must be positive; this amount is below the asset precision.' >&2
-    return 1
-  fi
-  printf '%s\n' "$minimum"
-}
-
-# Save ./tetrafi-order-<quoteId>.json in the current directory BEFORE sending anything.
-# Keep this file after success too. It contains the exact body string, never your API credentials.
-[[ $quote_id =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'Invalid quote id.' >&2; exit 1; }
-order_record="./tetrafi-order-$quote_id.json"
-order_recovery() {
-  cat >&2 <<RECOVERY
-Order outcome may be unknown. Keep $order_record. Do not rerun the whole script,
-request a fresh quote, generate a new key, or place a fresh order to retry this trade.
-In a Bash session with the tetrafi helper from step 1, resend the saved body with
-the SAME key, then read by quote even if that replay fails:
-  order_record='$order_record'
-RECOVERY
-  cat >&2 <<'RECOVERY'
-  saved_record=$(jq -cn '[inputs] | if length == 1 then .[0] else error("ORDER_RECORD_INVALID") end' "$order_record")
-  quote_id=$(jq -er '.quoteId' <<<"$saved_record")
-  idempotency_key=$(jq -er '.idempotencyKey' <<<"$saved_record")
-  order_body=$(jq -er '.exactBody' <<<"$saved_record")
-  if ! tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key"; then
-    echo 'Replay unresolved; still read by quote.' >&2
-  fi
-  tetrafi GET "/api/v1/orders/by-quote/$quote_id"
-ordered: follow statusUrl. unknown or a failed read: wait and read again, never order again.
-notOrdered: retry only the saved body and key, and only while expired is false.
-RECOVERY
-}
-
+# Save the order before sending it: quote id, a new Idempotency-Key and the exact body.
+# A retry with the same key and body returns the first answer, never a second order.
+order_record=$(order_record_path "$quote_id")
 if [[ ! -e $order_record && ! -L $order_record ]]; then
   order_body=$(jq -c '{quoteId: .id}' <<<"$quote")
   if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
-    # Without a buy chain, use the lowest precision listed for the native asset.
-    decimals=$(jq -er --arg a "$(jq -r '.buy.asset' <<<"$quote")" \
-      --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.items[] | select(.assetId == $a)
-        | .variants[] | select(.kind == "native") | .deployments[]
-        | select($c == "" or .chain == $c) | .decimals]
-        | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets")
-    minimum=$(minimum_receive "$(jq -er '.buy.amount | strings' <<<"$quote")" \
-      "${TETRAFI_SLIPPAGE_BPS:-50}" "$decimals")
-    order_body=$(jq -c --arg minimum "$minimum" '{quoteId: .id, minReceive: $minimum}' <<<"$quote")
+    # minReceive: the quoted buy.amount less your slippage, rounded down to the asset's decimals.
+    min_receive=$(quote_min_receive "$quote" "$assets" "${TETRAFI_SLIPPAGE_BPS:-50}")
+    order_body=$(jq -c --arg m "$min_receive" '{quoteId: .id, minReceive: $m}' <<<"$quote")
   fi
-  idempotency_key=$(openssl rand -hex 16)
-  # noclobber also prevents a concurrent run from overwriting the first request's key.
-  if ! jq -n --arg q "$quote_id" --arg k "$idempotency_key" --arg b "$order_body" \
-    '{quoteId: $q, idempotencyKey: $k, exactBody: $b}' \
-    | (umask 077; set -o noclobber; cat > "$order_record"); then
-    echo 'Could not save the order record; no order was sent by this run.' >&2
-    order_recovery
-    exit 1
-  fi
+  save_order_record "$quote_id" "$(openssl rand -hex 16)" "$order_body"
 fi
-# This is local data, not an API response. Read exactly one saved JSON record.
-if ! saved_record=$(jq -cn '[inputs] | if length == 1 then .[0] else error("ORDER_RECORD_INVALID") end' "$order_record"); then
-  order_recovery
-  exit 1
-fi
-# Re-entering this step for the same quote always reuses its saved key AND body.
-if ! jq -e --arg q "$quote_id" '.quoteId == $q
-  and (.idempotencyKey | type == "string" and test("^[a-f0-9]{32}$"))
-  and (.exactBody | type == "string")
-  and (.exactBody | fromjson | .quoteId == $q)' <<<"$saved_record" >/dev/null; then
-  echo 'Order record is unreadable or mismatched. Do not replace it with a new key.' >&2
-  order_recovery
-  exit 1
-fi
-idempotency_key=$(jq -er '.idempotencyKey' <<<"$saved_record")
-order_body=$(jq -er '.exactBody' <<<"$saved_record")
-# Any failed POST (including 5xx and 409 IDEMPOTENCY_*) needs recovery, not a new order.
-if ! placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key"); then
-  order_recovery
-  exit 1
-fi
-if ! jq -e --arg q "$quote_id" 'type == "object"
-  and (.kind | type == "string" and length > 0)
-  and (.orderId | type == "string" and length > 0)
-  and (.statusUrl | type == "string" and startswith("/api/v1/orders/"))
-  and (.status | type == "string" and length > 0)
-  and (.terminal | type == "boolean")
-  and (.quoteId == null or .quoteId == $q)' <<<"$placed" >/dev/null \
-  || [[ $(jq -s 'length' <<<"$placed") != 1 ]]; then
-  echo 'Order answer is unreadable; it is not proof that nothing was placed.' >&2
+load_order_record "$quote_id" # every retry for this quote reuses the saved key and body
+
+# A timeout, 5xx, 409 IDEMPOTENCY_* or unreadable answer does not prove the order failed:
+# resend the saved body with the same key, or read GET /api/v1/orders/by-quote/{quoteId}.
+if ! placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key") \
+  || ! check_order_answer "$placed" "$quote_id"; then
   order_recovery
   exit 1
 fi
