@@ -269,7 +269,7 @@ function permissionsPage() {
       if (operation.summary !== undefined && typeof operation.summary !== 'string') {
         throw new Error(`PERMISSIONS_SUMMARY_INVALID ${method.toUpperCase()} ${route}`);
       }
-      operations.push({ route, method: method.toUpperCase(), summary: operation.summary, security });
+      operations.push({ route, method: method.toUpperCase(), summary: operation.summary, security, tag: Array.isArray(operation.tags) && typeof operation.tags[0] === 'string' ? operation.tags[0] : 'Other' });
     }
   }
   const hasScopes = operations.some(({ security }) => security.some((requirement) =>
@@ -310,8 +310,7 @@ function permissionsPage() {
     missingLabels.add(scope);
     return `SCOPE_LABEL_MISSING (${cell(scope)})`;
   };
-  const rows = operations.sort((a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 :
-    a.method < b.method ? -1 : a.method > b.method ? 1 : 0).map(({ route, method, summary, security }) => {
+  const row = ({ route, method, summary, security }) => {
     const keyRequirements = security.filter((requirement) => Object.hasOwn(requirement, 'api_key'));
     let scopes;
     let permissions;
@@ -325,19 +324,43 @@ function permissionsPage() {
         'No API key required' : 'Session only';
       permissions = 'Not applicable';
     }
-    return `| ${method} | ${code(route)} | ${operationName(summary)} | ${scopes} | ${permissions} |`;
-  });
+    return `| ${operationName(summary)} | ${method} ${code(route)} | ${scopes} | ${permissions} |`;
+  };
+  // Operations are grouped by their tag, in the spec's tag order, so each section matches the API reference.
+  const byRoute = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : a.method < b.method ? -1 : a.method > b.method ? 1 : 0;
+  const tagOrder = (spec.tags ?? []).map((tag) => tag.name);
+  const tagDescription = new Map((spec.tags ?? []).map((tag) => [tag.name, typeof tag.description === 'string' ? tag.description.trim() : '']));
+  const tags = [...new Set(operations.map((op) => op.tag))]
+    .sort((a, b) => (tagOrder.includes(a) ? tagOrder.indexOf(a) : 1e3) - (tagOrder.includes(b) ? tagOrder.indexOf(b) : 1e3) || (a < b ? -1 : 1));
+  const usedScopes = [...new Set(operations.flatMap(({ security }) => security.flatMap((r) => r.api_key ?? [])))].sort();
   return { page: [
     ...heading,
-    'Find the scopes an operation requires and the matching checkboxes under **Permissions** when you create an API key. The scopes and labels below come from the API specification; see [Authentication](/authentication#permissions) for how key permissions work.',
+    'Each API operation below lists the API-key scopes it needs and the matching checkbox under **Permissions** when you create a key ([Authentication](/authentication#permissions)).',
     '',
-    'Scopes within one requirement are all required. Requirements separated by “or” are alternatives. **None** means the API-key operation needs no scope, not that it needs no authentication. **Session only** means the operation does not accept an API key. **No API key required** means the specification allows the operation without API-key authentication; it may still require credentials in its request.',
+    '| Entry | Meaning |',
+    '| :--- | :--- |',
+    '| Two scopes in one cell | The key needs both. |',
+    '| Scopes joined by “or” | Either set is enough. |',
+    '| **None** | Any valid key may call it; it still needs authentication. |',
+    '| **Session only** | Signed-in app users only; an API key is refused. |',
+    '| **No API key required** | Called without an API key; the request carries its own credentials. |',
     '',
     ...(missingLabels.size ? ['<Warning>', 'Some scopes have no exported app permission label. Entries marked `SCOPE_LABEL_MISSING` are incomplete; do not infer a checkbox from the scope name.', '</Warning>', ''] : []),
-    '| Method | Path | Operation | API-key scopes | Permission in the app |',
-    '| :--- | :--- | :--- | :--- | :--- |',
-    ...rows,
+    '## Scopes',
     '',
+    '| Scope | Permission in the app |',
+    '| :--- | :--- |',
+    ...usedScopes.map((scope) => `| ${code(scope)} | ${permission(scope)} |`),
+    '',
+    ...tags.flatMap((tag) => [
+      `## ${cell(tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, " "))}`,
+      '',
+      ...(tagDescription.get(tag) ? [cell(tagDescription.get(tag)), ''] : []),
+      '| Operation | Endpoint | API-key scopes | Permission in the app |',
+      '| :--- | :--- | :--- | :--- |',
+      ...operations.filter((op) => op.tag === tag).sort(byRoute).map(row),
+      '',
+    ]),
   ].join('\n'), withheld: null, missingLabels: [...missingLabels].sort() };
 }
 const permissions = permissionsPage();
