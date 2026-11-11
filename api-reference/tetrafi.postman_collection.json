@@ -95,7 +95,7 @@
   ],
   "item": [
     {
-      "name": "GET /api/v1/assets",
+      "name": "List assets",
       "request": {
         "method": "GET",
         "header": [
@@ -134,7 +134,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/batch",
+      "name": "Batch reads",
       "request": {
         "method": "POST",
         "header": [
@@ -172,7 +172,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/me",
+      "name": "Get current credential",
       "request": {
         "method": "GET",
         "header": [
@@ -197,7 +197,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/oauth/token",
+      "name": "Create access token",
       "request": {
         "method": "POST",
         "header": [
@@ -234,7 +234,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders",
+      "name": "List orders",
       "request": {
         "method": "GET",
         "header": [
@@ -315,7 +315,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/orders",
+      "name": "Place order",
       "request": {
         "method": "POST",
         "header": [
@@ -359,7 +359,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders/{orderId}",
+      "name": "Get order",
       "request": {
         "method": "GET",
         "header": [
@@ -392,7 +392,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/orders/{orderId}/cancel",
+      "name": "Cancel order",
       "request": {
         "method": "POST",
         "header": [
@@ -432,7 +432,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/orders/by-quote/{quoteId}",
+      "name": "Get order by quote",
       "request": {
         "method": "GET",
         "header": [
@@ -466,7 +466,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/prices",
+      "name": "Get prices",
       "request": {
         "method": "GET",
         "header": [
@@ -571,7 +571,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/prices/stream",
+      "name": "Stream prices",
       "request": {
         "method": "GET",
         "header": [
@@ -671,7 +671,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/quotes",
+      "name": "Request quotes",
       "request": {
         "method": "POST",
         "header": [
@@ -709,7 +709,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/quotes/requests/{quoteRequestId}",
+      "name": "Get quote request",
       "request": {
         "method": "GET",
         "header": [
@@ -743,7 +743,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/balances",
+      "name": "Get balances",
       "request": {
         "method": "GET",
         "header": [
@@ -809,7 +809,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/capabilities",
+      "name": "Get capabilities",
       "request": {
         "method": "GET",
         "header": [
@@ -843,7 +843,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/fee-schedule",
+      "name": "Get fee schedule",
       "request": {
         "method": "GET",
         "header": [
@@ -877,7 +877,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/settlement/plan",
+      "name": "Get settlement plan",
       "request": {
         "method": "GET",
         "header": [
@@ -932,7 +932,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/trades",
+      "name": "List trades",
       "request": {
         "method": "GET",
         "header": [
@@ -1094,6 +1094,12 @@
               "description": "Maximum USD notional"
             },
             {
+              "key": "sort",
+              "value": "<sort>",
+              "disabled": true,
+              "description": "field (ascending) or -field (descending): createdAt (every projection), amountUsd (taker, umbrella), status (taker, maker). Not with sortBy; a cursor pages only the order it was returned for"
+            },
+            {
               "key": "sortBy",
               "value": "<sortBy>",
               "disabled": true,
@@ -1104,6 +1110,18 @@
               "value": "<sortDir>",
               "disabled": true,
               "description": "Taker: asc or desc"
+            },
+            {
+              "key": "fields",
+              "value": "<fields>",
+              "disabled": true,
+              "description": "Comma-separated top-level fields of each row to return; tradeId, kind, projection, id and status are always kept. JSON only"
+            },
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "Related objects to expand into `included`, comma-separated: `settlement`, each listed trade's settlement by `tradeId`, as `GET …/trades/{tradeId}/settlement` answers this caller in the row's perspective, or null with that read's refusal. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not on a signed API-key request or with format=csv"
             },
             {
               "key": "actionRequired",
@@ -1124,7 +1142,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}",
+      "name": "Get trade",
       "request": {
         "method": "GET",
         "header": [
@@ -1190,7 +1208,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement",
+      "name": "Get trade settlement",
       "request": {
         "method": "GET",
         "header": [
@@ -1245,7 +1263,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations",
+      "name": "List trade obligations",
       "request": {
         "method": "GET",
         "header": [
@@ -1301,7 +1319,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances",
+      "name": "Get account balances",
       "request": {
         "method": "GET",
         "header": [
@@ -1342,7 +1360,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit",
+      "name": "Get account credit",
       "request": {
         "method": "GET",
         "header": [
@@ -1383,7 +1401,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history",
+      "name": "List deposits",
       "request": {
         "method": "GET",
         "header": [
@@ -1456,7 +1474,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions",
+      "name": "Get deposit instructions",
       "request": {
         "method": "GET",
         "header": [
@@ -1529,7 +1547,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/ledger",
+      "name": "Get account ledger",
       "request": {
         "method": "GET",
         "header": [
@@ -1570,7 +1588,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements",
+      "name": "List movements",
       "request": {
         "method": "GET",
         "header": [
@@ -1638,7 +1656,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements/{movementId}",
+      "name": "Get movement",
       "request": {
         "method": "GET",
         "header": [
@@ -1686,7 +1704,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations",
+      "name": "List obligations",
       "request": {
         "method": "GET",
         "header": [
@@ -1754,7 +1772,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}",
+      "name": "Get obligation",
       "request": {
         "method": "GET",
         "header": [
@@ -1802,7 +1820,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules",
+      "name": "List schedules",
       "request": {
         "method": "GET",
         "header": [
@@ -1844,7 +1862,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows",
+      "name": "List windows",
       "request": {
         "method": "GET",
         "header": [
@@ -1906,7 +1924,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}",
+      "name": "Get window",
       "request": {
         "method": "GET",
         "header": [
@@ -1954,7 +1972,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches",
+      "name": "List window matches",
       "request": {
         "method": "GET",
         "header": [
@@ -2017,7 +2035,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/venue-enablements",
+      "name": "List venue accounts",
       "request": {
         "method": "GET",
         "header": [
@@ -2065,7 +2083,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks",
+      "name": "List webhooks",
       "request": {
         "method": "GET",
         "header": [
@@ -2113,7 +2131,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks",
+      "name": "Create webhook",
       "request": {
         "method": "POST",
         "header": [
@@ -2166,7 +2184,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "name": "Get webhook",
       "request": {
         "method": "GET",
         "header": [
@@ -2206,7 +2224,7 @@
       "response": []
     },
     {
-      "name": "PATCH /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "name": "Update webhook",
       "request": {
         "method": "PATCH",
         "header": [
@@ -2265,7 +2283,7 @@
       "response": []
     },
     {
-      "name": "DELETE /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}",
+      "name": "Delete webhook",
       "request": {
         "method": "DELETE",
         "header": [
@@ -2305,7 +2323,7 @@
       "response": []
     },
     {
-      "name": "GET /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries",
+      "name": "List deliveries",
       "request": {
         "method": "GET",
         "header": [
@@ -2360,7 +2378,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries",
+      "name": "Send test delivery",
       "request": {
         "method": "POST",
         "header": [
@@ -2420,7 +2438,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/deliveries/{deliveryId}/retry",
+      "name": "Retry delivery",
       "request": {
         "method": "POST",
         "header": [
@@ -2474,7 +2492,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume",
+      "name": "Resume webhook",
       "request": {
         "method": "POST",
         "header": [
@@ -2521,7 +2539,7 @@
       "response": []
     },
     {
-      "name": "POST /api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate",
+      "name": "Rotate webhook secret",
       "request": {
         "method": "POST",
         "header": [

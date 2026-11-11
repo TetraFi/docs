@@ -12,6 +12,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { checkEndpointNames, endpointName } from './endpoint-names.mjs';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -408,6 +409,7 @@ function endpointMap() {
     return { page: null, nav: null };
   }
   const ops = permissions.operations;
+  checkEndpointNames(ops);
   for (const tag of new Set(ops.map((op) => op.tag))) {
     if (!ENDPOINT_GROUPS.some(({ tags }) => tags.includes(tag))) throw new Error(`SPEC_TAG_UNGROUPED ${tag}`);
   }
@@ -415,14 +417,10 @@ function endpointMap() {
   const order = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : verbs[a.method] - verbs[b.method];
   const groups = ENDPOINT_GROUPS.map((g) => ({ ...g, ops: g.tags.flatMap((tag) => ops.filter((op) => op.tag === tag).sort(order)) }))
     .filter((g) => g.ops.length);
-  const title = (op) => (op.summary ?? '').split(/\r?\n/).find((part) => part.trim())?.trim() ?? '';
   // One stub page per operation, so the sidebar, the links below and `mint broken-links` all see a
   // real page; Mintlify renders it from the spec.
-  const stubPath = (op) => {
-    if (!pageSlug(title(op))) throw new Error(`ENDPOINT_SUMMARY_MISSING ${op.method} ${op.route}`);
-    return `api-reference/${pageSlug(op.tag)}/${pageSlug(title(op))}`;
-  };
-  const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', ''].join('\n')]);
+  const stubPath = (op) => `api-reference/${pageSlug(op.tag)}/${pageSlug(endpointName(op.method, op.route))}`;
+  const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `title: "${endpointName(op.method, op.route)}"`, `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', ''].join('\n')]);
   const seen = new Set();
   for (const [file] of stubs) {
     if (seen.has(file)) throw new Error(`ENDPOINT_PAGE_DUPLICATE ${file}`);
@@ -448,14 +446,13 @@ function endpointMap() {
       '',
       `${purpose} Guide: [${group}](${guide}).`,
       '',
-      '| Endpoint | What it does | API-key scopes |',
+      '| Endpoint | Method and path | API-key scopes |',
       '| :--- | :--- | :--- |',
       ...list.map((op) => {
-        const href = `/${stubPath(op)}`;
         const guideLink = ENDPOINT_GUIDES[`${op.method} ${op.route}`];
-        const what = permissions.operationName(op.summary) + (guideLink ? ` ([guide](${guideLink}))` : '');
+        const name = `[${endpointName(op.method, op.route)}](/${stubPath(op)})` + (guideLink ? ` · [guide](${guideLink})` : '');
         const shown = op.route.replace(WORKSPACE_PREFIX, '…');
-        return `| [${op.method} ${permissions.code(shown)}](${href}) | ${what} | ${permissions.access(op).scopes} |`;
+        return `| ${name} | ${op.method} ${permissions.code(shown)} | ${permissions.access(op).scopes} |`;
       }),
       '',
     ]),

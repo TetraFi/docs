@@ -4232,6 +4232,70 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "IncludedEntry": {
+        "description": "One referenced object: `value` when its own GET answered 200, else `null` with `reason`.",
+        "properties": {
+          "reason": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncludedReason",
+                "description": "Why `value` is `null`: the related GET's refusal. Absent when `value` is present."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "value": {
+            "description": "The related object as its own GET returns it to this caller; `null` with `reason` otherwise.",
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      },
+      "IncludedReason": {
+        "description": "The refusal the related resource's own GET answered, or a read the expansion could not make.",
+        "properties": {
+          "error": {
+            "description": "The stable error code, for example `DESTINATION_NOT_FOUND` or `INSUFFICIENT_PERMISSION`.\nAn open set: handle unknown codes by `status`.",
+            "type": "string"
+          },
+          "status": {
+            "description": "The HTTP status the related GET answered.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "error",
+          "status"
+        ],
+        "type": "object"
+      },
+      "IncludedRelations": {
+        "additionalProperties": {
+          "additionalProperties": {
+            "$ref": "#/components/schemas/IncludedEntry"
+          },
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "description": "Relation name -> referenced id -> entry. Only the relations the request named appear, each\nwith one entry per distinct id the response references through it.",
+        "propertyNames": {
+          "type": "string"
+        },
+        "type": "object"
+      },
       "IndicativeStatement": {
         "properties": {
           "belowMinimum": {
@@ -20143,6 +20207,18 @@
             },
             "type": "array"
           },
+          "included": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncludedRelations",
+                "description": "With `include`: each relation's object per listed trade, keyed by `tradeId`, as that\nrelation's own GET answers this caller, or null with its refusal."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/TradeRecord"
@@ -33572,6 +33648,15 @@
             }
           },
           {
+            "description": "field (ascending) or -field (descending): createdAt (every projection), amountUsd (taker, umbrella), status (taker, maker). Not with sortBy; a cursor pages only the order it was returned for",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "description": "Field to sort by, as the projection names it",
             "in": "query",
             "name": "sortBy",
@@ -33584,6 +33669,24 @@
             "description": "Taker: asc or desc",
             "in": "query",
             "name": "sortDir",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated top-level fields of each row to return; tradeId, kind, projection, id and status are always kept. JSON only",
+            "in": "query",
+            "name": "fields",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Related objects to expand into `included`, comma-separated: `settlement`, each listed trade's settlement by `tradeId`, as `GET …/trades/{tradeId}/settlement` answers this caller in the row's perspective, or null with that read's refusal. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not on a signed API-key request or with format=csv",
+            "in": "query",
+            "name": "include",
             "required": false,
             "schema": {
               "type": "string"

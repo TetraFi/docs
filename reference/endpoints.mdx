@@ -22,99 +22,99 @@ Paths are relative to the [base URL](/reference/conventions#requests); `…` sta
 
 Check the credential you call with, or exchange service-account credentials for a token. Guide: [Authentication](/authentication).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [GET `/api/v1/me`](/api-reference/auth/get-the-current-credential) | Get the current credential | None |
-| [POST `/api/v1/oauth/token`](/api-reference/auth/exchange-client-credentials-for-a-token) | Exchange client credentials for a token | No API key required |
+| [Get current credential](/api-reference/auth/get-current-credential) | GET `/api/v1/me` | None |
+| [Create access token](/api-reference/auth/create-access-token) | POST `/api/v1/oauth/token` | No API key required |
 
 ## Assets and prices
 
 Discover what you can trade and read indicative prices before you ask for a quote. Guide: [Assets and prices](/search/prices).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [GET `/api/v1/assets`](/api-reference/trading/list-tradable-assets) | List tradable assets ([guide](/search/how-it-works)) | `prices_read` |
-| [GET `/api/v1/prices`](/api-reference/trading/get-indicative-prices) | Get indicative prices | `prices_read` |
-| [GET `/api/v1/prices/stream`](/api-reference/trading/stream-indicative-prices) | Stream indicative prices | `prices_read` |
+| [List assets](/api-reference/trading/list-assets) · [guide](/search/how-it-works) | GET `/api/v1/assets` | `prices_read` |
+| [Get prices](/api-reference/trading/get-prices) | GET `/api/v1/prices` | `prices_read` |
+| [Stream prices](/api-reference/trading/stream-prices) | GET `/api/v1/prices/stream` | `prices_read` |
 
 ## Quotes
 
 Ask every venue your workspace can use for a quote in one request, and read a request back. Guide: [Quotes](/search/how-it-works).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [POST `/api/v1/quotes`](/api-reference/quotes/request-quotes) | Request quotes | `quotes_request` |
-| [GET `/api/v1/quotes/requests/{quoteRequestId}`](/api-reference/quotes/read-a-quote-requests-recorded-answer) | Read a quote request's recorded answer ([guide](/search/how-it-works)) | `quotes_read` |
+| [Request quotes](/api-reference/quotes/request-quotes) | POST `/api/v1/quotes` | `quotes_request` |
+| [Get quote request](/api-reference/quotes/get-quote-request) · [guide](/search/how-it-works) | GET `/api/v1/quotes/requests/{quoteRequestId}` | `quotes_read` |
 
 ## Orders
 
 Order a quote by its id, follow the order, recover it by quote and cancel it. Guide: [Orders](/trade/orders).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [GET `/api/v1/orders`](/api-reference/orders/list-orders) | List orders ([guide](/trade/order-status)) | `orders_read` |
-| [POST `/api/v1/orders`](/api-reference/orders/place-an-order) | Place an order | `orders_write` |
-| [GET `/api/v1/orders/by-quote/{quoteId}`](/api-reference/orders/recover-the-order-produced-by-a-held-quote) | Recover the order produced by a held quote | `orders_read` |
-| [GET `/api/v1/orders/{orderId}`](/api-reference/orders/get-an-order) | Get an order ([guide](/trade/order-status)) | `orders_read` |
-| [POST `/api/v1/orders/{orderId}/cancel`](/api-reference/orders/cancel-an-order) | Cancel an order | `orders_write` |
+| [List orders](/api-reference/orders/list-orders) · [guide](/trade/order-status) | GET `/api/v1/orders` | `orders_read` |
+| [Place order](/api-reference/orders/place-order) | POST `/api/v1/orders` | `orders_write` |
+| [Get order by quote](/api-reference/orders/get-order-by-quote) | GET `/api/v1/orders/by-quote/{quoteId}` | `orders_read` |
+| [Get order](/api-reference/orders/get-order) · [guide](/trade/order-status) | GET `/api/v1/orders/{orderId}` | `orders_read` |
+| [Cancel order](/api-reference/orders/cancel-order) | POST `/api/v1/orders/{orderId}/cancel` | `orders_write` |
 
 ## Trades and settlement
 
 Read your trades, how each settles, and the settlement plan, windows and movements per venue account. Guide: [Trades and settlement](/trade/settlement-and-credit).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [GET `…/trades`](/api-reference/trades/list-trades) | List trades | `trades_read` |
-| [GET `…/trades/{tradeId}`](/api-reference/trades/get-a-trade) | Get a trade | `trades_read` |
-| [GET `…/trades/{tradeId}/settlement`](/api-reference/trades/get-trade-settlement) | Get trade settlement | `settlements_read` |
-| [GET `…/trades/{tradeId}/settlement/obligations`](/api-reference/trades/list-a-trades-settlement-obligations) | List a trade's settlement obligations | `settlements_read` |
-| [GET `…/settlement/plan`](/api-reference/settlements/read-the-cross-venue-settlement-plan) | Read the cross-venue settlement plan | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/movements`](/api-reference/settlements/list-a-venue-accounts-settlement-movements) | List a venue account's settlement movements | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/movements/{movementId}`](/api-reference/settlements/read-a-settlement-movement) | Read a settlement movement | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/obligations`](/api-reference/settlements/list-a-venue-accounts-settlement-obligations) | List a venue account's settlement obligations | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}`](/api-reference/settlements/read-a-settlement-obligation) | Read a settlement obligation | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/schedules`](/api-reference/settlements/read-a-venue-accounts-settlement-schedules) | Read a venue account's settlement schedules | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/windows`](/api-reference/settlements/list-a-venue-accounts-settlement-windows) | List a venue account's settlement windows | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/windows/{windowId}`](/api-reference/settlements/read-a-settlement-window) | Read a settlement window | `settlements_read` |
-| [GET `…/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches`](/api-reference/settlements/list-a-settlement-windows-matches) | List a settlement window's matches | `settlements_read` |
+| [List trades](/api-reference/trades/list-trades) | GET `…/trades` | `trades_read` |
+| [Get trade](/api-reference/trades/get-trade) | GET `…/trades/{tradeId}` | `trades_read` |
+| [Get trade settlement](/api-reference/trades/get-trade-settlement) | GET `…/trades/{tradeId}/settlement` | `settlements_read` |
+| [List trade obligations](/api-reference/trades/list-trade-obligations) | GET `…/trades/{tradeId}/settlement/obligations` | `settlements_read` |
+| [Get settlement plan](/api-reference/settlements/get-settlement-plan) | GET `…/settlement/plan` | `settlements_read` |
+| [List movements](/api-reference/settlements/list-movements) | GET `…/venue-accounts/{venueAccountId}/settlement/movements` | `settlements_read` |
+| [Get movement](/api-reference/settlements/get-movement) | GET `…/venue-accounts/{venueAccountId}/settlement/movements/{movementId}` | `settlements_read` |
+| [List obligations](/api-reference/settlements/list-obligations) | GET `…/venue-accounts/{venueAccountId}/settlement/obligations` | `settlements_read` |
+| [Get obligation](/api-reference/settlements/get-obligation) | GET `…/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}` | `settlements_read` |
+| [List schedules](/api-reference/settlements/list-schedules) | GET `…/venue-accounts/{venueAccountId}/settlement/schedules` | `settlements_read` |
+| [List windows](/api-reference/settlements/list-windows) | GET `…/venue-accounts/{venueAccountId}/settlement/windows` | `settlements_read` |
+| [Get window](/api-reference/settlements/get-window) | GET `…/venue-accounts/{venueAccountId}/settlement/windows/{windowId}` | `settlements_read` |
+| [List window matches](/api-reference/settlements/list-window-matches) | GET `…/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches` | `settlements_read` |
 
 ## Balances and accounts
 
 Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do. Guide: [Balances and accounts](/trade/balances).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [GET `…/balances`](/api-reference/treasury/read-balances-across-workspace-accounts) | Read balances across workspace accounts | `treasury_read` |
-| [GET `…/venue-accounts/{venueAccountId}/balances`](/api-reference/venue-accounts/read-the-venue-accounts-balances-at-its-venue) | Read the venue account's balances at its venue | `treasury_read` |
-| [GET `…/venue-accounts/{venueAccountId}/credit`](/api-reference/venue-accounts/read-one-venue-accounts-credit) | Read one venue account's credit | `treasury_read` |
-| [GET `…/venue-accounts/{venueAccountId}/deposit-history`](/api-reference/venue-accounts/read-the-venue-accounts-deposit-history) | Read the venue account's deposit history | `treasury_read` |
-| [GET `…/venue-accounts/{venueAccountId}/deposit-instructions`](/api-reference/venue-accounts/read-how-to-deposit-into-the-venue-account) | Read how to deposit into the venue account | `treasury_read` |
-| [GET `…/venue-accounts/{venueAccountId}/ledger`](/api-reference/venue-accounts/read-the-venue-accounts-signed-positions-and-credit-line) | Read the venue account's signed positions and credit line | `treasury_read` |
-| [GET `…/venue-enablements`](/api-reference/venue-enablements/list-the-workspaces-venue-accounts) | List the workspace's venue accounts ([guide](/trade/wallets-and-accounts)) | `treasury_read` |
-| [GET `…/capabilities`](/api-reference/workspaces/read-the-workspaces-verification-state-and-the-capabilities-it-allows) | Read the workspace's verification state and the capabilities it allows ([guide](/before-you-trade)) | `compliance_read` |
-| [GET `…/fee-schedule`](/api-reference/workspaces/read-the-workspaces-effective-fee-schedule) | Read the workspace's effective fee schedule | `fee_schedule_read` |
+| [Get balances](/api-reference/treasury/get-balances) | GET `…/balances` | `treasury_read` |
+| [Get account balances](/api-reference/venue-accounts/get-account-balances) | GET `…/venue-accounts/{venueAccountId}/balances` | `treasury_read` |
+| [Get account credit](/api-reference/venue-accounts/get-account-credit) | GET `…/venue-accounts/{venueAccountId}/credit` | `treasury_read` |
+| [List deposits](/api-reference/venue-accounts/list-deposits) | GET `…/venue-accounts/{venueAccountId}/deposit-history` | `treasury_read` |
+| [Get deposit instructions](/api-reference/venue-accounts/get-deposit-instructions) | GET `…/venue-accounts/{venueAccountId}/deposit-instructions` | `treasury_read` |
+| [Get account ledger](/api-reference/venue-accounts/get-account-ledger) | GET `…/venue-accounts/{venueAccountId}/ledger` | `treasury_read` |
+| [List venue accounts](/api-reference/venue-enablements/list-venue-accounts) · [guide](/trade/wallets-and-accounts) | GET `…/venue-enablements` | `treasury_read` |
+| [Get capabilities](/api-reference/workspaces/get-capabilities) · [guide](/before-you-trade) | GET `…/capabilities` | `compliance_read` |
+| [Get fee schedule](/api-reference/workspaces/get-fee-schedule) | GET `…/fee-schedule` | `fee_schedule_read` |
 
 ## Webhooks
 
 Receive order and settlement updates by webhook, and manage endpoints, deliveries and secrets. Guide: [Webhooks](/trade/webhooks).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [GET `…/webhooks`](/api-reference/webhooks/list-webhooks) | List webhooks | `webhooks_manage` |
-| [POST `…/webhooks`](/api-reference/webhooks/create-a-webhook) | Create a webhook | `webhooks_manage` |
-| [GET `…/webhooks/{webhookId}`](/api-reference/webhooks/get-a-webhook) | Get a webhook | `webhooks_manage` |
-| [PATCH `…/webhooks/{webhookId}`](/api-reference/webhooks/update-a-webhook) | Update a webhook | `webhooks_manage` |
-| [DELETE `…/webhooks/{webhookId}`](/api-reference/webhooks/delete-a-webhook) | Delete a webhook | `webhooks_manage` |
-| [GET `…/webhooks/{webhookId}/deliveries`](/api-reference/webhooks/list-a-webhooks-deliveries) | List a webhook's deliveries | `webhooks_manage` |
-| [POST `…/webhooks/{webhookId}/deliveries`](/api-reference/webhooks/send-a-test-delivery) | Send a test delivery | `webhooks_manage` |
-| [POST `…/webhooks/{webhookId}/deliveries/{deliveryId}/retry`](/api-reference/webhooks/retry-a-delivery) | Retry a delivery | `webhooks_manage` |
-| [POST `…/webhooks/{webhookId}/resume`](/api-reference/webhooks/resume-a-paused-webhook) | Resume a paused webhook | `webhooks_manage` |
-| [POST `…/webhooks/{webhookId}/rotate`](/api-reference/webhooks/rotate-a-webhook-secret) | Rotate a webhook secret | `webhooks_manage` |
+| [List webhooks](/api-reference/webhooks/list-webhooks) | GET `…/webhooks` | `webhooks_manage` |
+| [Create webhook](/api-reference/webhooks/create-webhook) | POST `…/webhooks` | `webhooks_manage` |
+| [Get webhook](/api-reference/webhooks/get-webhook) | GET `…/webhooks/{webhookId}` | `webhooks_manage` |
+| [Update webhook](/api-reference/webhooks/update-webhook) | PATCH `…/webhooks/{webhookId}` | `webhooks_manage` |
+| [Delete webhook](/api-reference/webhooks/delete-webhook) | DELETE `…/webhooks/{webhookId}` | `webhooks_manage` |
+| [List deliveries](/api-reference/webhooks/list-deliveries) | GET `…/webhooks/{webhookId}/deliveries` | `webhooks_manage` |
+| [Send test delivery](/api-reference/webhooks/send-test-delivery) | POST `…/webhooks/{webhookId}/deliveries` | `webhooks_manage` |
+| [Retry delivery](/api-reference/webhooks/retry-delivery) | POST `…/webhooks/{webhookId}/deliveries/{deliveryId}/retry` | `webhooks_manage` |
+| [Resume webhook](/api-reference/webhooks/resume-webhook) | POST `…/webhooks/{webhookId}/resume` | `webhooks_manage` |
+| [Rotate webhook secret](/api-reference/webhooks/rotate-webhook-secret) | POST `…/webhooks/{webhookId}/rotate` | `webhooks_manage` |
 
 ## Batch
 
 Run up to 20 reads in one request. Guide: [Batch](/reference/conventions#read-several-resources-at-once).
 
-| Endpoint | What it does | API-key scopes |
+| Endpoint | Method and path | API-key scopes |
 | :--- | :--- | :--- |
-| [POST `/api/v1/batch`](/api-reference/batch/read-up-to-20-resources-in-one-request) | Read up to 20 resources in one request | None |
+| [Batch reads](/api-reference/batch/batch-reads) | POST `/api/v1/batch` | None |

@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { endpointName } from './endpoint-names.mjs';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -147,7 +148,7 @@ export function collectionFromSpec(spec) {
           throw new Error(`POSTMAN_BODY_UNSUPPORTED ${method.toUpperCase()} ${route}`);
         }
       }
-      items.push({ name: `${method.toUpperCase()} ${route}`, request, response: [] });
+      items.push({ name: endpointName(method, route), request, response: [] });
     }
   }
   if (!items.length) throw new Error('POSTMAN_SPEC_EMPTY no operations');
