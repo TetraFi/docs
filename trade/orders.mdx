@@ -99,7 +99,7 @@ Send `minReceive` when the quote reads `minReceiveRequired: true`; otherwise it 
     Their quotes are often indicative with `next.kind: "order"`, and read `minReceiveRequired: true`. Read the flag rather than working it out from `quality`.
   </Accordion>
   <Accordion title="minReceive or priceProtectionBps">
-    `priceProtectionBps` belongs on the quote request, where it sets `minOut` ([Price protection](/search/filters-and-sort#price-protection)); `minReceive` belongs on the order.
+    `priceProtectionBps` belongs on the quote request, where it sets `minOut` ([Price protection](/search/how-it-works#filters-and-sort)); `minReceive` belongs on the order.
   </Accordion>
   <Accordion title="What happens when minReceive is not met">
 
@@ -251,7 +251,7 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 | `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | 400 | `minReceive` is missing on a quote that needs it, or is not a positive amount. | Send it as a positive decimal string. |
 | `ADVANCED_MODE_DISABLED` | 403 | The quote is Advanced, which is not open yet. | Order a Basic quote. |
 | `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you. | Check the id. |
-| `QUOTE_NOT_EXECUTABLE`, `QUOTE_NOT_HELD` | 409 | The quote is a price for comparison, or is no longer held. `next` is `requote`. | [Requote it](/trade/requotes-and-expiry). |
+| `QUOTE_NOT_EXECUTABLE`, `QUOTE_NOT_HELD` | 409 | The quote is a price for comparison, or is no longer held. `next` is `requote`. | [Requote it](/search/firmness-and-lifetime#requote-a-quote). |
 | `VENUE_QUOTE_SEND_WINDOW_CLOSED` | 409 | The venue's firm price reached its send deadline before the order could be sent, so it was not sent. | Request a new quote and order it. |
 | `QUOTE_RECONFIRMATION_REQUIRED` | 409 | The venue's firm price could no longer be accepted when the order reached it, so it was not sent. | Request a new quote and order it. |
 | `QUOTE_ALREADY_ORDERED` | 409 | Another order already used this quote. | Find it by its quote ([Recover an order by its quote](#recover-an-order-by-its-quote)). |
@@ -259,7 +259,7 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 | `FUNDING_SHORTFALL` | 409 | The venue account holds less than the trade needs. `next` is `fund`. | Fund the account, then get a new price. |
 | `PILOT_TRADE_CAP_EXCEEDED` | 409 | Above the venue's Pilot per-trade cap. | Get a price for a smaller amount. |
 | `IDEMPOTENCY_*`, `ORDER_IN_PROGRESS` | 400, 409, 503 | The `Idempotency-Key` is missing, malformed, reused, or its order is still being placed. | [Retries and recovery](#retries-and-recovery). |
-| `QUOTE_EXPIRED` | 410 | Past `expiresAt`. `next` is `requote`. | [Requote it](/trade/requotes-and-expiry#refresh-an-expired-quote). |
+| `QUOTE_EXPIRED` | 410 | Past `expiresAt`. `next` is `requote`. | [Requote it](/search/firmness-and-lifetime#refresh-an-expired-quote). |
 | `REQUOTE_WINDOW_CLOSED` | 410 | Past `retainUntil`. `next` is `search`. | Search again. |
 | `QUOTE_STORE_UNAVAILABLE`, `VENUE_TEMPORARILY_REFUSED` | 503 | Held quotes cannot be read just now, or the venue briefly refused. | Send the same request with the same key shortly. |
 

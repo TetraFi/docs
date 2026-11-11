@@ -175,7 +175,7 @@ function errorCodesPage() {
       ? `| [${title(status)}](#${slug(status)}) | ${groups.get(status).length} | ${STATUS[status][1]} |`
       : `| [Stream events](#stream-events) | ${groups.get(status).length} | Sent on a stream, not as an HTTP response. |`),
     '',
-    'Act on each code\'s own **What to do** and **Retryable**, not on its status: codes under one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/retries-and-recovery).',
+    'Act on each code\'s own **What to do** and **Retryable**, not on its status: codes under one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/orders#retries-and-recovery).',
     '',
     ...order.flatMap((status) => [
       `### ${title(status)}`,
@@ -410,8 +410,17 @@ function endpointMap() {
   const verbs = { GET: 0, POST: 1, PATCH: 2, PUT: 3, DELETE: 4 };
   const order = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : verbs[a.method] - verbs[b.method];
   const groups = ENDPOINT_GROUPS.map((g) => ({ ...g, ops: g.tags.flatMap((tag) => ops.filter((op) => op.tag === tag).sort(order)) }));
-  const nav = groups.map(({ group, ops: list }) => ({ group, openapi: 'api-reference/openapi.json', pages: list.map((op) => `${op.method} ${op.route}`) }));
   const title = (op) => (op.summary ?? '').split(/\r?\n/).find((part) => part.trim())?.trim() ?? '';
+  // One stub page per operation, so the sidebar, the links below and `mint broken-links` all see a
+  // real page; Mintlify renders it from the spec.
+  const stubPath = (op) => `api-reference/${pageSlug(op.tag)}/${pageSlug(title(op))}`;
+  const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', ''].join('\n')]);
+  const seen = new Set();
+  for (const [file] of stubs) {
+    if (seen.has(file)) throw new Error(`ENDPOINT_PAGE_DUPLICATE ${file}`);
+    seen.add(file);
+  }
+  const nav = groups.map(({ group, ops: list }) => ({ group, pages: list.map(stubPath) }));
   const page = [
     '---',
     'title: "Endpoints at a glance"',
@@ -434,7 +443,7 @@ function endpointMap() {
       '| Endpoint | What it does | API-key scopes |',
       '| :--- | :--- | :--- |',
       ...list.map((op) => {
-        const href = `/api-reference/${pageSlug(op.tag)}/${pageSlug(title(op))}`;
+        const href = `/${stubPath(op)}`;
         const guideLink = ENDPOINT_GUIDES[`${op.method} ${op.route}`];
         const what = permissions.operationName(op.summary) + (guideLink ? ` ([guide](${guideLink}))` : '');
         const shown = op.route.replace(WORKSPACE_PREFIX, '…');
@@ -443,7 +452,7 @@ function endpointMap() {
       '',
     ]),
   ].join('\n');
-  return { page, nav };
+  return { page, nav, stubs };
 }
 const endpoints = endpointMap();
 // docs.json keeps its hand-written navigation; only the API reference tab's endpoint groups are generated.
@@ -452,9 +461,11 @@ function docsJson() {
   const doc = JSON.parse(readFileSync(path.join(root, 'docs.json'), 'utf8'));
   const tab = doc.navigation?.tabs?.find((t) => t.tab === 'API reference');
   if (!tab) throw new Error('DOCS_JSON_API_REFERENCE_TAB_MISSING');
-  const first = tab.groups.findIndex((g) => g.openapi);
+  // Endpoint groups are the ones whose pages are all generated operation stubs.
+  const generated = (g) => g.openapi || (g.pages?.length && g.pages.every((p) => typeof p === 'string' && p.startsWith('api-reference/')));
+  const first = tab.groups.findIndex(generated);
   if (first < 0) throw new Error('DOCS_JSON_ENDPOINT_GROUPS_MISSING');
-  const kept = tab.groups.filter((g) => !g.openapi);
+  const kept = tab.groups.filter((g) => !generated(g));
   kept.splice(first, 0, ...endpoints.nav);
   tab.groups = kept;
   return `${JSON.stringify(doc, null, 2)}\n`;
@@ -465,7 +476,10 @@ if (reference.spec) outputs.push([path.join('api-reference', 'openapi.json'), re
 if (errorCodes.page) outputs.push([path.join('reference', 'error-codes.mdx'), errorCodes.page]);
 if (webhookEvents.page) outputs.push([path.join('reference', 'webhook-events.mdx'), webhookEvents.page]);
 if (permissions.page) outputs.push([path.join('reference', 'permissions.mdx'), permissions.page]);
-if (endpoints.page) outputs.push([path.join('reference', 'endpoints.mdx'), endpoints.page], ['docs.json', docsJson()]);
+if (endpoints.page) outputs.push([path.join('reference', 'endpoints.mdx'), endpoints.page], ['docs.json', docsJson()], ...endpoints.stubs);
+// An operation page the spec no longer has is stale: archive it.
+const staleEndpointPages = endpoints.stubs ? execFileSync('git', ['-C', root, 'ls-files', '--others', '--cached', '--exclude-standard', 'api-reference/*.mdx'], { encoding: 'utf8' })
+  .split('\n').filter((f) => f && existsSync(path.join(root, f)) && !endpoints.stubs.some(([stub]) => stub === f)) : [];
 
 const staleReference = !reference.spec && existsSync(path.join(root, 'api-reference', 'openapi.json'));
 const staleErrorCodes = !errorCodes.page && existsSync(path.join(root, 'reference', 'error-codes.mdx'));
@@ -490,9 +504,10 @@ if (check) {
   if (staleErrorCodes) console.log('CONTRACT_DRIFT reference/error-codes.mdx (present while the error codes are withheld)');
   if (staleWebhookEvents) console.log('CONTRACT_DRIFT reference/webhook-events.mdx (present while the webhook events are withheld)');
   if (stalePermissions) console.log('CONTRACT_DRIFT reference/permissions.mdx (present while the permissions are withheld)');
+  for (const file of staleEndpointPages) console.log(`CONTRACT_DRIFT ${file} (operation no longer in the spec; archive it)`);
   reportWithheld();
   console.log(`sync-contract --check: ${outputs.length} files, ${drift.length} drifted`);
-  process.exit(drift.length || staleReference || errorCodes.withheld || staleErrorCodes || errorCodes.unexplained?.length || staleWebhookEvents || webhookEvents.unexplained?.length || stalePermissions || permissions.missingLabels.length ? 1 : 0);
+  process.exit(drift.length || staleEndpointPages.length || staleReference || errorCodes.withheld || staleErrorCodes || errorCodes.unexplained?.length || staleWebhookEvents || webhookEvents.unexplained?.length || stalePermissions || permissions.missingLabels.length ? 1 : 0);
 }
 for (const [file, content] of outputs) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -509,4 +524,8 @@ if (stalePermissions) {
   console.log('reference/permissions.mdx is present while the permissions are withheld; archive it before publishing.');
   process.exitCode = 1;
 }
-console.log(`sync-contract: wrote ${outputs.map(([f]) => f).join(', ')}`);
+for (const file of staleEndpointPages) {
+  console.log(`${file} is an operation the spec no longer has; archive it.`);
+  process.exitCode = 1;
+}
+console.log(`sync-contract: wrote ${outputs.length} files`);
