@@ -10,7 +10,7 @@
 //   node scripts/sync-contract.mjs           write
 //   node scripts/sync-contract.mjs --check   exit 1 on drift (CONTRACT_DRIFT <file>)
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { checkEndpointNames, endpointName } from './endpoint-names.mjs';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
@@ -274,10 +274,7 @@ function permissionsPage() {
             scopes.some((scope) => typeof scope !== 'string' || !scope.trim())))) {
         throw new Error(`PERMISSIONS_SECURITY_INVALID ${method.toUpperCase()} ${route}`);
       }
-      if (operation.summary !== undefined && typeof operation.summary !== 'string') {
-        throw new Error(`PERMISSIONS_SUMMARY_INVALID ${method.toUpperCase()} ${route}`);
-      }
-      operations.push({ route, method: method.toUpperCase(), summary: operation.summary, security, tag: Array.isArray(operation.tags) && typeof operation.tags[0] === 'string' ? operation.tags[0] : 'Other' });
+      operations.push({ route, method: method.toUpperCase(), security, tag: Array.isArray(operation.tags) && typeof operation.tags[0] === 'string' ? operation.tags[0] : 'Other' });
     }
   }
   const hasScopes = operations.some(({ security }) => security.some((requirement) =>
@@ -295,7 +292,8 @@ function permissionsPage() {
     ...heading,
     'The permission matrix is not yet available because the API specification has not exported operation scopes. This does not mean that operations need no permissions. See [Authentication permissions](/authentication#permissions) for the app permissions you can select.',
     '',
-  ].join('\n'), withheld: null, missingLabels: [], scopesNotExported: true };
+  ].join('\n'), withheld: null, missingLabels: [], scopesNotExported: true, operations,
+    access: () => ({ scopes: 'Not exported yet', permissions: 'Not exported yet' }), code: (value) => `\`${value.replace(/\|/g, '\\|')}\`` };
 
   const labels = spec.components?.securitySchemes?.api_key?.['x-tetrafi-scopes'];
   const missingLabels = new Set();
@@ -304,14 +302,6 @@ function permissionsPage() {
     .replace(/`/g, '&#96;').replace(/\r?\n/g, '<br />');
   // Code spans are literal in MDX: only a pipe, which would split the table cell, is escaped.
   const code = (value) => `\`${value.replace(/\|/g, '\\|')}\``;
-  // The summary's first line names the operation; later rustdoc lines repeat the route. Balanced
-  // backticks stay code spans; an unbalanced one is escaped so it cannot open a span across cells.
-  const operationName = (summary) => {
-    const line = (summary ?? '').split(/\r?\n/).find((part) => part.trim())?.trim() ?? '';
-    const parts = line.split('`');
-    if (parts.length % 2 === 0) return cell(line);
-    return parts.map((part, i) => (i % 2 ? code(part) : cell(part))).join('');
-  };
   const permission = (scope) => {
     const label = labels && Object.hasOwn(labels, scope) ? labels[scope]?.permission : undefined;
     if (typeof label === 'string' && label.trim()) return cell(label);
@@ -336,7 +326,7 @@ function permissionsPage() {
   };
   const row = (op) => {
     const { scopes, permissions } = access(op);
-    return `| ${operationName(op.summary)}<br />${op.method} ${code(op.route)} | ${scopes} | ${permissions} |`;
+    return `| ${endpointName(op.method, op.route)}<br />${op.method} ${code(op.route)} | ${scopes} | ${permissions} |`;
   };
   // Operations are grouped by their tag, in the spec's tag order, so each section matches the API reference.
   const byRoute = (a, b) => a.route < b.route ? -1 : a.route > b.route ? 1 : a.method < b.method ? -1 : a.method > b.method ? 1 : 0;
@@ -373,7 +363,7 @@ function permissionsPage() {
       ...operations.filter((op) => op.tag === tag).sort(byRoute).map(row),
       '',
     ]),
-  ].join('\n'), withheld: null, missingLabels: [...missingLabels].sort(), operations, access, operationName, code };
+  ].join('\n'), withheld: null, missingLabels: [...missingLabels].sort(), operations, access, code };
 }
 const permissions = permissionsPage();
 
@@ -398,16 +388,11 @@ const ENDPOINT_GUIDES = {
   'GET /api/v1/workspaces/{workspaceId}/capabilities': '/before-you-trade',
   'GET /api/v1/workspaces/{workspaceId}/venue-enablements': '/trade/wallets-and-accounts',
 };
-// Mintlify names an operation page api-reference/<tag>/<summary>, lowercased and hyphenated, with
-// apostrophes dropped ("account's" becomes "accounts").
+// Each operation's stub page is api-reference/<tag>/<short name>, lowercased and hyphenated.
 const WORKSPACE_PREFIX = '/api/v1/workspaces/{workspaceId}';
 const pageSlug = (text) => text.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 function endpointMap() {
-  if (!permissions.operations) {
-    // Without exported scopes the operation list is not built; a stale endpoint map must not pass.
-    if (reference.spec) throw new Error('ENDPOINT_MAP_UNAVAILABLE the spec exports no operation scopes');
-    return { page: null, nav: null };
-  }
+  if (!permissions.operations) return { page: null, nav: null };
   const ops = permissions.operations;
   checkEndpointNames(ops);
   for (const tag of new Set(ops.map((op) => op.tag))) {
@@ -483,8 +468,10 @@ if (webhookEvents.page) outputs.push([path.join('reference', 'webhook-events.mdx
 if (permissions.page) outputs.push([path.join('reference', 'permissions.mdx'), permissions.page]);
 if (endpoints.page) outputs.push([path.join('reference', 'endpoints.mdx'), endpoints.page], ['docs.json', docsJson()], ...endpoints.stubs);
 // An operation page the spec no longer has is stale: archive it.
-const staleEndpointPages = endpoints.stubs ? execFileSync('git', ['-C', root, 'ls-files', '--others', '--cached', '--exclude-standard', 'api-reference/*.mdx'], { encoding: 'utf8' })
-  .split('\n').filter((f) => f && existsSync(path.join(root, f)) && !endpoints.stubs.some(([stub]) => stub === f)) : [];
+const apiPages = () => (existsSync(path.join(root, 'api-reference')) ? readdirSync(path.join(root, 'api-reference'), { withFileTypes: true }) : [])
+  .filter((entry) => entry.isDirectory())
+  .flatMap((dir) => readdirSync(path.join(root, 'api-reference', dir.name)).filter((f) => f.endsWith('.mdx')).map((f) => `api-reference/${dir.name}/${f}`));
+const staleEndpointPages = endpoints.stubs ? apiPages().filter((f) => !endpoints.stubs.some(([stub]) => stub === f)) : [];
 
 const staleReference = !reference.spec && existsSync(path.join(root, 'api-reference', 'openapi.json'));
 const staleErrorCodes = !errorCodes.page && existsSync(path.join(root, 'reference', 'error-codes.mdx'));
@@ -509,7 +496,7 @@ if (check) {
   if (staleErrorCodes) console.log('CONTRACT_DRIFT reference/error-codes.mdx (present while the error codes are withheld)');
   if (staleWebhookEvents) console.log('CONTRACT_DRIFT reference/webhook-events.mdx (present while the webhook events are withheld)');
   if (stalePermissions) console.log('CONTRACT_DRIFT reference/permissions.mdx (present while the permissions are withheld)');
-  for (const file of staleEndpointPages) console.log(`CONTRACT_DRIFT ${file} (operation no longer in the spec; archive it)`);
+  for (const file of staleEndpointPages) console.log(`CONTRACT_DRIFT ${file} (no current operation has this page: renamed or removed; archive it)`);
   reportWithheld();
   console.log(`sync-contract --check: ${outputs.length} files, ${drift.length} drifted`);
   process.exit(drift.length || staleEndpointPages.length || staleReference || errorCodes.withheld || staleErrorCodes || errorCodes.unexplained?.length || staleWebhookEvents || webhookEvents.unexplained?.length || stalePermissions || permissions.missingLabels.length ? 1 : 0);
@@ -530,7 +517,7 @@ if (stalePermissions) {
   process.exitCode = 1;
 }
 for (const file of staleEndpointPages) {
-  console.log(`${file} is an operation the spec no longer has; archive it.`);
+  console.log(`${file} is not a current operation page (renamed or removed); archive it.`);
   process.exitCode = 1;
 }
 console.log(`sync-contract: wrote ${outputs.length} files`);

@@ -34,7 +34,7 @@ flowchart LR
 
 | Reads | Key permission | Key owner's workspace permission |
 | --- | --- | --- |
-| Trade history | Read trades | Not stated |
+| Trade history | Read trades | None; without View compliance records, only its own trades |
 | Settlement plan, trades, windows, obligations, movements, schedules | Read settlements (`settlements_read`) | View settlements |
 | `…/credit` | Treasury read | View wallets and View credit |
 | `…/ledger` | Treasury read | View wallets |
@@ -199,15 +199,14 @@ A `404` on one trade means the `tradeId` is unknown, or belongs to another works
 | `INSUFFICIENT_WORKSPACE_PERMISSION` | 403 | The key's owner lacks the [workspace permission](#at-a-glance). Ask a workspace admin. |
 | `LEDGER_ACCOUNT_FORBIDDEN` | 403 | The same, on `…/ledger`. |
 | `VENUE_ACCOUNT_NOT_FOUND` | 404 | No venue account with that id. |
+| `WORKSPACE_NOT_FOUND` | 404 | The path's workspace is not your key's. |
 | `LEDGER_NOT_OBSERVED` | 409 | No ledger observation yet. Read later, or open the account in the app, which reads the venue live. |
 | `LEDGER_UNSUPPORTED` | 409 | The venue does not report a ledger. |
 | `LEDGER_SETUP_MISSING` | 409 | No current key, or the connection needs setup. A member with Manage credentials adds or verifies the key; read again. |
 | `VENUE_ACCOUNT_LEDGER_PENDING` | 409 | Setup unfinished. A member with Manage credentials finishes it (the `finishVenueAccountSetup` fix); read again. |
 | `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | 409 | A wallet-based venue keeps funds in linked wallets: read `GET …/balances`. |
-| `WORKSPACE_NOT_FOUND` | 404 | The path's workspace is not your key's. |
 
-  
-</Accordion>
+  </Accordion>
 </AccordionGroup>
 
 Every other code is in [Error codes](/reference/error-codes).

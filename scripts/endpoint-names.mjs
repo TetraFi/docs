@@ -5,8 +5,11 @@
 //   Create / Update / Delete <record>
 //   <Action> <record>     a transition or a call that does something: Place, Cancel, Request, Stream…
 // No articles, about 2 to 4 words, unique across the API. A new operation fails the sync until it has
-// a name here, and a name whose operation is gone fails it too.
-export const ENDPOINT_NAMES = {
+// a name here, and a name whose operation is gone fails it too. A name scoped to one venue account
+// says "account", so it reads right in Postman's flat list as well as under its sidebar group.
+import { readFileSync } from 'node:fs';
+
+const NAMES = {
   'GET /api/v1/me': 'Get current credential',
   'POST /api/v1/oauth/token': 'Create access token',
 
@@ -29,19 +32,19 @@ export const ENDPOINT_NAMES = {
   'GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations': 'List trade obligations',
 
   'GET /api/v1/workspaces/{workspaceId}/settlement/plan': 'Get settlement plan',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements': 'List movements',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements/{movementId}': 'Get movement',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations': 'List obligations',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}': 'Get obligation',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules': 'List schedules',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows': 'List windows',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}': 'Get window',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches': 'List window matches',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements': 'List account movements',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements/{movementId}': 'Get account movement',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations': 'List account obligations',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}': 'Get account obligation',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules': 'Get account schedules',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows': 'List account windows',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}': 'Get account window',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches': 'List account window matches',
 
-  'GET /api/v1/workspaces/{workspaceId}/balances': 'Get balances',
+  'GET /api/v1/workspaces/{workspaceId}/balances': 'List workspace balances',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances': 'Get account balances',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit': 'Get account credit',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history': 'List deposits',
+  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history': 'List account deposits',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions': 'Get deposit instructions',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/ledger': 'Get account ledger',
   'GET /api/v1/workspaces/{workspaceId}/venue-enablements': 'List venue accounts',
@@ -62,16 +65,24 @@ export const ENDPOINT_NAMES = {
   'POST /api/v1/batch': 'Batch reads',
 };
 
-const FORM = /^(List|Get|Create|Update|Delete|Place|Cancel|Request|Stream|Send|Retry|Resume|Rotate|Batch) \S+( \S+){0,3}$/;
+// Letters only, 2 to 4 words: safe in YAML frontmatter, Markdown tables and Postman.
+const FORM = /^(List|Get|Create|Update|Delete|Place|Cancel|Request|Stream|Send|Retry|Resume|Rotate|Batch) [A-Za-z]+( [A-Za-z]+){0,2}$/;
+
+// Generator tests point TETRAFI_ENDPOINT_NAMES at a JSON map that names their fixture spec.
+function names() {
+  const file = process.env.TETRAFI_ENDPOINT_NAMES;
+  return file ? JSON.parse(readFileSync(file, 'utf8')) : NAMES;
+}
 
 export function endpointName(method, route) {
-  const name = ENDPOINT_NAMES[`${method.toUpperCase()} ${route}`];
+  const name = names()[`${method.toUpperCase()} ${route}`];
   if (!name) throw new Error(`ENDPOINT_NAME_MISSING ${method.toUpperCase()} ${route} (add it to scripts/endpoint-names.mjs)`);
   return name;
 }
 
 // Every operation has a name, every name an operation, each name fits the form and none repeats.
 export function checkEndpointNames(operations) {
+  const ENDPOINT_NAMES = names();
   const keys = new Set(operations.map(({ method, route }) => `${method.toUpperCase()} ${route}`));
   for (const key of keys) if (!ENDPOINT_NAMES[key]) throw new Error(`ENDPOINT_NAME_MISSING ${key} (add it to scripts/endpoint-names.mjs)`);
   for (const key of Object.keys(ENDPOINT_NAMES)) if (!keys.has(key)) throw new Error(`ENDPOINT_NAME_STALE ${key} (the spec no longer has it)`);

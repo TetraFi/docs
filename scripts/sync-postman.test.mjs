@@ -9,6 +9,14 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { collectionFromSpec, main, signingScript } from './sync-postman.mjs';
 
+// The fixture spec's routes are not the API's, so it names them itself.
+const namesFile = path.join(mkdtempSync(path.join(tmpdir(), 'postman-names-')), 'endpoint-names.json');
+writeFileSync(namesFile, JSON.stringify({
+  'GET /api/v1/assets': 'List assets', 'GET /api/v1/orders/{id}': 'Get order', 'POST /api/v1/orders/{id}': 'Place order',
+  'POST /api/v1/oauth/token': 'Create access token',
+}));
+process.env.TETRAFI_ENDPOINT_NAMES = namesFile;
+
 const spec = { openapi: '3.1.0', paths: {
   '/api/v1/assets': { get: { parameters: [
     { name: 'X-Workspace-Id', in: 'header', required: true, schema: { type: 'string' } },
@@ -31,10 +39,10 @@ test('collection has every operation, three empty-safe variables, inherited auth
   assert.equal(collection.auth.apikey.find((entry) => entry.key === 'key').value, 'X-API-Key');
   assert.equal(collection.event[0].script.exec.join('\n'), signingScript);
   assert.equal(collection.protocolProfileBehavior.disableUrlEncoding, true);
-  const assets = collection.item.find((item) => item.name === 'GET /api/v1/assets').request;
+  const assets = collection.item.find((item) => item.name === 'List assets').request;
   assert.equal(assets.header.some((entry) => entry.key === 'X-Workspace-Id'), false);
   assert.equal(assets.url.query[0].disabled, true);
-  const order = collection.item.find((item) => item.name === 'POST /api/v1/orders/{id}').request;
+  const order = collection.item.find((item) => item.name === 'Place order').request;
   assert.equal(order.url.path.at(-1), ':id');
   assert.equal(order.url.variable[0].value, '<id>');
   assert.deepEqual(JSON.parse(order.body.raw), { quoteId: '<quoteId>' });
