@@ -5,17 +5,20 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { endpointName } from './endpoint-names.mjs';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const output = 'api-reference/tetrafi.postman_collection.json';
 const methods = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace'];
 
-// Canonical form mirrors samples/http/quickstart.sh: timestamp, uppercase method,
-// path INCLUDING query, SHA-256 of exact UTF-8 body bytes; secret decoded from hex.
+// Canonical form mirrors samples/http/quickstart.sh: timestamp, then for a write
+// (POST, PUT, PATCH, DELETE) a fresh X-Nonce, uppercase method, path INCLUDING query,
+// SHA-256 of exact UTF-8 body bytes; secret decoded from hex. A read signs no nonce.
 export const signingScript = `const cryptoJs = require('crypto-js');
 // Never retain headers from an earlier signed send when signing is turned off.
 pm.request.headers.remove('X-Timestamp');
+pm.request.headers.remove('X-Nonce');
 pm.request.headers.remove('X-Signature');
 
 // Resolve variables ONCE, including dynamic variables, before hashing and sending.
@@ -41,9 +44,14 @@ if (secret) {
   if (!/^[0-9a-f]{64}$/i.test(secret)) throw new Error('signingSecret must contain 64 hexadecimal characters');
   const timestamp = String(Math.floor(Date.now() / 1000));
   const digest = cryptoJs.SHA256(body).toString(cryptoJs.enc.Hex);
-  const canonical = [timestamp, pm.request.method.toUpperCase(), pathWithQuery, digest].join('\\n');
+  const method = pm.request.method.toUpperCase();
+  // A write needs a nonce accepted once per key: a new random UUID on every send.
+  const nonce = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? pm.variables.replaceIn('{{$guid}}') : null;
+  if (nonce !== null && !/^[A-Za-z0-9_-]{16,128}$/.test(nonce)) throw new Error('Could not generate an X-Nonce');
+  const canonical = [timestamp, ...(nonce === null ? [] : [nonce]), method, pathWithQuery, digest].join('\\n');
   const signature = cryptoJs.HmacSHA256(canonical, cryptoJs.enc.Hex.parse(secret)).toString(cryptoJs.enc.Hex);
   pm.request.headers.upsert({ key: 'X-Timestamp', value: timestamp });
+  if (nonce !== null) pm.request.headers.upsert({ key: 'X-Nonce', value: nonce });
   pm.request.headers.upsert({ key: 'X-Signature', value: signature });
 }`;
 
@@ -99,7 +107,7 @@ export function collectionFromSpec(spec) {
           disabled: !parameter.required, description: parameter.description ?? '' });
         // API keys imply the workspace. Do not require a fourth variable because
         // the shared session/API-key spec marks its session-only header required.
-        if (parameter.in === 'header' && !['x-workspace-id', 'x-api-key', 'x-timestamp', 'x-signature'].includes(parameter.name.toLowerCase())) {
+        if (parameter.in === 'header' && !['x-workspace-id', 'x-api-key', 'x-timestamp', 'x-nonce', 'x-signature'].includes(parameter.name.toLowerCase())) {
           header.push({ key: parameter.name, value, disabled: !parameter.required, description: parameter.description ?? '' });
         }
       }
@@ -140,7 +148,7 @@ export function collectionFromSpec(spec) {
           throw new Error(`POSTMAN_BODY_UNSUPPORTED ${method.toUpperCase()} ${route}`);
         }
       }
-      items.push({ name: `${method.toUpperCase()} ${route}`, request, response: [] });
+      items.push({ name: endpointName(method, route), request, response: [] });
     }
   }
   if (!items.length) throw new Error('POSTMAN_SPEC_EMPTY no operations');

@@ -30,10 +30,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
@@ -65,7 +73,8 @@ while (( pages < 5 )); do
   [[ -z $cursor ]] && break
 done
 echo "orders: ${#orders[@]} across $pages pages" >&2
-printf '%s\n' "${orders[@]:0:3}" >&2
+# An empty list is a normal answer: a new workspace has no orders yet.
+(( ${#orders[@]} == 0 )) || printf '%s\n' "${orders[@]:0:3}" >&2
 # endregion
 
 # region order-execution
@@ -87,7 +96,7 @@ fi
   and has("quotedBuyAmount") and has("settledBuyAmount")' <<<"$filled" >/dev/null || fail EXECUTION_REPORT_MISSING
 
 # A cancelled order answers a repeated cancel with itself, unchanged; pick one that ended otherwise.
-final=$(printf '%s\n' "${orders[@]}" | jq -sc 'map(select(.terminal == true and .status != "cancelled")) | .[0] // empty')
+final=$( (( ${#orders[@]} == 0 )) || printf '%s\n' "${orders[@]}" | jq -sc 'map(select(.terminal == true and .status != "cancelled")) | .[0] // empty')
 cancel='{"skipped":"no final order in the last 30 days"}'
 if [[ -n $final ]]; then
   # region order-cancel

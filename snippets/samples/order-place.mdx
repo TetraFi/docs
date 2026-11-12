@@ -7,9 +7,10 @@
 idempotency_key=$(openssl rand -hex 16)
 order_body="{\"quoteId\":\"$order_quote\"}"
 placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
-# A basicTrade names its venue trade in operation; an advancedTrade names its order in order.
-jq -c '{kind, quoteId} + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
-  else {order: (.order | {orderId})} end' <<<"$placed" >&2
+# Common progress fields work for every kind; inspect operation only for a known basicTrade.
+jq -c '{kind, orderId, quoteId, status, terminal, statusUrl}
+  + if .kind == "basicTrade" then {operation: (.operation | {connectionId, operationId})}
+    else {} end' <<<"$placed" >&2
 ```
 
 </CodeGroup>

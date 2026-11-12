@@ -9,7 +9,7 @@ request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | ke
   | (if ($chains | length) > 1
       then {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "USDC", chain: $chains[1]}}
       else {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "ETH", chain: $chains[0]}} end)
-  + {sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
+  + {kind: "pair", sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
 ```
 
 ```typescript TypeScript SDK

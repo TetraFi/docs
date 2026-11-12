@@ -1,29 +1,140 @@
 ---
-title: "Platform Capabilities"
-description: "Everything the workspace does around the rails, and the status of each piece."
+title: "Platform capabilities"
+description: "What you build on, what is live, what is coming, and everything the workspace handles around the rails."
 mode: "wide"
 ---
 
-One workspace, one compliance policy, one loop: quote, then order. Everything else runs inside the workspace and never reaches your code. The rule underneath: **a credential authorizes API access, never wallet authority**.
+TetraFi runs one primitive against each cost of institutional settlement, on one network under one compliance policy: quote, then order, with everything else handled inside the workspace.
+
+## At a glance
+
+<CardGroup cols={3}>
+  <Card title="Settlement rails" icon="bolt" href="/overview">
+    Removes principal risk. Basic execution is live.
+  </Card>
+
+  <Card title="Multilateral Netting" icon="arrows-to-circle" href="/netting">
+    Removes the gross settlement toll. Coming soon.
+  </Card>
+
+  <Card title="Shared Collateral Network" icon="layer-group" href="/collateral">
+    Removes trapped liquidity. Coming soon.
+  </Card>
+</CardGroup>
+
+<Accordion title="Each primitive, the cost it removes and where you integrate">
+| Primitive | The cost it removes | Status | Where you integrate |
+| --- | --- | --- | --- |
+| Settlement rails | Principal risk | Basic execution is live. Escrow-settled delivery-versus-payment (Advanced) is not open yet. | [The TetraFi API](/overview): [quotes](/search/how-it-works), [orders](/trade/orders), [prices](/search/prices) |
+| [Multilateral Netting](/netting) | The gross settlement toll: obligations clear by atomic multilateral set-off, and only the net residual settles | Coming soon | [Integration](/netting-api/integration) |
+| [Shared Collateral Network](/collateral) | Trapped liquidity: capital committed once, cross-collateralised across every settlement gap | Coming soon | [Integration shape](/collateral-api/introduction) |
+
+  First visit? The Discover tab, from [Why TetraFi](/why-tetrafi), shows what is possible before you pick an API.
+</Accordion>
+
+## What is live: Basic execution
+
+- One request, every venue: a quote request asks every venue your workspace can use and returns comparable quotes, with every venue's outcome.
+- Orders on your own accounts: TetraFi executes on your connected exchange and OTC venue accounts, or from organisation wallets granted to your key. Your assets stay in your accounts.
+- You integrate: quote, then order, then follow its status or [webhooks](/trade/webhooks).
+
+<Accordion title="Advanced execution (not open yet)">
+  With Advanced execution, not open yet, an order settles through your own immutable [router and escrow](/core-concepts/settlement-smart-contracts). Funds release against proof of delivery, or refund through a path nobody can pause.
+</Accordion>
+
+## Coming soon
+
+<AccordionGroup>
+  <Accordion title="Multilateral Netting">
+    Your trade price is never touched: a run only decides who pays whom how much, with a validity proof checked on-chain first. You integrate [five touchpoints](/netting-api/integration):
+
+    1. Onboard.
+    2. Submit obligations.
+    3. Sign once.
+    4. Act on each run's notice.
+    5. Reconcile the statement.
+
+    Agent platforms add [batches from their own stack](/netting-api/agentic-netting).
+  </Accordion>
+
+  <Accordion title="Shared Collateral Network">
+    A draw is a priced exchange verified in the transaction that makes it. It funds the fill or settlement leg itself and is encumbered only while live. You draw, deposit or curate.
+  </Accordion>
+</AccordionGroup>
+
+## What the platform handles for you
+
+The workspace decides who may trade, from which account or wallet, under whose approval. A credential acts only within its owner's live permissions, and trades from an organisation wallet only when that wallet is granted to it.
 
 <Note>
-  **Live** is on the production API. **Rolling out** is built and moving through release - ask us for early access. **Coming soon** is in design.
+  Live is on the production API. Rolling out is built and moving through release: [ask for early access](/support). Coming soon is in design.
 </Note>
 
-| Capability | What it gives you | Status |
-| --- | --- | --- |
-| **Workspaces & personas** | Broker umbrellas with sub-workspaces, companies, LPs, direct users; every call scoped to one workspace, the one an API key belongs to or the one a session names in `X-Workspace-Id`. | Live |
-| **[Access & identity](/authentication)** | Custom roles, groups, service accounts. Fine-grained key scopes re-checked against live permissions; optional request signing, OAuth2, MFA. | Live; passkeys rolling out |
-| **[Wallets](/core-concepts/wallets-and-signing)** | Organisation and personal wallets, each governed, embedded, self-managed or custodian; several per owner, per-chain defaults. | Rolling out |
-| **[Signing without backend keys](/core-concepts/wallets-and-signing)** | Governed wallets with a customer-defined quorum of approvers; bounded delegates the owners approve, with expiry and revocation. | Rolling out |
-| **Gas sponsorship** | The gas payer chosen per order. | Coming soon |
-| **[Treasury & custody](/core-concepts/treasury)** | Custody connections, vault balances, transfers, whitelists, approval quorums, velocity budgets, statements. | Live; policy and statements rolling out |
-| **[Exchange, OTC and fiat](/core-concepts/treasury)** | Desk balances, deposit intents, credit utilisation, an exception queue; bank accounts and ramps as route legs. | Live; fiat rolling out |
-| **[Agents](/core-concepts/agents)** | Sponsored service accounts inside a spending envelope, with a kill switch. | Rolling out |
-| **[Compliance center](/core-concepts/compliance-policy)** | Pre-trade gate, tighten-only overlays, shadow-mode workflows, sanctions evidence, travel-rule checks, reporting. | Live; workflow builder and reporting rolling out |
-| **[Bonded firm quotes](/core-concepts/settlement-smart-contracts)** | A maker's firm commitment is bonded; a proven no-show refunds you. | Rolling out |
-| **[Rails and routing](/search/chains-and-routes)** | EVM live; Solana, Tron, direct DEX and programmable liquidity, composite routes with recovery. | Live; more rolling out |
-| **[Webhooks & notifications](/trade/webhooks)** | An `order.updated` event on every order status change, signed with Standard Webhooks, retried until acknowledged, with a test event. | Live |
-| **[Multilateral Netting](/netting-api/introduction), [Shared Collateral Network](/collateral-api/introduction)** | The primitives that retire gross settlement and trapped liquidity. | Coming soon |
+| Capability | Status |
+| --- | --- |
+| Workspaces & personas | Live |
+| [Access & identity](/authentication) | Live; passkeys rolling out |
+| [Wallets](/core-concepts/wallets-and-signing) | Rolling out |
+| [Signing without backend keys](/core-concepts/wallets-and-signing) | Rolling out |
+| Gas sponsorship | Coming soon |
+| [Treasury & custody](/core-concepts/treasury) | Live; policy and statements rolling out |
+| [Exchange, OTC and fiat](/core-concepts/treasury) | Live; fiat rolling out |
+| [Agents](/core-concepts/agents) | Rolling out |
+| [Compliance center](/core-concepts/compliance-policy) | Live; workflow builder and reporting rolling out |
+| [Bonded firm quotes](/core-concepts/settlement-smart-contracts) | Rolling out |
+| [Rails and routing](/search/how-it-works#filters-and-sort) | Live; more rolling out |
+| [Webhooks & notifications](/trade/webhooks) | Live |
+| [Multilateral Netting](/netting-api/introduction), [Shared Collateral Network](/collateral-api/introduction) | Coming soon |
 
-Anything marked rolling out: [ask for early access](/support).
+<AccordionGroup>
+  <Accordion title="What each capability gives you">
+| Capability | What it gives you |
+| --- | --- |
+| Workspaces & personas | Broker umbrellas with sub-workspaces, companies, LPs, direct users; every call scoped to one workspace, the one an API key belongs to or the one a session names in `X-Workspace-Id`. |
+| Access & identity | Custom roles, groups, service accounts. Fine-grained key scopes re-checked against live permissions; request signing (always on for venue-trading keys), OAuth2, MFA. |
+| Wallets | Organisation and personal wallets, each governed, embedded, self-managed or custodian; several per owner, per-chain defaults. |
+| Signing without backend keys | Governed wallets with a customer-defined quorum of approvers; bounded delegates the owners approve, with expiry and revocation. |
+| Gas sponsorship | The gas payer chosen per order. |
+| Treasury & custody | Custody connections, vault balances, transfers, whitelists, approval quorums, velocity budgets, statements, in the app; balances and credit readable by API key. |
+| Exchange, OTC and fiat | Desk balances, deposit intents, credit utilisation, an exception queue; bank accounts and ramps as route legs. |
+| Agents | Sponsored service accounts inside a spending envelope, with a kill switch. |
+| Compliance center | Pre-trade gate, tighten-only overlays, shadow-mode workflows, sanctions evidence, travel-rule checks, reporting. |
+| Bonded firm quotes | A maker's firm commitment is bonded; a proven no-show refunds you. |
+| Rails and routing | EVM live; Solana, Tron, direct DEX and programmable liquidity, composite routes with recovery. |
+| Webhooks & notifications | An `order.updated` event on every order status change, signed with Standard Webhooks, retried until acknowledged, with a test event. |
+| Multilateral Netting, Shared Collateral Network | The primitives that retire gross settlement and trapped liquidity. |
+
+  </Accordion>
+
+  <Accordion title="Where to start in the docs">
+    <CardGroup cols={2}>
+      <Card icon="key" href="/authentication" title="Access and identity">
+        Scoped keys checked against live permissions, request signing, MFA.
+      </Card>
+
+      <Card icon="wallet" href="/core-concepts/wallets-and-signing" title="Wallets and signing">
+        Organisation and personal wallets, owner-authorized and revocable.
+      </Card>
+
+      <Card icon="building-columns" href="/core-concepts/treasury" title="Treasury and custody">
+        Custody, transfers and approvals in the app; balances and credit by API key.
+      </Card>
+
+      <Card icon="coins" href="/monetize" title="Monetization">
+        A partner fee on every settled trade.
+      </Card>
+    </CardGroup>
+  </Accordion>
+</AccordionGroup>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get your first quote and place a small order.
+  </Card>
+
+  <Card title="Ask for early access" icon="envelope" href="/support">
+    Anything marked rolling out, or still unsure where to start.
+  </Card>
+</CardGroup>

@@ -9,6 +9,14 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { collectionFromSpec, main, signingScript } from './sync-postman.mjs';
 
+// The fixture spec's routes are not the API's, so it names them itself.
+const namesFile = path.join(mkdtempSync(path.join(tmpdir(), 'postman-names-')), 'endpoint-names.json');
+writeFileSync(namesFile, JSON.stringify({
+  'GET /api/v1/assets': 'List assets', 'GET /api/v1/orders/{id}': 'Get order', 'POST /api/v1/orders/{id}': 'Place order',
+  'POST /api/v1/oauth/token': 'Create access token',
+}));
+process.env.TETRAFI_ENDPOINT_NAMES = namesFile;
+
 const spec = { openapi: '3.1.0', paths: {
   '/api/v1/assets': { get: { parameters: [
     { name: 'X-Workspace-Id', in: 'header', required: true, schema: { type: 'string' } },
@@ -31,10 +39,10 @@ test('collection has every operation, three empty-safe variables, inherited auth
   assert.equal(collection.auth.apikey.find((entry) => entry.key === 'key').value, 'X-API-Key');
   assert.equal(collection.event[0].script.exec.join('\n'), signingScript);
   assert.equal(collection.protocolProfileBehavior.disableUrlEncoding, true);
-  const assets = collection.item.find((item) => item.name === 'GET /api/v1/assets').request;
+  const assets = collection.item.find((item) => item.name === 'List assets').request;
   assert.equal(assets.header.some((entry) => entry.key === 'X-Workspace-Id'), false);
   assert.equal(assets.url.query[0].disabled, true);
-  const order = collection.item.find((item) => item.name === 'POST /api/v1/orders/{id}').request;
+  const order = collection.item.find((item) => item.name === 'Place order').request;
   assert.equal(order.url.path.at(-1), ':id');
   assert.equal(order.url.variable[0].value, '<id>');
   assert.deepEqual(JSON.parse(order.body.raw), { quoteId: '<quoteId>' });
@@ -102,8 +110,8 @@ test('a form-encoded anonymous operation sends a raw form of every field without
 });
 
 function sign({ secret = 'ab'.repeat(32), method = 'post', url = 'https://api.example.test/api/v1/orders?limit=2&cursor=a%2Fb', body = '{\n  "quoteId": "{{quoteId}}", "note": "café"\n}', mode = 'raw', disabled = false } = {}) {
-  const headers = new Map([['Content-Type', 'application/json'], ['X-Signature', 'stale'], ['X-Timestamp', 'stale']]);
-  const variables = { signingSecret: secret, quoteId: 'q_test' };
+  const headers = new Map([['Content-Type', 'application/json'], ['X-Signature', 'stale'], ['X-Timestamp', 'stale'], ['X-Nonce', 'stale']]);
+  const variables = { signingSecret: secret, quoteId: 'q_test', $guid: '0b6f1d2e-3c4a-4b5d-8e6f-7a8b9c0d1e2f' };
   const request = { method, headers: {
     get: (key) => headers.get(key), remove: (key) => headers.delete(key), upsert: ({ key, value }) => headers.set(key, value),
   }, url: { toString: () => url, update: (value) => { url = value; } } };
@@ -127,8 +135,9 @@ test('signing hashes the exact resolved UTF-8 body and includes the full query',
   const body = '{\n  "quoteId": "q_test", "note": "café"\n}';
   assert.equal(request.body.raw, body);
   assert.equal(url, 'https://api.example.test/api/v1/orders?limit=2&cursor=a%2Fb');
-  const canonical = `1800000000\nPOST\n/api/v1/orders?limit=2&cursor=a%2Fb\n${createHash('sha256').update(body).digest('hex')}`;
+  const canonical = `1800000000\n0b6f1d2e-3c4a-4b5d-8e6f-7a8b9c0d1e2f\nPOST\n/api/v1/orders?limit=2&cursor=a%2Fb\n${createHash('sha256').update(body).digest('hex')}`;
   assert.equal(headers.get('X-Timestamp'), '1800000000');
+  assert.equal(headers.get('X-Nonce'), '0b6f1d2e-3c4a-4b5d-8e6f-7a8b9c0d1e2f');
   assert.equal(headers.get('X-Signature'), createHmac('sha256', Buffer.from('ab'.repeat(32), 'hex')).update(canonical).digest('hex'));
 });
 
@@ -136,7 +145,10 @@ test('empty secret removes both signature headers; empty GET bodies use the empt
   const unsigned = sign({ secret: '', body: '' });
   assert.equal(unsigned.headers.has('X-Signature'), false);
   assert.equal(unsigned.headers.has('X-Timestamp'), false);
+  assert.equal(unsigned.headers.has('X-Nonce'), false);
   const signed = sign({ method: 'get', body: '', url: 'https://api.example.test/api/v1/assets?limit=1' });
+  // A read signs four lines and sends no nonce.
+  assert.equal(signed.headers.has('X-Nonce'), false);
   const canonical = `1800000000\nGET\n/api/v1/assets?limit=1\n${createHash('sha256').update('').digest('hex')}`;
   assert.equal(signed.headers.get('X-Signature'), createHmac('sha256', Buffer.from('ab'.repeat(32), 'hex')).update(canonical).digest('hex'));
 });

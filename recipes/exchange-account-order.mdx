@@ -10,147 +10,180 @@ import ExchangeOrder from '/snippets/samples/recipe-exchange-order.mdx';
 import ExchangeRecover from '/snippets/samples/recipe-exchange-recover.mdx';
 import ExchangeStatus from '/snippets/samples/recipe-exchange-status.mdx';
 
-This recipe trades 5 USDC for USDT on one exchange account your workspace has connected, with an API key. TetraFi places the trade on that account, with that account's balance, so no wallet signs anything. Every step comes from one script, [`samples/http/recipe-exchange-order.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/recipe-exchange-order.sh).
+Swap 5 USDC for USDT on an exchange account your workspace has connected; TetraFi trades with that account's own balance, so no wallet signs anything.
 
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
+## At a glance
+
+| | |
+| --- | --- |
+| You trade | 5 USDC for USDT on your connected exchange account. |
+| Endpoints | `POST /api/v1/quotes`, `POST /api/v1/orders`, `GET /api/v1/orders/by-quote/{quoteId}`, then the order's `statusUrl`. |
+| Result | A filled Basic trade, with what the account spent and received under `operation`. |
+
+```mermaid
+flowchart LR
+  A[Find venue] --> B[Quote that venue]
+  B --> C[Check funds]
+  C --> D[Order]
+  D --> E[Read status]
+```
 
 ## Before you begin
 
-You need `bash`, `curl`, `jq` and `openssl`, and:
+- `bash`, `curl`, `jq` and `openssl`.
+- A connected exchange account that holds the asset you sell ([Connect a venue account](/before-you-trade#connect-a-venue-account)).
+- An API key with Read quotes, Submit orders, Read orders and [venue trading](/authentication#trade-on-your-venue-accounts), and its signing secret: sign every request ([Sign requests](/authentication#sign-requests)).
 
-- **A connected exchange account.** Someone who manages your workspace's venues connects it in the app ([Connect a venue account](/trade/wallets-and-accounts#connect-a-venue-account)), and it must hold the asset you sell.
-- **An API key that can trade on venue accounts.** Besides **Read quotes**, **Submit orders** and **Read orders**, the key needs the venue trading scope, which is granted only when the key is created, and venue trading switched on for it by a workspace owner or an admin who manages credentials ([Trading on your venue accounts](/authentication#trading-on-your-venue-accounts)). Without it, the venue is listed in `sources` as `restricted` with the reason `venueTradeScopeRequired`, and you get no quote from it.
-- **The key's signing secret.** A key with venue trading signs every request. The script's `tetrafi` helper signs each one when `TETRAFI_SIGNING_SECRET` is set ([Sign requests](/authentication#sign-requests)).
+<AccordionGroup>
+  <Accordion title="Without venue trading">
+    The venue reads `restricted` with `venueTradeScopeRequired` in `sources`.
+  </Accordion>
+  <Accordion title="Environment variables">
+    Export your environment as in the [Quickstart](/quickstart), plus:
 
-Export your environment as in the [Quickstart](/quickstart), plus your workspace id and, if you know it, the venue id of your account:
+    ```bash
+    export TETRAFI_WORKSPACE_ID=...    # the workspace the key belongs to (see Authentication)
+    export TETRAFI_VENUE=...           # optional: the venue id of your exchange account; if unset, step 1 finds it
+    ```
+  </Accordion>
+</AccordionGroup>
 
-```bash
-export TETRAFI_WORKSPACE_ID=...    # the workspace the key belongs to (see Authentication)
-export TETRAFI_VENUE=...           # optional: the venue id of your exchange account
-```
-
-The script needs the workspace id for one step only: after it recovers the order by its quote, the trade's status address contains the workspace id.
+<Warning>
+This recipe places a real order on your exchange account and spends its balance.
+</Warning>
 
 <Steps>
   <Step title="Find your account's venue">
-    Quotes from your exchange account carry its venue id, such as `binance-orderbook`. If you do not set `TETRAFI_VENUE`, the script finds it with one search that keeps only off-chain quotes (`filters.locations: ["offChain"]`): only your connected venue accounts answer that. It takes the venue of the best Basic quote.
+    Search with `filters.locations: ["offChain"]`: only your connected venue accounts answer. Take the venue id of the best Basic quote, such as `binance-orderbook`.
 
     <ExchangeVenue />
 
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"venue":"okx-rfq","status":"unavailable","reason":"notConnected"}
     {"venue":"binance-orderbook","status":"answered","reason":null}
     ```
 
-    `notConnected` means your workspace has no account at that venue.
+    <Accordion title="notConnected">
+      `notConnected` means your workspace has no account at that venue.
+    </Accordion>
   </Step>
 
   <Step title="Search that venue only">
-    `filters.venues.include` with one venue id asks that venue alone. Every other venue is listed in `sources` as `filteredOut` and is not asked. The quote trades on your account at that venue: its `tradingSource` has `kind` `venueAccount`, and `fundingModel` says whether the account must already hold the funds (`prefunded`) or takes them in (`payIn`).
+    Set `filters.venues.include` to that venue id; every other venue reads `filteredOut` in `sources` and is not asked.
 
     <ExchangeQuote />
 
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"quoteId":"q_01M5XSRC…","venue":"binance-orderbook","mode":"basic","firm":false,"sell":"5","buy":"5.00675","minOut":"4.99172","next":"order","expiresAt":"2026-10-27T04:26:42.527Z"}
     ```
 
-    You can send one live quote request every 3 seconds. The script waits `details.retryAfter` once when it gets `429 QUOTE_RATE_LIMITED`.
+    <Accordion title="tradingSource and fundingModel">
+      The quote's `tradingSource` has `kind` `venueAccount`, and `fundingModel` says whether the account must already hold the funds (`prefunded`) or takes them in (`payIn`).
+    </Accordion>
   </Step>
 
   <Step title="Check the account holds enough">
-    Each quote says whether the account holds enough to trade it, in `readiness`. To see everything the account holds, read its balances with the same key ([Exchange account balances](/trade/venue-balances)).
-
-    | `readiness.kind` | What it means |
-    | --- | --- |
-    | `funded` | The account holds enough. `next` is `order`. |
-    | `shortfall` | The account holds less. `amount` is what is missing and `next` is `fund`. Fund the account, then get a new price. |
+    `readiness` says whether the account holds enough: `funded` means `next` is `order`.
 
     <ExchangeFunds />
 
-    ```json Output
+    ```json Output expandable
     {"readiness":{"kind":"funded"}}
     ```
 
-    To see the balances themselves, check in the app (below).
+    <Accordion title="Readiness values and balances">
+
+| `readiness.kind` | What it means |
+| --- | --- |
+| `funded` | The account holds enough. `next` is `order`. |
+| `shortfall` | `amount` is what is missing and `next` is `fund`. Fund the account, then get a new price. |
+
+      To see all it holds, read [its balances](/trade/balances#one-exchange-account).
+    </Accordion>
   </Step>
 
   <Step title="Place the order">
     `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and store before you send it. A Basic quote takes no signature.
 
-    Some desks execute within your limit: when a quote reads `minReceiveRequired: true`, its order must carry `minReceive`, the least you accept ([Orders](/trade/orders#venue-quotes-that-execute-within-your-limit)). The script then sets `minReceive` to the quoted amount less 50 basis points. When it reads `false`, like the order-book quote above, `minReceive` is optional, and the script sends only the quote id. A refused order names its code, such as `409 FUNDING_SHORTFALL`, and nothing was traded ([Orders](/trade/orders#refusals)).
-
-    The script places the order only when you set `TETRAFI_PLACE_ORDER=1`.
-
     <ExchangeOrder />
 
-    The script prints the order response's `kind`, `quoteId` and `operation`:
-
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"kind":"basicTrade","quoteId":"q_01M5XSRC…","operation":{"connectionId":"15862432-…","operationId":"0b23326f-…"}}
     ```
+
+    <Accordion title="When to send minReceive">
+      When the quote reads `minReceiveRequired: true`, send `minReceive`, the least you accept, such as the quoted amount less 50 basis points ([Orders](/trade/orders#venues-that-execute-within-your-limit)). Otherwise, as on this order-book quote, it is optional.
+    </Accordion>
   </Step>
 
   <Step title="Recover the order by its quote">
-    If the order response never reaches you, after a timeout or a dropped connection, do not order again with a new key: that is a new order. Read the order by its quote with `GET /api/v1/orders/by-quote/{quoteId}`. It never places anything ([Idempotency](/trade/idempotency#recover-an-order-by-its-quote)).
-
-    | `state` | What to do |
-    | --- | --- |
-    | `ordered` | Read its status at `statusUrl`. Do not order again. |
-    | `notOrdered` | Nothing was placed. If `expired` is `false`, you can order it. |
-    | `unknown` | Wait and read again. Do not order again. |
-
-    The script reads the order this way every time, and takes `statusUrl` from the answer.
+    If the order response never reaches you, read it with `GET /api/v1/orders/by-quote/{quoteId}`, which places nothing. Never order again with a new key: that is a second order.
 
     <ExchangeRecover />
 
-    ```json Output (shortened)
+    ```json Output (shortened) expandable
     {"state":"ordered","orderId":"0b23326f-…","statusUrl":"/api/v1/orders/0b23326f-…"}
     ```
+
+    <Accordion title="What each state means">
+
+| `state` | What to do |
+| --- | --- |
+| `ordered` | Read its status at `statusUrl`. Do not order again. |
+| `notOrdered` | Nothing was placed. If `expired` is `false`, you can order it. |
+| `unknown` | Wait and read again. Do not order again. |
+
+      See [Recover an order](/trade/orders#recover-an-order-by-its-quote).
+    </Accordion>
   </Step>
 
   <Step title="Read the status">
-    Read the trade at its `statusUrl` until `terminal` is `true`, every 10 seconds, or after `next.retryAfter` when `next` says `wait`. `outcomeUnknown` is not a failure: the trade may have filled, so keep reading ([Order status](/trade/order-status)). The venue's own detail is under `operation`.
+    Read `statusUrl` every 10 seconds until `terminal` is `true`, or after `next.retryAfter` when `next` says `wait` ([Order status](/trade/order-status)). `outcomeUnknown` is not a failure: the trade may have filled, so keep reading and never order it again.
 
     <ExchangeStatus />
 
-    ```json Output
+    ```json Output expandable
     {"status":"settled","terminal":true,"next":null}
     {"executionStatus":"filled","settlementStatus":null,"bounds":{"sell":{"asset":"USDC","amount":"5"},"buy":{"asset":"USDT","amount":"4.99172"}},"dispatch":{"inputSpent":"5","outputReceived":"5.00675","venueOrderId":"229377"}}
     ```
 
-    When the venue reports them, `dispatch.inputSpent` and `dispatch.outputReceived` are what the trade took from and added to the account. A missing or `null` amount is unknown, never zero. `bounds.sell.amount` (the most it spends) and `bounds.buy.amount` (the least it delivers) are your accepted limits, not fill amounts. `dispatch.venueOrderId`, when present, is the venue's native order id.
+    <Accordion title="The fields under operation">
+      The venue's own detail is under `operation`:
 
-    Check `settlementStatus` for any later money movement. To confirm the balance independently, open the account under **Treasury** in the app.
+| Field | Meaning |
+| --- | --- |
+| `dispatch.inputSpent`, `dispatch.outputReceived` | What the trade took from and added to the account, when reported. Missing or `null` is unknown, never zero. |
+| `bounds.sell.amount`, `bounds.buy.amount` | Your accepted limits (most spent, least delivered), not fill amounts. |
+| `dispatch.venueOrderId` | The venue's native order id, when present. |
+| `settlementStatus` | Any later money movement. |
+
+      To confirm the balance independently, open the account under **Treasury** in the app.
+    </Accordion>
   </Step>
 </Steps>
 
-## Run the whole script
+## If something goes wrong
 
-```bash
-TETRAFI_PLACE_ORDER=1 bash samples/http/recipe-exchange-order.sh
-```
+<AccordionGroup>
+  <Accordion title="429 QUOTE_RATE_LIMITED on a search">
+    Wait `details.retryAfter`, then search again ([Rate limits](/reference/rate-limits)).
+  </Accordion>
+  <Accordion title="The order is refused">
+    A refused order names its code, such as `409 FUNDING_SHORTFALL`, and nothing was traded ([Orders](/trade/orders#refusals)).
+  </Accordion>
+</AccordionGroup>
 
-Progress goes to stderr and the summary to stdout:
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/recipe-exchange-order.sh">
+  Runs every step above end to end; it places the order only with `TETRAFI_PLACE_ORDER=1`.
+</Card>
 
-```json Output
-{"venue":"binance-orderbook","quoteId":"q_01M5XSRC…","kind":"basicTrade","id":"0b23326f-…","status":"filled","idempotencyKey":"33c6…"}
-```
-
-Without `TETRAFI_PLACE_ORDER=1`, the summary reads `"ordered": false`.
-
-## In the app
-
-The account's page under **Treasury** shows its balances, and the trade appears under **Trades**.
-
-## Next steps
+## Next
 
 <CardGroup cols={2}>
   <Card title="Orders" icon="list-check" href="/trade/orders">
     Venue quotes that execute within your limit, and every refusal.
   </Card>
-  <Card title="Idempotency" icon="rotate" href="/trade/idempotency">
+  <Card title="Retries and recovery" icon="rotate" href="/trade/orders#retries-and-recovery">
     Retry an order safely and find out whether it was placed.
   </Card>
 </CardGroup>

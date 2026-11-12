@@ -7,89 +7,121 @@ import ConventionsPaging from '/snippets/samples/conventions-paging.mdx';
 import ConventionsRequestId from '/snippets/samples/conventions-request-id.mdx';
 import ConventionsValues from '/snippets/samples/conventions-values.mdx';
 
-These rules hold on every endpoint, so a client can implement them once. The examples come from one script, [`samples/http/conventions.sh`](https://github.com/tetrafi/docs/blob/main/samples/http/conventions.sh), which reads them from live answers and stops if one is broken. It only lists assets and asks for one quote: nothing is ordered.
-
-<Note>
-The API may change until launch. Every change is listed in the [Changelog](/changelog).
-</Note>
+These rules hold on every endpoint, so implement them once. The examples order nothing.
 
 ## Requests
 
 | Rule | Detail |
 | --- | --- |
-| Base URL | `https://api.tetrafi.io`. Every path starts with `/api/v1`. |
-| Credentials | `X-API-Key` on every request, plus a signature when request signing is on. The key implies its workspace, so `X-Workspace-Id` is optional; when sent, it must be the key's own. See [Authentication](/authentication). |
+| Base URL | `https://api.tetrafi.io`, or `https://api-dev.tetrafi.io` in the [sandbox](/overview#environments). Every path starts with `/api/v1`. |
+| Credentials | `X-API-Key` on every request, plus a signature when request signing is on ([Authentication](/authentication)). |
+| Workspace | The key implies its workspace, so `X-Workspace-Id` is optional. When sent, it must be the key's own. |
 | Bodies | JSON, sent with `Content-Type: application/json`. |
 
 ## Values
 
 | Value | Form | Example |
 | --- | --- | --- |
-| Amounts | Decimal strings, never JSON numbers. Parse them with a decimal type, not a float. An amount may carry at most its asset's decimals; more is refused up front with `400 AMOUNT_PRECISION_EXCEEDED` (`details.field`, `details.decimals`, `details.allowed`), before any quote or funding check. | `"10.0147"` |
+| Amounts | Decimal strings, never JSON numbers. Parse with a decimal type, not a float. | `"10.0147"` |
+| Amount precision | At most the asset's decimals. More is refused with `400 AMOUNT_PRECISION_EXCEEDED` (`details.field`, `details.decimals`, `details.allowed`) before any quote or funding check. | |
 | Times | RFC 3339, in UTC. | `"2026-10-30T00:40:13.162Z"` |
 | Durations | ISO 8601. | `"PT2S"` |
 | Chains | CAIP-2 chain ids. | `"eip155:8453"` |
 | Field names | camelCase. | `expiresAt` |
-| Ids | Opaque strings. Store and compare them whole; never parse them. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
-| Enumerations | Open sets: new values may be added. Treat a value you do not recognise as "other". | `"status": "answered"` |
+| Ids | Opaque strings. Store and compare them whole; never parse. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
+| Enumerations | Open sets that can gain values. Treat an unknown value as "other". | `"status": "answered"` |
 
-<ConventionsValues />
+<Accordion title="Example: read amounts and times">
+  <ConventionsValues />
 
-```json Output on test networks
-{"buy":"10.0147","buyIsString":true,"expiresAt":"2026-10-30T00:40:13.162Z","observedAt":"2026-10-30T00:40:04.126Z"}
-```
+  ```json Output on test networks
+  {"buy":"10.0147","buyIsString":true,"expiresAt":"2026-10-30T00:40:13.162Z","observedAt":"2026-10-30T00:40:04.126Z"}
+  ```
+</Accordion>
 
 ## Paging
 
-A list that pages takes `limit` and answers `nextCursor`. Send it back as `cursor` until `nextCursor` is absent. A cursor is valid while the list it came from is unchanged: after a change it answers `409 CURSOR_STALE`, and you start again from the first page.
+A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged as `cursor` until `nextCursor` is absent or `null`.
 
-`GET /api/v1/assets` pages this way, from 1 to 200 assets a page, and `GET /api/v1/orders`, up to 20 orders a page. An order page can hold fewer than `limit` orders, even none, while more follow: stop only when `nextCursor` is absent or `null`.
+| Rule | Detail |
+| --- | --- |
+| Opaque tokens | Never decode, construct or edit them; their encoding is not part of the contract. |
+| Same list only | Use a token only for the same workspace, list and filters. |
+| Expired or invalid token | Tokens may expire, including after a server-key rotation or private-format deployment. An invalid or expired authenticated cursor answers 400: restart without `cursor`. |
+| Snapshot lists | A list with a snapshot contract may answer `409 CURSOR_STALE` after the underlying selection changes: restart from its first page. |
+| `GET /api/v1/assets` | 1 to 200 assets a page. |
+| `GET /api/v1/orders` | Up to 20 orders a page; a page can hold fewer than `limit`, even none, while more follow. |
 
-<ConventionsPaging />
+<Accordion title="Example: page through every asset">
+  <ConventionsPaging />
 
-```json Output on test networks
-assets: 52 across 11 pages
-```
+  ```json Output on test networks
+  assets: 52 across 11 pages
+  ```
+</Accordion>
 
 ## Errors
 
-Every refusal is one JSON body with the same fields: `error`, `message`, `requestId`, `timestamp`, `docUrl`, and `next` and `details` when they apply. Each code has one HTTP status, and `docUrl` links its entry in the [error-code reference](/reference/error-codes). Match on `error`, never on `message`. [Errors and refusals](/trade/errors) shows how to read one, and the [error-code reference](/reference/error-codes) lists every code.
+| Rule | Detail |
+| --- | --- |
+| One body | Every refusal carries `error`, `message`, `requestId`, `timestamp`, `docUrl`, and `next` and `details` when they apply. |
+| One status per code | Each code has one HTTP status. `docUrl` links its entry in the [error-code reference](/reference/error-codes). |
+| Match on `error` | Never on `message`. |
+
+[Errors and refusals](/trade/errors) shows how to read one.
 
 ## Request ids
 
-Every response carries an `X-Request-Id` header, and every refusal carries the same value as `requestId`. Quote it to support.
-
-You can send your own `X-Request-Id`, up to 64 letters, digits, `-` and `_`, to find a request in your logs and ours. The response echoes it. A value outside that form is replaced with a generated UUID, and the response carries that instead.
-
-<ConventionsRequestId />
-
-```json Output on test networks
-{"requestId":"conventions-1793320806","limit":"","remaining":"","reset":""}
-```
-
-## Rate limits
-
-You may send one live quote request every 3 seconds per API key; a requote counts as one. A request answered entirely from cached prices does not count.
-
-A request over a limit answers `429` with a `Retry-After` header in whole seconds and the same wait in `details.retryAfter`, for example `PT2S`. Wait that long, then send it once more. [Errors and refusals](/trade/errors#the-quote-rate-limit) shows a retry.
-
-When your key has a per-minute limit, every answer to it, successes and refusals alike, carries three headers:
-
-| Header | Meaning |
+| Rule | Detail |
 | --- | --- |
-| `X-RateLimit-Limit` | Requests per minute this key may send. |
-| `X-RateLimit-Remaining` | Requests it may still send now. |
-| `X-RateLimit-Reset` | Seconds until its full allowance is back. |
+| Every response | Carries `X-Request-Id`; a refusal repeats it as `requestId`. Quote it to support. |
+| Your own id | Send `X-Request-Id` (up to 64 letters, digits, `-` and `_`) to trace a request in your logs and ours; the response echoes it. |
+| Invalid id | Replaced with a generated UUID, which the response carries instead. |
 
-Without a per-key limit, as in the output above, the headers are absent; `X-RateLimit-Remaining` alone can still appear when a limit on your address counted the request. Treat an absent header as "no count", never as zero.
+<Accordion title="Example: send your own request id">
+  <ConventionsRequestId />
 
-## Idempotency
+  ```json Output on test networks
+  {"requestId":"conventions-1793895638","rateLimitPolicy":"1;w=3","rateLimit":"limit=1, remaining=0, reset=3"}
+  ```
+</Accordion>
 
-Send an `Idempotency-Key` with every `POST /api/v1/orders`. A retry with the same key and body returns the first answer, with the header `Idempotent-Replayed: true`. The same key with a different body is refused. [Idempotency](/trade/idempotency) covers replays, conflicts and recovering an order.
+## Rate limits and idempotency
+
+| Rule | Detail |
+| --- | --- |
+| Rate limits | Every limit answers `429` with `Retry-After` ([Rate limits](/reference/rate-limits)). |
+| Idempotency | Send an `Idempotency-Key` with every `POST /api/v1/orders`. A retry with the same key and body returns the first answer, with `Idempotent-Replayed: true` ([Retries and recovery](/trade/orders#retries-and-recovery)). |
+
+## Read several resources at once
+
+`POST /api/v1/batch` runs up to 20 reads in one request. Use it to load a page of related resources in one round trip.
+
+| Rule | Detail |
+| --- | --- |
+| Items | 1 to 20 `{id, method, url}`. `method` is `GET`; `url` is the path and query of a `GET` operation in this reference, such as `/api/v1/orders?limit=20`. |
+| Authority | Each item runs as its own `GET` by the same caller: same permissions, scopes, workspace checks, body and error body. |
+| Rate limit | Each item counts as one request, all taken before any item runs. A `429 RATE_LIMITED` refuses the whole batch. |
+| Answer | `200` once admitted, items in request order. Items are independent, not atomic. |
+| Not batchable | Signed API-key requests: send those reads separately. |
+
+<Accordion title="Item answers, limits and whole-batch refusals">
+
+| Rule | Detail |
+| --- | --- |
+| Item answer | Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers` (`Deprecation`, `Sunset`, `Link`, `Retry-After`, `Cache-Control`). |
+| Limits | Item bodies total at most 8 MiB (past it an item answers `413 BATCH_RESPONSE_TOO_LARGE`), and at most 200 reads with related reads (past it `429 SUB_REQUEST_BUDGET_EXHAUSTED`). |
+| Refused as a whole | A malformed batch, more than 20 items, a non-`GET` item, an unknown operation, or a stream, export or file read. `details.itemId` names the item. |
+
+</Accordion>
 
 ## Versioning
 
-The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes. A removal is announced in the changelog at least 6 months ahead. Until it happens, every answer of the affected operation, successes and refusals alike, carries three headers:
+The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes.
+
+A removal is announced in the changelog at least 6 months ahead. Until it happens, every answer of the affected operation, successes and refusals alike, carries three headers.
+
+<Accordion title="Deprecation headers">
 
 | Header | Meaning |
 | --- | --- |
@@ -97,6 +129,8 @@ The API is versioned in its path, `/api/v1`. After launch, changes within a vers
 | `Sunset` | When it stops working, as an HTTP date such as `Tue, 01 Jul 2025 00:00:00 GMT` ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)). |
 | `Link` | The notice that says what to move to, marked `rel="deprecation"`. |
 
-No operation is deprecated today, so no answer carries them yet. Log any answer that does. Before launch, a change can still remove or rename something.
+</Accordion>
 
-[Compatibility](/compatibility) is the full policy. The [Changelog](/changelog) lists every change a client can see, with what to do about it.
+No operation is deprecated today, so no answer carries them yet; log any answer that does. Before launch, a change can still remove or rename something.
+
+See the full [Compatibility](/compatibility) policy and the [Changelog](/changelog).

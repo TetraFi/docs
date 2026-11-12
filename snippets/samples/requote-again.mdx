@@ -5,7 +5,7 @@
 ```bash cURL
 # Ask the same venue again for the same pair and amount. The answer is a new quote whose
 # requoteOf names the original. The original stays orderable until its own expiresAt.
-requoted=$(quote "{\"requote\":\"$quote_id\"}")
+requoted=$(quote "{\"kind\":\"requote\",\"requote\":\"$quote_id\"}")
 fresh=$(jq -c '.quotes[0]' <<<"$requoted")
 jq -c '{quoteId: .id, requoteOf, firm, buy: .buy.amount, minOut, expiresAt}' <<<"$fresh" >&2
 ```

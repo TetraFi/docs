@@ -39,10 +39,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
@@ -106,7 +114,7 @@ buy_amount=${TETRAFI_BUY_AMOUNT:-0.001}
 # the chains it is deployed on (CAIP-2) and the off-chain venues that hold it.
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     jq -nc --arg a "$asset" '{error: "ASSET_NOT_LISTED", asset: $a}' >&2
     exit 1
   fi
@@ -115,6 +123,7 @@ done
 # A plain search first. The venues that answer it give the venue id the venue filters use:
 # venue ids come from sources[].venue.id (or GET /api/v1/prices rows), never from a fixed list.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount
@@ -131,6 +140,7 @@ fi
 # Keep only venues of the types you list: amm, solver, bridge, rfq, orderBook or fiat.
 # Every venue of another type is listed in sources as filteredOut and is not asked.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg types "$modalities" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -145,6 +155,7 @@ outcome modalities "$by_type"
 # region search-venue-include
 # Ask only the venues you name. Every other venue is listed in sources as filteredOut.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -159,6 +170,7 @@ outcome venueInclude "$only"
 # region search-venue-exclude
 # Ask every venue except the ones you name. The excluded venue is listed as filteredOut.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -173,9 +185,10 @@ outcome venueExclude "$without"
 # region search-native-only
 # Keep only the native variant of each side: no bridged, wrapped, omnichain or test
 # representation. GET /assets lists each Asset's variants and their kind.
-jq -c --arg p "$sell" --arg r "$buy" '[.assets[] | select(.assetId == $p or .assetId == $r)
+jq -c --arg p "$sell" --arg r "$buy" '[.items[] | select(.assetId == $p or .assetId == $r)
   | {asset: .assetId, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -192,6 +205,7 @@ outcome nativeOnly "$native"
 # executable estimates held to minOut (order-book and AMM quotes) are dropped once venues answer,
 # so a venue that gave only those still reads answered in sources, with no quote in quotes.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -210,6 +224,7 @@ fi
 
 # The filter's earlier name is refused by name, never ignored.
 old_name=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount, filters: {executableOnly: true}}')
 for _ in 1 2; do
   if old_refusal=$(tetrafi POST /api/v1/quotes "$old_name" 2>/dev/null); then
@@ -230,6 +245,7 @@ jq -c '{oldName: "filters.executableOnly", error, details}' <<<"$old_refusal" >&
 # region search-sort-eta
 # Order quotes by expected time to delivery, fastest first, instead of by net received.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -245,6 +261,7 @@ outcome sortEta "$by_eta"
 # minOut on sell-exact quotes, and maxPay on buy-exact quotes from your venue accounts.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$protection_amount" \
   --argjson bps "$protection_bps" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -254,6 +271,7 @@ protected=$(quote_request "$request")
 jq -c '[.quotes[] | select(.minOut != null) | {venue: .legs[0].venue.id, buy: .buy.amount, minOut}]' <<<"$protected" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" \
   --argjson bps "$protection_bps" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   buyAmount: $amount,
@@ -268,7 +286,7 @@ outcome priceProtectionBuyExact "$protected_exact"
 # Extra detail for the summary: which venue the venue filters named, how it read, and what
 # each filter left behind.
 jq -nc --arg sell "$sell" --arg buy "$buy" --arg venue "$venue" \
-  --argjson assets "$(jq '.assets | length' <<<"$assets")" --argjson results "$results" \
+  --argjson assets "$(jq '.items | length' <<<"$assets")" --argjson results "$results" \
   --argjson include "$(jq -c '[.quotes[].legs[0].venue.id] | unique' <<<"$only")" \
   --argjson excluded "$(jq -c --arg v "$venue" '[.sources[] | select(.venue.id == $v) | .status]' <<<"$without")" \
   --argjson variants "$(jq -c '[.quotes[] | [.sell.variant.kind, .buy.variant.kind]] | unique' <<<"$native")" \

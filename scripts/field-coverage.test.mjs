@@ -71,6 +71,20 @@ test('resolution follows response refs, composition and explicit maps, not unuse
   assert.equal(documented(['undocumented']), false);
 });
 
+// Catches a response alias (`{$ref, description}`, valid beside $ref in OpenAPI 3.1) hiding its target's fields.
+test('resolution follows a chain of refs and fails closed on a ref cycle', () => {
+  const spec = { paths: { '/q': { post: { responses: { 200: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Body' } } } } } } } }, components: { schemas: {
+    Body: { $ref: '#/components/schemas/Set', description: 'The quote set.' },
+    Set: { properties: { quotes: { items: { properties: { id: { type: 'string' } } } } } },
+  } } };
+  const documented = responseSchemas(spec);
+  assert.equal(documented(['quotes', '[]', 'id']), true);
+  assert.equal(documented(['quotes', '[]', 'id'], 'POST /q'), true);
+  assert.equal(documented(['quotes', '[]', 'missing'], 'POST /q'), false);
+  assert.throws(() => responseSchemas({ paths: { '/c': { get: { responses: { 200: { content: { 'application/json': { schema: { $ref: '#/components/schemas/A' } } } } } } } },
+    components: { schemas: { A: { $ref: '#/components/schemas/B' }, B: { $ref: '#/components/schemas/A' } } } }), /reference cycle/);
+});
+
 test('an open detail map cannot document arbitrary fields elsewhere', () => {
   const spec = { paths: { '/x': { get: { responses: { 200: { content: { 'application/json': { schema: {
     oneOf: [{ properties: { dispatch: { properties: { venueOrderId: { type: 'string' } } } } },

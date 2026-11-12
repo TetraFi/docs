@@ -37,10 +37,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
@@ -87,12 +95,13 @@ stream_request() {
   )
   if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature nonce
     timestamp=$(date +%s)
+    nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" POST /api/v1/quotes "$digest" \
+    signature=$(printf '%s\n%s\n%s\n%s\n%s' "$timestamp" "$nonce" POST /api/v1/quotes "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
-    headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
+    headers+=(-H "X-Timestamp: $timestamp" -H "X-Nonce: $nonce" -H "X-Signature: $signature")
   fi
   curl -sS -N -X POST "$TETRAFI_BASE_URL/api/v1/quotes" "${headers[@]}" \
     -D "$tmp/stream-headers" --data "$body"
@@ -124,18 +133,19 @@ cross_amount=${TETRAFI_CROSS_AMOUNT:-1}
 # the chains it is deployed on (CAIP-2) and the off-chain venues that hold it.
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.assets[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
     jq -nc --arg a "$asset" '{error: "ASSET_NOT_LISTED", asset: $a}' >&2
     exit 1
   fi
 done
-chains_of() { jq -c --arg a "$1" '[.assets[] | select(.assetId == $a) | .variants[].deployments[].chain] | unique' <<<"$assets"; }
+chains_of() { jq -c --arg a "$1" '[.items[] | select(.assetId == $a) | .variants[].deployments[].chain] | unique' <<<"$assets"; }
 sell_chains=$(chains_of "$sell")
 shared_chains=$(jq -c --argjson r "$(chains_of "$buy")" 'map(select(. as $c | $r | index($c)))' <<<"$sell_chains")
 
 # region search-sell-exact
 # Sell exactly `amount` of the sell asset. Each quote states what you would buy.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount
@@ -150,6 +160,7 @@ outcome sellExact "$sell_exact"
 # Buy exactly `buy_amount` of the buy asset. Each quote states what you would sell.
 # A venue that only prices the amount you sell is listed in sources as unsupported.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   buyAmount: $amount
@@ -170,6 +181,7 @@ if [[ -z $chain ]]; then
   exit 1
 fi
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg chain "$chain" '{
+  kind: "pair",
   sell: {asset: $sell, chain: $chain},
   buy: {asset: $buy, chain: $chain},
   sellAmount: $amount,
@@ -191,6 +203,7 @@ if [[ -z $to_chain ]]; then
   exit 1
 fi
 request=$(jq -nc --arg asset "$sell" --arg amount "$cross_amount" --arg from "$from_chain" --arg to "$to_chain" '{
+  kind: "pair",
   sell: {asset: $asset, chain: $from},
   buy: {asset: $asset, chain: $to},
   sellAmount: $amount,
@@ -206,6 +219,7 @@ outcome crossChain "$cross_chain"
 # Keep only quotes that execute on a venue account (an exchange or desk). No chain pins:
 # a pinned chain with only offChain allowed is refused with CHAIN_PIN_NEEDS_ON_CHAIN.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -222,6 +236,7 @@ outcome offChain "$off_chain"
 # then `complete` carries the whole set. One live quote request every 3 seconds, so wait first.
 sleep 3
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount
@@ -265,6 +280,6 @@ jq -c '{referenceMid: .referenceMid.buyPerSell, rows: [.rows[] | {venue: .venue.
 prices_summary=$(jq -c '{request: "prices", rows: (.rows | length),
   referenceMid: (.referenceMid != null), statuses: (reduce .rows[] as $r ({}; .[$r.status] += 1))}' <<<"$prices")
 
-jq -nc --arg sell "$sell" --arg buy "$buy" --argjson assets "$(jq '.assets | length' <<<"$assets")" \
+jq -nc --arg sell "$sell" --arg buy "$buy" --argjson assets "$(jq '.items | length' <<<"$assets")" \
   --argjson results "$results" --argjson prices "$prices_summary" \
   '{pair: {sell: $sell, buy: $buy}, assetsListed: $assets, requests: ($results + [$prices])}'

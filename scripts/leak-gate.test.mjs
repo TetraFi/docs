@@ -22,6 +22,11 @@ test('credential and id shapes are caught', () => {
   ]) assert.ok(caught(sample).length, `not caught: ${sample}`);
 });
 
+test('backend source paths are caught', () => {
+  for (const sample of [['crates', 'api', 'src', 'integrator_codes.rs'].join('/') + ' owns the rows', 'see ' + ['retry_after', 'rs'].join('.')])
+    assert.ok(caught(sample).includes('internal-source-path'), `not caught: ${sample}`);
+});
+
 test('ordinary docs text passes', () => {
   for (const sample of ['an OTC desk quotes', 'chain eip155:8453', 'amount "10.0134"', 'address 0x2e7E7cc62919eAf4c502dAC34753cFc5A29e9693'])
     assert.deepEqual(caught(sample), [], sample);
@@ -45,4 +50,24 @@ test('an unresolvable base refuses instead of passing', () => {
   execFileSync('git', ['-C', repo, 'init', '-q']);
   const run = spawnSync('node', [path.join(import.meta.dirname, 'leak-gate.mjs'), '--root', repo, '--base', 'origin/main'], { encoding: 'utf8', env: process.env });
   assert.notEqual(run.status, 0);
+});
+
+// Catches an internal working note at the root (or in any page folder): Mintlify serves any .md by URL,
+// in or out of navigation, so only the names it never serves are allowed.
+test('a stray markdown note fails the gate, in the tree and in history; README passes', () => {
+  const repo = mkdtempSync(path.join(tmpdir(), 'leak-repo-'));
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { encoding: 'utf8' });
+  git('init', '-q'); git('config', 'user.email', 't@example.com'); git('config', 'user.name', 't');
+  writeFileSync(path.join(repo, 'README.md'), 'readme\n'); git('add', '.'); git('commit', '-qm', 'base');
+  const base = git('rev-parse', 'HEAD').trim();
+  const gate = () => spawnSync('node', [path.join(import.meta.dirname, 'leak-gate.mjs'), '--root', repo, '--base', base], { encoding: 'utf8', env: process.env });
+  assert.equal(gate().status, 0, gate().stdout);
+  writeFileSync(path.join(repo, 'live-findings.md'), 'working notes\n');
+  const planted = gate();
+  assert.equal(planted.status, 1, planted.stdout);
+  assert.match(planted.stdout, /LEAK stray-markdown live-findings\.md/);
+  git('add', '.'); git('commit', '-qm', 'note'); git('rm', '-q', 'live-findings.md'); git('commit', '-qm', 'remove');
+  const removed = gate();
+  assert.equal(removed.status, 1, removed.stdout);
+  assert.match(removed.stdout, /LEAK stray-markdown [0-9a-f]{7}:live-findings\.md/);
 });

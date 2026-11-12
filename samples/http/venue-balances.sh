@@ -4,7 +4,7 @@
 #
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL          https://api.tetrafi.io in production
-#   TETRAFI_API_KEY           your API key, with Read treasury switched on
+#   TETRAFI_API_KEY           your API key, with Treasury read switched on
 #   TETRAFI_WORKSPACE_ID      your workspace id: the path names it
 #   TETRAFI_SIGNING_SECRET    the key's signing secret, when the key signs its requests
 #
@@ -29,10 +29,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
@@ -89,7 +97,7 @@ if [[ -z $asset ]]; then
   # A venue that declares no deposit network answers options [] and names its assets in
   # unconfirmedNetworkAssets: ask for one of them on a chain GET /api/v1/assets lists for it.
   asset=$(jq -r '.unconfirmedNetworkAssets // [] | if index("USDC") then "USDC" else .[0] // "" end' <<<"$instructions")
-  chain=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.assets[] | select(.assetId == $a)
+  chain=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.items[] | select(.assetId == $a)
     | .variants[] | select(.kind == "native") | .deployments[] | .chain) // ""')
 fi
 [[ -n $asset && -n $chain ]] || fail NO_DEPOSIT_OPTION

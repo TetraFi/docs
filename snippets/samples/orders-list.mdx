@@ -16,7 +16,8 @@ while (( pages < 5 )); do
   [[ -z $cursor ]] && break
 done
 echo "orders: ${#orders[@]} across $pages pages" >&2
-printf '%s\n' "${orders[@]:0:3}" >&2
+# An empty list is a normal answer: a new workspace has no orders yet.
+(( ${#orders[@]} == 0 )) || printf '%s\n' "${orders[@]:0:3}" >&2
 ```
 
 </CodeGroup>

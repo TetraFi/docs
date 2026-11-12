@@ -5,14 +5,74 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-11-11" description="Batch reads and a signing-grant fix">
+  - `POST /api/v1/batch` reads up to 20 resources in one request. Each item runs as its own `GET` with the same permissions and counts against your rate limit; items carry their own `status`, `etag`, `body` and, when sent, `headers` ([Conventions](/reference/conventions#read-several-resources-at-once)).
+  - A source that was not asked because the paying wallet has no signing grant for its venue names the fix `setUpSigningGrant`, with `venueId` and, when known, `walletId`. One of the wallet's owners sets the grant up in the app.
+</Update>
+
+<Update label="2026-11-10" description="Shared nonces, firm prices that lapse, and settlement detail">
+  - Every TetraFi server shares one nonce record, so a nonce accepted by one server is refused as `SIGNATURE_REPLAYED` by every other, restarts included. A replay sent while the key is rate limited answers `429`, no longer `401` ([Sign requests](/authentication#sign-requests)).
+  - `POST /api/v1/orders` on a venue-account quote whose firm price lapsed before it could be sent is refused with `409 VENUE_QUOTE_SEND_WINDOW_CLOSED` (the venue's send window closed) or the new `409 QUOTE_RECONFIRMATION_REQUIRED`, both with `next: requote`, instead of answering `200` with an order that was never sent. Request a new price and order that ([Place an order](/trade/orders#refusals)).
+  - `GET …/trades/{tradeId}/settlement` no longer sends `complianceChecks` or `evidence`: both were placeholders. An order's compliance checks are on the order ([Settlement and credit](/trade/settlement-and-credit)).
+  - Firm-ask source reasons ending in `BudgetExhausted` now end in `TimedOut`, such as `firmAskFundsTimedOut`, with the same meaning.
+  - A venue account whose key has no current verified balance read answers the source reason `accountFundingReadUnverified`: verify the account in the app.
+  - `minimumUnverified` is now retryable: the first request starts reading the venue's size limits, so request quotes again shortly.
+  - Settlement, credit and ledger reads are in the reference, with the **Read settlements** permission ([Settlement and credit](/trade/settlement-and-credit)).
+</Update>
+
+<Update label="2026-11-09" description="A nonce on every signed write">
+  - **Breaking for signing keys.** A key with request signing on must send `X-Nonce` on every write (`POST`, `PUT`, `PATCH`, `DELETE`): 16 to 128 characters of `A-Z`, `a-z`, `0-9`, `-` and `_`, new for each request. A write signs five lines, `{timestamp}\n{nonce}\n{METHOD}\n{path}\n{bodySha256}`; a read without a nonce keeps the four-line form. A write without one answers `401 AUTH_REQUIRED` with `details.reason` `NONCE_REQUIRED` ([Sign requests](/authentication#sign-requests)).
+  - A nonce is accepted once per key, so two identical writes in the same second both succeed with their own nonces, and a retry signs again with a new nonce while keeping its `Idempotency-Key`. A reused nonce answers `SIGNATURE_REPLAYED`.
+  - New `details.reason` values on `401 AUTH_REQUIRED`: `NONCE_REQUIRED` and `NONCE_INVALID`. A write's `X-Timestamp` may be at most 10 seconds ahead of TetraFi's clock: keep your clock NTP-synced.
+  - `503 API_KEY_UNAVAILABLE` also covers a signing state that could not be confirmed: sign again with a new timestamp and nonce before you retry ([Errors](/trade/errors)).
+  - `SIGNATURE_PREDATES_RESTART` and `429 REPLAY_WINDOW_FULL` are reserved and not answered.
+  - The cURL samples, the Postman collection and the TypeScript SDK send `X-Nonce` on writes.
+</Update>
+
+<Update label="2026-11-06" description="Casing, malformed bodies and capacity refusals">
+  - A wallet-based venue in `GET …/venue-enablements` no longer carries `accountId`: it has no venue account, and `fundingTarget` names the trading wallets that hold its money. Key items by `venueEnablementId` and read `accountId` only where present ([Venue balances](/trade/balances#one-exchange-account)).
+  - A body that is not valid JSON answers `400 INVALID_REQUEST`, no longer `422 REQUEST_UNPROCESSABLE` ([Errors](/trade/errors)).
+  - `400 INVALID_REQUEST` for a missing required body field carries `details.field`, the field's path ([Errors](/trade/errors)).
+  - Unlock steps, `flowKind` and each lifecycle step's `key` are camelCase, for example `companyDetails`, `settlementPending` and `notSent`. `rawStatus` keeps the recorded token as it is ([Order status](/trade/order-status)).
+  - Ten source reasons are renamed to camelCase values, such as `clockUnavailable`, `referenceStale` and `livePriceUnavailable`. Treat a reason you do not recognise as unavailable ([Error codes](/reference/error-codes)).
+  - When TetraFi is briefly at capacity, a request answers `429 RATE_LIMITED` with `Retry-After` and no RateLimit headers. Nothing was sent: wait, then send it again ([Rate limits](/reference/rate-limits)).
+  - `COMPLIANCE_FAILED`, `KYC_EXPIRED`, `KYC_NOT_VERIFIED`, `ORDER_HELD_FOR_REVIEW` and `VENUE_QUOTE_OPERATION_CLOSED` no longer promise that nothing was sent: read the order before placing another.
+  - Every `401 AUTH_REQUIRED` carries `WWW-Authenticate: api_key, Bearer`.
+  - A `401` no longer declares `RateLimit` or `RateLimit-Policy`: limits count a request only after it is authenticated ([Rate limits](/reference/rate-limits)).
+  - An order in the trade history carries `makerAttribution`, its recorded maker as `executionTypeId` and `displayName`, or `null` when none was recorded ([Trade history](/trade/settlement-and-credit#trade-history)).
+  - `409 STABLEFX_SIGNING_GRANT_REQUIRED` means the wallet has no active Circle StableFX trading grant. Nothing was prepared or sent: have a wallet owner set one up in Treasury, then request a new quote ([Error codes](/reference/error-codes)).
+  - `nextCursor` is an opaque token that may expire. An invalid or expired one answers `400`: start again from the first page ([Compatibility](/compatibility)).
+  - A revoked API key is refused within seconds, and at most 30 seconds after you revoke it ([Authentication](/authentication#rotate-and-revoke)).
+</Update>
+
+<Update label="2026-11-05" description="Venue minimums, Pilot caps and webhooks">
+  - The API description is versioned `1.0.0-beta.1`.
+  - `POST /api/v1/quotes` takes an optional `firmness`: `auto` (the default) prices as before, `firm` asks desks for firm prices up front, and `indicative` never makes a firm ask ([Ask for firm prices](/search/firmness-and-lifetime#ask-for-firm-prices)).
+  - `GET /api/v1/workspaces/{workspaceId}/balances` lists every balance the key may read, across wallets and exchange accounts: `items`, `nextCursor`, and `unavailable` for accounts whose balance cannot be stated, never a zero. The key needs **Treasury read** ([Balances](/trade/balances)).
+  - `GET /api/v1/workspaces/{workspaceId}/fee-schedule` reads your current and upcoming fees, as decimal strings in parts per million. The key needs **Read fee schedule**, which no other permission includes ([Fee schedule](/trade/balances#fee-schedule)).
+  - `GET /api/v1/assets` lists the assets in `items`, which replaces `assets`, beside `nextCursor` ([How search works](/search/how-it-works#use-values-from-discovery)).
+  - An error body's `timestamp` is an RFC 3339 UTC date-time string, no longer integer Unix seconds ([API reference](/reference/introduction#reading-responses)).
+  - Each quote and price row carries `quality`: `firm`, `executable` or `indicative`. New values may be added ([Firm only](/search/firmness-and-lifetime#firm-executable-and-indicative)).
+  - Each order fill carries `fillId`, its stable id: deduplicate repeated reads by it ([What the order did](/trade/order-status#what-the-order-did)).
+  - `POST /quotes` now requires `kind`: send `"kind":"pair"` for a new search or `"kind":"requote"` with `requote` for a held quote. A missing tag answers `400 QUOTE_REQUEST_KIND_REQUIRED`; an unknown or non-string tag answers `400 QUOTE_REQUEST_KIND_INVALID` ([How search works](/search/how-it-works), [Requotes](/search/firmness-and-lifetime#requote-a-quote)).
+  - Enable request signing or rotate its secret with `POST /api/v1/workspaces/{workspaceId}/credentials/{credentialId}/signing`, using a signed-in member's session JWT, not an API key or service-account OAuth token ([Sign requests](/authentication#sign-requests)).
+  - Rate-limit headers are now `RateLimit-Policy` (for example `1;w=3`) and `RateLimit` (`limit=1, remaining=0, reset=3`), sent on every answer a limit counted, refusals included. `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` are no longer sent ([Rate limits](/reference/rate-limits#read-the-headers)).
+  - Two new source reasons: `belowVenueMinimum` (the amount is below the venue's verified minimum: raise it) and `pilotMinimumAboveTradeCap` (the venue's minimum order is above its Pilot per-trade cap: choose another venue) ([Limits and minimums](/search/how-it-works#size-limits-and-minimums)).
+  - Webhooks are available to API keys: create, test, rotate the secret, list deliveries and redeliver ([Webhooks](/trade/webhooks)).
+  - Webhook routes are canonical: `…/deliveries`, `…/deliveries/{deliveryId}/retry`, `…/rotate` and `…/resume`. A test delivery takes `{"kind":"test"}` and an `Idempotency-Key` and answers `201`; delivery lists page with `nextCursor` ([Webhooks](/trade/webhooks)).
+  - `GET /api/v1/me` with an API key returns the key's introspection only ([Authentication](/authentication)).
+  - `creditRefusal` on a quote source may be absent or `null`; neither means credit is available ([How search works](/search/how-it-works)).
+  - The SDK reads an order kind it does not know as `unknownKind: true`, keeping `kind`, `orderId`, `status`, `terminal` and `statusUrl`: follow its status, never resubmit ([Order status](/trade/order-status)).
+</Update>
+
 <Update label="2026-11-04" description="Amount precision">
   - An amount with more fractional digits than its asset has is refused before any quote or funding check, with `400 AMOUNT_PRECISION_EXCEEDED`; `details` names the `field`, the `decimals` sent and the `allowed` precision ([Conventions](/reference/conventions)).
 </Update>
 
 <Update label="2026-11-03" description="Firm only, and repeated signed reads">
-  - The search filter `filters.executableOnly` is renamed `filters.firmOnly`, and it now keeps only firm quotes (`firm: true`): executable estimates held to `minOut`, such as order-book and AMM quotes, are left out too, as are indicative quotes. A request still sending `filters.executableOnly` is refused with `400 INVALID_REQUEST` ([Firm only](/search/firm-only)).
+  - The search filter `filters.executableOnly` is renamed `filters.firmOnly`, and it now keeps only firm quotes (`firm: true`): executable estimates held to `minOut`, such as order-book and AMM quotes, are left out too, as are indicative quotes. A request still sending `filters.executableOnly` is refused with `400 INVALID_REQUEST` ([Firm only](/search/firmness-and-lifetime)).
   - A signed read (`GET` or `HEAD`) sent again unchanged inside the 300-second window is accepted, so polling needs no nonce. A signed write is still accepted once ([Sign requests](/authentication#sign-requests)).
-  - An API key placing an order without an `Idempotency-Key` header is refused with `400 IDEMPOTENCY_KEY_REQUIRED` ([Idempotency](/trade/idempotency)).
+  - An API key placing an order without an `Idempotency-Key` header is refused with `400 IDEMPOTENCY_KEY_REQUIRED` ([Idempotency](/trade/orders#retries-and-recovery)).
   - The source refusal `BINDING_NOT_ON_CHAIN` is renamed `WALLET_NOT_ON_CHAIN`, with the same meaning ([Wallets and accounts](/trade/wallets-and-accounts)).
   - Every path that names a workspace calls its parameter `workspaceId`, for example `GET /api/v1/workspaces/{workspaceId}/venue-enablements`. The URLs themselves are unchanged.
   - A new source reason, `venueEnablementRechecking`: the venue's readiness for your workspace is being re-checked, so it wasn't asked. Request quotes again shortly ([Error codes](/reference/error-codes#venueEnablementRechecking)).
@@ -20,29 +80,29 @@ The API is in preview until launch, so a change here can still remove or rename 
 
 <Update label="2026-11-02" description="What an order did, one trade history, and exchange account balances">
   - Every order, Basic and Advanced, carries what it actually did: `fills`, `quotedBuyAmount` and `settledBuyAmount`, the fees actually charged in `fees` (each with `includedInPrice`), the kinds whose amount was not recorded in `unrecordedFees`, and `settlesBy` ([What the order did](/trade/order-status#what-the-order-did)). Show an unrecorded fee as "not recorded", never as 0.
-  - The search filter `filters.commitment` is replaced by `filters.executableOnly`, a boolean: send `true` to leave indicative quotes out ([Firm only](/search/firm-only)). A request still sending `filters.commitment` is refused with `400 INVALID_REQUEST`, `details.field` `filters.commitment`.
+  - The search filter `filters.commitment` is replaced by `filters.executableOnly`, a boolean: send `true` to leave indicative quotes out ([Firm only](/search/firmness-and-lifetime)). A request still sending `filters.commitment` is refused with `400 INVALID_REQUEST`, `details.field` `filters.commitment`.
   - `GET /api/v1/prices` rows no longer carry `commitment`: they carry `firm` and `lastLook`, both always `false` ([Prices before you quote](/search/prices)).
-  - `GET /api/v1/workspaces/{workspaceId}/trades` lists the workspace's orders and exchange-account trades in one history, with cursor paging and CSV export. The key needs **Read trades** ([Trade history](/trade/trade-history)).
-  - `GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one trade. A failed or refunded order's `settlement.failureReason` says why ([Read one trade](/trade/trade-history#read-one-trade)). A trade read with an API key no longer carries the compliance records attached to it: read those in the app.
-  - An API key with **Read treasury** reads an exchange account's balances, deposit instructions and deposit history at `…/venue-accounts/{venueAccountId}/balances`, `/deposit-instructions` and `/deposit-history`; these used to answer `403 JWT_REQUIRED`. A read whose authority is withdrawn while it runs answers `403 VENUE_READ_AUTHORITY_REFUSED` ([Exchange account balances](/trade/venue-balances)).
-  - `GET /api/v1/workspaces/{workspaceId}/venue-enablements` lists your exchange accounts with the same key, with cursor paging: each item's `accountId` is the `{venueAccountId}` of those reads ([List your exchange accounts](/trade/venue-balances#list-your-exchange-accounts)). The deposit history is one bounded window, `lookbackDays` 1 to 30, with no cursor; more than 1,000 records answers `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`.
+  - `GET /api/v1/workspaces/{workspaceId}/trades` lists the workspace's orders and exchange-account trades in one history, with cursor paging and CSV export. The key needs **Read trades** ([Trade history](/trade/settlement-and-credit#trade-history)).
+  - `GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one trade. A failed or refunded order's `settlement.failureReason` says why ([Read one trade](/trade/settlement-and-credit#read-one-trade)). A trade read with an API key no longer carries the compliance records attached to it: read those in the app.
+  - An API key with **Read treasury** reads an exchange account's balances, deposit instructions and deposit history at `…/venue-accounts/{venueAccountId}/balances`, `/deposit-instructions` and `/deposit-history`; these used to answer `403 JWT_REQUIRED`. A read whose authority is withdrawn while it runs answers `403 VENUE_READ_AUTHORITY_REFUSED` ([Exchange account balances](/trade/balances#one-exchange-account)).
+  - `GET /api/v1/workspaces/{workspaceId}/venue-enablements` lists your exchange accounts with the same key, with cursor paging: each item's `accountId` is the `{venueAccountId}` of those reads ([List your exchange accounts](/trade/balances#one-exchange-account)). The deposit history is one bounded window, `lookbackDays` 1 to 30, with no cursor; more than 1,000 records answers `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`.
 </Update>
 
 <Update label="2026-11-01" description="Service-account tokens, key rules and response headers">
-  - A service account's API key can be exchanged for a bearer token of at most 15 minutes, with the OAuth 2.0 client-credentials grant at `POST /api/v1/oauth/token`. `GET /api/v1/me` with the token answers for the key it was exchanged from: `auth` `oauthClientCredentials`, `keyId`, `workspaceId`, its live `scopes` and `organisationWallets` ([Service accounts and tokens](/service-accounts)).
+  - A service account's API key can be exchanged for a bearer token of at most 15 minutes, with the OAuth 2.0 client-credentials grant at `POST /api/v1/oauth/token`. `GET /api/v1/me` with the token answers for the key it was exchanged from: `auth` `oauthClientCredentials`, `keyId`, `workspaceId`, its live `scopes` and `organisationWallets` ([Service accounts and tokens](/authentication#service-account-tokens)).
   - A key that requires request signing or holds venue trading is refused by the exchange with `400 unauthorized_client`, `error_uri` ending `#SIGNED_KEY_NOT_EXCHANGEABLE`: sign each request with it instead.
   - Turning signing off on a key that can trade venues answers `409 VENUE_TRADE_KEY_SIGNING_REQUIRED`; the key is unchanged.
-  - A service account's organisation-wallet trades stop with `409 SERVICE_ACCOUNT_SPONSOR_NOT_CURRENT` when its sponsor is no longer a current member ([Its sponsor](/service-accounts#its-sponsor)).
+  - A service account's organisation-wallet trades stop with `409 SERVICE_ACCOUNT_SPONSOR_NOT_CURRENT` when its sponsor is no longer a current member ([Its sponsor](/authentication#its-sponsor)).
   - Every answer to a key with a per-minute limit carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`, refusals included. A deprecated operation's answers will carry `Deprecation`, `Sunset` and `Link`; none is deprecated ([Conventions](/reference/conventions#versioning)).
   - Reading a quote set with `GET /api/v1/quotes/requests/{quoteRequestId}` moments after it was returned answers `503 QUOTE_REQUEST_NOT_READY` instead of `404`: read it again after about a second.
   - A venue-trading key that is revoked, expired or no longer current for its workspace is refused with `VENUE_TRADE_KEY_NOT_CURRENT`, and nothing is placed ([Error codes](/reference/error-codes#VENUE_TRADE_KEY_NOT_CURRENT)).
-  - Every quote carries `firm` (the venue is bound to the price until `expiresAt`) and `lastLook`, always `false`. Read firmness from `firm` and `expiresAt`: `commitment` said the same ([How search works](/search/how-it-works#executable-and-indicative-quotes)).
+  - Every quote carries `firm` (the venue is bound to the price until `expiresAt`) and `lastLook`, always `false`. Read firmness from `firm` and `expiresAt`: `commitment` said the same ([How search works](/search/firmness-and-lifetime)).
   - Quote cards no longer carry `commitment`, in `POST /quotes` and requotes alike: read `firm` and `expiresAt`.
-  - Past a quote's `retainUntil`, a requote or an order answers `410 REQUOTE_WINDOW_CLOSED` with `next.kind: "search"`: search again. `410 QUOTE_EXPIRED` now means only that the quote lapsed and can still be requoted ([Requotes and expiry](/trade/requotes-and-expiry)).
+  - Past a quote's `retainUntil`, a requote or an order answers `410 REQUOTE_WINDOW_CLOSED` with `next.kind: "search"`: search again. `410 QUOTE_EXPIRED` now means only that the quote lapsed and can still be requoted ([Requotes and expiry](/search/firmness-and-lifetime#requote-a-quote)).
 </Update>
 
 <Update label="2026-10-31" description="A key reads its own organisation wallets; fuller filtered order pages">
-  - `GET /api/v1/me` with a workspace key answers `organisationWallets`: `venueTradeScope`, `venueTradeEnabled`, `requestSigningRequired`, the `grants` with each wallet's `financialAccountId`, and `blockedBy`, the code an organisation-wallet order would be refused with right now ([Check what a key can trade from](/authentication#check-what-a-key-can-trade-from)).
+  - `GET /api/v1/me` with a workspace key answers `organisationWallets`: `venueTradeScope`, `venueTradeEnabled`, `requestSigningRequired`, the `grants` with each wallet's `financialAccountId`, and `blockedBy`, the code an organisation-wallet order would be refused with right now ([Check what a key can trade from](/authentication#check-what-a-key-can-do)).
   - `GET /api/v1/orders` with a `status` filter fills its page before answering, up to a scan limit. A short page with a `nextCursor` says `scanLimitReached: true`; a filter that matches nothing answers one page with no `nextCursor`.
 </Update>
 
@@ -89,7 +149,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Retry `503 CAPABILITY_UNAVAILABLE` with the blocker `BASE_PROFILE_UNREADABLE`: the details could not be read just now.
   - `KYC_NOT_VERIFIED` now blocks only a direct user's own workspace.
 
-  [A workspace that cannot trade yet](/trade/errors#a-workspace-that-cannot-trade-yet) covers the refusal.
+  [A workspace that cannot trade yet](/before-you-trade#complete-your-company-details) covers the refusal.
 </Update>
 
 <Update label="2026-10-31" description="Venue account fields renamed">
@@ -109,7 +169,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Read each quote's `sell` and `buy` (`asset`, `chain`, `variant`, `amount`) where you read `pay` and `receive`. `buy.amount` is what lands at `deliverTo`.
   - Stop sending `pay`, `receive`, `amount` and `side` on `POST /api/v1/quotes`: they are unknown fields now, refused with `400 INVALID_REQUEST`.
 
-  Requote and order bodies, and order answers, do not change. [Sell exact or buy exact](/search/sell-or-buy-exact) covers the new fields.
+  Requote and order bodies, and order answers, do not change. [Sell exact or buy exact](/search/how-it-works#sell-exact-or-buy-exact) covers the new fields.
 </Update>
 
 <Update label="2026-10-30" description="List and cancel orders">
@@ -187,7 +247,7 @@ The API is in preview until launch, so a change here can still remove or rename 
   - Source reasons on quotes and prices are camelCase tokens, for example `pairNotServed` instead of `pair_unsupported` and `apiKeyOrganisationWalletScopeRequired` instead of `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED`.
   - Match `receiveExactUnsupported` when a source cannot quote a fixed receive amount. Quotes and prices now use the same token. Read it from `reason`, or from `detail` on a `filteredOut` row.
 
-  The [error-code reference](/reference/error-codes) lists every declared refusal and source reason. The `Idempotency-Key` rules for `POST /api/v1/orders` are now documented in full: see [Idempotency](/trade/idempotency).
+  The [error-code reference](/reference/error-codes) lists every declared refusal and source reason. The `Idempotency-Key` rules for `POST /api/v1/orders` are now documented in full: see [Idempotency](/trade/orders#retries-and-recovery).
 </Update>
 
 <Update label="2026-10-27" description="New developer docs">
@@ -197,13 +257,13 @@ The API is in preview until launch, so a change here can still remove or rename 
 </Update>
 
 <Update label="2026-10-26" description="Venue identity on quotes">
-  Each quote leg and each entry in `sources` names the venue it comes from with `venueId` and `venueName`. Group sources and quotes by `venueId` for display. The existing `id` still identifies the route that executes, and it is the id `filters.venues` takes ([Venue types and venues](/search/venues#specific-venues)). Pools and solvers that are not a named venue leave both fields out.
+  Each quote leg and each entry in `sources` names the venue it comes from with `venueId` and `venueName`. Group sources and quotes by `venueId` for display. The existing `id` still identifies the route that executes, and it is the id `filters.venues` takes ([Venue types and venues](/search/how-it-works#filters-and-sort)). Pools and solvers that are not a named venue leave both fields out.
 </Update>
 
 <Update label="2026-10-17" description="Quotes by asset pair, requotes, and orders by quote id">
   A quote request names the asset you pay and the asset you receive, not chains or wallets: `POST /api/v1/quotes` with `pay`, `receive`, `amount` and `side`. Every quote states where it executes and how firm it is.
 
-  - Changing a quote's wallet, account or route, or turning an indicative price executable, is a requote: `POST /api/v1/quotes` with `requote` set to the quote id. See [Requotes and expiry](/trade/requotes-and-expiry).
+  - Changing a quote's wallet, account or route, or turning an indicative price executable, is a requote: `POST /api/v1/quotes` with `requote` set to the quote id. See [Requotes and expiry](/search/firmness-and-lifetime#requote-a-quote).
   - `POST /api/v1/orders` takes the quote id. The server holds the quote's terms, so you never send them back. See [Orders](/trade/orders).
   - `GET /api/v1/assets` lists what your workspace can trade, and `GET /api/v1/prices` returns indicative prices without asking any venue for a quote.
 </Update>

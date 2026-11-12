@@ -36,10 +36,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
@@ -79,7 +87,7 @@ amount=${TETRAFI_AMOUNT:-5}
 venue=${TETRAFI_VENUE:-}
 if [[ -z $venue ]]; then
   found=$(quote "$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
-    sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
+    kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
     filters: {locations: ["offChain"]}}')")
   jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$found" >&2
   venue=$(jq -r 'first(.quotes[] | select(.legs[0].venue.integrationMode == "basic") | .legs[0].venue.id) // empty' <<<"$found")
@@ -93,7 +101,7 @@ fi
 # region recipe-exchange-quote
 # Ask that venue only. Its quote trades on your account there: tradingSource names it (kind venueAccount).
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg venue "$venue" '{
-  sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
+  kind: "pair", sell: {asset: $sell}, buy: {asset: $buy}, sellAmount: $amount,
   filters: {venues: {include: [$venue]}}
 }')
 quotes=$(quote "$request")

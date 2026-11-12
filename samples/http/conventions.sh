@@ -31,10 +31,18 @@ tetrafi() {
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
-    local timestamp digest signature
+    local timestamp digest signature canonical
     timestamp=$(date +%s)
     digest=$(printf '%s' "$body" | openssl dgst -sha256 -r | cut -d' ' -f1)
-    signature=$(printf '%s\n%s\n%s\n%s' "$timestamp" "$method" "$path" "$digest" \
+    canonical=$timestamp
+    case $method in POST | PUT | PATCH | DELETE)
+      # A write carries a fresh X-Nonce (base64url, accepted once) as the second signed line.
+      local nonce
+      nonce=$(openssl rand -base64 18 | tr '+/' '-_' | tr -d '=')
+      canonical+=$'\n'$nonce
+      headers+=(-H "X-Nonce: $nonce") ;;
+    esac
+    signature=$(printf '%s\n%s\n%s\n%s' "$canonical" "$method" "$path" "$digest" \
       | openssl dgst -sha256 -mac HMAC -macopt "hexkey:$TETRAFI_SIGNING_SECRET" -r | cut -d' ' -f1)
     headers+=(-H "X-Timestamp: $timestamp" -H "X-Signature: $signature")
   fi
@@ -68,7 +76,7 @@ while :; do
     exit 1
   fi
   pages=$((pages + 1))
-  while IFS= read -r id; do listed+=("$id"); done < <(jq -r '.assets[].assetId' <<<"$page")
+  while IFS= read -r id; do listed+=("$id"); done < <(jq -r '.items[].assetId' <<<"$page")
   cursor=$(jq -r '.nextCursor // empty' <<<"$page")
   [[ -z $cursor ]] && break
 done
@@ -79,13 +87,14 @@ echo "assets: ${#listed[@]} across $pages pages" >&2
 # region conventions-request-id
 # Send your own X-Request-Id (letters, digits, - and _, up to 64 characters) to find a request
 # in your logs and ours; the response echoes it. Without one, TetraFi generates a UUID.
-# The rate-limit headers say how many requests this key has left before a 429.
+# RateLimit-Policy and RateLimit say how many requests this key has left before a 429.
 request_id="conventions-$(date +%s)"
 headers_file=$(mktemp)
-quotes=$(tetrafi POST /api/v1/quotes "$(jq -cn '{sell: {asset: "USDC"}, buy: {asset: "USDT"},
+quotes=$(tetrafi POST /api/v1/quotes "$(jq -cn '{kind: "pair", sell: {asset: "USDC"}, buy: {asset: "USDT"},
   sellAmount: "10"}')" "X-Request-Id: $request_id" "$headers_file")
-header() { awk -v name="$1" 'tolower($1) == tolower(name ":") { sub(/\r$/, "", $2); print $2 }' "$headers_file" | tail -1; }
-echo "{\"requestId\":\"$(header x-request-id)\",\"limit\":\"$(header x-ratelimit-limit)\",\"remaining\":\"$(header x-ratelimit-remaining)\",\"reset\":\"$(header x-ratelimit-reset)\"}" >&2
+header() { awk -v name="$1" 'tolower($1) == tolower(name ":") { sub(/^[^:]*:[ \t]*/, ""); sub(/\r$/, ""); print }' "$headers_file" | tail -1; }
+jq -cn --arg requestId "$(header x-request-id)" --arg policy "$(header ratelimit-policy)" --arg rateLimit "$(header ratelimit)" \
+  '{requestId: $requestId, rateLimitPolicy: $policy, rateLimit: $rateLimit}' >&2
 # endregion
 [[ $(header x-request-id) == "$request_id" ]] || fail REQUEST_ID_NOT_ECHOED
 

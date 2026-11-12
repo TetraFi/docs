@@ -7,6 +7,7 @@
 # minOut on sell-exact quotes, and maxPay on buy-exact quotes from your venue accounts.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$protection_amount" \
   --argjson bps "$protection_bps" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   sellAmount: $amount,
@@ -16,6 +17,7 @@ protected=$(quote_request "$request")
 jq -c '[.quotes[] | select(.minOut != null) | {venue: .legs[0].venue.id, buy: .buy.amount, minOut}]' <<<"$protected" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$buy_amount" \
   --argjson bps "$protection_bps" '{
+  kind: "pair",
   sell: {asset: $sell},
   buy: {asset: $buy},
   buyAmount: $amount,
