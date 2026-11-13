@@ -3261,6 +3261,42 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "DisplayPriceObservation": {
+        "description": "Qualification of one display price, independent of the balance's own freshness.",
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pricedAt": {
+            "description": "The price's original RFC 3339 observation time, never the failed refresh time.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/DisplayPriceState"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "DisplayPriceState": {
+        "description": "The result of a display-price read. Clients tolerate future states as unread.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "current",
+          "retained",
+          "unsupported",
+          "unavailable"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "EntryTimeBasis": {
         "description": "New values may be added; treat unknown values as other.",
         "enum": [
@@ -18529,7 +18565,7 @@
         "x-extensible-enum": true
       },
       "SummaryBalance": {
-        "description": "One asset's signed position. Exact decimals; no cross-asset netting.",
+        "description": "One signed venue-account ledger position. Positive amounts are owed to the workspace and negative amounts are owed to the venue; available is absent when unknown. Only the documented fields are part of the integrator contract; undocumented fields may be sent and must be ignored.",
         "properties": {
           "amount": {
             "description": "The position as the venue reports it (signed: negative is owed to the LP).",
@@ -18571,13 +18607,13 @@
           }
         },
         "required": [
+          "amount",
           "asset",
           "assetLogo",
-          "amount",
           "netPosition",
+          "observedAt",
           "owed",
-          "owing",
-          "observedAt"
+          "owing"
         ],
         "type": "object"
       },
@@ -21243,6 +21279,18 @@
           "total": {
             "type": "string"
           },
+          "usdPrice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayPriceObservation",
+                "description": "Shared display-price qualification, separate from the balance's freshness."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "usdPriceSource": {
             "description": "`null` when no reference price is available; never 0.",
             "type": [
@@ -21711,6 +21759,11 @@
         "enum": [
           "provider_api",
           "permission_inspection_unavailable",
+          "policy_not_reported",
+          "policy_read_failed",
+          "kraken:POST /0/private/GetApiKeyInfo:permissions",
+          "bybit:GET /v5/user/query-api; mandatory withdrawal address book",
+          "okx:GET /api/v5/account/config; mandatory API withdrawal whitelist",
           "build_support",
           "qualification_required",
           "verification_pending",
@@ -22096,6 +22149,14 @@
           "label": {
             "type": "string"
           },
+          "lastVerifiedAt": {
+            "description": "Latest retained successful Verify for this key revision, never its first connect time.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "lifecycle": {
             "type": "string"
           },
@@ -22399,6 +22460,13 @@
       "VenueExecution": {
         "description": "A venue account's recorded execution facts, never protocol network metadata.",
         "properties": {
+          "providerSite": {
+            "description": "The account's exact recorded provider site, distinct from its broad environment.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "site": {
             "$ref": "#/components/schemas/VenueSiteLabel"
           },
@@ -24189,6 +24257,40 @@
               "string",
               "null"
             ]
+          },
+          "network": {
+            "description": "The CAIP-2 network the balance is held on, for example eip155:8453 (the same value as\nchain); null when the source does not resolve exactly one network.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "usdPrice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DisplayPriceObservation",
+                "description": "Shared display-price qualification; retained values are never current prices."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "valueUsd": {
+            "description": "The amount in US dollars at the market-data display reference price, as a decimal string\nof at most 8 decimal places; null when the asset has no reference price (never 0).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valuedAt": {
+            "description": "When the price behind `valueUsd` was observed; `null` with it.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -24196,7 +24298,10 @@
           "accountKind",
           "accountId",
           "asset",
+          "network",
           "amount",
+          "valueUsd",
+          "valuedAt",
           "asOf",
           "freshness"
         ],
@@ -24273,6 +24378,18 @@
       },
       "WorkspaceBalancesResponse": {
         "properties": {
+          "included": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncludedRelations",
+                "description": "With `include=account`: each row's account by `accountId`, as its own GET answers it,\nor `null` with that GET's refusal."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "incomplete": {
             "oneOf": [
               {
@@ -25335,7 +25452,7 @@
     },
     "/api/v1/batch": {
       "post": {
-        "description": "Each item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. Item bodies are limited to 8 MiB in all (an item past it answers 413 `BATCH_RESPONSE_TOO_LARGE`), and a batch with its related reads makes at most 200 reads (past it an item answers 429 `SUB_REQUEST_BUDGET_EXHAUSTED`). The answer is `Cache-Control: private, no-store`. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately. An API key or OAuth client batches only operations of this reference; each item must be dispatched to the operation it names, else it answers `BATCH_UNKNOWN_ROUTE`. An item keeps its `Deprecation`, `Sunset`, `Link`, `Retry-After` and `Cache-Control` headers in `headers`.",
+        "description": "Each item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. Item bodies are limited to 8 MiB in all (an item past it answers 413 `BATCH_RESPONSE_TOO_LARGE`), and a batch with its related reads makes at most 200 reads. Composition operations declare their related-read allowance in this reference; an item whose declaration cannot fit, or whose related reads exceed its allowance, answers 429 `BATCH_RELATED_READ_BUDGET_EXCEEDED` rather than partial resource values. The answer is `Cache-Control: private, no-store`. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately. An API key or OAuth client batches only operations of this reference; each item must be dispatched to the operation it names, else it answers `BATCH_UNKNOWN_ROUTE`. An item keeps its `Deprecation`, `Sunset`, `Link`, `Retry-After` and `Cache-Control` headers in `headers`.",
         "operationId": "batch_reads",
         "parameters": [
           {
@@ -31454,7 +31571,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/balances": {
       "get": {
-        "description": "Cache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; a venue account needs the caller to be allowed to view wallets, in a company or broker workspace or as an admitted LP taker, exactly as its own balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Cursors bind to the workspace, caller, filters and ordered visible row identities; restart if those identities change.",
+        "description": "Cache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. network is the CAIP-2 network (the same value as chain). valueUsd is amount at the market-data display reference price, to at most 8 decimal places (the aggregate rounds its sums to cents), with that price's observation time in valuedAt; both are null when the asset has no reference price, never 0. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; a venue account needs the caller to be allowed to view wallets, in a company or broker workspace or as an admitted LP taker, exactly as its own balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Filters: asset, accountKind, accountId and network (exact CAIP-2); any other parameter is refused. sort is field or -field over id (the default order), accountId, asset, network, valueUsd (unvalued rows last) or asOf. fields=a,b returns only those row fields (id, accountId and asset always kept). include=account adds each row's account by accountId as the treasury account resource answers it, or null with its refusal. Totals and daily history are GET …/balances:aggregate. Cursors bind to the workspace, caller, filters, sort and ordered visible row identities; restart if those identities change.",
         "operationId": "list_workspace_balances",
         "parameters": [
           {
@@ -31488,6 +31605,24 @@
           {
             "in": "query",
             "name": "accountId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A CAIP-2 network (`eip155:8453`): only balances held on it.",
+            "in": "query",
+            "name": "network",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`field` or `-field`, field one of `id` (the default), `accountId`, `asset`, `network`,\n`valueUsd` (unvalued rows last either way) and `asOf`.",
+            "in": "query",
+            "name": "sort",
             "required": false,
             "schema": {
               "type": "string"
@@ -33583,7 +33718,7 @@
             }
           },
           {
-            "description": "Placed at or after this RFC 3339 instant (umbrella: a UTC midnight).",
+            "description": "Placed at or after this RFC 3339 instant.",
             "in": "query",
             "name": "from",
             "required": false,
@@ -34741,7 +34876,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement": {
       "get": {
-        "description": "One trade's settlement state. The taker perspective is the order's settlement detail (required API-key scope: `settlements_read`; the caller must be allowed to view settlements). The maker perspective is the LP's settlement pipeline for the order, a member-session read for a member allowed to view bilateral documents. Each perspective answers exactly what its own route answers.",
+        "description": "One trade's settlement state. The taker perspective is the order's settlement detail (required API-key scope: `settlements_read`; the caller must be allowed to view settlements). The maker perspective is the LP's settlement pipeline for the order, a member-session read for a member allowed to view bilateral documents. The settlement milestones flow analytics records are its `milestones` sub-resource. Each perspective answers exactly what its own route answers.",
         "operationId": "get_workspace_trade_settlement",
         "parameters": [
           {
@@ -47358,6 +47493,18 @@
             }
           },
           {
+            "description": "Optional retry key, 1-255 bytes. The same key replays the stored delivery for 24 hours without a second send.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
             "description": "Required for API-key and OAuth writes. Replaying the same key and body returns the retained result; a different body under the same key is 409 IDEMPOTENCY_CONFLICT.",
             "in": "header",
             "name": "Idempotency-Key",
@@ -47424,7 +47571,7 @@
                 }
               }
             },
-            "description": "The request could not be read or failed validation; `error` names the cause.",
+            "description": "Invalid Idempotency-Key",
             "headers": {
               "Deprecation": {
                 "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
@@ -47658,7 +47805,7 @@
                 }
               }
             },
-            "description": "Delivery cannot be redelivered",
+            "description": "Delivery cannot be redelivered; IDEMPOTENCY_IN_FLIGHT (the same key is still running)",
             "headers": {
               "Deprecation": {
                 "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",
@@ -47809,7 +47956,7 @@
                 }
               }
             },
-            "description": "The service is temporarily unavailable. When `Retry-After` is sent, wait that many seconds before retrying.",
+            "description": "IDEMPOTENCY_UNAVAILABLE: the retry key's state could not be read",
             "headers": {
               "Deprecation": {
                 "description": "Present when this operation is deprecated: an RFC 9745 structured date, for example @1792443399. Absence makes no deprecation claim.",

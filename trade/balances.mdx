@@ -23,7 +23,7 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 | `GET …/venue-enablements` | Treasury read | Your exchange accounts and their `venueAccountId`. |
 | `GET …/venue-accounts/{venueAccountId}/balances` | Treasury read | What the venue last reported for one account. |
 | `GET …/venue-accounts/{venueAccountId}/deposit-instructions` and `…/deposit-history` | Treasury read | Where to deposit, and what was credited. |
-| `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read | Credit and positions: [Trades and settlement](/trade/settlement-and-credit#credit-and-the-ledger). |
+| `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read | Credit and positions: [Credit and settlement](/trade/settlement-and-credit#credit-and-the-ledger). |
 | `GET …/fee-schedule` | Read fee schedule | The fees in force now and every scheduled change. |
 
 Your workspace id is the `workspaceId` from `GET /api/v1/me` ([Permissions](/authentication#permissions)).
@@ -151,7 +151,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 | Read | Answers |
 | --- | --- |
 | `GET …/venue-accounts/{venueAccountId}/deposit-instructions` | The asset and network pairs it takes deposits on, in `options`. |
-| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, over the last `lookbackDays` (1 to 30, 7 by default). Returned whole, with `since` and `until` and no cursor. |
+| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, over the last `lookbackDays` (1 to 30, 7 by default). Without paging, the whole window, with `since` and `until`. With `limit` (1 to 200), credits page oldest first: follow `nextCursor` until `null`; a cursor keeps its window, and a window of more than 1,000 credits answers none, so read a shorter one. |
 
 In the history, `credits: null` means it could not be read; `[]` is truly empty. Over 1,000 venue records answers no credits with `reasonCode` `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`: read a shorter window.
 
@@ -265,6 +265,6 @@ Every other code is in [Error codes](/reference/error-codes).
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Trades and settlement" icon="scale-balanced" href="/trade/settlement-and-credit">Every trade, its settlement, and credit.</Card>
+  <Card title="Credit and settlement" icon="scale-balanced" href="/trade/settlement-and-credit">Every trade, its settlement, and credit.</Card>
   <Card title="Errors and refusals" icon="triangle-exclamation" href="/trade/errors">Fix, retry or recover.</Card>
 </CardGroup>

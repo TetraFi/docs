@@ -147,7 +147,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read up to 20 resources in one request\n\nEach item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. Item bodies are limited to 8 MiB in all (an item past it answers 413 `BATCH_RESPONSE_TOO_LARGE`), and a batch with its related reads makes at most 200 reads (past it an item answers 429 `SUB_REQUEST_BUDGET_EXHAUSTED`). The answer is `Cache-Control: private, no-store`. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately. An API key or OAuth client batches only operations of this reference; each item must be dispatched to the operation it names, else it answers `BATCH_UNKNOWN_ROUTE`. An item keeps its `Deprecation`, `Sunset`, `Link`, `Retry-After` and `Cache-Control` headers in `headers`.",
+        "description": "Read up to 20 resources in one request\n\nEach item is a GET of an operation in this reference that answers JSON, written as its path and query. Every item runs exactly as a separate GET by the same caller: the same permissions, scopes, workspace checks, response body and error body. The batch authenticates once and counts as one request per item against the caller's rate limit, all taken before any item runs (429 `RATE_LIMITED` refuses the whole batch). Items are independent and not atomic: once admitted the batch answers 200, and each item carries its own `status`, `etag` and `body`, in request order. Item bodies are limited to 8 MiB in all (an item past it answers 413 `BATCH_RESPONSE_TOO_LARGE`), and a batch with its related reads makes at most 200 reads. Composition operations declare their related-read allowance in this reference; an item whose declaration cannot fit, or whose related reads exceed its allowance, answers 429 `BATCH_RELATED_READ_BUDGET_EXCEEDED` rather than partial resource values. The answer is `Cache-Control: private, no-store`. A malformed batch, more than 20 items, a non-GET item, a url that is not a GET operation of this reference, or a stream, export or file read is refused as a whole before any item runs, with `details.itemId` naming the item. A signed API-key request cannot be batched: send its reads separately. An API key or OAuth client batches only operations of this reference; each item must be dispatched to the operation it names, else it answers `BATCH_UNKNOWN_ROUTE`. An item keeps its `Deprecation`, `Sunset`, `Link`, `Retry-After` and `Cache-Control` headers in `headers`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/batch",
           "host": [
@@ -752,7 +752,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read balances across workspace accounts\n\nCache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; a venue account needs the caller to be allowed to view wallets, in a company or broker workspace or as an admitted LP taker, exactly as its own balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Cursors bind to the workspace, caller, filters and ordered visible row identities; restart if those identities change.",
+        "description": "Read balances across workspace accounts\n\nCache-only balance observations across readable workspace wallets and venue accounts. Each wallet accountId is its walletId; venue accounts retain their native venueAccountId. amount is total holdings in exact decimal asset units, asOf is the source observation time, and freshness distinguishes stale or partial observations. network is the CAIP-2 network (the same value as chain). valueUsd is amount at the market-data display reference price, to at most 8 decimal places (the aggregate rounds its sums to cents), with that price's observation time in valuedAt; both are null when the asset has no reference price, never 0. No provider request or refresh is started. Accounts without a readable observation are named in unavailable with a cause code, never a fabricated zero. Bank balances are unobservable. Personal wallets are excluded. The wallet resource policy must allow read_balances; a venue account needs the caller to be allowed to view wallets, in a company or broker workspace or as an admitted LP taker, exactly as its own balance read. Required API-key scope: `treasury_read`; an OAuth client needs the same scope. Hidden accounts affect neither rows nor cursors. unavailable is repeated on each filtered page. Filters: asset, accountKind, accountId and network (exact CAIP-2); any other parameter is refused. sort is field or -field over id (the default order), accountId, asset, network, valueUsd (unvalued rows last) or asOf. fields=a,b returns only those row fields (id, accountId and asset always kept). include=account adds each row's account by accountId as the treasury account resource answers it, or null with its refusal. Totals and daily history are GET …/balances:aggregate. Cursors bind to the workspace, caller, filters, sort and ordered visible row identities; restart if those identities change.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/balances",
           "host": [
@@ -783,6 +783,18 @@
               "value": "<accountId>",
               "disabled": true,
               "description": ""
+            },
+            {
+              "key": "network",
+              "value": "<network>",
+              "disabled": true,
+              "description": "A CAIP-2 network (`eip155:8453`): only balances held on it."
+            },
+            {
+              "key": "sort",
+              "value": "<sort>",
+              "disabled": true,
+              "description": "`field` or `-field`, field one of `id` (the default), `accountId`, `asset`, `network`,\n`valueUsd` (unvalued rows last either way) and `asOf`."
             },
             {
               "key": "limit",
@@ -1013,7 +1025,7 @@
               "key": "from",
               "value": "<from>",
               "disabled": true,
-              "description": "Placed at or after this RFC 3339 instant (umbrella: a UTC midnight)."
+              "description": "Placed at or after this RFC 3339 instant."
             },
             {
               "key": "to",
@@ -1205,7 +1217,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Get trade settlement\n\nOne trade's settlement state. The taker perspective is the order's settlement detail (required API-key scope: `settlements_read`; the caller must be allowed to view settlements). The maker perspective is the LP's settlement pipeline for the order, a member-session read for a member allowed to view bilateral documents. Each perspective answers exactly what its own route answers.",
+        "description": "Get trade settlement\n\nOne trade's settlement state. The taker perspective is the order's settlement detail (required API-key scope: `settlements_read`; the caller must be allowed to view settlements). The maker perspective is the LP's settlement pipeline for the order, a member-session read for a member allowed to view bilateral documents. The settlement milestones flow analytics records are its `milestones` sub-resource. Each perspective answers exactly what its own route answers.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement",
           "host": [

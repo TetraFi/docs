@@ -108,12 +108,12 @@ Answer unknown fields and event types with a `2xx` and ignore them; a breaking c
 
 ## Manage an endpoint
 
-Other paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`; every `POST` needs a new `Idempotency-Key`. In the app: Integrations → Webhooks, for a member with Manage webhooks.
+Other paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`. Every `POST` from an API key or OAuth client takes an `Idempotency-Key`: a new key for each action you intend, and the same key and body when you retry one whose answer you did not get, which returns the first answer instead of acting twice. A `PATCH` sends `If-Match` with the strong `ETag` from `GET` on the endpoint; without it the update is refused with `428 WEBHOOK_VERSION_REQUIRED`, and after a `412` read the endpoint again and review what changed before you update it. In the app: Integrations → Webhooks, for a member with Manage webhooks.
 
 | Operation | Call |
 | --- | --- |
 | List | `GET /api/v1/workspaces/{workspaceId}/webhooks` |
-| Get, update, delete | `GET`, `PATCH`, `DELETE` on the endpoint |
+| Get, update, delete | `GET`, `PATCH` (with `If-Match`), `DELETE` on the endpoint |
 | Deliveries | `GET …/deliveries` |
 | Test | `POST …/deliveries` with `{"kind":"test"}` |
 | Retry | `POST …/deliveries/{deliveryId}/retry` |
@@ -128,7 +128,7 @@ Other paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`; e
 | Test | `201` with a delivery record; your endpoint receives `webhook.test`. The `201` is not your receiver's acknowledgement: check `success`, `statusCode` and `errorMessage`. |
 | Rotate the secret | `200` with the new `secret`; a replay of the same key returns `secret: null`. For 24 hours, deliveries carry both secrets' signatures, so either verifies while you deploy. |
 | List deliveries | `items`, `totalCount`, `nextCursor` and `retention`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. |
-| Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Not deduplicated: it can deliver the event again. |
+| Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Your receiver gets the event again; it keeps its body `id`, so [deduplicate](#set-up-an-endpoint) as for any delivery. A retry with the same `Idempotency-Key` and body returns the first redelivery instead of sending another. |
 | Resume | Reactivates a paused endpoint. Then redeliver what it missed. |
 
   </Accordion>

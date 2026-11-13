@@ -19,7 +19,7 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 | [404 Not found](#404-not-found) | 23 | The resource does not exist or is not visible to this credential. |
 | [405 Method not allowed](#405-method-not-allowed) | 1 | The method is not supported on this path. |
 | [408 Request timeout](#408-request-timeout) | 1 | The request timed out on the server. |
-| [409 Conflict](#409-conflict) | 225 | The resource is in a state that does not allow this, or a replay does not match. |
+| [409 Conflict](#409-conflict) | 226 | The resource is in a state that does not allow this, or a replay does not match. |
 | [410 Gone](#410-gone) | 4 | The resource or quote no longer exists. |
 | [412 Precondition failed](#412-precondition-failed) | 1 | The `If-Match` revision is stale. |
 | [413 Payload too large](#413-payload-too-large) | 3 | The request body is too large. |
@@ -28,7 +28,7 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 | [423 Locked](#423-locked) | 1 | The workspace or resource is frozen. |
 | [428 Precondition required](#428-precondition-required) | 1 | A required header such as `If-Match` is missing. |
 | [429 Too many requests](#429-too-many-requests) | 15 | A rate limit, budget or credit limit was reached. |
-| [500 Internal error](#500-internal-error) | 9 | TetraFi failed while handling the request. |
+| [500 Internal error](#500-internal-error) | 10 | TetraFi failed while handling the request. |
 | [501 Not implemented](#501-not-implemented) | 1 | The operation is not available. |
 | [502 Bad gateway](#502-bad-gateway) | 7 | A venue or provider failed. |
 | [503 Unavailable](#503-unavailable) | 134 | A dependency is temporarily unavailable. |
@@ -397,6 +397,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="GRANT_ENDS_BEFORE_VENUE_FUNDING"></span>`GRANT_ENDS_BEFORE_VENUE_FUNDING` | The wallet's signing grant expires before the venue's funding window; no trade acceptance or funds were sent. | Renew the wallet's StableFX signing grant for at least 2 days, longer than the venue's 24-hour funding window plus its safety margin. | No |
 | <span id="HELD_QUOTE_SOURCE_UNRESOLVED"></span>`HELD_QUOTE_SOURCE_UNRESOLVED` | The held quote's trading source or exact venue account can no longer be resolved; nothing was sent. | Request a new quote, then place the order on it. | No |
 | <span id="IDEMPOTENCY_CONFLICT"></span>`IDEMPOTENCY_CONFLICT` | This Idempotency-Key was already used with a different request body. | Use a new Idempotency-Key for a different request. | No |
+| <span id="IDEMPOTENT_SECRET_ALREADY_SHOWN"></span>`IDEMPOTENT_SECRET_ALREADY_SHOWN` | This Idempotency-Key already created the resource named by details.resourceId; its secret was shown once and is not stored. | Use the secret from the first answer, or rotate or reissue the resource named by details.resourceId. | No |
 | <span id="LEDGER_NOT_OBSERVED"></span>`LEDGER_NOT_OBSERVED` | No ledger read is recorded for this venue account yet; an API key or OAuth client reads only recorded observations and never starts a venue read. | A workspace member opens the venue account in the TetraFi app, which records a read; then read again. | No |
 | <span id="LEDGER_SETUP_MISSING"></span>`LEDGER_SETUP_MISSING` | The venue account has no current key, or its connection needs setup, so its ledger cannot be read. | A member with manage_credentials adds or verifies the account's key, then reads its ledger again. | No |
 | <span id="LEDGER_UNSUPPORTED"></span>`LEDGER_UNSUPPORTED` | This venue has no account ledger read. | Read the account's balances instead. | No |
@@ -680,6 +681,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | Code | Meaning | What to do | Retryable |
 | :--- | :--- | :--- | :--- |
 | <span id="AUTH_NOT_CONFIGURED"></span>`AUTH_NOT_CONFIGURED` | Authentication is enabled but the token service is not configured on this server. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
+| <span id="IDEMPOTENT_ANSWER_UNAVAILABLE"></span>`IDEMPOTENT_ANSWER_UNAVAILABLE` | The request ran, but its answer could not be read. | Read the resource before retrying; never resend it with a new Idempotency-Key. | No |
 | <span id="INTERNAL_ERROR"></span>`INTERNAL_ERROR` | Something went wrong on TetraFi's side. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
 | <span id="PRICES_SERIALIZATION_FAILED"></span>`PRICES_SERIALIZATION_FAILED` | The prices reply could not be written. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
 | <span id="RESPONSE_BUILD_FAILED"></span>`RESPONSE_BUILD_FAILED` | The answer could not be assembled. | Contact TetraFi support with the requestId; do not retry in a loop. | No |
