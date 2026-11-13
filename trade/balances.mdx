@@ -151,7 +151,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 | Read | Answers |
 | --- | --- |
 | `GET …/venue-accounts/{venueAccountId}/deposit-instructions` | The asset and network pairs it takes deposits on, in `options`. |
-| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, over the last `lookbackDays` (1 to 30, 7 by default). Returned whole, with `since` and `until` and no cursor. |
+| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, over the last `lookbackDays` (1 to 30, 7 by default). Without paging, the whole window, with `since` and `until`. With `limit` (1 to 200), credits page oldest first: follow `nextCursor` until `null`; a cursor keeps its window, and a window of more than 1,000 credits answers none, so read a shorter one. |
 
 In the history, `credits: null` means it could not be read; `[]` is truly empty. Over 1,000 venue records answers no credits with `reasonCode` `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`: read a shorter window.
 

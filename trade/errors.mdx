@@ -16,14 +16,14 @@ Every refusal, `413` and `415` included, is the same JSON object, so one parser 
 | `429` | A request limit is used up, or TetraFi is briefly at capacity. | Retry after `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
 | `503` | It could not be served just now. | Recover an order by its quote first. Otherwise retry after `Retry-After`, or after a second or two with backoff when it is not set. A signed write signs again with a new `X-Timestamp` and `X-Nonce`. |
 | `408`, `500`, `502`, `504` or a timeout | It did not complete, or its outcome is unknown. | Recover an order by its quote first. Otherwise retry with backoff only when the code's `retryable` is `true`. |
-| Any other `4xx` | Refused. Nothing was placed. | Do not retry. Fix the request, or act on [`next`](#what-next-tells-you). |
+| Any other `4xx` | Refused. On an order this usually means nothing was placed, but not always: a replay refused with `IDEMPOTENCY_AUTHORITY_REQUIRED`, or a code whose entry says a source transaction may already be confirmed, says nothing about the first attempt. | Do not retry. On an order, [recover it by its quote](/trade/orders#retries-and-recovery) before you order again; otherwise fix the request, or act on [`next`](#what-next-tells-you). |
 
 On an order, retry only with the same `Idempotency-Key` and body. When you do not know whether it was placed, never send it with a new key.
 
 <AccordionGroup>
   <Accordion title="Waits and order retries">
 
-A 4xx refusal placed nothing. A timeout or 5xx on an order is unknown until you [recover it](/trade/orders#retries-and-recovery).
+A timeout or 5xx on an order is unknown until you [recover it](/trade/orders#retries-and-recovery). A 4xx usually placed nothing, but a refused replay or a code that says a source may already be confirmed does not prove it: recover by the quote before you order again.
 
 - Waits: `Retry-After` is whole seconds; `details.retryAfter` is an ISO 8601 duration that can carry a fraction, such as `PT1.5S`. Sending sooner is refused again.
 
