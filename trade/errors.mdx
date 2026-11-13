@@ -135,6 +135,8 @@ A key may leave `X-Workspace-Id` out; one it sends must be its own. A path namin
 | 429 `RATE_LIMITED` | A limit is used up, or TetraFi is briefly at capacity. | Wait `Retry-After` seconds. |
 | 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked. | Sign again with a new timestamp and nonce, then retry. |
 | 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It did not complete. | Retry with backoff; quote `requestId` if it persists. |
+| 409 `IDEMPOTENT_SECRET_ALREADY_SHOWN` | A retry with the same `Idempotency-Key` of a call that created a secret: the resource exists (`details.resourceId`), and its secret was shown once and is not stored. | Use the secret from the first answer, or rotate or reissue that resource. |
+| 500 `IDEMPOTENT_ANSWER_UNAVAILABLE` | The request ran, but its answer could not be read. | Read the resource before you retry; never send it again with a new `Idempotency-Key`. |
 
   </Accordion>
 </AccordionGroup>
