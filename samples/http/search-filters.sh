@@ -114,7 +114,7 @@ buy_amount=${TETRAFI_BUY_AMOUNT:-0.001}
 # the chains it is deployed on (CAIP-2) and the off-chain venues that hold it.
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .asset == $a)' <<<"$assets" >/dev/null; then
     jq -nc --arg a "$asset" '{error: "ASSET_NOT_LISTED", asset: $a}' >&2
     exit 1
   fi
@@ -185,8 +185,8 @@ outcome venueExclude "$without"
 # region search-native-only
 # Keep only the native variant of each side: no bridged, wrapped, omnichain or test
 # representation. GET /assets lists each Asset's variants and their kind.
-jq -c --arg p "$sell" --arg r "$buy" '[.items[] | select(.assetId == $p or .assetId == $r)
-  | {asset: .assetId, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
+jq -c --arg p "$sell" --arg r "$buy" '[.items[] | select(.asset == $p or .asset == $r)
+  | {asset: .asset, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   kind: "pair",
   sell: {asset: $sell},

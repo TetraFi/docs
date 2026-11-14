@@ -133,12 +133,12 @@ cross_amount=${TETRAFI_CROSS_AMOUNT:-1}
 # the chains it is deployed on (CAIP-2) and the off-chain venues that hold it.
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .asset == $a)' <<<"$assets" >/dev/null; then
     jq -nc --arg a "$asset" '{error: "ASSET_NOT_LISTED", asset: $a}' >&2
     exit 1
   fi
 done
-chains_of() { jq -c --arg a "$1" '[.items[] | select(.assetId == $a) | .variants[].deployments[].chain] | unique' <<<"$assets"; }
+chains_of() { jq -c --arg a "$1" '[.items[] | select(.asset == $a) | .variants[].deployments[].chain] | unique' <<<"$assets"; }
 sell_chains=$(chains_of "$sell")
 shared_chains=$(jq -c --argjson r "$(chains_of "$buy")" 'map(select(. as $c | $r | index($c)))' <<<"$sell_chains")
 

@@ -5,8 +5,8 @@
 ```bash cURL
 # Keep only the native variant of each side: no bridged, wrapped, omnichain or test
 # representation. GET /assets lists each Asset's variants and their kind.
-jq -c --arg p "$sell" --arg r "$buy" '[.items[] | select(.assetId == $p or .assetId == $r)
-  | {asset: .assetId, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
+jq -c --arg p "$sell" --arg r "$buy" '[.items[] | select(.asset == $p or .asset == $r)
+  | {asset: .asset, variants: [.variants[] | {name, kind}]}]' <<<"$assets" >&2
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   kind: "pair",
   sell: {asset: $sell},
@@ -24,7 +24,7 @@ jq -c '[.sources[] | select(.status != "answered") | {venue: .venue.id, status, 
 let request = given;
 if (!request) {
   if (!usdc || !eth) throw new Error('This workspace cannot reach USDC and ETH yet.');
-  request = { sell: { asset: usdc.assetId }, buy: { asset: eth.assetId }, sellAmount: '10' };
+  request = { sell: { asset: usdc.asset }, buy: { asset: eth.asset }, sellAmount: '10' };
 }
 const set = await client.quote({ ...request, filters: { ...request.filters, variants: { sell: 'nativeOnly', buy: 'nativeOnly' } } });
 ```
