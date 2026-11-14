@@ -50,7 +50,7 @@ flowchart LR
 | --- | --- | --- |
 | `kind` | Yes | `"pair"`. Missing: `400 QUOTE_REQUEST_KIND_REQUIRED`; unknown or not a string: `400 QUOTE_REQUEST_KIND_INVALID`. `"requote"` [refreshes a held quote](/search/firmness-and-lifetime#requote-a-quote). |
 | `sell.asset`, `buy.asset` | Yes | An asset id from [`GET /api/v1/assets`](#use-values-from-discovery), such as `USDC`. Assets carry no chain. |
-| `sell.chain`, `buy.chain` | No | A CAIP-2 chain id, such as `eip155:8453`, to [pin that side](#filters-and-sort). |
+| `sell.network`, `buy.network` | No | A CAIP-2 network id, such as `eip155:8453`, to [pin that side](#filters-and-sort). |
 | `sellAmount` or `buyAmount` | Exactly one | A positive decimal string in asset units, such as `"10"`, never base units. Both or neither: `400 INVALID_REQUEST`. |
 | `filters`, `sort`, `priceProtectionBps` | No | Narrow, order and protect the search ([Filters and sort](#filters-and-sort)). `sort` defaults to `netReceived`; `priceProtectionBps` is 0 to 1000, 30 when omitted. |
 | `firmness` | No | `auto` (default), `firm` or `indicative` ([Ask for firm prices](/search/firmness-and-lifetime#ask-for-firm-prices)). |
@@ -77,8 +77,8 @@ flowchart LR
       "quality": "executable",
       "firm": false,
       "lastLook": false,
-      "sell": { "asset": "USDC", "chain": null, "variant": { "kind": "native", "name": "USDC" }, "amount": "99.99994" },
-      "buy": { "asset": "ETH", "chain": null, "variant": { "kind": "native", "name": "ETH" }, "amount": "0.043" },
+      "sell": { "asset": "USDC", "network": null, "variant": { "kind": "native", "name": "USDC" }, "amount": "99.99994" },
+      "buy": { "asset": "ETH", "network": null, "variant": { "kind": "native", "name": "ETH" }, "amount": "0.043" },
       "minOut": "0.042",
       "expiresAt": "2026-10-27T00:33:18.432Z",
       "next": { "kind": "order" }
@@ -181,7 +181,7 @@ Narrow or reorder a search with `filters`, `sort` and `priceProtectionBps`. A fi
 
 | Field | Effect | Example |
 | --- | --- | --- |
-| `sell.chain`, `buy.chain` | That side trades on that CAIP-2 chain. | `"sell": {"asset": "USDC", "chain": "eip155:8453"}` |
+| `sell.network`, `buy.network` | That side trades on that CAIP-2 network. | `"sell": {"asset": "USDC", "network": "eip155:8453"}` |
 | `filters.locations` | Keeps only quotes that execute there: any of `singleChain`, `crossChain`, `offChain`. | `"locations": ["singleChain"]` |
 | `filters.modalities` | Keeps only venues of those types: any of `amm`, `solver`, `bridge`, `rfq`, `orderBook`, `fiat`. | `"modalities": ["rfq", "orderBook"]` |
 | `filters.venues` | Asks only the venues you name (`include`), or every venue except them (`exclude`). An empty `include` keeps every venue. | `"venues": {"exclude": ["binance-orderbook"]}` |
@@ -201,9 +201,9 @@ An asset such as `USDC` carries no chain. Left open, a side can trade on any cha
 
 | `location.kind` | Meaning | Its sides |
 | --- | --- | --- |
-| `singleChain` | Swapped on one chain. | `sell.chain` and `buy.chain` are the same. |
-| `crossChain` | Moved between chains by a bridge or a solver. | `sell.chain` and `buy.chain` differ. |
-| `offChain` | Traded on one of your venue accounts. | `chain` is `null` on a side held on the account. |
+| `singleChain` | Swapped on one chain. | `sell.network` and `buy.network` are the same. |
+| `crossChain` | Moved between chains by a bridge or a solver. | `sell.network` and `buy.network` differ. |
+| `offChain` | Traded on one of your venue accounts. | `network` is `null` on a side held on the account. |
 | `mixed` | Legs that execute in different places. Each leg has its own location. | Not a filter value: sending it is `400 INVALID_REQUEST`. |
 
 Single-chain: pin both sides to the same chain and keep `singleChain`.
@@ -393,7 +393,7 @@ Never hardcode asset ids, chains or venue lists: take them from `GET /api/v1/ass
         {
           "name": "USDC",
           "kind": "native",
-          "deployments": [{ "chain": "eip155:8453", "decimals": 6 }],
+          "deployments": [{ "network": "eip155:8453", "decimals": 6 }],
           "offChainVenues": ["..."]
         }
       ]
@@ -402,7 +402,7 @@ Never hardcode asset ids, chains or venue lists: take them from `GET /api/v1/ass
 }
 ```
 
-- Send `asset` (the exact registry id; `assetSymbol` is display only) as `sell.asset` and `buy.asset`, and a deployment's `chain` to pin a side.
+- Send `asset` (the exact registry id; `assetSymbol` is display only) as `sell.asset` and `buy.asset`, and a deployment's `network` to pin a side.
 - `offChainVenues` lists the venue accounts that hold that variant.
 - When `eligibility.complete` is `false`, `reason` says which part of the list could not be read.
 - Take venue ids from `sources[].venue.id`.
