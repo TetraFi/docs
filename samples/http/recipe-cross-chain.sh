@@ -85,7 +85,7 @@ amount=${TETRAFI_AMOUNT:-10}
 # The chains an asset is on come from GET /assets: every deployment of its native variant.
 assets=$(tetrafi GET /api/v1/assets)
 chains=$(jq -c --arg a "$asset" '[.items[] | select(.asset == $a) | .variants[]
-  | select(.kind == "native") | .deployments[].chain] | unique' <<<"$assets")
+  | select(.kind == "native") | .deployments[].network] | unique' <<<"$assets")
 echo "{\"asset\":\"$asset\",\"chains\":$chains}" >&2
 from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
 to_chain=${TETRAFI_TO_CHAIN:-$(jq -r --arg f "$from_chain" 'map(select(. != $f))[0] // empty' <<<"$chains")}
@@ -101,8 +101,8 @@ done
 # The same asset on both sides, each side pinned to its chain, and only cross-chain quotes kept.
 request=$(jq -nc --arg asset "$asset" --arg amount "$amount" --arg from "$from_chain" --arg to "$to_chain" '{
   kind: "pair",
-  sell: {asset: $asset, chain: $from},
-  buy: {asset: $asset, chain: $to},
+  sell: {asset: $asset, network: $from},
+  buy: {asset: $asset, network: $to},
   sellAmount: $amount,
   filters: {locations: ["crossChain"]}
 }')
@@ -115,7 +115,7 @@ jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status
 # next "order": TetraFi executes the move from an organisation wallet, so the key can order it.
 # next "preflight", "sign" or "transact": your own wallet would act on-chain (Advanced), not open yet.
 jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
-  sell: "\(.sell.amount) on \(.sell.chain)", buy: "\(.buy.amount) on \(.buy.chain)",
+  sell: "\(.sell.amount) on \(.sell.network)", buy: "\(.buy.amount) on \(.buy.network)",
   eta, tradesFrom: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
 # endregion
@@ -139,7 +139,7 @@ fi
 # least you accept, here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the
 # asset's decimals.
 decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.items[] | select(.asset == $a) | .variants[]
-  | select(.kind == "native") | .deployments[] | select(.chain == $c) | .decimals][0]' <<<"$assets")
+  | select(.kind == "native") | .deployments[] | select(.network == $c) | .decimals][0]' <<<"$assets")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)} else {} end)' <<<"$quote")

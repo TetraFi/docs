@@ -4,10 +4,11 @@
 
 ```bash cURL
 # What is due across every venue account (Read settlements). complete false lists in failedReads what
-# could not be read: the plan is partial then, not "nothing due".
+# could not be read: the plan is partial then, not "nothing due". It is one snapshot, never paged: a plan of
+# more than 512 windows is refused whole with 422 SETTLEMENT_PLAN_TOO_LARGE, so read a shorter horizonDays.
 plan=$(tetrafi GET "/api/v1/workspaces/$workspace/settlement/plan?horizonDays=30")
 jq -c '{state, complete, accounts: (.accountSummaries | length), windows: (.windows | length),
-  failedReads: [.failedReads[].error] | unique, more: (.nextCursor != null)}' <<<"$plan" >&2
+  failedReads: [.failedReads[].error] | unique}' <<<"$plan" >&2
 ```
 
 ```typescript TypeScript SDK

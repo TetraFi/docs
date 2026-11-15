@@ -151,14 +151,14 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 | Read | Answers |
 | --- | --- |
 | `GET …/venue-accounts/{venueAccountId}/deposit-instructions` | The asset and network pairs it takes deposits on, in `options`. |
-| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, over the last `lookbackDays` (1 to 30, 7 by default). Without paging, the whole window, with `since` and `until`. With `limit` (1 to 200), credits page oldest first: follow `nextCursor` until `null`; a cursor keeps its window, and a window of more than 1,000 credits answers none, so read a shorter one. |
+| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, from `from` (RFC 3339, 1 to 30 whole days back, 7 by default) until now. The credits are in `items`, oldest first; without paging, the whole window. With `limit` (1 to 200), follow `nextCursor` until `null`; a cursor keeps its window. Add `include=observation` for this read's own window (`since`, `until`), state and reason in `included.observation[venueAccountId].value`. |
 
-In the history, `credits: null` means it could not be read; `[]` is truly empty. Over 1,000 venue records answers no credits with `reasonCode` `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`: read a shorter window.
+Empty `items` is truly empty only when `unreachable` is empty too; otherwise the history was not read, and its one `unreachable` entry names why in `reason`. A window of more than 1,000 venue records is not read (`DEPOSIT_HISTORY_WINDOW_TOO_LARGE`): read a shorter window.
 
 <VenueDepositHistory />
 
 ```json Output on test networks
-{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","reason":"Terminal credits reported by this venue account in the displayed window. Refresh balances separately before requesting a fresh RFQ.","credits":0}
+{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","since":"…","until":"…","credits":0,"unreachable":[]}
 ```
 
   </Accordion>

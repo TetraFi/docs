@@ -96,7 +96,7 @@ me_summary=$(jq -c '.organisationWallets | if . == null then null else
 
 # USDC's EVM chains, from the asset list.
 usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.items[] | select(.asset == "USDC") | .variants[]
-  | select(.kind == "native") | .deployments[].chain | select(startswith("eip155:"))] | unique')
+  | select(.kind == "native") | .deployments[].network | select(startswith("eip155:"))] | unique')
 
 # region trading-source-options
 # Every answer's sourceOptions lists, per network, the trading wallets this key may name, each by its
@@ -104,10 +104,10 @@ usdc_chains=$(tetrafi GET /api/v1/assets | jq -c '[.items[] | select(.asset == "
 first=$(quote_request "$(jq -cn --arg amount "$amount" '{kind: "pair", sell: {asset: "USDC"}, buy: {asset: "ETH"},
   sellAmount: $amount}')") || { printf '%s\n' "$first" >&2; exit 1; }
 trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
-  | select(.chain as $c | $chains | index($c))
-  | {key: .chain, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
+  | select(.network as $c | $chains | index($c))
+  | {key: .network, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
   | select(.value != null)] | from_entries' <<<"$first")
-jq -c '{sourceOptions: [.sourceOptions[]? | {kind, chain, candidates: [.candidates[] | {financialAccountId, kind, displayName, isDefault}]}]}' <<<"$first" >&2
+jq -c '{sourceOptions: [.sourceOptions[]? | {kind, network, candidates: [.candidates[] | {financialAccountId, kind, displayName, isDefault}]}]}' <<<"$first" >&2
 # endregion
 
 if [[ $(jq 'length' <<<"$trading_wallets") == 0 ]]; then
@@ -123,8 +123,8 @@ fi
 # gave: two chains move USDC between them, one chain swaps USDC for ETH on it.
 request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | keys) as $chains
   | (if ($chains | length) > 1
-      then {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "USDC", chain: $chains[1]}}
-      else {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "ETH", chain: $chains[0]}} end)
+      then {sell: {asset: "USDC", network: $chains[0]}, buy: {asset: "USDC", network: $chains[1]}}
+      else {sell: {asset: "USDC", network: $chains[0]}, buy: {asset: "ETH", network: $chains[0]}} end)
   + {kind: "pair", sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
 # endregion
 

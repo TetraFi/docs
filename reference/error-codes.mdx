@@ -13,25 +13,25 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 
 | Status | Codes | Usually means |
 | :--- | :--- | :--- |
-| [400 Bad request](#400-bad-request) | 138 | The request is malformed or a value is out of range. |
+| [400 Bad request](#400-bad-request) | 137 | The request is malformed or a value is out of range. |
 | [401 Unauthorized](#401-unauthorized) | 1 | The credential or its signature was not accepted. |
 | [403 Forbidden](#403-forbidden) | 90 | The credential lacks a permission, scope or grant, or the workspace cannot do this yet. |
 | [404 Not found](#404-not-found) | 23 | The resource does not exist or is not visible to this credential. |
 | [405 Method not allowed](#405-method-not-allowed) | 1 | The method is not supported on this path. |
 | [408 Request timeout](#408-request-timeout) | 1 | The request timed out on the server. |
-| [409 Conflict](#409-conflict) | 226 | The resource is in a state that does not allow this, or a replay does not match. |
+| [409 Conflict](#409-conflict) | 227 | The resource is in a state that does not allow this, or a replay does not match. |
 | [410 Gone](#410-gone) | 4 | The resource or quote no longer exists. |
 | [412 Precondition failed](#412-precondition-failed) | 1 | The `If-Match` revision is stale. |
 | [413 Payload too large](#413-payload-too-large) | 3 | The request body is too large. |
 | [415 Unsupported media type](#415-unsupported-media-type) | 1 | The body is not JSON. |
-| [422 Unprocessable](#422-unprocessable) | 58 | The request is valid but cannot be carried out as asked. |
-| [423 Locked](#423-locked) | 1 | The workspace or resource is frozen. |
+| [422 Unprocessable](#422-unprocessable) | 59 | The request is valid but cannot be carried out as asked. |
+| [423 Locked](#423-locked) | 2 | The workspace or resource is frozen. |
 | [428 Precondition required](#428-precondition-required) | 1 | A required header such as `If-Match` is missing. |
 | [429 Too many requests](#429-too-many-requests) | 15 | A rate limit, budget or credit limit was reached. |
 | [500 Internal error](#500-internal-error) | 10 | TetraFi failed while handling the request. |
 | [501 Not implemented](#501-not-implemented) | 1 | The operation is not available. |
 | [502 Bad gateway](#502-bad-gateway) | 7 | A venue or provider failed. |
-| [503 Unavailable](#503-unavailable) | 134 | A dependency is temporarily unavailable. |
+| [503 Unavailable](#503-unavailable) | 137 | A dependency is temporarily unavailable. |
 | [504 Gateway timeout](#504-gateway-timeout) | 3 | A venue or provider did not answer in time. |
 | [Stream events](#stream-events) | 1 | Sent on a stream, not as an HTTP response. |
 
@@ -102,7 +102,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="INVALID_FUNDER"></span>`INVALID_FUNDER` | The funder is not a 20-byte 0x-hex address. | Correct the request body as the message says, then send it again. | No |
 | <span id="INVALID_LIMIT"></span>`INVALID_LIMIT` | limit is outside 1 to 100. | Send a limit from 1 to 100, or omit it for the default page size. | No |
 | <span id="INVALID_METADATA"></span>`INVALID_METADATA` | The request's metadata is not valid. | Correct the request body as the message says, then send it again. | No |
-| <span id="INVALID_REQUEST"></span>`INVALID_REQUEST` | The request could not be read or has the wrong shape; details.field names the path of a missing required, unknown, mistyped or out-of-range field. A malformed body without a field path omits details.field. | Correct the request as the message and details say, then send it again. | No |
+| <span id="INVALID_REQUEST"></span>`INVALID_REQUEST` | The request could not be read or has the wrong shape; details.field names the path of a missing required, unknown, mistyped or out-of-range field. A malformed body without a field path omits details.field. details.reason names the cause (fieldInvalid with a field path; bodyUnreadable when the body could not be read; else requestInvalid; unless the refusing step names its own) and details.remediation the fix (correctField, correctBody or correctRequest). | Correct the request as the message and details say, then send it again. | No |
 | <span id="INVALID_SORT_BY"></span>`INVALID_SORT_BY` | The sortBy value is not createdAt or amountUsd. | Send a listed sortBy, or leave it out. | No |
 | <span id="INVALID_SORT_ORDER"></span>`INVALID_SORT_ORDER` | The sortOrder value is not asc or desc. | Send asc or desc, or leave it out. | No |
 | <span id="INVALID_SOURCE_WORKSPACE_ID"></span>`INVALID_SOURCE_WORKSPACE_ID` | The sourceWorkspaceId filter is not a workspace id. | Send a workspace UUID, or leave the filter out. | No |
@@ -125,7 +125,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="OWNER_AUTHORIZATION_NOT_ACCEPTED"></span>`OWNER_AUTHORIZATION_NOT_ACCEPTED` | This quote is paid from a wallet that signs itself, so it takes a signature, not an owner approval. | Send the wallet's signature instead. | No |
 | <span id="PAY_IN_LEG_SELECTION_EXCLUSIVE"></span>`PAY_IN_LEG_SELECTION_EXCLUSIVE` | payInLegId was sent together with another deposit selector. | Send payInLegId alone, or the asset, chainRef, currency and providerBankId selectors without it. | No |
 | <span id="PERMIT_MISMATCH"></span>`PERMIT_MISMATCH` | funderPermit2 does not match the prepared permit. | Sign the permit exactly as prepared. | No |
-| <span id="QUOTE_ID_INVALID"></span>`QUOTE_ID_INVALID` | The quote id cannot be used. | Send the quoteId exactly as POST /quotes returned it. | No |
+| <span id="QUOTE_ID_INVALID"></span>`QUOTE_ID_INVALID` | The quote id cannot be used; details.reason is malformed and details.remediation correctField. | Send the quoteId exactly as POST /quotes returned it. | No |
 | <span id="QUOTE_INTEGRITY_INVALID"></span>`QUOTE_INTEGRITY_INVALID` | The order needs the original authenticated quote. | Send the quote exactly as returned. | No |
 | <span id="QUOTE_REQUEST_KIND_INVALID"></span>`QUOTE_REQUEST_KIND_INVALID` | The quote request kind is not pair or requote. | Use kind: pair or kind: requote with that kind's documented fields. | No |
 | <span id="QUOTE_REQUEST_KIND_REQUIRED"></span>`QUOTE_REQUEST_KIND_REQUIRED` | The quote request is missing its required kind tag. | Send kind: pair for a fresh quote or kind: requote to refresh one. | No |
@@ -142,7 +142,6 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="SETTLEMENT_MATCH_PAGE_INVALID"></span>`SETTLEMENT_MATCH_PAGE_INVALID` | The matches limit is out of range. | Send a limit in the documented range, or leave it out. | No |
 | <span id="SETTLEMENT_MOVEMENT_LIMIT_INVALID"></span>`SETTLEMENT_MOVEMENT_LIMIT_INVALID` | limit is outside 1 to 100. | Send a limit from 1 to 100, or leave it out. | No |
 | <span id="SETTLEMENT_PLAN_HORIZON_INVALID"></span>`SETTLEMENT_PLAN_HORIZON_INVALID` | horizonDays is outside 1 to 90. | Send horizonDays from 1 to 90, or leave it out. | No |
-| <span id="SETTLEMENT_PLAN_LIMIT_INVALID"></span>`SETTLEMENT_PLAN_LIMIT_INVALID` | limit is outside 1 to 100. | Send a limit from 1 to 100, or leave it out. | No |
 | <span id="SETTLEMENT_WALLET_REQUIRED"></span>`SETTLEMENT_WALLET_REQUIRED` | This route needs settlementWalletId. | Include settlementWalletId. | No |
 | <span id="SIGNATURE_FORMAT_INVALID"></span>`SIGNATURE_FORMAT_INVALID` | The signature is not 65 bytes. | Send the 65-byte signature as hex. | No |
 | <span id="SIGNATURE_INVALID"></span>`SIGNATURE_INVALID` | The wallet signature does not verify. | Sign the prepared order with its funding wallet again. | No |
@@ -184,7 +183,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 
 | Code | Meaning | What to do | Retryable |
 | :--- | :--- | :--- | :--- |
-| <span id="AUTH_REQUIRED"></span>`AUTH_REQUIRED` | This operation needs an authenticated caller, or the presented credential was refused. details.reason names the cause; it is absent when no credential was sent. | Act on details.reason. Absent or MISSING_CREDENTIALS: send an API key (X-API-Key) or a bearer token. INVALID_API_KEY: the key is unknown or no longer active; use an active key. API_KEY_EXPIRED: the key has expired; issue a new key. LEGACY_USER_KEY_REQUIRES_REBINDING: the key has no workspace binding; issue a workspace key. SERVICE_ACCOUNT_CREDENTIAL_REVOKED: the key that issued this bearer token is no longer active; request a token with an active key. INVALID_TOKEN: the bearer token is malformed or not valid here; request a new token. TOKEN_EXPIRED: the bearer token has expired; request a new token. SESSION_REVOKED: the token's session was revoked; request a new token. SIGNATURE_REQUIRED: this key signs its requests; send X-Timestamp and X-Signature. SIGNATURE_INVALID: a signing header is malformed or the signature does not match; check the canonical string and the signing secret. TIMESTAMP_OUT_OF_RANGE: X-Timestamp is more than 300 seconds from server time, or more than 10 seconds ahead on a request with X-Nonce; correct the clock and sign again. NONCE_REQUIRED: a signed POST, PUT, PATCH or DELETE needs X-Nonce; sign again with one. NONCE_INVALID: send X-Nonce once, as 16 to 128 characters of A-Z, a-z, 0-9, - or _. SIGNATURE_REPLAYED: this nonce was already accepted for this key; sign again with a new nonce. SIGNATURE_PREDATES_RESTART: reserved, not answered today; if it is, sign again with a fresh timestamp and nonce. | No |
+| <span id="AUTH_REQUIRED"></span>`AUTH_REQUIRED` | This operation needs an authenticated caller, or the presented credential was refused. details.reason names the cause (MISSING_CREDENTIALS when no credential was sent) and details.remediation its fix: sendCredentials, useActiveKey, issueNewKey, issueWorkspaceKey, requestNewToken or signRequest. | Act on details.reason. Absent or MISSING_CREDENTIALS: send an API key (X-API-Key) or a bearer token. INVALID_API_KEY: the key is unknown or no longer active; use an active key. API_KEY_EXPIRED: the key has expired; issue a new key. LEGACY_USER_KEY_REQUIRES_REBINDING: the key has no workspace binding; issue a workspace key. SERVICE_ACCOUNT_CREDENTIAL_REVOKED: the key that issued this bearer token is no longer active; request a token with an active key. INVALID_TOKEN: the bearer token is malformed or not valid here; request a new token. TOKEN_EXPIRED: the bearer token has expired; request a new token. SESSION_REVOKED: the token's session was revoked; request a new token. SIGNATURE_REQUIRED: this key signs its requests; send X-Timestamp and X-Signature. SIGNATURE_INVALID: a signing header is malformed or the signature does not match; check the canonical string and the signing secret. TIMESTAMP_OUT_OF_RANGE: X-Timestamp is more than 300 seconds from server time, or more than 10 seconds ahead on a request with X-Nonce; correct the clock and sign again. NONCE_REQUIRED: a signed POST, PUT, PATCH or DELETE needs X-Nonce; sign again with one. NONCE_INVALID: send X-Nonce once, as 16 to 128 characters of A-Z, a-z, 0-9, - or _. SIGNATURE_REPLAYED: this nonce was already accepted for this key; sign again with a new nonce. SIGNATURE_PREDATES_RESTART: reserved, not answered today; if it is, sign again with a fresh timestamp and nonce. | No |
 
 ### 403 Forbidden
 
@@ -212,7 +211,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="FORBIDDEN"></span>`FORBIDDEN` | The caller may not read this record. | Use a credential whose role covers the record. | No |
 | <span id="IDEMPOTENCY_AUTHORITY_REQUIRED"></span>`IDEMPOTENCY_AUTHORITY_REQUIRED` | The caller no longer holds the authority needed to replay this stored response. | Use a credential with the same authority as the original request. | No |
 | <span id="INSUFFICIENT_PERMISSION"></span>`INSUFFICIENT_PERMISSION` | The caller's role or key permissions do not allow this action. | Ask a workspace admin for the permission the message names. | No |
-| <span id="INSUFFICIENT_SCOPE"></span>`INSUFFICIENT_SCOPE` | The API key lacks the scope this operation needs. | Use a key that holds the scope the message names. | No |
+| <span id="INSUFFICIENT_SCOPE"></span>`INSUFFICIENT_SCOPE` | The API key lacks the scope this operation needs; details.requiredScope names it. details.reason names the cause (keyLacksScope, keyUnavailable, tokenLacksScope; keyOwnerPermissionWithdrawn when the key's creator no longer has the workspace permission behind it; serviceAccountPermissionMissing when the service account's own role no longer allows it) and details.remediation its fix (useKeyWithScope, requestTokenWithScope, restoreKeyOwnerPermission or restoreServiceAccountPermission). | Use a key, or request a token, that holds details.requiredScope; when the key's creator or the service account lost the permission, a workspace admin restores it. | No |
 | <span id="INSUFFICIENT_WORKSPACE_PERMISSION"></span>`INSUFFICIENT_WORKSPACE_PERMISSION` | The caller's workspace role lacks the permission this read needs, such as View settlements for the maker projection or attribution for a per-member summary. | Ask a workspace admin for the permission the message names, or read a projection your role allows. | No |
 | <span id="INTEGRATION_APP_FORBIDDEN"></span>`INTEGRATION_APP_FORBIDDEN` | The integration app is not allowed to use this quote or order. | Use the integration app the quote was requested with. | No |
 | <span id="INTEGRATION_APP_MISMATCH"></span>`INTEGRATION_APP_MISMATCH` | The request's integration app differs from the quote's. | Use the integration app the quote was requested with. | No |
@@ -292,7 +291,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="NOT_FOUND"></span>`NOT_FOUND` | Nothing exists at this path, or it is not visible to the caller. | Check the path and id. | No |
 | <span id="ORDER_NOT_FOUND"></span>`ORDER_NOT_FOUND` | No order with this id is visible to the caller. | Check the order id and the workspace. | No |
 | <span id="PAY_IN_LEG_NOT_FOUND"></span>`PAY_IN_LEG_NOT_FOUND` | No pay-in leg of this venue account has that id. | Read the account summary and use a current pay-in window's legId. | No |
-| <span id="QUOTE_NOT_FOUND"></span>`QUOTE_NOT_FOUND` | No quote with this id is available to the caller. | Check the quoteId, or request a new quote. | No |
+| <span id="QUOTE_NOT_FOUND"></span>`QUOTE_NOT_FOUND` | No quote with this id is available to the caller; details.reason is unknown and details.remediation requestNewQuote. | Check the quoteId, or request a new quote. | No |
 | <span id="QUOTE_REQUEST_NOT_FOUND"></span>`QUOTE_REQUEST_NOT_FOUND` | No quote request with this id is visible to the caller. | Check the quoteRequestId. | No |
 | <span id="SETTLEMENT_ACCOUNT_NOT_FOUND"></span>`SETTLEMENT_ACCOUNT_NOT_FOUND` | The venue account the delayed-settlement quote names no longer exists in this workspace. | Request a new quote, then place the order on it. | No |
 | <span id="SETTLEMENT_MOVEMENT_NOT_FOUND"></span>`SETTLEMENT_MOVEMENT_NOT_FOUND` | This venue account has no movement, or no window for the windowId filter, with that id. | List the account's movements or windows and use an id from that list. | No |
@@ -514,6 +513,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="VENUE_ACCOUNT_REVOKED"></span>`VENUE_ACCOUNT_REVOKED` | This venue account is disconnected. | Reconnect the venue account before reading its funding instructions. | No |
 | <span id="VENUE_ACCOUNT_UNVERIFIED"></span>`VENUE_ACCOUNT_UNVERIFIED` | The venue account is not verified with the venue. | Verify the venue account, then request a new quote. | No |
 | <span id="VENUE_ACCOUNT_VENUE_UNKNOWN"></span>`VENUE_ACCOUNT_VENUE_UNKNOWN` | The account's venue is not recognised. | Reconnect the account to a supported venue. | No |
+| <span id="VENUE_BALANCE_OBSERVATION_CONTENDED"></span>`VENUE_BALANCE_OBSERVATION_CONTENDED` | Another read of the same venue account's balance was publishing at that moment, so this request could not use a current balance. | Retry the same request shortly, with backoff. | Yes |
 | <span id="VENUE_CONNECTION_CHANGED"></span>`VENUE_CONNECTION_CHANGED` | The account's connection, key or controls changed during the read; no instructions were released. | Read the current account, then request its instructions again. | Yes |
 | <span id="VENUE_CREDIT_HOLD_NOT_RESERVED"></span>`VENUE_CREDIT_HOLD_NOT_RESERVED` | The credit held for this firm price is no longer reserved (used or released); nothing was sent. | Request a new quote, then place the order on it. | No |
 | <span id="VENUE_FIRM_QUOTE_COUNT_UNREADABLE"></span>`VENUE_FIRM_QUOTE_COUNT_UNREADABLE` | The workspace's daily firm-quote count could not be read; the price remains blocked and no new ask is sent. | Try again to read the count before requesting a firm price. | Yes |
@@ -618,6 +618,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="SETTLEMENT_MATCHING_RULE_UNCONFIRMED"></span>`SETTLEMENT_MATCHING_RULE_UNCONFIRMED` | The account's matching rule is not confirmed, so no movement was matched to an obligation. | Confirm the matching rule for this account, then read again. | No |
 | <span id="SETTLEMENT_MOVEMENT_JOURNAL_CONFLICT"></span>`SETTLEMENT_MOVEMENT_JOURNAL_CONFLICT` | Retained movement journal evidence conflicts with its canonical finality events; no payment or continuity was inferred. | Reconcile the named canonical movement evidence before building a new cumulative snapshot. | No |
 | <span id="SETTLEMENT_MOVEMENT_JOURNAL_UNPROVEN"></span>`SETTLEMENT_MOVEMENT_JOURNAL_UNPROVEN` | A retained allocated movement has no durable finality history; no continuity was inferred. | Re-observe the canonical movement to establish finality evidence, then build a new cumulative snapshot. | No |
+| <span id="SETTLEMENT_PLAN_TOO_LARGE"></span>`SETTLEMENT_PLAN_TOO_LARGE` | The horizon holds more settlement windows than one plan answers (512); the plan is never truncated. | Send a shorter horizonDays, then read again. | No |
 | <span id="SETTLEMENT_PREDECESSOR_CHANGED_AFTER_SNAPSHOT"></span>`SETTLEMENT_PREDECESSOR_CHANGED_AFTER_SNAPSHOT` | An earlier settlement window was paid, delivered or changed after this snapshot; no successor obligation was created. | Continue in a newer cumulative settlement window whose snapshot includes the earlier payment, delivery or change; do not retry the unchanged older snapshot. | No |
 | <span id="SETTLEMENT_SCHEDULE_INVALID"></span>`SETTLEMENT_SCHEDULE_INVALID` | The venue account has no confirmed settlement schedule that can produce a window, so nothing was sent. | Confirm the account's settlement schedule, then request a new quote. | No |
 | <span id="SETTLEMENT_SCHEDULE_UNAVAILABLE"></span>`SETTLEMENT_SCHEDULE_UNAVAILABLE` | The account's published settlement schedule cannot be used. | Ask the LP to publish a valid schedule, then read again. | No |
@@ -648,7 +649,8 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 
 | Code | Meaning | What to do | Retryable |
 | :--- | :--- | :--- | :--- |
-| <span id="TREASURY_FROZEN"></span>`TREASURY_FROZEN` | The workspace is frozen, so money movements are refused. | Ask a workspace admin to lift the freeze. | No |
+| <span id="TREASURY_ACCOUNT_FROZEN"></span>`TREASURY_ACCOUNT_FROZEN` | The source account is paused; other workspace accounts remain available. | Ask a workspace admin to resume this account. | No |
+| <span id="TREASURY_FROZEN"></span>`TREASURY_FROZEN` | The workspace's Treasury is paused, so money movements are refused. | Ask a workspace admin to resume Treasury. | No |
 
 ### 428 Precondition required
 
@@ -741,8 +743,10 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="CONVERSION_IDENTITY_UNAVAILABLE"></span>`CONVERSION_IDENTITY_UNAVAILABLE` | The trade's identity could not be recorded; nothing was sent. | Retry the same request shortly, with backoff. | Yes |
 | <span id="COUNTERPARTY_STANDING_UNAVAILABLE"></span>`COUNTERPARTY_STANDING_UNAVAILABLE` | The counterparty's compliance standing could not be recorded or confirmed just now; nothing changed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="CREDENTIAL_CORE_NOT_WIRED"></span>`CREDENTIAL_CORE_NOT_WIRED` | This server process cannot run venue-account operations yet. | Retry the same request shortly, with backoff. | Yes |
-| <span id="CREDIT_READ_UNAVAILABLE"></span>`CREDIT_READ_UNAVAILABLE` | The venue account's credit could not be read fresh enough to check this order; nothing was sent. | Retry the same request shortly, with backoff. | Yes |
+| <span id="CREDIT_READ_UNAVAILABLE"></span>`CREDIT_READ_UNAVAILABLE` | The venue account's credit could not be read fresh enough to check this order; nothing was sent. On a ledger read, details.component names the refusing source: credential (the key or account controls changed), positions, credit, depositInstructions, transferHistory, transferStatus or withdrawal; details.lastGoodReadAt names the last good read when known. The venue account item's ledgerReading carries the same code and component for a changed credential while retaining its last-good value and observedAt. | Retry the same request shortly, with backoff. | Yes |
 | <span id="CREDIT_STORAGE_UNAVAILABLE"></span>`CREDIT_STORAGE_UNAVAILABLE` | Credit storage is unavailable. | Retry the same request shortly, with backoff. | Yes |
+| <span id="DATABASE_STATEMENT_TIMEOUT"></span>`DATABASE_STATEMENT_TIMEOUT` | A database statement ran past its time limit (its request class's, or a narrower one the statement set) and was cancelled; reason names the request's class (critical, interactive or heavy). | Wait for Retry-After, then retry; read the resource first if the request was a write. | Yes |
+| <span id="DATABASE_TRANSACTION_TIMEOUT"></span>`DATABASE_TRANSACTION_TIMEOUT` | A database transaction stayed idle past its request class's time limit and was rolled back; reason names the class. | Wait for Retry-After, then retry; read the resource first if the request was a write. | Yes |
 | <span id="DEFERRED_ACCOUNTING_NOT_CONFIGURED"></span>`DEFERRED_ACCOUNTING_NOT_CONFIGURED` | Deferred accounting is not configured for this route. | Choose another quote; this route cannot be traded until it is configured. | No |
 | <span id="DEFERRED_REHYDRATION_UNAVAILABLE"></span>`DEFERRED_REHYDRATION_UNAVAILABLE` | The deferred order's prepared state could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="DEFERRED_SETTLEMENT_UNAVAILABLE"></span>`DEFERRED_SETTLEMENT_UNAVAILABLE` | Deferred settlement is not available for this liquidity provider right now; nothing was sent. | Retry shortly, or choose another quote. | Yes |
@@ -824,7 +828,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="TRADE_EXPORT_INCOMPLETE"></span>`TRADE_EXPORT_INCOMPLETE` | Some trades could not be read, so no export file was made; the JSON list still answers. | Retry the same request shortly, with backoff. | Yes |
 | <span id="TRADE_PROJECTION_UNAVAILABLE"></span>`TRADE_PROJECTION_UNAVAILABLE` | The requested trade projection is not available on this stack. | Retry the same request shortly, with backoff. | Yes |
 | <span id="TREASURY_DISABLED"></span>`TREASURY_DISABLED` | Trade preparation is not available on this server. | Choose a quote that does not trade on a venue account. | No |
-| <span id="TREASURY_FREEZE_UNAVAILABLE"></span>`TREASURY_FREEZE_UNAVAILABLE` | The workspace's freeze state could not be read. | Retry the same request shortly, with backoff. | Yes |
+| <span id="TREASURY_FREEZE_UNAVAILABLE"></span>`TREASURY_FREEZE_UNAVAILABLE` | Whether the workspace's Treasury is paused could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="USABLE_SET_UNAVAILABLE"></span>`USABLE_SET_UNAVAILABLE` | The wallets this caller may use could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE"></span>`VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE` | Whether a venue account's balances may still be read could not be confirmed; no balances were released. | Retry the same request shortly, with backoff. | Yes |
 | <span id="VENUE_ACCOUNT_SERVICE_TIMEOUT"></span>`VENUE_ACCOUNT_SERVICE_TIMEOUT` | The venue-account funding read timed out. | Retry the same request shortly, with backoff. | Yes |
@@ -843,6 +847,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="VENUE_TEMPORARILY_REFUSED"></span>`VENUE_TEMPORARILY_REFUSED` | The liquidity provider refused this order for now (a timeout or rate limit); the refusal is not final. | Retry the same request shortly, with backoff. | Yes |
 | <span id="VENUE_TRADE_KEY_UNAVAILABLE"></span>`VENUE_TRADE_KEY_UNAVAILABLE` | The API key's venue-trading settings could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="VENUE_UNAVAILABLE"></span>`VENUE_UNAVAILABLE` | The chosen liquidity provider is temporarily unavailable. | Retry shortly, or choose another quote. | Yes |
+| <span id="WALLET_ACCESS_CONCURRENT_CHANGE"></span>`WALLET_ACCESS_CONCURRENT_CHANGE` | Wallet, wallet policy, custody or provider-credential facts in the workspace changed while the answer was built, and the caller's own membership and roles did not; nothing was released. A change to the caller's own principal answers WALLET_ACCESS_CHANGED. | Retry the same request shortly, with backoff. | Yes |
 | <span id="WALLET_DEFAULTS_UNAVAILABLE"></span>`WALLET_DEFAULTS_UNAVAILABLE` | The saved default wallets and accounts could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="WORKFLOW_UNAVAILABLE"></span>`WORKFLOW_UNAVAILABLE` | The workspace's compliance workflow could not be read; the order was not admitted. | Retry the same request shortly, with backoff. | Yes |
 | <span id="WORKSPACE_COMPLIANCE_POLICY_UNAVAILABLE"></span>`WORKSPACE_COMPLIANCE_POLICY_UNAVAILABLE` | The workspace compliance policy could not be confirmed current, so the order was not admitted. | Retry the same request shortly, with backoff. | Yes |
@@ -1118,6 +1123,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 | <span id="quoteReconfirmationRequired"></span>`quoteReconfirmationRequired` | The venue's price changed before it could be confirmed. | Request quotes again. | Yes |
 | <span id="quoteRejected"></span>`quoteRejected` | The venue declined this quote request. | Request quotes again, or choose another venue. | Yes |
 | <span id="quoteRejectedInsufficientBalance"></span>`quoteRejectedInsufficientBalance` | The venue refused the quote because the paying balance is too low. | Fund the paying account or lower the amount, then request quotes again. | No |
+| <span id="rateLimitCapacityExhausted"></span>`rateLimitCapacityExhausted` | TetraFi is pacing requests to this venue account; the venue was not asked. | Wait for details.retryAfter when given, otherwise a few seconds, then request again. | Yes |
+| <span id="ratePacerCapacityExhausted"></span>`ratePacerCapacityExhausted` | TetraFi is pacing requests to this venue account; the venue was not asked. | Wait for details.retryAfter when given, otherwise a few seconds, then request again. | Yes |
 | <span id="receiveWalletNotServed"></span>`receiveWalletNotServed` | The venue cannot pay out to the receive wallet. | Choose another receive wallet. | No |
 | <span id="referenceDepth"></span>`referenceDepth` | The requested size does not fit the reference book's depth or limits. | Choose a smaller size or another venue. | No |
 | <span id="referenceMidUnavailable"></span>`referenceMidUnavailable` | The reference mid could not be read. | Read prices again shortly. | Yes |

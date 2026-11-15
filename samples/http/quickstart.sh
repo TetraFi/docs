@@ -94,9 +94,9 @@ minimum_receive() {
 quote_min_receive() {
   local quote=$1 assets=$2 bps=$3 decimals buy_amount
   decimals=$(jq -er --arg a "$(jq -r '.buy.asset' <<<"$quote")" \
-    --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.items[] | select(.asset == $a)
+    --arg c "$(jq -r '.buy.network // empty' <<<"$quote")" '[.items[] | select(.asset == $a)
       | .variants[] | select(.kind == "native") | .deployments[]
-      | select($c == "" or .chain == $c) | .decimals]
+      | select($c == "" or .network == $c) | .decimals]
       | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets") || return 1
   buy_amount=$(jq -er '.buy.amount | strings' <<<"$quote") || buy_amount=''
   minimum_receive "$buy_amount" "$bps" "$decimals"

@@ -8,10 +8,10 @@
 first=$(quote_request "$(jq -cn --arg amount "$amount" '{kind: "pair", sell: {asset: "USDC"}, buy: {asset: "ETH"},
   sellAmount: $amount}')") || { printf '%s\n' "$first" >&2; exit 1; }
 trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
-  | select(.chain as $c | $chains | index($c))
-  | {key: .chain, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
+  | select(.network as $c | $chains | index($c))
+  | {key: .network, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
   | select(.value != null)] | from_entries' <<<"$first")
-jq -c '{sourceOptions: [.sourceOptions[]? | {kind, chain, candidates: [.candidates[] | {financialAccountId, kind, displayName, isDefault}]}]}' <<<"$first" >&2
+jq -c '{sourceOptions: [.sourceOptions[]? | {kind, network, candidates: [.candidates[] | {financialAccountId, kind, displayName, isDefault}]}]}' <<<"$first" >&2
 ```
 
 ```typescript TypeScript SDK
