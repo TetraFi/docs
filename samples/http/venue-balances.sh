@@ -90,25 +90,28 @@ jq -c '{state, observedAt, expiresAt, balances: (.balances | if . == null then n
 # region venue-deposit-history
 # GET …/deposit-instructions lists the asset and network pairs the account takes deposits on
 # (options); GET …/deposit-history?asset=…&chainRef=… lists the deposits the venue credited on one
-# of them. credits null means the history is unavailable (reason says why), never an empty history.
+# of them. An empty items is a read that found none only when unreachable is empty; otherwise the history
+# was not read and unreachable says why. include=observation returns this read's own window and state.
 instructions=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-instructions")
 read -r asset chain < <(jq -r '(.options // [])[0] | "\(.asset // "") \(.chainRef // "")"' <<<"$instructions")
 if [[ -z $asset ]]; then
   # A venue that declares no deposit network answers options [] and names its assets in
   # unconfirmedNetworkAssets: ask for one of them on a chain GET /api/v1/assets lists for it.
   asset=$(jq -r '.unconfirmedNetworkAssets // [] | if index("USDC") then "USDC" else .[0] // "" end' <<<"$instructions")
-  chain=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.items[] | select(.assetId == $a)
-    | .variants[] | select(.kind == "native") | .deployments[] | .chain) // ""')
+  chain=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.items[] | select(.asset == $a)
+    | .variants[] | select(.kind == "native") | .deployments[] | .network) // ""')
 fi
 [[ -n $asset && -n $chain ]] || fail NO_DEPOSIT_OPTION
-history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&chainRef=$chain")
-jq -c '{asset, chainRef, state, reason, credits: (.credits | if . == null then null else length end)}' <<<"$history" >&2
+history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&chainRef=$chain&include=observation")
+jq -c --arg account "$account" '(.included.observation[$account].value // {}) as $o
+  | {asset: $o.asset, chainRef: $o.chainRef, state: $o.state, since: $o.since, until: $o.until,
+     credits: (.items | length), unreachable: [.unreachable[] | .reason]}' <<<"$history" >&2
 # endregion
 
 jq -e 'has("balances") and has("state") and has("observedAt")' <<<"$balances" >/dev/null || fail BALANCES_SHAPE
 jq -e '(.balances // []) | all(has("asset") and has("total") and has("free"))' <<<"$balances" >/dev/null \
   || fail BALANCE_LINE_SHAPE
-jq -e 'has("credits") and has("state")' <<<"$history" >/dev/null || fail DEPOSIT_HISTORY_SHAPE
+jq -e 'has("items") and has("unreachable")' <<<"$history" >/dev/null || fail DEPOSIT_HISTORY_SHAPE
 
 # A cursor the list did not issue is refused by name, never read as an empty page.
 if foreign=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-enablements?cursor=not-issued-by-this-list" 2>/dev/null); then
@@ -123,4 +126,4 @@ fi
 
 jq -cn --argjson b "$balances" --argjson h "$history" '{state: $b.state,
   assets: (($b.balances // []) | length), unknownAccount: "VENUE_ACCOUNT_NOT_FOUND", foreignCursor: "INVALID_CURSOR",
-  depositHistory: (if $h.credits == null then "unavailable" else ($h.credits | length) end)}'
+  depositHistory: (if ($h.unreachable | length) > 0 then "unavailable" else ($h.items | length) end)}'

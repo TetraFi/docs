@@ -5,6 +5,16 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-11-15" description="Field names for API v2">
+  - **Breaking.** A chain is now `network` (CAIP-2) everywhere: quote sides, asset deployments, `sourceOptions`, a `deliverTo` address and balance rows. Requests still accept `chain`; send `network`.
+  - **Breaking.** `GET /api/v1/assets` names an asset `asset` with its `assetSymbol`, instead of `assetId` and `symbol`.
+  - **Breaking.** Venue deposit history takes `from` (RFC 3339, 1 to 30 days back, default 7) instead of `lookbackDays`, and answers `items` instead of `credits`. Empty `items` means no deposits only when `unreachable` is empty too ([Balances and fees](/trade/balances)).
+  - **Breaking.** A settlement plan is one snapshot and is never paged: `nextCursor` is gone, and a plan of more than 512 windows is refused whole with `422 SETTLEMENT_PLAN_TOO_LARGE` ([Settlement and credit](/trade/settlement-and-credit)).
+  - A webhook endpoint states how many delivery receipts it keeps in `deliveryRetention` ([Webhooks](/trade/webhooks)).
+  - The cURL samples, the Postman collection and the SDK examples use the new names.
+  - **Not live yet.** The reference already shows a few additions that the API does not answer today: `include=registry`, `unreachable` and `included` on `GET /api/v1/assets`, `asset` and `assetSymbol` on an asset's display block, and the codes `DATABASE_STATEMENT_TIMEOUT`, `DATABASE_TRANSACTION_TIMEOUT` and `WALLET_ACCESS_CONCURRENT_CHANGE`. Treat them as optional until an entry here says they are live.
+</Update>
+
 <Update label="2026-11-11" description="Batch reads and a signing-grant fix">
   - `POST /api/v1/batch` reads up to 20 resources in one request. Each item runs as its own `GET` with the same permissions and counts against your rate limit; items carry their own `status`, `etag`, `body` and, when sent, `headers` ([Conventions](/reference/conventions#read-several-resources-at-once)).
   - A source that was not asked because the paying wallet has no signing grant for its venue names the fix `setUpSigningGrant`, with `venueId` and, when known, `walletId`. One of the wallet's owners sets the grant up in the app.

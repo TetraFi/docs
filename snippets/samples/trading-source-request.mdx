@@ -7,8 +7,8 @@
 # gave: two chains move USDC between them, one chain swaps USDC for ETH on it.
 request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | keys) as $chains
   | (if ($chains | length) > 1
-      then {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "USDC", chain: $chains[1]}}
-      else {sell: {asset: "USDC", chain: $chains[0]}, buy: {asset: "ETH", chain: $chains[0]}} end)
+      then {sell: {asset: "USDC", network: $chains[0]}, buy: {asset: "USDC", network: $chains[1]}}
+      else {sell: {asset: "USDC", network: $chains[0]}, buy: {asset: "ETH", network: $chains[0]}} end)
   + {kind: "pair", sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
 ```
 
@@ -18,8 +18,8 @@ request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | ke
 const [from, to] = chains as [string, ...string[]];
 const request: QuoteRequest = {
   ...(to
-    ? { sell: { asset: 'USDC', chain: from }, buy: { asset: 'USDC', chain: to } }
-    : { sell: { asset: 'USDC', chain: from }, buy: { asset: 'ETH', chain: from } }),
+    ? { sell: { asset: 'USDC', network: from }, buy: { asset: 'USDC', network: to } }
+    : { sell: { asset: 'USDC', network: from }, buy: { asset: 'ETH', network: from } }),
   sellAmount: '10',
   source: { tradingWallets: Object.fromEntries(chains.slice(0, 2).map((chain) => [chain, tradingWallets[chain]!])) },
 };

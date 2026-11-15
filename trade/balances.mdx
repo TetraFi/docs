@@ -41,7 +41,7 @@ Your workspace id is the `workspaceId` from `GET /api/v1/me` ([Permissions](/aut
 | `id` | Opaque: never parse or build one. |
 | `accountKind` | `wallet`, `venueAccount` or `bankAccount`; show an unknown kind as it is. |
 | `accountId` | A wallet's `walletId`, or the exchange account's `venueAccountId`. |
-| `asset`, `chain` | The asset and CAIP-2 chain; `chain` is `null` off-chain, such as at an exchange. |
+| `asset`, `network`, `networkRef` | The asset; `network` is the CAIP-2 network, `null` off-chain (such as at an exchange) or when the source does not name exactly one; `networkRef` is the source's own network spelling. |
 | `nativeAssetId` | The asset's id at its source, such as a token contract, if known. |
 | `amount` | Everything held, a decimal string in whole units. |
 | `asOf`, `freshness` | When observed, and `fresh`, `stale` or `partial` (treat an unknown value as `stale`). |
@@ -56,7 +56,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 ```json Response (shortened)
 {
   "items": [
-    { "id": "…", "accountKind": "wallet", "accountId": "…", "asset": "USDC", "chain": "eip155:84532",
+    { "id": "…", "accountKind": "wallet", "accountId": "…", "asset": "USDC", "networkRef": "eip155:84532", "network": "eip155:84532",
       "nativeAssetId": "0x036c…", "amount": "12.200749", "asOf": "2026-11-05T21:40:11Z", "freshness": "fresh" }
   ],
   "nextCursor": null,
@@ -68,7 +68,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
   </Accordion>
   <Accordion title="Balances that are unknown">
-    An account whose balance cannot be stated is listed in `unavailable` on every page: show it as unavailable, not empty. Each entry has `accountKind`, `accountId`, `asset` and `chain` when known, a `reasonCode`, and the `asOf` of the source's last answer.
+    An account whose balance cannot be stated is listed in `unavailable` on every page: show it as unavailable, not empty. Each entry has `accountKind`, `accountId`, `asset` and `networkRef` when known, a `reasonCode`, and the `asOf` of the source's last answer.
 
     `incomplete` means the list may leave accounts out; `reason` `accessSettingsUnavailable` says access settings could not be read. Read again shortly.
 
@@ -79,7 +79,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
   "items": [],
   "nextCursor": null,
   "unavailable": [
-    { "accountKind": "venueAccount", "accountId": "169e142e-…", "asset": null, "chain": null, "reasonCode": "…", "asOf": null }
+    { "accountKind": "venueAccount", "accountId": "169e142e-…", "asset": null, "networkRef": null, "reasonCode": "…", "asOf": null }
   ],
   "incomplete": { "reason": "accessSettingsUnavailable" }
 }
@@ -151,14 +151,14 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 | Read | Answers |
 | --- | --- |
 | `GET …/venue-accounts/{venueAccountId}/deposit-instructions` | The asset and network pairs it takes deposits on, in `options`. |
-| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, over the last `lookbackDays` (1 to 30, 7 by default). Without paging, the whole window, with `since` and `until`. With `limit` (1 to 200), credits page oldest first: follow `nextCursor` until `null`; a cursor keeps its window, and a window of more than 1,000 credits answers none, so read a shorter one. |
+| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, from `from` (RFC 3339, 1 to 30 whole days back, 7 by default) until now. The credits are in `items`, oldest first; without paging, the whole window. With `limit` (1 to 200), follow `nextCursor` until `null`; a cursor keeps its window. Add `include=observation` for this read's own window (`since`, `until`), state and reason in `included.observation[venueAccountId].value`. |
 
-In the history, `credits: null` means it could not be read; `[]` is truly empty. Over 1,000 venue records answers no credits with `reasonCode` `DEPOSIT_HISTORY_WINDOW_TOO_LARGE`: read a shorter window.
+Empty `items` is truly empty only when `unreachable` is empty too; otherwise the history was not read, and its one `unreachable` entry names why in `reason`. A window of more than 1,000 venue records is not read (`DEPOSIT_HISTORY_WINDOW_TOO_LARGE`): read a shorter window.
 
 <VenueDepositHistory />
 
 ```json Output on test networks
-{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","reason":"Terminal credits reported by this venue account in the displayed window. Refresh balances separately before requesting a fresh RFQ.","credits":0}
+{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","since":"…","until":"…","credits":0,"unreachable":[]}
 ```
 
   </Accordion>

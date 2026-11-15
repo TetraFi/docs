@@ -8,10 +8,10 @@
 first=$(quote_request "$(jq -cn --arg amount "$amount" '{kind: "pair", sell: {asset: "USDC"}, buy: {asset: "ETH"},
   sellAmount: $amount}')") || { printf '%s\n' "$first" >&2; exit 1; }
 trading_wallets=$(jq -c --argjson chains "$usdc_chains" '[.sourceOptions[]? | select(.kind == "wallet")
-  | select(.chain as $c | $chains | index($c))
-  | {key: .chain, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
+  | select(.network as $c | $chains | index($c))
+  | {key: .network, value: (first((.candidates[] | select(.isDefault)), .candidates[]) | .financialAccountId)}
   | select(.value != null)] | from_entries' <<<"$first")
-jq -c '{sourceOptions: [.sourceOptions[]? | {kind, chain, candidates: [.candidates[] | {financialAccountId, kind, displayName, isDefault}]}]}' <<<"$first" >&2
+jq -c '{sourceOptions: [.sourceOptions[]? | {kind, network, candidates: [.candidates[] | {financialAccountId, kind, displayName, isDefault}]}]}' <<<"$first" >&2
 ```
 
 ```typescript TypeScript SDK
@@ -21,9 +21,9 @@ jq -c '{sourceOptions: [.sourceOptions[]? | {kind, chain, candidates: [.candidat
 const walletsIn = (set: QuoteSet): Record<string, string> => {
   const found: Record<string, string> = {};
   for (const option of set.sourceOptions ?? []) {
-    if (option.kind !== 'wallet' || !('chain' in option) || typeof option.chain !== 'string' || !usdcChains.has(option.chain)) continue;
+    if (option.kind !== 'wallet' || !('network' in option) || typeof option.network !== 'string' || !usdcChains.has(option.network)) continue;
     const chosen = option.candidates.find((candidate) => candidate.isDefault) ?? option.candidates[0];
-    if (chosen) found[option.chain] = chosen.financialAccountId;
+    if (chosen) found[option.network] = chosen.financialAccountId;
   }
   return found;
 };
@@ -33,7 +33,7 @@ const home = Object.keys(tradingWallets).sort()[0];
 for (const other of [...usdcChains].sort()) {
   if (!home || other === home || Object.keys(tradingWallets).length >= 2) break;
   await pause();
-  const both = walletsIn(await client.quote({ sell: { asset: 'USDC', chain: home }, buy: { asset: 'USDC', chain: other }, sellAmount: '10' }));
+  const both = walletsIn(await client.quote({ sell: { asset: 'USDC', network: home }, buy: { asset: 'USDC', network: other }, sellAmount: '10' }));
   if (both[home] && both[other]) tradingWallets = { [home]: both[home], [other]: both[other] };
 }
 const chains = Object.keys(tradingWallets).sort((a, b) => (a === home ? -1 : b === home ? 1 : a.localeCompare(b)));

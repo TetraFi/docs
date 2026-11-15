@@ -133,12 +133,12 @@ cross_amount=${TETRAFI_CROSS_AMOUNT:-1}
 # the chains it is deployed on (CAIP-2) and the off-chain venues that hold it.
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .asset == $a)' <<<"$assets" >/dev/null; then
     jq -nc --arg a "$asset" '{error: "ASSET_NOT_LISTED", asset: $a}' >&2
     exit 1
   fi
 done
-chains_of() { jq -c --arg a "$1" '[.items[] | select(.assetId == $a) | .variants[].deployments[].chain] | unique' <<<"$assets"; }
+chains_of() { jq -c --arg a "$1" '[.items[] | select(.asset == $a) | .variants[].deployments[].network] | unique' <<<"$assets"; }
 sell_chains=$(chains_of "$sell")
 shared_chains=$(jq -c --argjson r "$(chains_of "$buy")" 'map(select(. as $c | $r | index($c)))' <<<"$sell_chains")
 
@@ -174,7 +174,7 @@ outcome buyExact "$buy_exact"
 # region search-single-chain
 # Pin both sides to one chain and keep only quotes that execute on it.
 # The chain comes from discovery: one both assets are deployed on, preferring one a venue just quoted.
-chain=$(jq -r '[.quotes[] | select(.location.kind == "singleChain") | .sell.chain][0] // empty' <<<"$sell_exact")
+chain=$(jq -r '[.quotes[] | select(.location.kind == "singleChain") | .sell.network][0] // empty' <<<"$sell_exact")
 if [[ -z $chain ]]; then chain=$(jq -r '.[0] // empty' <<<"$shared_chains"); fi
 if [[ -z $chain ]]; then
   jq -nc --arg p "$sell" --arg r "$buy" '{error: "NO_SHARED_CHAIN", sell: $p, buy: $r}' >&2
@@ -182,8 +182,8 @@ if [[ -z $chain ]]; then
 fi
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" --arg chain "$chain" '{
   kind: "pair",
-  sell: {asset: $sell, chain: $chain},
-  buy: {asset: $buy, chain: $chain},
+  sell: {asset: $sell, network: $chain},
+  buy: {asset: $buy, network: $chain},
   sellAmount: $amount,
   filters: {locations: ["singleChain"]}
 }')
@@ -204,8 +204,8 @@ if [[ -z $to_chain ]]; then
 fi
 request=$(jq -nc --arg asset "$sell" --arg amount "$cross_amount" --arg from "$from_chain" --arg to "$to_chain" '{
   kind: "pair",
-  sell: {asset: $asset, chain: $from},
-  buy: {asset: $asset, chain: $to},
+  sell: {asset: $asset, network: $from},
+  buy: {asset: $asset, network: $to},
   sellAmount: $amount,
   filters: {locations: ["crossChain"]}
 }')

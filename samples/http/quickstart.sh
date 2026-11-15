@@ -94,9 +94,9 @@ minimum_receive() {
 quote_min_receive() {
   local quote=$1 assets=$2 bps=$3 decimals buy_amount
   decimals=$(jq -er --arg a "$(jq -r '.buy.asset' <<<"$quote")" \
-    --arg c "$(jq -r '.buy.chain // empty' <<<"$quote")" '[.items[] | select(.assetId == $a)
+    --arg c "$(jq -r '.buy.network // empty' <<<"$quote")" '[.items[] | select(.asset == $a)
       | .variants[] | select(.kind == "native") | .deployments[]
-      | select($c == "" or .chain == $c) | .decimals]
+      | select($c == "" or .network == $c) | .decimals]
       | if length > 0 then min else error("RECEIVE_ASSET_DECIMALS_MISSING") end' <<<"$assets") || return 1
   buy_amount=$(jq -er '.buy.amount | strings' <<<"$quote") || buy_amount=''
   minimum_receive "$buy_amount" "$bps" "$decimals"
@@ -212,7 +212,7 @@ amount=${TETRAFI_AMOUNT:-10}
 # region quickstart-assets
 assets=$(tetrafi GET /api/v1/assets)
 for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.items[]; .assetId == $a)' <<<"$assets" >/dev/null; then
+  if ! jq -e --arg a "$asset" 'any(.items[]; .asset == $a)' <<<"$assets" >/dev/null; then
     echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
     exit 1
   fi
