@@ -127,7 +127,7 @@ Other paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`. E
 | --- | --- |
 | Test | `201` with a delivery record; your endpoint receives `webhook.test`. The `201` is not your receiver's acknowledgement: check `success`, `statusCode` and `errorMessage`. |
 | Rotate the secret | `200` with the new `secret`; a replay of the same key returns `secret: null`. For 24 hours, deliveries carry both secrets' signatures, so either verifies while you deploy. |
-| List deliveries | `items`, `totalCount`, `nextCursor` and `retention`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. |
+| List deliveries | `items`, `totalCount` and `nextCursor`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. How many receipts are kept is the endpoint's own `deliveryRetention` (`GET …/webhooks/{webhookId}`). |
 | Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Your receiver gets the event again; it keeps its body `id`, so [deduplicate](#set-up-an-endpoint) as for any delivery. A retry with the same `Idempotency-Key` and body returns the first redelivery instead of sending another. |
 | Resume | Reactivates a paused endpoint. Then redeliver what it missed. |
 
@@ -140,7 +140,7 @@ An unacknowledged delivery is retried after 5 seconds, 30 seconds, 10 minutes, 1
 
 <AccordionGroup>
   <Accordion title="The delivery log and redelivery codes">
-    The delivery log is bounded (see `retention`), never a complete history, and does not survive a TetraFi server restart; nothing replays every event since a time. When a delivery is gone, read the order's current state.
+    The delivery log is bounded (see the endpoint's `deliveryRetention`: `capacity` receipts, and `scope` says whether they survive a TetraFi server restart), never a complete history; nothing replays every event since a time. When a delivery is gone, read the order's current state.
 
 | Code | Meaning |
 | --- | --- |
