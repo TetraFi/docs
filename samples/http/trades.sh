@@ -64,11 +64,11 @@ fail() { echo "{\"error\":\"$1\"}" >&2; exit 1; }
 workspace=$TETRAFI_WORKSPACE_ID
 # GET /api/v1/workspaces/{workspaceId}/trades lists the workspace's trades, newest first. Every row
 # has tradeId, kind (order or venueTrade) and projection. Filter with kind, status, from and to;
-# follow nextCursor until it is null. coverage lists kinds whose rows could not be read: the page
-# is then partial, not shorter.
+# follow nextCursor until it is null. unreachable lists each kind the page could not hold: rows that
+# could not be read (the page is partial, not shorter), or a kind a filter or sort left out.
 since=$(date -u -v-30d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
 page=$(tetrafi GET "/api/v1/workspaces/$workspace/trades?limit=5&from=$since")
-jq -c '{total, nextCursor: (.nextCursor != null), coverage, excludedKinds}' <<<"$page" >&2
+jq -c '{totalCount, nextCursor: (.nextCursor != null), unreachable}' <<<"$page" >&2
 jq -c '.items[:3][] | {tradeId, kind, projection, createdAt}' <<<"$page" >&2
 cursor=$(jq -r '.nextCursor // empty' <<<"$page")
 if [[ -n $cursor ]]; then
@@ -101,4 +101,4 @@ if [[ -n ${trade:-} ]]; then
   jq -e '[paths | .[-1] | select(. == "compliance" or . == "snapshotCompliance" or . == "complianceProofs"
     or . == "travelRuleTransmission" or . == "intent")] | length == 0' <<<"$trade" >/dev/null || fail TRADE_DETAIL_WITHHELD_FIELD
 fi
-jq -c '{total, rows: (.items | length), kinds: ([.items[].kind] | unique), more: (.nextCursor != null), partial: ((.coverage // []) | length > 0)}' <<<"$page"
+jq -c '{totalCount, rows: (.items | length), kinds: ([.items[].kind] | unique), more: (.nextCursor != null), partial: ((.unreachable // []) | length > 0)}' <<<"$page"

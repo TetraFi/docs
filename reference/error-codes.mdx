@@ -15,11 +15,11 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 | :--- | :--- | :--- |
 | [400 Bad request](#400-bad-request) | 137 | The request is malformed or a value is out of range. |
 | [401 Unauthorized](#401-unauthorized) | 1 | The credential or its signature was not accepted. |
-| [403 Forbidden](#403-forbidden) | 90 | The credential lacks a permission, scope or grant, or the workspace cannot do this yet. |
+| [403 Forbidden](#403-forbidden) | 92 | The credential lacks a permission, scope or grant, or the workspace cannot do this yet. |
 | [404 Not found](#404-not-found) | 23 | The resource does not exist or is not visible to this credential. |
 | [405 Method not allowed](#405-method-not-allowed) | 1 | The method is not supported on this path. |
 | [408 Request timeout](#408-request-timeout) | 1 | The request timed out on the server. |
-| [409 Conflict](#409-conflict) | 227 | The resource is in a state that does not allow this, or a replay does not match. |
+| [409 Conflict](#409-conflict) | 228 | The resource is in a state that does not allow this, or a replay does not match. |
 | [410 Gone](#410-gone) | 4 | The resource or quote no longer exists. |
 | [412 Precondition failed](#412-precondition-failed) | 1 | The `If-Match` revision is stale. |
 | [413 Payload too large](#413-payload-too-large) | 3 | The request body is too large. |
@@ -31,7 +31,7 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 | [500 Internal error](#500-internal-error) | 10 | TetraFi failed while handling the request. |
 | [501 Not implemented](#501-not-implemented) | 1 | The operation is not available. |
 | [502 Bad gateway](#502-bad-gateway) | 7 | A venue or provider failed. |
-| [503 Unavailable](#503-unavailable) | 137 | A dependency is temporarily unavailable. |
+| [503 Unavailable](#503-unavailable) | 139 | A dependency is temporarily unavailable. |
 | [504 Gateway timeout](#504-gateway-timeout) | 3 | A venue or provider did not answer in time. |
 | [Stream events](#stream-events) | 1 | Sent on a stream, not as an HTTP response. |
 
@@ -227,6 +227,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="MFA_REQUIRED"></span>`MFA_REQUIRED` | This action needs a session that completed its second factor. | Complete the second factor, then retry. | No |
 | <span id="MFA_REQUIRED_BY_WORKSPACE_POLICY"></span>`MFA_REQUIRED_BY_WORKSPACE_POLICY` | The workspace's MFA policy requires this signed-in member to verify a second factor, and the grace period has ended. | Enrol and verify MFA in the TetraFi app, then sign in again. | No |
 | <span id="MFA_STALE"></span>`MFA_STALE` | Trading needs a second factor confirmed within the last 12 hours; nothing was placed. | Confirm the second factor again, then retry. | No |
+| <span id="NOT_SHOWN_TO_YOU"></span>`NOT_SHOWN_TO_YOU` | The included entry belongs to a Run your access does not show in detail, so it was not read. | Ask a workspace admin for access to the Run's accounts. | No |
 | <span id="OBSERVATION_AUTHORITY_REQUIRED"></span>`OBSERVATION_AUTHORITY_REQUIRED` | The caller lacks current authority to read this. | Use a credential with read access to this resource. | No |
 | <span id="ONCHAIN_WALLET_NOT_USABLE"></span>`ONCHAIN_WALLET_NOT_USABLE` | This quote is indicative because the API key cannot use the organisation wallet. | Grant the key an organisation wallet before ordering, then request fresh quotes. | No |
 | <span id="ORDER_HELD_FOR_REVIEW"></span>`ORDER_HELD_FOR_REVIEW` | The order is held for compliance review; a source transaction may already be confirmed. | Read the order and wait for the review outcome; do not place it or send its source again. | No |
@@ -271,6 +272,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="WALLET_COMPLIANCE_REVOKED"></span>`WALLET_COMPLIANCE_REVOKED` | A wallet on this quote had its on-chain compliance revoked. | Use another wallet. | No |
 | <span id="WALLET_LINKED_TO_DIFFERENT_ACCOUNT"></span>`WALLET_LINKED_TO_DIFFERENT_ACCOUNT` | The signing wallet is linked to a different account. | Sign with a wallet linked to this account. | No |
 | <span id="WALLET_LINK_REQUIRED"></span>`WALLET_LINK_REQUIRED` | The signing wallet must be linked and verified first. | Link and verify the wallet, then place the order. | No |
+| <span id="WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE"></span>`WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` | The credential may not see the amounts of every Automation in the workspace, so it cannot subscribe to automation events; nothing was saved. | Subscribe with a member or service account that can read the activity of every account the workspace's Automations use, or leave out the treasury.automation events. | No |
 | <span id="WEBHOOK_PRINCIPAL_UNRESOLVED"></span>`WEBHOOK_PRINCIPAL_UNRESOLVED` | This credential cannot be recorded as the webhook's accountable principal. | Register the webhook with a member session, a member's API key or a service account of this workspace. | No |
 | <span id="WORKSPACE_ACCESS_REQUIRED"></span>`WORKSPACE_ACCESS_REQUIRED` | The credential's principal is no longer a current member of the workspace. | Use a credential whose principal is a current workspace member. | No |
 | <span id="WORKSPACE_CONTEXT_MISMATCH"></span>`WORKSPACE_CONTEXT_MISMATCH` | The credential is bound to another workspace than the one in the path. | Call the workspace the credential belongs to. | No |
@@ -396,6 +398,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="GRANT_ENDS_BEFORE_VENUE_FUNDING"></span>`GRANT_ENDS_BEFORE_VENUE_FUNDING` | The wallet's signing grant expires before the venue's funding window; no trade acceptance or funds were sent. | Renew the wallet's StableFX signing grant for at least 2 days, longer than the venue's 24-hour funding window plus its safety margin. | No |
 | <span id="HELD_QUOTE_SOURCE_UNRESOLVED"></span>`HELD_QUOTE_SOURCE_UNRESOLVED` | The held quote's trading source or exact venue account can no longer be resolved; nothing was sent. | Request a new quote, then place the order on it. | No |
 | <span id="IDEMPOTENCY_CONFLICT"></span>`IDEMPOTENCY_CONFLICT` | This Idempotency-Key was already used with a different request body. | Use a new Idempotency-Key for a different request. | No |
+| <span id="IDEMPOTENCY_OUTCOME_UNKNOWN"></span>`IDEMPOTENCY_OUTCOME_UNKNOWN` | The earlier request with this Idempotency-Key may or may not have taken effect; retrying the key cannot tell. | Stop retrying this key. Read the resource back (details.readTarget names the read where the operation has one) and send a new Idempotency-Key only once that read shows nothing happened. | No |
 | <span id="IDEMPOTENT_SECRET_ALREADY_SHOWN"></span>`IDEMPOTENT_SECRET_ALREADY_SHOWN` | This Idempotency-Key already created the resource named by details.resourceId; its secret was shown once and is not stored. | Use the secret from the first answer, or rotate or reissue the resource named by details.resourceId. | No |
 | <span id="LEDGER_NOT_OBSERVED"></span>`LEDGER_NOT_OBSERVED` | No ledger read is recorded for this venue account yet; an API key or OAuth client reads only recorded observations and never starts a venue read. | A workspace member opens the venue account in the TetraFi app, which records a read; then read again. | No |
 | <span id="LEDGER_SETUP_MISSING"></span>`LEDGER_SETUP_MISSING` | The venue account has no current key, or its connection needs setup, so its ledger cannot be read. | A member with manage_credentials adds or verifies the account's key, then reads its ledger again. | No |
@@ -585,7 +588,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 
 | Code | Meaning | What to do | Retryable |
 | :--- | :--- | :--- | :--- |
-| <span id="ASSET_ISSUER_EXCLUDED"></span>`ASSET_ISSUER_EXCLUDED` | An Asset in the request is issued by an asset issuer the workspace excluded in its counterparty management; details.issuerId names the issuer and details.assetId the Asset. | Include the issuer again in counterparty management, or quote another Asset. | No |
+| <span id="ASSET_ISSUER_EXCLUDED"></span>`ASSET_ISSUER_EXCLUDED` | An Asset in the request is issued by an asset issuer the workspace excluded in its counterparty management; details.issuerId names the issuer and details.asset the Asset. | Include the issuer again in counterparty management, or quote another Asset. | No |
 | <span id="AUTO_WITHDRAW_ROUTE_UNAVAILABLE"></span>`AUTO_WITHDRAW_ROUTE_UNAVAILABLE` | Automatic withdrawal has no route for this order. | Turn off automatic withdrawal for this order, or choose another settlement wallet. | No |
 | <span id="CORRIDOR_NOT_SUPPORTED"></span>`CORRIDOR_NOT_SUPPORTED` | No settlement path is live on both ends of this chain pair. | Choose a different chain pair or quote. | No |
 | <span id="COUNTERPARTY_ROUTER_UNAVAILABLE"></span>`COUNTERPARTY_ROUTER_UNAVAILABLE` | The counterparty's settlement contract is not available on this chain pair. | Choose another quote. | No |
@@ -745,8 +748,8 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="CREDENTIAL_CORE_NOT_WIRED"></span>`CREDENTIAL_CORE_NOT_WIRED` | This server process cannot run venue-account operations yet. | Retry the same request shortly, with backoff. | Yes |
 | <span id="CREDIT_READ_UNAVAILABLE"></span>`CREDIT_READ_UNAVAILABLE` | The venue account's credit could not be read fresh enough to check this order; nothing was sent. On a ledger read, details.component names the refusing source: credential (the key or account controls changed), positions, credit, depositInstructions, transferHistory, transferStatus or withdrawal; details.lastGoodReadAt names the last good read when known. The venue account item's ledgerReading carries the same code and component for a changed credential while retaining its last-good value and observedAt. | Retry the same request shortly, with backoff. | Yes |
 | <span id="CREDIT_STORAGE_UNAVAILABLE"></span>`CREDIT_STORAGE_UNAVAILABLE` | Credit storage is unavailable. | Retry the same request shortly, with backoff. | Yes |
-| <span id="DATABASE_STATEMENT_TIMEOUT"></span>`DATABASE_STATEMENT_TIMEOUT` | A database statement ran past its time limit (its request class's, or a narrower one the statement set) and was cancelled; reason names the request's class (critical, interactive or heavy). | Wait for Retry-After, then retry; read the resource first if the request was a write. | Yes |
-| <span id="DATABASE_TRANSACTION_TIMEOUT"></span>`DATABASE_TRANSACTION_TIMEOUT` | A database transaction stayed idle past its request class's time limit and was rolled back; reason names the class. | Wait for Retry-After, then retry; read the resource first if the request was a write. | Yes |
+| <span id="DATABASE_STATEMENT_TIMEOUT"></span>`DATABASE_STATEMENT_TIMEOUT` | A database statement ran past its time limit (its request class's, or a narrower one the statement set) and was cancelled; reason names the class of the connection it ran on (critical, signin, interactive or heavy). | Wait for Retry-After, then retry; read the resource first if the request was a write. | Yes |
+| <span id="DATABASE_TRANSACTION_TIMEOUT"></span>`DATABASE_TRANSACTION_TIMEOUT` | A database transaction stayed idle past its request class's time limit and was rolled back; reason names the class of the connection it ran on (critical, signin, interactive or heavy). | Wait for Retry-After, then retry; read the resource first if the request was a write. | Yes |
 | <span id="DEFERRED_ACCOUNTING_NOT_CONFIGURED"></span>`DEFERRED_ACCOUNTING_NOT_CONFIGURED` | Deferred accounting is not configured for this route. | Choose another quote; this route cannot be traded until it is configured. | No |
 | <span id="DEFERRED_REHYDRATION_UNAVAILABLE"></span>`DEFERRED_REHYDRATION_UNAVAILABLE` | The deferred order's prepared state could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="DEFERRED_SETTLEMENT_UNAVAILABLE"></span>`DEFERRED_SETTLEMENT_UNAVAILABLE` | Deferred settlement is not available for this liquidity provider right now; nothing was sent. | Retry shortly, or choose another quote. | Yes |
@@ -790,6 +793,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="RELAY_RECHECK_UNAVAILABLE"></span>`RELAY_RECHECK_UNAVAILABLE` | The pre-send re-check could not be recorded; nothing was relayed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="RELEASE_GRANT_UNAVAILABLE"></span>`RELEASE_GRANT_UNAVAILABLE` | The approval to release this trade could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="RFQ_ADMISSION_UNAVAILABLE"></span>`RFQ_ADMISSION_UNAVAILABLE` | The quote's admission state could not be read. | Retry the same request shortly, with backoff. | Yes |
+| <span id="RUN_DISCLOSURE_UNREADABLE"></span>`RUN_DISCLOSURE_UNREADABLE` | Whether your access shows the Run in detail could not be read, so its included entry was not read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SCREENING_UNAVAILABLE"></span>`SCREENING_UNAVAILABLE` | The screening provider is unavailable. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SELF_DEALING_CHECK_UNAVAILABLE"></span>`SELF_DEALING_CHECK_UNAVAILABLE` | Whether the quote's provider is the workspace's own liquidity could not be read, so the self-dealing check could not run; nothing was placed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SERVER_CLOCK_UNAVAILABLE"></span>`SERVER_CLOCK_UNAVAILABLE` | The server clock could not be read; nothing was admitted or sent. | Retry the same request shortly, with backoff. | Yes |
@@ -849,6 +853,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="VENUE_UNAVAILABLE"></span>`VENUE_UNAVAILABLE` | The chosen liquidity provider is temporarily unavailable. | Retry shortly, or choose another quote. | Yes |
 | <span id="WALLET_ACCESS_CONCURRENT_CHANGE"></span>`WALLET_ACCESS_CONCURRENT_CHANGE` | Wallet, wallet policy, custody or provider-credential facts in the workspace changed while the answer was built, and the caller's own membership and roles did not; nothing was released. A change to the caller's own principal answers WALLET_ACCESS_CHANGED. | Retry the same request shortly, with backoff. | Yes |
 | <span id="WALLET_DEFAULTS_UNAVAILABLE"></span>`WALLET_DEFAULTS_UNAVAILABLE` | The saved default wallets and accounts could not be read. | Retry the same request shortly, with backoff. | Yes |
+| <span id="WEBHOOK_AUTOMATION_AMOUNTS_UNAVAILABLE"></span>`WEBHOOK_AUTOMATION_AMOUNTS_UNAVAILABLE` | Whether the credential may see Automation amounts could not be read, so automation events were not subscribed; nothing was saved. | Retry the same request shortly, with backoff. | Yes |
 | <span id="WORKFLOW_UNAVAILABLE"></span>`WORKFLOW_UNAVAILABLE` | The workspace's compliance workflow could not be read; the order was not admitted. | Retry the same request shortly, with backoff. | Yes |
 | <span id="WORKSPACE_COMPLIANCE_POLICY_UNAVAILABLE"></span>`WORKSPACE_COMPLIANCE_POLICY_UNAVAILABLE` | The workspace compliance policy could not be confirmed current, so the order was not admitted. | Retry the same request shortly, with backoff. | Yes |
 | <span id="WORKSPACE_POLICY_UNAVAILABLE"></span>`WORKSPACE_POLICY_UNAVAILABLE` | The workspace's trading policy could not be read. | Retry the same request shortly, with backoff. | Yes |
@@ -1219,6 +1224,7 @@ A source reason says why one venue did not quote; the request as a whole still s
 | <span id="venueJurisdictionExcluded"></span>`venueJurisdictionExcluded` | The LP excludes an applicable incorporation, nationality or address jurisdiction; it was not asked. | Choose an LP that serves the entity's recorded jurisdictions. | No |
 | <span id="venueKeyRefusedLikelyIpAllowlist"></span>`venueKeyRefusedLikelyIpAllowlist` | The venue refused this key; TetraFi's egress IPs may not be allowlisted. | Allowlist TetraFi's current egress IPs on this key at the venue, check its permissions, then retry. | No |
 | <span id="venueListingTimedOut"></span>`venueListingTimedOut` | The workspace's venue list could not be read in time. | Request quotes again. | Yes |
+| <span id="venueMaintenance"></span>`venueMaintenance` | The venue answered that it is in scheduled maintenance, so it gave no price. | Request prices again once the venue's maintenance ends. | Yes |
 | <span id="venueNotConnected"></span>`venueNotConnected` | The venue's account is not connected for this workspace. | Connect the venue account. | No |
 | <span id="venueNotEnabled"></span>`venueNotEnabled` | The venue is not enabled on the selected trading source's venue account; `fix` names who can enable it. | A credentials manager enables the venue, then request quotes again. | No |
 | <span id="venueNotEnabledForWorkspace"></span>`venueNotEnabledForWorkspace` | The venue is not enabled for this workspace. | Enable the venue for the workspace. | No |
@@ -1237,7 +1243,7 @@ A source reason says why one venue did not quote; the request as a whole still s
 | <span id="venueTradeKeyUnavailable"></span>`venueTradeKeyUnavailable` | The API key's venue-trading settings could not be read. | Request quotes again shortly. | Yes |
 | <span id="venueTradeScopeRequired"></span>`venueTradeScopeRequired` | The API key can read indicative prices but cannot order without venue-trading authority. | Re-issue the key with two-factor authentication, venue trading on and HMAC signing. | No |
 | <span id="venueTradeUnreadable"></span>`venueTradeUnreadable` | The venue's trade terms could not be read. | Request quotes again. | No |
-| <span id="venueTradingPaused"></span>`venueTradingPaused` | Trading on this venue account is paused. | Resume trading on the venue account, then request quotes again. | No |
+| <span id="venueTradingPaused"></span>`venueTradingPaused` | Trading on this venue account is paused, in TetraFi or by the venue, so it gave no price. | Resume trading on the venue account in TetraFi, or contact the venue if it paused it; then request quotes again. | No |
 | <span id="venueUnavailable"></span>`venueUnavailable` | The venue could not price this request right now. | Request quotes again shortly. | Yes |
 | <span id="venueWithdrawalDestinationNotWhitelisted"></span>`venueWithdrawalDestinationNotWhitelisted` | The venue refused a withdrawal destination that is not whitelisted. | Whitelist this destination address at the venue, then retry the withdrawal. | No |
 | <span id="walletBlacklisted"></span>`walletBlacklisted` | The protocol or provider has blacklisted this wallet. | Choose another wallet. | No |

@@ -111,7 +111,7 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 | Rule | Detail |
 | --- | --- |
-| Item answer | Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers` (`Deprecation`, `Sunset`, `Link`, `Retry-After`, `Cache-Control`). |
+| Item answer | Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers` (`Retry-After`, `Cache-Control`). |
 | Limits | Item bodies total at most 8 MiB (past it an item answers `413 BATCH_RESPONSE_TOO_LARGE`), and at most 200 reads with related reads (past it `429 SUB_REQUEST_BUDGET_EXHAUSTED`). |
 | Refused as a whole | A malformed batch, more than 20 items, a non-`GET` item, an unknown operation, or a stream, export or file read. `details.itemId` names the item. |
 
@@ -119,20 +119,6 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 ## Versioning
 
-The API is versioned in its path, `/api/v1`. After launch, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes.
-
-A removal is announced in the changelog at least 6 months ahead. Until it happens, every answer of the affected operation, successes and refusals alike, carries three headers.
-
-<Accordion title="Deprecation headers">
-
-| Header | Meaning |
-| --- | --- |
-| `Deprecation` | When the operation was deprecated: `@` and Unix seconds, such as `@1735689600` ([RFC 9745](https://www.rfc-editor.org/rfc/rfc9745)). |
-| `Sunset` | When it stops working, as an HTTP date such as `Tue, 01 Jul 2025 00:00:00 GMT` ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)). |
-| `Link` | The notice that says what to move to, marked `rel="deprecation"`. |
-
-</Accordion>
-
-No operation is deprecated today, so no answer carries them yet; log any answer that does. Before launch, a change can still remove or rename something.
+The API is versioned in its path, `/api/v1`. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something; each one is listed in the [Changelog](/changelog) with what to change. From launch on, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes.
 
 See the full [Compatibility](/compatibility) policy and the [Changelog](/changelog).

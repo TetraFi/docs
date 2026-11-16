@@ -53,10 +53,19 @@ export function declaredReasons(json) {
 
 // Other reason enums the public spec declares, such as a list's incomplete reason, are reasons too.
 // Only schemas named for a reason count, so a status or kind enum never declares one.
+// An open reason set has no enum; its schema's or `reason` property's description names each fixed value in
+// backticks, such as `accessSettingsUnavailable`, and those count too.
 export function specReasonEnums(spec) {
   const reasons = new Set();
+  const named = (description) => {
+    for (const m of String(description ?? '').matchAll(/`([a-z][a-zA-Z0-9]+)`/g)) reasons.add(m[1]);
+  };
   for (const [name, schema] of Object.entries(spec?.components?.schemas ?? {})) {
-    if (name.endsWith('Reason') && Array.isArray(schema?.enum)) schema.enum.forEach((value) => reasons.add(value));
+    if (name.endsWith('Reason')) {
+      if (Array.isArray(schema?.enum)) schema.enum.forEach((value) => reasons.add(value));
+      named(schema?.description);
+    }
+    named(schema?.properties?.reason?.description);
   }
   return reasons;
 }

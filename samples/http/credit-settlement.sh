@@ -146,7 +146,7 @@ if [[ -n ${TETRAFI_TRADE_ID:-} ]]; then
 fi
 # endregion
 
-jq -e 'has("items") and has("readAt")' <<<"$windows" >/dev/null || fail WINDOWS_PAGE_SHAPE
+jq -e 'has("items") and has("nextCursor")' <<<"$windows" >/dev/null || fail WINDOWS_PAGE_SHAPE
 jq -e 'has("complete") and has("failedReads")' <<<"$plan" >/dev/null || fail PLAN_SHAPE
 jq -e 'has("items") and has("unreachable")' <<<"$movements" >/dev/null || fail MOVEMENTS_SHAPE
 jq -c --arg account "$account" '{venueAccount: $account, windows: (.items | length), more: (.nextCursor != null)}' <<<"$windows"

@@ -137,6 +137,7 @@ A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` does not prov
     - Generate a new random value per order, such as 32 hexadecimal characters: exactly one value, 1 to 255 bytes, with no surrounding spaces (otherwise `400 IDEMPOTENCY_KEY_INVALID`).
     - Store the key and the exact body with your record of the order before you send it, so a retry after a crash can reuse both.
     - Keys are scoped to your workspace and the endpoint. Cancelling an order takes its own key the same way.
+    - With a key, the request finishes on TetraFi even if your connection drops, and a replay with the same key gets its stored answer.
   </Accordion>
   <Accordion title="Replay: same key, same body">
     The same body with the same key returns the first answer, with the header `Idempotent-Replayed: true`, and places nothing else.
@@ -158,6 +159,7 @@ A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` does not prov
 | --- | --- | --- |
 | No answer (timeout, dropped connection) | The order may or may not have been placed. | Send the same body with the same key. |
 | `409 ORDER_IN_PROGRESS` | An order with this key is still being placed. | Wait `Retry-After`, then read the order. |
+| `409 IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this key may or may not have placed an order, and retrying the key can never tell. It has no `Retry-After`. | Stop sending this key. [Recover by quote](#recover-an-order-by-its-quote) (`details.readTarget` names the read). |
 | `503 IDEMPOTENCY_UNAVAILABLE`, `QUOTE_STORE_UNAVAILABLE` | The key or the held quote could not be read just now. | Send the same body and key after a second. |
 | `403 IDEMPOTENCY_AUTHORITY_REQUIRED` | A replay, but the key no longer holds the permission the first order needed. | Restore the permission, then replay. |
 | `409 QUOTE_ALREADY_ORDERED` | Another order, sent with a different key, already used this quote. It is not a failure. | Recover by quote. |
@@ -192,7 +194,7 @@ It says what a quote produced, never places anything, and works after the quote 
 | `state` | What it means | What to do |
 | --- | --- | --- |
 | `ordered` | An order exists. | Follow its `statusUrl` until `terminal` ([Order status](/trade/order-status)). Do not order again. |
-| `notOrdered` | No order was placed with this quote. | If `expired` is `false`, order it with the saved body and key. If `true`, requote or search again. |
+| `notOrdered` | No order was placed with this quote. | If `expired` is `false`, order it with the saved body and key, or with a new key if that key answered `IDEMPOTENCY_OUTCOME_UNKNOWN`. If `true`, requote or search again. |
 | `unknown` | TetraFi cannot yet prove either way. | Wait and read again. Do not order. |
 
 An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND`. A failed read answers `503 QUOTE_ORDER_UNAVAILABLE`: retry the read, never the order.
