@@ -101,4 +101,4 @@ if [[ -n ${trade:-} ]]; then
   jq -e '[paths | .[-1] | select(. == "compliance" or . == "snapshotCompliance" or . == "complianceProofs"
     or . == "travelRuleTransmission" or . == "intent")] | length == 0' <<<"$trade" >/dev/null || fail TRADE_DETAIL_WITHHELD_FIELD
 fi
-jq -c '{total, rows: (.items | length), kinds: ([.items[].kind] | unique), more: (.nextCursor != null), partial: ((.coverage // []) | length > 0)}' <<<"$page"
+jq -c '{totalCount, rows: (.items | length), kinds: ([.items[].kind] | unique), more: (.nextCursor != null), partial: ((.unreachable // []) | length > 0)}' <<<"$page"

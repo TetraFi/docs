@@ -5,7 +5,16 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
-<Update label="2026-11-16" description="Slippage limits on orders, and price levels">
+<Update label="2026-11-16" description="One name per field, slippage limits, and uncertain retries">
+  - **Breaking: one name per field.** Every field that had an older twin now has only its new name:
+    - `asset` replaces `currency` and `assetId` everywhere, including credit amounts and terms, ledger and bank reads, quote funding instructions and a quote card's pay-from source, and refusal `details`; `assetSymbol` replaces `symbol`.
+    - Order legs name chains `sourceNetwork` and `destNetwork`; each order transaction names its chain `network`, or `networkUnsupported` (the raw chain id) for a chain TetraFi does not list, instead of `chainId`.
+    - `GET /api/v1/assets` reports a partial list in `unreachable` (no `eligibility`), and its registry snapshot needs `include=registry`.
+    - The trade list answers `totalCount` (no `total`, `limit` or `scope`), and what it could not hold in `unreachable` (no `coverage`, `excludedKinds` or `latestTradeAt`).
+    - `GET /api/v1/orders` no longer sends `scanLimitReached`: follow `nextCursor` until it is `null`.
+    - Settlement window matches answer `items` (no `matches` or `readAt`), and a window page has no `readAt`.
+    - Requests that took `currency` take `asset` and refuse `currency` with `400`.
+  - No answer carries `Deprecation`, `Sunset` or a `rel="deprecation"` `Link` header any more.
   - **Breaking for wide `minReceive`.** On an exchange or OTC venue quote, `POST /api/v1/orders` checks a `minReceive` against the receive amount the quote showed. Further below than your workspace's maximum slippage is refused with `403 WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED`; more than 10% below is refused with `422 HIGH_SLIPPAGE_ACK_REQUIRED` unless the body sends the new `acknowledgeHighSlippage: true`. Nothing is sent on either refusal, and an order without `minReceive` is unchanged ([Slippage limits](/trade/orders#slippage-limits)).
   - A price row with `levels` names how to read them in `ladderSemantics`: `incremental` or `allIn` ([Prices](/search/prices)).
   - A ledger position can carry `prefundedOnly: true`: the venue lets the account hold that asset only long ([Settlement and credit](/trade/settlement-and-credit#credit-and-the-ledger)).

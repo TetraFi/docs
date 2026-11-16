@@ -43,3 +43,15 @@ test('reason enums the public spec declares count, and only schemas named for a 
   assert.ok(!reasons.has('settled'));
   assert.equal(specReasonEnums({}).size, 0);
 });
+
+// Catches an open reason set (no enum) whose fixed values are named only in a description.
+test('backticked values in a reason description count; other descriptions do not', () => {
+  const spec = { components: { schemas: {
+    WorkspaceBalanceUnreachable: { properties: { reason: { description: 'The refusal code; `accessSettingsUnavailable` for `accessSettings`.' } } },
+    OrderView: { description: 'Read `settled` orders.', properties: { status: { description: '`filled` or `unfilled`.' } } },
+  } } };
+  const reasons = specReasonEnums(spec);
+  assert.ok(reasons.has('accessSettingsUnavailable'));
+  assert.ok(!reasons.has('settled'));
+  assert.ok(!reasons.has('filled'));
+});
