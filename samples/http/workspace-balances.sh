@@ -82,16 +82,14 @@ jq -c '.items[:3][] | {accountKind, accountId, asset, amount}' <<<"$filtered" >&
 # endregion
 
 # region balances-unavailable
-# An account whose balance cannot be read is listed in unavailable with its reasonCode, on every
-# page. It is never shown as a zero row: show it as "unavailable". incomplete, when present, means
-# the workspace's access settings could not be read, so the list may leave accounts out.
-jq -c '.unavailable[:3][] | {accountKind, accountId, asset, reasonCode}' <<<"$page" >&2
-incomplete=$(jq -r '.incomplete.reason // empty' <<<"$page")
-[[ -n $incomplete ]] && echo "{\"incomplete\":\"$incomplete\"}" >&2
+# An account whose balance cannot be read is listed in unreachable with its source and reason. It
+# is never shown as a zero row: show it as "unavailable". A source of accessSettings means the
+# workspace's access settings could not be read, so the list may leave accounts out.
+jq -c '.unreachable[:3][] | {source, reason, accountKind, accountId, asset}' <<<"$page" >&2
 # endregion
 
 # The contract this script checks.
-jq -e 'has("items") and has("nextCursor") and (.unavailable | type == "array")' <<<"$page" >/dev/null \
+jq -e 'has("items") and has("nextCursor") and ((.unreachable // []) | type == "array")' <<<"$page" >/dev/null \
   || fail BALANCES_SHAPE_UNEXPECTED
 jq -e 'all(.[]; (.amount | type == "string" and test("^[0-9]+(\\.[0-9]+)?$")) and (.asOf | type == "string"))' \
   <<<"$rows" >/dev/null || fail BALANCE_AMOUNT_NOT_DECIMAL_STRING
@@ -102,4 +100,4 @@ jq -e --arg kind "$kind" 'all(.items[]; .accountKind == $kind)' <<<"$filtered" >
 jq -nc --argjson rows "$rows" --argjson page "$page" --argjson pages "$pages" --arg kind "$kind" \
   --argjson kindRows "$(jq '.items | length' <<<"$filtered")" \
   '{rows: ($rows | length), pages: $pages, kinds: ($rows | map(.accountKind) | unique), kind: $kind, kindRows: $kindRows,
-    unavailable: ($page.unavailable | length), incomplete: ($page.incomplete.reason // null)}'
+    unreachable: (($page.unreachable // []) | length)}'

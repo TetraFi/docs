@@ -30,7 +30,7 @@ Your workspace id is the `workspaceId` from `GET /api/v1/me` ([Permissions](/aut
 
 ## Every balance in one list
 
-`GET …/balances` reads TetraFi's last observation and never asks a chain or venue. Filter with `asset`, `accountKind` and `accountId`; an account that cannot be stated is listed in `unavailable`, never as a zero row.
+`GET …/balances` reads TetraFi's last observation and never asks a chain or venue. Filter with `asset`, `accountKind` and `accountId`; an account that cannot be stated is listed in `unreachable`, never as a zero row.
 
 <AccordionGroup>
   <Accordion title="Fields and paging">
@@ -60,7 +60,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
       "nativeAssetId": "0x036c…", "amount": "12.200749", "asOf": "2026-11-05T21:40:11Z", "freshness": "fresh" }
   ],
   "nextCursor": null,
-  "unavailable": []
+  "unreachable": []
 }
 ```
 
@@ -68,9 +68,9 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
   </Accordion>
   <Accordion title="Balances that are unknown">
-    An account whose balance cannot be stated is listed in `unavailable` on every page: show it as unavailable, not empty. Each entry has `accountKind`, `accountId`, `asset` and `networkRef` when known, a `reasonCode`, and the `asOf` of the source's last answer.
+    An account whose balance cannot be stated is listed in `unreachable` on every page: show it as unavailable, not empty. Each entry has a `source` (`wallets/…`, `venueAccounts/…` or `bankAccounts/…`) and a `reason`, with `accountKind`, `accountId`, `asset` and `networkRef` when known, and the `readAt` of the source's last answer.
 
-    `incomplete` means the list may leave accounts out; `reason` `accessSettingsUnavailable` says access settings could not be read. Read again shortly.
+    An entry with `source` `accessSettings` (`reason` `accessSettingsUnavailable`) means access settings could not be read, so the list may leave accounts out. Read again shortly.
 
 <BalancesUnavailable />
 
@@ -78,10 +78,10 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 {
   "items": [],
   "nextCursor": null,
-  "unavailable": [
-    { "accountKind": "venueAccount", "accountId": "169e142e-…", "asset": null, "networkRef": null, "reasonCode": "…", "asOf": null }
-  ],
-  "incomplete": { "reason": "accessSettingsUnavailable" }
+  "unreachable": [
+    { "source": "venueAccounts/169e142e-…", "reason": "…", "accountKind": "venueAccount", "accountId": "169e142e-…" },
+    { "source": "accessSettings", "reason": "accessSettingsUnavailable" }
+  ]
 }
 ```
 
@@ -110,7 +110,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
 <VenueAccountsList />
 
-```json Output on test networks
+```json Example output
 {"accountId":"8a31ab17-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
 {"accountId":"7e873d0e-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
 {"accountId":"169e142e-…","venueId":"keyrock","label":"Keyrock account","lifecycle":"configured","venueKind":"accountBased"}
@@ -141,7 +141,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
 <VenueBalances />
 
-```json Output on test networks expandable
+```json Example output expandable
 {"state":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","usdValue":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","usdValue":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","usdValue":null}]}
 ```
 
@@ -157,8 +157,8 @@ Empty `items` is truly empty only when `unreachable` is empty too; otherwise the
 
 <VenueDepositHistory />
 
-```json Output on test networks
-{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","since":"…","until":"…","credits":0,"unreachable":[]}
+```json Example output
+{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","since":"…","until":"…","deposits":0,"unreachable":[]}
 ```
 
   </Accordion>

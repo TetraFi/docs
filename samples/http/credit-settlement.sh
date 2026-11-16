@@ -74,7 +74,7 @@ accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-enablements?limit=50
 for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); do
   credit=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-accounts/$id/credit")
   jq -c '{venueAccountId, line: (.observation | if .state == "reported"
-      then {limit, used, available, overrun, currency, observedAt} else {state, code: .error} end),
+      then {limit, used, available, overrun, asset, observedAt} else {state, code: .error} end),
     facility: .facility.state, positions: (.positions | if .state == "observed"
       then [.value[] | {asset, netPosition}] else {state} end), readAt}' <<<"$credit" >&2
 done
@@ -130,10 +130,10 @@ fi
 # endregion
 
 # region settlement-movements
-# Deposits and withdrawals as TetraFi recorded them. observationState and lastSuccessfulReadAt say how
-# current the page is; unavailable with a reasonCode is not "no movements".
-movements=$(tetrafi GET "$base/settlement/movements?limit=20")
-jq -c '{observationState, reasonCode, lastSuccessfulReadAt, count: (.movements | length)}' <<<"$movements" >&2
+# Deposits and withdrawals as TetraFi recorded them. include=observation says how current the page is
+# (observationState, lastSuccessfulReadAt); an unreachable entry (source lpHistory) is not "no movements".
+movements=$(tetrafi GET "$base/settlement/movements?limit=20&include=observation")
+jq -c '{observation: ([.included.observation // {} | .[].value][0]), unreachable, count: (.items | length)}' <<<"$movements" >&2
 # endregion
 
 # region trade-settlement
@@ -148,5 +148,5 @@ fi
 
 jq -e 'has("items") and has("readAt")' <<<"$windows" >/dev/null || fail WINDOWS_PAGE_SHAPE
 jq -e 'has("complete") and has("failedReads")' <<<"$plan" >/dev/null || fail PLAN_SHAPE
-jq -e 'has("observationState")' <<<"$movements" >/dev/null || fail MOVEMENTS_SHAPE
+jq -e 'has("items") and has("unreachable")' <<<"$movements" >/dev/null || fail MOVEMENTS_SHAPE
 jq -c --arg account "$account" '{venueAccount: $account, windows: (.items | length), more: (.nextCursor != null)}' <<<"$windows"

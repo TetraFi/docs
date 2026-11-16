@@ -63,6 +63,7 @@ Read every venue's current price for a pair from prices TetraFi already holds, w
         }
       ],
       "levels": [{ "size": "11621", "price": "0.00043025557" }],
+      "ladderSemantics": "incremental",
       "spreadFromMidBps": { "kind": "unavailable", "reason": "comparisonCostsUnavailable" }
     },
     {
@@ -89,7 +90,8 @@ There is one row per venue, location and variant pair, sorted like quotes, with 
 | `sizes[]` | One entry per size you asked for: `sell`, `buy` (after included fees; `null` when nothing could be priced), `netReceived`, `filled` (`full`, `partial` or `none`) and `fees`. |
 | `basis` | `levels` (the venue's published levels) or `model`. |
 | `observedAt`, `staleAfter` | When the price was seen, and when it is old. |
-| `levels` | The venue's own price levels, in sell units, where it publishes them. |
+| `levels` | The venue's own price levels, in sell units, where it publishes them. Read them as `ladderSemantics` says. |
+| `ladderSemantics` | Present whenever `levels` is. `incremental`: levels add up, and a size walks them best first; each level is `size` more sell units at `price`. `allIn`: each level prices exactly its own total `size`, and a size takes the smallest level at or above it. |
 | `spreadFromMidBps` | The spread from the reference mid at the first size, or `unavailable` with a reason, never 0. |
 | `referenceMid` | The pair's reference price. `null` when it could not be read, with the reason in `referenceMidUnavailable`. |
 | `computedAt` | When this snapshot was built; it is reused for about a second. |

@@ -105,7 +105,7 @@ fi
 history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&chainRef=$chain&include=observation")
 jq -c --arg account "$account" '(.included.observation[$account].value // {}) as $o
   | {asset: $o.asset, chainRef: $o.chainRef, state: $o.state, since: $o.since, until: $o.until,
-     credits: (.items | length), unreachable: [.unreachable[] | .reason]}' <<<"$history" >&2
+     deposits: (.items | length), unreachable: [.unreachable[] | .reason]}' <<<"$history" >&2
 # endregion
 
 jq -e 'has("balances") and has("state") and has("observedAt")' <<<"$balances" >/dev/null || fail BALANCES_SHAPE

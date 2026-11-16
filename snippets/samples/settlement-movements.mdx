@@ -3,19 +3,19 @@
 <CodeGroup>
 
 ```bash cURL
-# Deposits and withdrawals as TetraFi recorded them. observationState and lastSuccessfulReadAt say how
-# current the page is; unavailable with a reasonCode is not "no movements".
-movements=$(tetrafi GET "$base/settlement/movements?limit=20")
-jq -c '{observationState, reasonCode, lastSuccessfulReadAt, count: (.movements | length)}' <<<"$movements" >&2
+# Deposits and withdrawals as TetraFi recorded them. include=observation says how current the page is
+# (observationState, lastSuccessfulReadAt); an unreachable entry (source lpHistory) is not "no movements".
+movements=$(tetrafi GET "$base/settlement/movements?limit=20&include=observation")
+jq -c '{observation: ([.included.observation // {} | .[].value][0]), unreachable, count: (.items | length)}' <<<"$movements" >&2
 ```
 
 ```typescript TypeScript SDK
-// Deposits and withdrawals as TetraFi recorded them. `observationState` and `lastSuccessfulReadAt` say how
-// current the page is; `unavailable` with a `reasonCode` is not "no movements".
-const movements = await readOrRefusal(() => client.listSettlementMovements(accountId, { limit: 20 }));
+// Deposits and withdrawals as TetraFi recorded them. `include=observation` says how current the page is
+// (`observationState`, `lastSuccessfulReadAt`); an `unreachable` entry (source `lpHistory`) is not "no movements".
+const movements = await readOrRefusal(() => client.listSettlementMovements(accountId, { limit: 20, include: 'observation' }));
 const movementSummary = isRefused(movements) ? movements : {
-  observationState: movements.observationState, reasonCode: movements.reasonCode ?? null,
-  lastSuccessfulReadAt: movements.lastSuccessfulReadAt ?? null, count: movements.movements.length };
+  observation: movements.included?.observation?.[accountId]?.value ?? null,
+  unreachable: movements.unreachable, count: movements.items.length };
 ```
 
 </CodeGroup>
