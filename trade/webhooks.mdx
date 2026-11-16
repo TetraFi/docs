@@ -130,6 +130,8 @@ Other paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`. E
 | List deliveries | `items`, `totalCount` and `nextCursor`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. How many receipts are kept is the endpoint's own `deliveryRetention` (`GET …/webhooks/{webhookId}`). |
 | Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Your receiver gets the event again; it keeps its body `id`, so [deduplicate](#set-up-an-endpoint) as for any delivery. A retry with the same `Idempotency-Key` and body returns the first redelivery instead of sending another. |
 | Resume | Reactivates a paused endpoint. Then redeliver what it missed. |
+| Create or update with automation events | Refused with `403 WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` when the credential may not see the amounts of every automation in the workspace, or `503 WEBHOOK_AUTOMATION_AMOUNTS_UNAVAILABLE` when that could not be read; nothing is saved. Subscribe with a member or service account that can read every account the automations use, or leave the automation events out; retry a `503` shortly. |
+| Get | The endpoint, with its `deliveryRetention`. An endpoint subscribed to automation events also carries `automationAmounts`: its `status` is `included`, `withheld` (some deliveries carry `amountVisibility` instead of amounts, because the endpoint's owner may not see them) or `unavailable`, with a `reason` when not included. Read a status you do not know as `withheld`. |
 
   </Accordion>
 </AccordionGroup>

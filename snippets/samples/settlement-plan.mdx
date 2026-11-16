@@ -13,11 +13,11 @@ jq -c '{state, complete, accounts: (.accountSummaries | length), windows: (.wind
 
 ```typescript TypeScript SDK
 // What is due across every venue account. `complete: false` lists in `failedReads` what could not be read:
-// the plan is partial then, not "nothing due".
+// the plan is partial then, not "nothing due". The plan is one whole snapshot (no pages).
 const plan = await readOrRefusal(() => client.getSettlementPlan({ horizonDays: 30 }));
 const planSummary = isRefused(plan) ? plan : {
   state: plan.state, complete: plan.complete, accounts: plan.accountSummaries.length, windows: plan.windows.length,
-  failedReads: plan.failedReads.map((refusal) => refusal.error), more: plan.nextCursor != null,
+  failedReads: plan.failedReads.map((refusal) => refusal.error),
 };
 ```
 

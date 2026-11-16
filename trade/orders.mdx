@@ -51,6 +51,7 @@ You need a quote whose `next.kind` is `order`, and an account or wallet that hol
     | --- | --- | --- |
     | `quoteId` | Yes | The quote id (`q_…`). |
     | `minReceive` | When the quote's `minReceiveRequired` is `true` | The least you accept to receive, in units of the asset you buy, such as `"4.99"`. |
+    | `acknowledgeHighSlippage` | When your `minReceive` is more than 10% below the quote's receive amount | `true`, to confirm you accept that much slippage ([Slippage limits](#slippage-limits)). |
 
     Each quote can be ordered once.
 
@@ -109,6 +110,19 @@ Send `minReceive` when the quote reads `minReceiveRequired: true`; otherwise it 
 | `minReceiveRequired: true` | Required. The trade happens only if the venue delivers at least that. | Missing: `400 MIN_RECEIVE_REQUIRED`, and nothing is sent. |
 | Any other Basic quote | Optional: your own floor. | The venue's held firm price already delivers less: `409 VENUE_QUOTE_OUTSIDE_BOUNDS`. |
 
+  </Accordion>
+</AccordionGroup>
+
+### Slippage limits
+
+On an exchange or OTC venue quote, a `minReceive` is checked against the receive amount the quote showed before anything is sent. Without a `minReceive`, nothing is checked.
+
+<AccordionGroup>
+  <Accordion title="Your workspace's maximum, and the 10% acknowledgement">
+    - **Workspace maximum.** When your workspace sets a maximum slippage (Trading defaults in the app), a `minReceive` further below the quote than that maximum is refused with `403 WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED`, whatever else the body says. Raise `minReceive`, or ask an admin to change the maximum.
+    - **More than 10% below.** A `minReceive` more than 10% below the quote's receive amount is refused with `422 HIGH_SLIPPAGE_ACK_REQUIRED` unless the body also sends `"acknowledgeHighSlippage": true`. Send it only when a person has accepted that slippage.
+
+    On either refusal nothing is sent, and the quote can still be ordered. On-chain venue quotes are not checked this way.
   </Accordion>
 </AccordionGroup>
 
@@ -231,7 +245,7 @@ Never retry with a new key, change the body, or treat `unknown` or a failed read
   <Accordion title="Example: cancel an order">
     <OrderCancel />
 
-    ```json Output on test networks
+    ```json Example output
     {"error":"ORDER_NOT_CANCELLABLE","status":"unfilled"}
     ```
   </Accordion>
@@ -251,6 +265,8 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 | `SIGNATURE_NOT_ACCEPTED` | 400 | A `signature` was sent on a quote that takes none. | Leave it out. |
 | `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | 400 | `minReceive` is missing on a quote that needs it, or is not a positive amount. | Send it as a positive decimal string. |
 | `ADVANCED_MODE_DISABLED` | 403 | The quote is Advanced, which is not open yet. | Order a Basic quote. |
+| `WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | 403 | `minReceive` is further below the quote than your workspace's maximum slippage. | Raise `minReceive` ([Slippage limits](#slippage-limits)). |
+| `HIGH_SLIPPAGE_ACK_REQUIRED` | 422 | `minReceive` is more than 10% below the quote, without `acknowledgeHighSlippage`. | Raise `minReceive`, or send `acknowledgeHighSlippage: true` ([Slippage limits](#slippage-limits)). |
 | `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you. | Check the id. |
 | `QUOTE_NOT_EXECUTABLE`, `QUOTE_NOT_HELD` | 409 | The quote is a price for comparison, or is no longer held. `next` is `requote`. | [Requote it](/search/firmness-and-lifetime#requote-a-quote). |
 | `VENUE_QUOTE_SEND_WINDOW_CLOSED` | 409 | The venue's firm price reached its send deadline before the order could be sent, so it was not sent. | Request a new quote and order it. |
