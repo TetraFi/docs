@@ -11,7 +11,7 @@ accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-enablements?limit=50
 for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); do
   credit=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-accounts/$id/credit")
   jq -c '{venueAccountId, line: (.observation | if .state == "reported"
-      then {limit, used, available, overrun, currency, observedAt} else {state, code: .error} end),
+      then {limit, used, available, overrun, asset, observedAt} else {state, code: .error} end),
     facility: .facility.state, positions: (.positions | if .state == "observed"
       then [.value[] | {asset, netPosition}] else {state} end), readAt}' <<<"$credit" >&2
 done
@@ -29,7 +29,7 @@ function creditSummary(credit: VenueAccountCredit): Record<string, unknown> {
   const observation = credit.observation;
   const line = 'limit' in observation
     ? { limit: observation.limit, used: observation.used, available: observation.available,
-        overrun: observation.overrun, currency: observation.currency ?? null, observedAt: observation.observedAt }
+        overrun: observation.overrun, asset: observation.asset ?? null, observedAt: observation.observedAt }
     : { state: observation.state, code: 'error' in observation ? observation.error : null };
   const positions = credit.positions.state === 'observed'
     ? (credit.positions as ObservedPositions).value.map((position) => ({ asset: position.asset, netPosition: position.netPosition }))
