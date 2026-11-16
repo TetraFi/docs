@@ -103,7 +103,7 @@ The page also carries `total` (rows matching your filters), `limit` and `nextCur
 <TradesList />
 
 ```json Example output
-{"total":628,"nextCursor":true,"coverage":null,"excludedKinds":null}
+{"totalCount":628,"nextCursor":true,"unreachable":[]}
 {"tradeId":"9410e38e-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-02T01:36:46.856947Z"}
 {"tradeId":"3ba8fe03…","kind":"order","projection":"workspace","createdAt":"2026-11-01T23:51:28Z"}
 {"tradeId":"de0a1b4b-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-01T22:55:48.448012Z"}
@@ -112,8 +112,13 @@ The page also carries `total` (rows matching your filters), `limit` and `nextCur
 
   </Accordion>
   <Accordion title="The page is partial">
-    - `coverage` lists each kind whose rows could not be read, with its `state`. The page is partial, not shorter: read again later; the missing rows are not absent.
-    - `excludedKinds` lists each kind a filter or sort left out, with the `filter` it could not apply. Drop that filter to see it.
+    `unreachable` lists what the page could not hold, one entry per `source` (a trade kind such as `order` or `venueTrade`, or `workspaceTrades`):
+
+    - reason `unavailable`: that kind's rows could not be read. The page is partial, not shorter: read again later; the missing rows are not absent.
+    - reason `filterNotApplicable`: a filter or sort left that kind out; `filter` names it. Drop that filter to see it.
+    - reason `permissionRequired` (source `workspaceTrades`): you were served only your own trades.
+
+    New sources and reasons can appear: treat one you do not know as "the page is partial".
   </Accordion>
 </AccordionGroup>
 

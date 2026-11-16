@@ -383,7 +383,6 @@ Never hardcode asset ids, chains or venue lists: take them from `GET /api/v1/ass
 
 ```json
 {
-  "eligibility": { "complete": true },
   "items": [
     {
       "asset": "USDC",
@@ -398,13 +397,14 @@ Never hardcode asset ids, chains or venue lists: take them from `GET /api/v1/ass
         }
       ]
     }
-  ]
+  ],
+  "unreachable": []
 }
 ```
 
 - Send `asset` (the exact registry id; `assetSymbol` is display only) as `sell.asset` and `buy.asset`, and a deployment's `network` to pin a side.
 - `offChainVenues` lists the venue accounts that hold that variant.
-- When `eligibility.complete` is `false`, `reason` says which part of the list could not be read.
+- When `unreachable` is not empty, the list is partial: its entry (source `venueEligibility`) names in `reason` which part could not be read. Read again shortly.
 - Take venue ids from `sources[].venue.id`.
 
 </Accordion>
