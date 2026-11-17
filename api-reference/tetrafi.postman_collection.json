@@ -1681,8 +1681,8 @@
               "description": "Asset the credits moved."
             },
             {
-              "key": "chainRef",
-              "value": "<chainRef>",
+              "key": "network",
+              "value": "<network>",
               "disabled": false,
               "description": "CAIP-2 network the credits moved on."
             },
@@ -1766,16 +1766,16 @@
               "description": ""
             },
             {
-              "key": "chainRef",
-              "value": "<chainRef>",
+              "key": "network",
+              "value": "<network>",
               "disabled": true,
-              "description": ""
+              "description": "The CAIP-2 network to deposit `asset` on."
             },
             {
               "key": "currency",
               "value": "<currency>",
               "disabled": true,
-              "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `chainRef`."
+              "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `network`."
             },
             {
               "key": "providerBankId",
@@ -1787,7 +1787,7 @@
               "key": "payInLegId",
               "value": "<payInLegId>",
               "disabled": true,
-              "description": "One of the venue account's open pay-in legs (a summary pay-in window's `legId`):\nthe read selects that leg's currency and, for a dedicated fiat venue, the paying\nbank its deposit declaration recorded. Only on the venue-account read, and never\nwith `asset`, `chainRef`, `currency` or `providerBankId`."
+              "description": "One of the venue account's open pay-in legs (a summary pay-in window's `legId`):\nthe read selects that leg's currency and, for a dedicated fiat venue, the paying\nbank its deposit declaration recorded. Only on the venue-account read, and never\nwith `asset`, `network`, `currency` or `providerBankId`."
             }
           ],
           "variable": [
@@ -2110,7 +2110,7 @@
       "response": []
     },
     {
-      "name": "Get account schedules",
+      "name": "Get schedule selection",
       "request": {
         "method": "GET",
         "header": [
@@ -2125,7 +2125,55 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read a venue account's settlement schedules\n\nThe LP's published settlement schedules for this account, the one in effect with its minimum settlement, and the next window. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "Read a venue account's settlement schedule selection\n\nThe schedule in effect on this account (`activeSelection`, `effectiveSchedule` with its minimum settlement, and `termSources`), a change waiting on the LP (`pendingSelection`), the next window (`nextWindow`, and `nextWindowRolledFrom` when the calendar moved it), the selection's `revision` that a schedule request is sent against, and whether the caller may change it (`permissions`). Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/schedule-selection",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-accounts",
+            ":venueAccountId",
+            "settlement",
+            "schedule-selection"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace id"
+            },
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "description": "The venue account's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List account schedules",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "List a venue account's settlement schedules\n\nThe LP's published settlement schedules for this account, ordered by schedule id then version; the version the account has selected stays listed after a newer one is published. `limit` (1 to 100, default 20) and `cursor` page it; `nextCursor` is null on the last page. The schedule in effect, its terms, a pending change and the next window are the account's schedule selection (`GET …/settlement/schedule-selection`). Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/schedules",
           "host": [
@@ -2140,6 +2188,20 @@
             ":venueAccountId",
             "settlement",
             "schedules"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size from 1 to 100, default 20; anything else is 400 `INVALID_LIMIT`."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The previous page's `nextCursor`."
+            }
           ],
           "variable": [
             {
@@ -2263,7 +2325,7 @@
               "key": "include",
               "value": "<include>",
               "disabled": true,
-              "description": "Related reads to expand into `included`, comma-separated, each keyed by the GET it read (path and query) with that GET's own answer to this caller or null with its refusal. `terms`: the account's settlement terms. `schedules`: the account's settlement schedules. `obligations`: the window's obligations (`obligations?windowId=`). `nudges`: the window's latest nudge (`nudges?limit=1`). `payments`: its first 100 payments. `matches`: its first page of matches. `statements`: its statement versions. `messages`: its first 100 messages. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not available on a signed API-key request (400 `INCLUDE_SIGNED_REQUEST_UNSUPPORTED`)."
+              "description": "Related reads to expand into `included`, comma-separated, each keyed by the GET it read (path and query) with that GET's own answer to this caller or null with its refusal. `terms`: the account's settlement terms. `schedules`: the account's first 100 settlement schedules (`schedules?limit=100`). `scheduleSelection`: the account's schedule selection. `obligations`: the window's obligations (`obligations?windowId=`). `nudges`: the window's latest nudge (`nudges?limit=1`). `payments`: its first 100 payments. `matches`: its first page of matches. `statements`: its statement versions. `messages`: its first 100 messages. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not available on a signed API-key request (400 `INCLUDE_SIGNED_REQUEST_UNSUPPORTED`)."
             }
           ],
           "variable": [

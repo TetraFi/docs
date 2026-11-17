@@ -451,7 +451,7 @@
         "type": "object"
       },
       "AssetDisplay": {
-        "description": "`AssetDisplay` as it is sent.",
+        "description": "`AssetDisplay` as it is sent and read.",
         "properties": {
           "address": {
             "type": [
@@ -467,20 +467,6 @@
             "description": "Display-only label; never an identity.",
             "type": "string"
           },
-          "chainId": {
-            "format": "int64",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "chainRef": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "decimals": {
             "format": "int32",
             "minimum": 0,
@@ -490,6 +476,13 @@
             ]
           },
           "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "network": {
+            "description": "The asset's network as a CAIP-2 id; null when unknown.",
             "type": [
               "string",
               "null"
@@ -3896,9 +3889,6 @@
               "asset": {
                 "type": "string"
               },
-              "chainRef": {
-                "type": "string"
-              },
               "expiresAt": {
                 "format": "date-time",
                 "type": "string"
@@ -3917,11 +3907,15 @@
                   "null"
                 ]
               },
+              "network": {
+                "description": "The CAIP-2 network of this address.",
+                "type": "string"
+              },
               "networkCode": {
                 "type": "string"
               },
               "networkConfirmed": {
-                "description": "False when the venue reports no network for this address: `networkCode`\nis empty and `chainRef` is the caller's selection, which the customer\nmust confirm with the venue before sending.",
+                "description": "False when the venue reports no network for this address: `networkCode`\nis empty and `network` is the caller's selection, which the customer\nmust confirm with the venue before sending.",
                 "type": "boolean"
               },
               "observedAt": {
@@ -3934,7 +3928,7 @@
             },
             "required": [
               "asset",
-              "chainRef",
+              "network",
               "networkCode",
               "networkConfirmed",
               "address",
@@ -4485,19 +4479,13 @@
         "x-extensible-enum": true
       },
       "FundsTargetView": {
-        "description": "A wallet or destination available for paying or receiving funds.\n`address` and `label` are `null` where absent; `chains` is `[]` for a bank destination.",
+        "description": "A wallet or destination available for paying or receiving funds.\n`address` and `label` are `null` where absent; `networks` is `[]` for a bank destination.",
         "properties": {
           "address": {
             "type": [
               "string",
               "null"
             ]
-          },
-          "chains": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
           },
           "destinationKind": {
             "oneOf": [
@@ -4523,6 +4511,13 @@
               "null"
             ]
           },
+          "networks": {
+            "description": "The CAIP-2 networks the target holds funds on.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "ownership": {
             "$ref": "#/components/schemas/FundsTargetOwnership"
           }
@@ -4532,7 +4527,7 @@
           "id",
           "ownership",
           "address",
-          "chains",
+          "networks",
           "label"
         ],
         "type": "object"
@@ -11623,204 +11618,385 @@
         "x-extensible-enum": true
       },
       "ProviderProduct": {
-        "description": "Executable product surface behind a provider capability.",
+        "description": "The product a route leg runs, on the wire: one object discriminated by `kind`, carrying only\nthat kind's own fields (`{\"kind\":\"cctpBridge\"}`,\n`{\"kind\":\"fiatVenue\",\"venueId\":\"valr-orderbook\",\"direction\":\"payout\"}`). New kinds may be\nadded; treat an unknown `kind` as another product.\n\nNew values may be added; treat unknown values as other.",
+        "discriminator": {
+          "mapping": {
+            "acrossBridge": "#/components/schemas/ProviderProduct/oneOf/8",
+            "arcStableFx": "#/components/schemas/ProviderProduct/oneOf/10",
+            "cctpBridge": "#/components/schemas/ProviderProduct/oneOf/7",
+            "cexDeposit": "#/components/schemas/ProviderProduct/oneOf/15",
+            "cexPayout": "#/components/schemas/ProviderProduct/oneOf/17",
+            "cexTrade": "#/components/schemas/ProviderProduct/oneOf/16",
+            "circleCpnPayout": "#/components/schemas/ProviderProduct/oneOf/2",
+            "circleMintDeposit": "#/components/schemas/ProviderProduct/oneOf/3",
+            "circleMintExchange": "#/components/schemas/ProviderProduct/oneOf/5",
+            "circleMintWithdrawal": "#/components/schemas/ProviderProduct/oneOf/4",
+            "dexSwap": "#/components/schemas/ProviderProduct/oneOf/11",
+            "fiatVenue": "#/components/schemas/ProviderProduct/oneOf/14",
+            "internalTreasury": "#/components/schemas/ProviderProduct/oneOf/1",
+            "issuerPrimaryMarket": "#/components/schemas/ProviderProduct/oneOf/6",
+            "oifIntent": "#/components/schemas/ProviderProduct/oneOf/13",
+            "relayBridge": "#/components/schemas/ProviderProduct/oneOf/9",
+            "rfqSwap": "#/components/schemas/ProviderProduct/oneOf/12",
+            "stableRfq": "#/components/schemas/ProviderProduct/oneOf/0",
+            "workspaceVenue": "#/components/schemas/ProviderProduct/oneOf/19",
+            "wrapNative": "#/components/schemas/ProviderProduct/oneOf/18"
+          },
+          "propertyName": "kind"
+        },
         "oneOf": [
           {
-            "description": "New values may be added; treat unknown values as other.",
-            "enum": [
-              "stableRfq"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "New values may be added; treat unknown values as other.",
-            "enum": [
-              "internalTreasury"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "New values may be added; treat unknown values as other.",
-            "enum": [
-              "circleCpnPayout"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "New values may be added; treat unknown values as other.",
-            "enum": [
-              "circleMintDeposit"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "New values may be added; treat unknown values as other.",
-            "enum": [
-              "circleMintWithdrawal"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "New values may be added; treat unknown values as other.",
-            "enum": [
-              "circleMintExchange"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Registered on-chain primary-market mint/redeem capability.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "issuerPrimaryMarket"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Circle CCTP burn-and-mint bridge corridor (route legs).\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "cctpBridge"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Across V4 liquidity relay bridge corridor (route legs).\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "acrossBridge"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Relay (relay.link) intents bridge corridor (route legs).\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "relayBridge"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Circle StableFX on-chain FX venue on Arc (`FxEscrow` settlement).\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "arcStableFx"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Direct same-chain swap through the registry-pinned DEX capability.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "dexSwap"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Same-chain, firm-quoted RFQ swap settled through an approved kind-1 SwapModule. The quote is\nfirm for the venue's own TTL and the executable calldata is fetched at execution, never at\nquote time. Octarine is the first backing venue; the product is venue-neutral.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "rfqSwap"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Cross-chain intent filled by a solver under OIF escrow settlement.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "oifIntent"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "A provider fiat ramp: bank money in or out at a fiat venue.\n\n`venue_id` names the instrument's venue: an order-book venue whose fiat pairs are\ninstruments of that venue (VALR's, Luno's), or a dedicated fiat venue (Lumx's). The\ndirection says which way bank money moves. Wire form (externally tagged):\n`{\"fiatVenue\":{\"venueId\":\"valr-orderbook\",\"direction\":\"payout\"}}`.",
             "properties": {
-              "fiatVenue": {
-                "description": "A provider fiat ramp: bank money in or out at a fiat venue.\n\n`venue_id` names the instrument's venue: an order-book venue whose fiat pairs are\ninstruments of that venue (VALR's, Luno's), or a dedicated fiat venue (Lumx's). The\ndirection says which way bank money moves. Wire form (externally tagged):\n`{\"fiatVenue\":{\"venueId\":\"valr-orderbook\",\"direction\":\"payout\"}}`.",
-                "properties": {
-                  "direction": {
-                    "$ref": "#/components/schemas/FiatDirection"
-                  },
-                  "venueId": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "venueId",
-                  "direction"
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "stableRfq"
                 ],
-                "type": "object"
+                "type": "string",
+                "x-extensible-enum": true
               }
             },
             "required": [
-              "fiatVenue"
+              "kind"
             ],
             "type": "object"
           },
           {
-            "description": "The venue route's first leg: the taker's funds leave their wallet and are credited to the route's balance at the venue. Final once forwarded.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "cexDeposit"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "The CEX lane's trade: a kind-10 `ACTION` hop on the hub router reserves a\n`TradeIntent` against the route's venue balance; the enclave fills or cancels it.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "cexTrade"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "The CEX lane's last leg: the route-relative payout leaf (kind-10 `ROUTE_PAYOUT`),\npre-signed by the route root, withdraws the route's balance to its recipient.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "cexPayout"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "Taker-signed WETH9 deposit of native payout proceeds, on the payout chain.\n\nNew values may be added; treat unknown values as other.",
-            "enum": [
-              "wrapNative"
-            ],
-            "type": "string",
-            "x-extensible-enum": true
-          },
-          {
-            "description": "A movement of the requesting workspace's own money at its LP account on a venue:\na trade on the venue's book, a withdrawal from the account to a chain\naddress, or a deposit into it. Wire form:\n`{\"workspaceVenue\":{\"venueId\":\"valr-orderbook\",\"movement\":\"trade\"}}`.",
             "properties": {
-              "workspaceVenue": {
-                "description": "A movement of the requesting workspace's own money at its LP account on a venue:\na trade on the venue's book, a withdrawal from the account to a chain\naddress, or a deposit into it. Wire form:\n`{\"workspaceVenue\":{\"venueId\":\"valr-orderbook\",\"movement\":\"trade\"}}`.",
-                "properties": {
-                  "movement": {
-                    "$ref": "#/components/schemas/WorkspaceVenueMovement"
-                  },
-                  "venueId": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "venueId",
-                  "movement"
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "internalTreasury"
                 ],
-                "type": "object"
+                "type": "string",
+                "x-extensible-enum": true
               }
             },
             "required": [
-              "workspaceVenue"
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "circleCpnPayout"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "circleMintDeposit"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "circleMintWithdrawal"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "circleMintExchange"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Registered on-chain primary-market mint/redeem capability.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "issuerPrimaryMarket"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Circle CCTP burn-and-mint bridge corridor.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "cctpBridge"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Across V4 liquidity relay bridge corridor.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "acrossBridge"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Relay (relay.link) intents bridge corridor.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "relayBridge"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Circle StableFX on-chain FX venue on Arc.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "arcStableFx"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Direct same-chain swap through the registry-pinned DEX capability.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "dexSwap"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Same-chain, firm-quoted RFQ swap; the quote is firm for the venue's own TTL.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "rfqSwap"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Cross-chain intent filled by a solver under OIF escrow settlement.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "oifIntent"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A provider fiat ramp: bank money in or out at a fiat venue. `venueId` names the\ninstrument's venue; `direction` says which way bank money moves.",
+            "properties": {
+              "direction": {
+                "$ref": "#/components/schemas/FiatDirection"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "fiatVenue"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "venueId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "venueId",
+              "direction",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The venue route's first leg: the taker's funds leave their wallet and are credited to the\nroute's balance at the venue. Final once forwarded.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "cexDeposit"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The venue route's trade against the route's venue balance.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "cexTrade"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The venue route's last leg: the route's balance is withdrawn to its recipient.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "cexPayout"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Taker-signed WETH9 deposit of native payout proceeds, on the payout chain.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "wrapNative"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A movement of the requesting workspace's own money at its account on a venue: a trade on\nthe venue's book, a withdrawal to a chain address, or a deposit into it.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "workspaceVenue"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "movement": {
+                "$ref": "#/components/schemas/WorkspaceVenueMovement"
+              },
+              "venueId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "venueId",
+              "movement",
+              "kind"
             ],
             "type": "object"
           }
         ],
-        "x-undiscriminated-union-reason": "Existing externally tagged product vocabulary mixes scalar names with venue payload objects and is persisted in route records; converting that storage contract is outside quote-union hardening."
+        "x-extensible-enum": true
       },
       "PublicOrderStatus": {
         "description": "Open public lifecycle vocabulary shared by both order kinds. States may be\nskipped; act on `terminal`, not on a particular sequence.\n\nNew values may be added; treat unknown values as other.",
@@ -18092,7 +18268,8 @@
         ],
         "type": "object"
       },
-      "SettlementSchedulesResponse": {
+      "SettlementScheduleSelection": {
+        "description": "A venue account's settlement schedule selection: the schedule in effect with its terms and\ntheir sources, a change waiting on the LP, the next window, and whether the caller may change it.",
         "properties": {
           "accountName": {
             "description": "The venue account's display name (\"Selini account\").",
@@ -18119,12 +18296,6 @@
               }
             ],
             "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/SettlementSchedule"
-            },
-            "type": "array"
           },
           "lpName": {
             "description": "The LP this account settles with, by its display name (\"Selini\").",
@@ -18172,6 +18343,7 @@
             "type": "string"
           },
           "revision": {
+            "description": "The selection's revision: a schedule request is sent against it. 0 before any selection.",
             "format": "int64",
             "type": "integer"
           },
@@ -18184,11 +18356,33 @@
         "required": [
           "lpName",
           "accountName",
-          "items",
           "readAt",
           "revision",
           "serverNow",
           "permissions"
+        ],
+        "type": "object"
+      },
+      "SettlementSchedulesPage": {
+        "description": "One page of the LP's published settlement schedules for a venue account, ordered by schedule\nid then version. The selected version stays listed after a newer one is published.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SettlementSchedule"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "description": "Signed cursor for the next page; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ],
         "type": "object"
       },
@@ -22996,7 +23190,7 @@
               },
               {
                 "$ref": "#/components/schemas/IncludedRelations",
-                "description": "Present only with `include=observation`: `observation[venueAccountId].value` is the read's\nobservation (connection, status, reason, reasonCode, asset, chainRef, networkCode,\nnetworkConfirmed, since, until, observedAt, expiresAt)."
+                "description": "Present only with `include=observation`: `observation[venueAccountId].value` is the read's\nobservation (connection, status, reason, reasonCode, asset, network, networkCode,\nnetworkConfirmed, since, until, observedAt, expiresAt)."
               }
             ],
             "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
@@ -24049,7 +24243,7 @@
             "$ref": "#/components/schemas/CapabilityState"
           },
           "unconfirmedNetworkAssets": {
-            "description": "Catalogue assets for which the venue declares no network mapping. Any\nregistry `chainRef` may be requested; its network is never confirmed.",
+            "description": "Catalogue assets for which the venue declares no network mapping. Any\nregistry `network` may be requested; it is never confirmed.",
             "items": {
               "type": "string"
             },
@@ -24166,9 +24360,6 @@
           "providerSite": {
             "type": "string"
           },
-          "tradePaused": {
-            "type": "boolean"
-          },
           "tradingSource": {
             "oneOf": [
               {
@@ -24180,6 +24371,10 @@
               }
             ],
             "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "tradingStatus": {
+            "$ref": "#/components/schemas/VenueOperationStatus",
+            "description": "Trading on it: `active`, or `paused` by the workspace's control."
           },
           "updatedAt": {
             "format": "date-time",
@@ -24196,8 +24391,9 @@
               "null"
             ]
           },
-          "withdrawalPaused": {
-            "type": "boolean"
+          "withdrawalStatus": {
+            "$ref": "#/components/schemas/VenueOperationStatus",
+            "description": "Withdrawals from it: `active`, or `paused` by the workspace's control."
           },
           "workspaceId": {
             "type": "string"
@@ -24216,8 +24412,8 @@
           "credentialRevision",
           "controlRevision",
           "lifecycle",
-          "tradePaused",
-          "withdrawalPaused",
+          "tradingStatus",
+          "withdrawalStatus",
           "createdAt",
           "updatedAt",
           "capabilities"
@@ -24275,9 +24471,6 @@
           "asset": {
             "type": "string"
           },
-          "chainRef": {
-            "type": "string"
-          },
           "expiresAt": {
             "format": "date-time",
             "type": "string"
@@ -24288,11 +24481,15 @@
               "null"
             ]
           },
+          "network": {
+            "description": "The CAIP-2 network of this address.",
+            "type": "string"
+          },
           "networkCode": {
             "type": "string"
           },
           "networkConfirmed": {
-            "description": "False when the venue reports no network for this address: `networkCode`\nis empty and `chainRef` is the caller's selection, which the customer\nmust confirm with the venue before sending.",
+            "description": "False when the venue reports no network for this address: `networkCode`\nis empty and `network` is the caller's selection, which the customer\nmust confirm with the venue before sending.",
             "type": "boolean"
           },
           "observedAt": {
@@ -24305,7 +24502,7 @@
         },
         "required": [
           "asset",
-          "chainRef",
+          "network",
           "networkCode",
           "networkConfirmed",
           "address",
@@ -24321,7 +24518,8 @@
           "asset": {
             "type": "string"
           },
-          "chainRef": {
+          "network": {
+            "description": "The CAIP-2 network the venue maps this asset to.",
             "type": "string"
           },
           "networkCode": {
@@ -24330,7 +24528,7 @@
         },
         "required": [
           "asset",
-          "chainRef",
+          "network",
           "networkCode"
         ],
         "type": "object"
@@ -24552,8 +24750,9 @@
               "null"
             ]
           },
-          "tradePaused": {
-            "type": "boolean"
+          "tradingStatus": {
+            "$ref": "#/components/schemas/VenueOperationStatus",
+            "description": "Trading on it: `active`, or `paused` by the workspace's control."
           },
           "updatedAt": {
             "format": "date-time",
@@ -24582,8 +24781,9 @@
             ],
             "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
-          "withdrawalPaused": {
-            "type": "boolean"
+          "withdrawalStatus": {
+            "$ref": "#/components/schemas/VenueOperationStatus",
+            "description": "Withdrawals from it: `active`, or `paused` by the workspace's control."
           },
           "workspaceId": {
             "type": "string"
@@ -24595,10 +24795,10 @@
           "label",
           "lifecycle",
           "providerSite",
-          "tradePaused",
+          "tradingStatus",
           "updatedAt",
           "venueEnablementId",
-          "withdrawalPaused",
+          "withdrawalStatus",
           "workspaceId"
         ],
         "type": "object"
@@ -24642,6 +24842,18 @@
       "VenueExecution": {
         "description": "A venue account's recorded execution facts, never protocol network metadata.",
         "properties": {
+          "network": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Caip2Chain",
+                "description": "The one network the card's venue account trades on, when the venue holds one account\nper network: each network's account answers with its own card, titled by this network\n(CAIP-2). Absent for an off-chain account and for a bridge, whose account spans its networks."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "providerSite": {
             "description": "The account's exact recorded provider site, distinct from its broad environment.",
             "type": [
@@ -24651,18 +24863,6 @@
           },
           "site": {
             "$ref": "#/components/schemas/VenueSiteLabel"
-          },
-          "siteChain": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Caip2Chain",
-                "description": "The one network the card's venue account trades on, when the venue holds one account\nper network: each network's account answers with its own card, titled by this chain.\nAbsent for an off-chain account and for a bridge, whose account spans its networks."
-              }
-            ],
-            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
           "stage": {
             "$ref": "#/components/schemas/VenueExecutionStage"
@@ -25012,6 +25212,15 @@
           "rfq",
           "orderBook",
           "fiat"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "VenueOperationStatus": {
+        "description": "Whether one operation runs on a venue account or connection: `active` runs, `paused` was stopped by the workspace's own control. Writes accept only these values; reads may carry a value this client does not know, which it treats as not running.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "active",
+          "paused"
         ],
         "type": "string",
         "x-extensible-enum": true
@@ -26112,7 +26321,7 @@
             "type": "string"
           },
           "payload": {
-            "description": "Fiat payload example from a persisted bank-deposit event, not a delivery receipt.\nReferences retain the API's masks exactly. `bankDeposit` names its asset as `asset` beside\nthe deprecated `currency` (same value); an event recorded before `asset` was published\ncarries `currency` only, and a redelivery resends the event as it was recorded."
+            "description": "Fiat payload example from a persisted bank-deposit event, not a delivery receipt.\nReferences retain the API's masks exactly. `bankDeposit` names its asset as `asset` beside\nthe deprecated `currency` (same value); an event recorded before `asset` was published\ncarries `currency` only, and a redelivery resends the event as it was recorded. Its lifecycle\nis `status`; an event recorded before 2026-11-17 named it `state`, and a redelivery resends it so."
           },
           "redeliverAvailable": {
             "description": "Actual retained availability, not permission to resend; redelivery revalidates.",
@@ -37600,7 +37809,7 @@
           {
             "description": "CAIP-2 network the credits moved on.",
             "in": "query",
-            "name": "chainRef",
+            "name": "network",
             "required": true,
             "schema": {
               "type": "string"
@@ -38077,15 +38286,16 @@
             }
           },
           {
+            "description": "The CAIP-2 network to deposit `asset` on.",
             "in": "query",
-            "name": "chainRef",
+            "name": "network",
             "required": false,
             "schema": {
               "type": "string"
             }
           },
           {
-            "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `chainRef`.",
+            "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `network`.",
             "in": "query",
             "name": "currency",
             "required": false,
@@ -38103,7 +38313,7 @@
             }
           },
           {
-            "description": "One of the venue account's open pay-in legs (a summary pay-in window's `legId`):\nthe read selects that leg's currency and, for a dedicated fiat venue, the paying\nbank its deposit declaration recorded. Only on the venue-account read, and never\nwith `asset`, `chainRef`, `currency` or `providerBankId`.",
+            "description": "One of the venue account's open pay-in legs (a summary pay-in window's `legId`):\nthe read selects that leg's currency and, for a dedicated fiat venue, the paying\nbank its deposit declaration recorded. Only on the venue-account read, and never\nwith `asset`, `network`, `currency` or `providerBankId`.",
             "in": "query",
             "name": "payInLegId",
             "required": false,
@@ -38186,10 +38396,10 @@
                     "label": "VALR account",
                     "lifecycle": "configured",
                     "providerSite": "global",
-                    "tradePaused": false,
+                    "tradingStatus": "active",
                     "updatedAt": "2026-10-28T19:37:49.206816Z",
                     "venueEnablementId": "54f228e9-254d-44b3-8f39-0d0aa0463ffc",
-                    "withdrawalPaused": false,
+                    "withdrawalStatus": "active",
                     "workspaceId": "5f56c3dd-cc2d-4ea0-8772-fa254a012e91"
                   },
                   "depositDeclaration": "unsupported",
@@ -38197,7 +38407,7 @@
                   "options": [
                     {
                       "asset": "USDC",
-                      "chainRef": "eip155:8453",
+                      "network": "eip155:8453",
                       "networkCode": "Base"
                     }
                   ],
@@ -40647,10 +40857,10 @@
         ]
       }
     },
-    "/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules": {
+    "/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedule-selection": {
       "get": {
-        "description": "The LP's published settlement schedules for this account, the one in effect with its minimum settlement, and the next window. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
-        "operationId": "getVenueAccountSettlementSchedules",
+        "description": "The schedule in effect on this account (`activeSelection`, `effectiveSchedule` with its minimum settlement, and `termSources`), a change waiting on the LP (`pendingSelection`), the next window (`nextWindow`, and `nextWindowRolledFrom` when the calendar moved it), the selection's `revision` that a schedule request is sent against, and whether the caller may change it (`permissions`). Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "operationId": "getVenueAccountSettlementScheduleSelection",
         "parameters": [
           {
             "description": "Workspace id",
@@ -40679,7 +40889,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettlementSchedulesResponse"
+                  "$ref": "#/components/schemas/SettlementScheduleSelection"
                 }
               }
             },
@@ -41056,7 +41266,442 @@
             ]
           }
         ],
-        "summary": "Read a venue account's settlement schedules",
+        "summary": "Read a venue account's settlement schedule selection",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedules": {
+      "get": {
+        "description": "The LP's published settlement schedules for this account, ordered by schedule id then version; the version the account has selected stays listed after a newer one is published. `limit` (1 to 100, default 20) and `cursor` page it; `nextCursor` is null on the last page. The schedule in effect, its terms, a pending change and the next window are the account's schedule selection (`GET …/settlement/schedule-selection`). Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "operationId": "listVenueAccountSettlementSchedules",
+        "parameters": [
+          {
+            "description": "Workspace id",
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The venue account's id",
+            "in": "path",
+            "name": "venueAccountId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size from 1 to 100, default 20; anything else is 400 `INVALID_LIMIT`.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `nextCursor`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TetraFiVersion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementSchedulesPage"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "INVALID_LIMIT, INVALID_CURSOR, or INVALID_REQUEST naming an unknown parameter",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Authentication is missing or invalid.",
+            "headers": {
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "settlements_read"
+            ]
+          },
+          {
+            "api_key": [
+              "settlements_read"
+            ]
+          }
+        ],
+        "summary": "List a venue account's settlement schedules",
         "tags": [
           "settlements"
         ]
@@ -41505,7 +42150,7 @@
             }
           },
           {
-            "description": "Related reads to expand into `included`, comma-separated, each keyed by the GET it read (path and query) with that GET's own answer to this caller or null with its refusal. `terms`: the account's settlement terms. `schedules`: the account's settlement schedules. `obligations`: the window's obligations (`obligations?windowId=`). `nudges`: the window's latest nudge (`nudges?limit=1`). `payments`: its first 100 payments. `matches`: its first page of matches. `statements`: its statement versions. `messages`: its first 100 messages. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not available on a signed API-key request (400 `INCLUDE_SIGNED_REQUEST_UNSUPPORTED`).",
+            "description": "Related reads to expand into `included`, comma-separated, each keyed by the GET it read (path and query) with that GET's own answer to this caller or null with its refusal. `terms`: the account's settlement terms. `schedules`: the account's first 100 settlement schedules (`schedules?limit=100`). `scheduleSelection`: the account's schedule selection. `obligations`: the window's obligations (`obligations?windowId=`). `nudges`: the window's latest nudge (`nudges?limit=1`). `payments`: its first 100 payments. `matches`: its first page of matches. `statements`: its statement versions. `messages`: its first 100 messages. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not available on a signed API-key request (400 `INCLUDE_SIGNED_REQUEST_UNSUPPORTED`).",
             "in": "query",
             "name": "include",
             "required": false,
