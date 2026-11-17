@@ -3,10 +3,10 @@
 <CodeGroup>
 
 ```bash cURL
-# An API key implies its workspace, so it may leave X-Workspace-Id out. When it sends one,
-# it must be the key's own: any other workspace answers 403 WORKSPACE_SCOPE_MISMATCH.
+# An API key implies its workspace, so it never needs X-Workspace-Id; a workspace path names it.
+# A header it does send must name the key's own: any other workspace answers 403 WORKSPACE_SCOPE_MISMATCH.
 other_workspace=$(openssl rand -hex 16 | sed -E 's/(.{8})(.{4})(.{4})(.{4})(.{12})/\1-\2-\3-\4-\5/')
-if refusal=$(TETRAFI_WORKSPACE_ID=$other_workspace tetrafi GET /api/v1/assets 2>/dev/null); then
+if refusal=$(tetrafi GET /api/v1/assets "" "X-Workspace-Id: $other_workspace" 2>/dev/null); then
   echo '{"error":"EXPECTED_A_REFUSAL"}' >&2
   exit 1
 fi

@@ -30,7 +30,6 @@ tetrafi() {
     -H "X-API-Key: $TETRAFI_API_KEY"
     -H "Accept: application/json"
   )
-  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
@@ -68,7 +67,7 @@ workspace=$TETRAFI_WORKSPACE_ID
 # region credit-monitor
 # List the venue accounts (Treasury read); each accountId is a venueAccountId. A wallet-based venue has no
 # accountId and no credit line. GET …/venue-accounts/{venueAccountId}/credit reads the line:
-# observation.state reported carries limit, used, available and overrun; notReported and unavailable carry
+# observation.status reported carries limit, used, available and overrun; notReported and unavailable carry
 # no figures, never zeros. positions are the signed positions from the last recorded ledger read.
 accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-enablements?limit=50")
 for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); do

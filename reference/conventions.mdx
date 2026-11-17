@@ -17,7 +17,7 @@ Example outputs across these docs were recorded on test networks, so some show t
 | --- | --- |
 | Base URL | `https://api.tetrafi.io`. Every path starts with `/api/v1`. |
 | Credentials | `X-API-Key` on every request, plus a signature when request signing is on ([Authentication](/authentication)). |
-| Workspace | The key implies its workspace, so `X-Workspace-Id` is optional. When sent, it must be the key's own. |
+| Workspace | The key implies its workspace, so it needs no `X-Workspace-Id`; a path under `/api/v1/workspaces/{workspaceId}/` names it. A header you send anyway must be the key's own. |
 | Version | Optional `TetraFi-Version: YYYY-MM-DD`. Without it, a key's requests use the version it pinned when created ([Versioning](#versioning)). |
 | Bodies | JSON, sent with `Content-Type: application/json`. |
 
@@ -31,10 +31,10 @@ Example outputs across these docs were recorded on test networks, so some show t
 | Durations | ISO 8601. | `"PT2S"` |
 | Networks | CAIP-2 network ids, in fields and parameters named `network`. | `"eip155:8453"` |
 | Field names | camelCase. | `expiresAt` |
-| Ids | Opaque strings. Store and compare them whole; never parse. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
+| Ids | Opaque strings, with no promised format (not UUIDs). Store and compare them whole; never parse or validate their shape. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
 | Enumerations | Open sets that can gain values. Treat an unknown value as "other". | `"status": "answered"` |
-| Variants | A record whose shape depends on a tag (`kind`, `status`) can gain variants. Branch on the tag, read a known variant's fields only inside its branch, and keep a default branch for one you do not know. | `"kind": "basicTrade"` |
-| Lifecycle | A record's lifecycle is always `status`. | `"status": "settled"` |
+| Variants | A record whose shape depends on a tag (`kind`, `status`) can gain variants. Branch on the tag, read a known variant's fields only inside its branch, and keep a default branch for one you do not know. In the TypeScript SDK, narrow with `isVariant(value, tag, name)`: comparing the tag with `===` does not narrow to that variant's fields. | `"kind": "basicTrade"` |
+| Lifecycle | A record's lifecycle is always `status`; an observation of a figure read from a venue or ledger keeps `state` (`observed`, `notStarted`, …). | `"status": "settled"` |
 
 <Accordion title="Example: read amounts and times">
   <ConventionsValues />

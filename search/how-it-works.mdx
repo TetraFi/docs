@@ -38,7 +38,7 @@ flowchart LR
 
 <Steps>
   <Step title="Take values from discovery">
-    Read asset ids and chains from `GET /api/v1/assets` ([Use values from discovery](#use-values-from-discovery)).
+    Read asset ids and networks from `GET /api/v1/assets` ([Use values from discovery](#use-values-from-discovery)).
   </Step>
   <Step title="Send the request">
     Send `kind: "pair"`, `sell.asset`, `buy.asset` and exactly one of `sellAmount` or `buyAmount`, as a decimal string such as `"10"`.
@@ -58,6 +58,8 @@ flowchart LR
 | `source`, `deliverTo`, `preferredWallets` | No | Which wallet or account trades and where the output goes; your defaults when omitted ([Wallets and accounts](/trade/wallets-and-accounts)). |
 | `onBehalfOf` | No | For a broker: the direct user you quote for. |
 | `integrationAppId` | No | The integration app whose partner fee terms apply ([Monetize](/monetize)). |
+
+Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`, and `message` names it.
 
       </Accordion>
       <Accordion title="Retry safely with an Idempotency-Key">
@@ -425,7 +427,7 @@ A refused request answers the standard [error body](/trade/errors#read-a-refusal
 
 | Code | Why | What to do |
 | --- | --- | --- |
-| `INVALID_REQUEST` | A field is unknown, missing or of the wrong type; `message` names it. | Fix that field. |
+| `INVALID_REQUEST` | A field is unknown (at any depth of the body), missing or of the wrong type; `message` names it. | Remove or fix that field. |
 | `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | The value is not in the catalogue. | Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
 | `INVALID_AMOUNT` | The amount is not a positive decimal string. | Send it as a string, such as `"10"`. |
 | `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. | Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |

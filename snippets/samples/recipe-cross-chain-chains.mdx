@@ -7,7 +7,7 @@
 assets=$(tetrafi GET /api/v1/assets)
 chains=$(jq -c --arg a "$asset" '[.items[] | select(.asset == $a) | .variants[]
   | select(.kind == "native") | .deployments[].network] | unique' <<<"$assets")
-echo "{\"asset\":\"$asset\",\"chains\":$chains}" >&2
+echo "{\"asset\":\"$asset\",\"networks\":$chains}" >&2
 from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
 to_chain=${TETRAFI_TO_CHAIN:-$(jq -r --arg f "$from_chain" 'map(select(. != $f))[0] // empty' <<<"$chains")}
 for chain in "$from_chain" "$to_chain"; do

@@ -5,7 +5,7 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
-<Update label="2026-11-17" description="Dated versions, quote retries, open variants, and credit for every account">
+<Update label="2026-11-17" description="Dated versions, quote retries, open variants, status and network names, and credit for every account">
   - **Dated versions.** The API version is `2026-11-17`. Each API key and webhook endpoint pins the version current when it was created; send `TetraFi-Version: YYYY-MM-DD` to choose one request's version (`400 API_VERSION_UNSUPPORTED` for any other value), and every response names its version in the same header. Webhook bodies carry the endpoint's version as `apiVersion` ([Versioning](/reference/conventions#versioning)).
   - `POST /api/v1/quotes` takes an `Idempotency-Key`: a retry with the same key and body returns the first answer and asks no venue again ([Retry safely](/search/how-it-works#request-and-read-quotes)).
   - A record tagged by `kind` or `status` can gain variants without a new version: keep a default branch for a tag you do not know ([Conventions](/reference/conventions#values)). Identifiers are opaque strings; the reference no longer marks them `uuid`.
@@ -19,6 +19,13 @@ The API is in preview until launch, so a change here can still remove or rename 
   - The settlement plan takes `venueAccountId`, answers `nextTransitionAt` (re-read then instead of polling), and each window carries `carries` and `minimumOutcome`. An account whose settlement facts are not ready is its own `failedReads` entry, such as `SETTLEMENT_PROJECTION_PENDING`.
   - A settlement window read takes `include=` (`terms`, `schedules`, `obligations`, `nudges`, `payments`, `matches`, `statements`, `messages`) and answers them in `included`.
   - A batch item that has not answered by the batch's deadline answers `504 SOURCE_TIMEOUT` inside the `200`.
+  - **Breaking.** Venue accounts and connections read `tradingStatus` and `withdrawalStatus` (`active`, or `paused` by your workspace's control; treat another value as not active) instead of the booleans `tradePaused` and `withdrawalPaused` ([Balances and fees](/trade/balances)).
+  - **Breaking.** `GET …/venue-accounts/{venueAccountId}/settlement/schedules` is a paged list: `items` and `nextCursor`, with `limit` (1 to 100, default 20) and `cursor`. The schedule in effect, a pending change and the next window moved to the new `GET …/venue-accounts/{venueAccountId}/settlement/schedule-selection` ([Settlement and credit](/trade/settlement-and-credit)).
+  - **Breaking.** A quote leg's `product` is an object tagged by `kind`: `{"kind": "cctpBridge"}` instead of the string `"cctpBridge"`, and `{"kind": "fiatVenue", "venueId": …, "direction": …}` or `{"kind": "workspaceVenue", "venueId": …, "movement": …}` instead of a nested `fiatVenue` or `workspaceVenue` object.
+  - **Breaking.** `POST /api/v1/quotes` refuses a body field it does not know, at any depth, with `400 INVALID_REQUEST` naming the field. An `Idempotency-Key` that is malformed or sent with `Accept: text/event-stream` answers `400 IDEMPOTENCY_KEY_INVALID`.
+  - A workspace path (`/api/v1/workspaces/{workspaceId}/…`) names the workspace, and the reference no longer lists `X-Workspace-Id` on it. An API key needs no workspace header anywhere; one you send must still name the key's own workspace ([Authentication](/authentication#send-the-key)).
+  - The TypeScript SDK narrows a tagged record with `isVariant(value, tag, name)`; comparing the tag with `===` does not narrow to that variant's fields ([Conventions](/reference/conventions#values)).
+  - The [compatibility policy](/compatibility) now says a breaking change ships only as a new dated version, and deprecation applies to retiring a whole version.
 </Update>
 
 <Update label="2026-11-16" description="One name per field, slippage limits, and uncertain retries">

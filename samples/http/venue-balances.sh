@@ -25,7 +25,6 @@ tetrafi() {
     -H "X-API-Key: $TETRAFI_API_KEY"
     -H "Accept: application/json"
   )
-  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
@@ -93,16 +92,16 @@ jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then 
 # of them. An empty items is a read that found none only when unreachable is empty; otherwise the history
 # was not read and unreachable says why. include=observation returns this read's own window and status.
 instructions=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-instructions")
-read -r asset chain < <(jq -r '(.options // [])[0] | "\(.asset // "") \(.network // "")"' <<<"$instructions")
+read -r asset network < <(jq -r '(.options // [])[0] | "\(.asset // "") \(.network // "")"' <<<"$instructions")
 if [[ -z $asset ]]; then
   # A venue that declares no deposit network answers options [] and names its assets in
-  # unconfirmedNetworkAssets: ask for one of them on a chain GET /api/v1/assets lists for it.
+  # unconfirmedNetworkAssets: ask for one of them on a network GET /api/v1/assets lists for it.
   asset=$(jq -r '.unconfirmedNetworkAssets // [] | if index("USDC") then "USDC" else .[0] // "" end' <<<"$instructions")
-  chain=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.items[] | select(.asset == $a)
+  network=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.items[] | select(.asset == $a)
     | .variants[] | select(.kind == "native") | .deployments[] | .network) // ""')
 fi
-[[ -n $asset && -n $chain ]] || fail NO_DEPOSIT_OPTION
-history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&network=$chain&include=observation")
+[[ -n $asset && -n $network ]] || fail NO_DEPOSIT_OPTION
+history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&network=$network&include=observation")
 jq -c --arg account "$account" '(.included.observation[$account].value // {}) as $o
   | {asset: $o.asset, network: $o.network, status: $o.status, since: $o.since, until: $o.until,
      deposits: (.items | length), unreachable: [.unreachable[] | .reason]}' <<<"$history" >&2

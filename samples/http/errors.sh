@@ -7,7 +7,6 @@
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
 #   TETRAFI_API_KEY         your API key, with Read quotes and Submit orders
-#   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on
 # Optional:
 #   TETRAFI_SELL, TETRAFI_BUY     the pair for the rate-limit step (default USDC for USDT)
@@ -31,7 +30,6 @@ tetrafi() {
     -H "X-API-Key: $TETRAFI_API_KEY"
     -H "Accept: application/json"
   )
-  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
@@ -129,10 +127,10 @@ rate_limit=$(jq -c -n --arg r "$retry_after" --argjson s "$wait_seconds" --argjs
   '{error: "QUOTE_RATE_LIMITED", requestId: $id, retryAfter: $r, waitedSeconds: $s, retryQuotes: $q}')
 
 # region errors-wrong-workspace
-# An API key implies its workspace, so it may leave X-Workspace-Id out. When it sends one,
-# it must be the key's own: any other workspace answers 403 WORKSPACE_SCOPE_MISMATCH.
+# An API key implies its workspace, so it never needs X-Workspace-Id; a workspace path names it.
+# A header it does send must name the key's own: any other workspace answers 403 WORKSPACE_SCOPE_MISMATCH.
 other_workspace=$(openssl rand -hex 16 | sed -E 's/(.{8})(.{4})(.{4})(.{4})(.{12})/\1-\2-\3-\4-\5/')
-if refusal=$(TETRAFI_WORKSPACE_ID=$other_workspace tetrafi GET /api/v1/assets 2>/dev/null); then
+if refusal=$(tetrafi GET /api/v1/assets "" "X-Workspace-Id: $other_workspace" 2>/dev/null); then
   echo '{"error":"EXPECTED_A_REFUSAL"}' >&2
   exit 1
 fi

@@ -6,7 +6,6 @@
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
 #   TETRAFI_API_KEY         your API key
-#   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
 #   TETRAFI_ASSET           the asset to move (default USDC)
@@ -33,7 +32,6 @@ tetrafi() {
     -H "X-API-Key: $TETRAFI_API_KEY"
     -H "Accept: application/json"
   )
-  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   if [[ -n ${TETRAFI_SIGNING_SECRET:-} ]]; then
@@ -86,7 +84,7 @@ amount=${TETRAFI_AMOUNT:-10}
 assets=$(tetrafi GET /api/v1/assets)
 chains=$(jq -c --arg a "$asset" '[.items[] | select(.asset == $a) | .variants[]
   | select(.kind == "native") | .deployments[].network] | unique' <<<"$assets")
-echo "{\"asset\":\"$asset\",\"chains\":$chains}" >&2
+echo "{\"asset\":\"$asset\",\"networks\":$chains}" >&2
 from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
 to_chain=${TETRAFI_TO_CHAIN:-$(jq -r --arg f "$from_chain" 'map(select(. != $f))[0] // empty' <<<"$chains")}
 for chain in "$from_chain" "$to_chain"; do

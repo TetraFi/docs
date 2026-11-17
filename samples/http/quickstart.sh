@@ -4,7 +4,6 @@
 # Needs bash, curl, jq, openssl and bc (for an exact minimum receive). Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
 #   TETRAFI_API_KEY         your API key
-#   TETRAFI_WORKSPACE_ID    optional: an API key implies its workspace (a session must send it)
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
 #   TETRAFI_SELL, TETRAFI_BUY, TETRAFI_AMOUNT  the pair and the amount you sell (default 10 USDC for USDT)
@@ -194,8 +193,9 @@ check_order_answer() {
 # tetrafi METHOD PATH [BODY] [HEADER]: sends one request with your key and prints the response body.
 tetrafi() {
   local method=$1 path=$2 body=${3:-} extra=${4:-}
-  local headers=(-H "X-API-Key: $TETRAFI_API_KEY" -H "Accept: application/json")
-  if [[ -n ${TETRAFI_WORKSPACE_ID:-} ]]; then headers+=(-H "X-Workspace-Id: $TETRAFI_WORKSPACE_ID"); fi
+  # TetraFi-Version names the API version this code was written for; without it, the key's own
+  # pinned version applies. Every response names the version it answered in.
+  local headers=(-H "X-API-Key: $TETRAFI_API_KEY" -H "Accept: application/json" -H "TetraFi-Version: 2026-11-17")
   if [[ -n $body ]]; then headers+=(-H "Content-Type: application/json"); fi
   if [[ -n $extra ]]; then headers+=(-H "$extra"); fi
   # With request signing on, sign every request: X-Timestamp and X-Signature, plus X-Nonce on writes.
