@@ -128,7 +128,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
 | Field | Meaning |
 | --- | --- |
-| `state` | `supported` when readable; otherwise `reason` and `reasonCode` say why. |
+| `status` | `supported` when readable; otherwise `reason` and `reasonCode` say why. |
 | `observedAt`, `expiresAt` | When reported, and when the reading stops being current. |
 | `balances` | One line per asset. `null` means no reading; `[]` means the account holds nothing. |
 | `balances[].total` | Everything held, locked included. Negative on a credit account: what it owes. |
@@ -142,7 +142,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 <VenueBalances />
 
 ```json Example output expandable
-{"state":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","usdValue":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","usdValue":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","usdValue":null}]}
+{"status":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","usdValue":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","usdValue":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","usdValue":null}]}
 ```
 
   </Accordion>
@@ -151,14 +151,14 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 | Read | Answers |
 | --- | --- |
 | `GET …/venue-accounts/{venueAccountId}/deposit-instructions` | The asset and network pairs it takes deposits on, in `options`. |
-| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, from `from` (RFC 3339, 1 to 30 whole days back, 7 by default) until now. The credits are in `items`, oldest first; without paging, the whole window. With `limit` (1 to 200), follow `nextCursor` until `null`; a cursor keeps its window. Add `include=observation` for this read's own window (`since`, `until`), state and reason in `included.observation[venueAccountId].value`. |
+| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `chainRef` (CAIP-2), both required, from `from` (RFC 3339, 1 to 30 whole days back, 7 by default) until now. The credits are in `items`, oldest first; without paging, the whole window. With `limit` (1 to 200), follow `nextCursor` until `null`; a cursor keeps its window. Add `include=observation` for this read's own window (`since`, `until`), status and reason in `included.observation[venueAccountId].value`. |
 
 Empty `items` is truly empty only when `unreachable` is empty too; otherwise the history was not read, and its one `unreachable` entry names why in `reason`. A window of more than 1,000 venue records is not read (`DEPOSIT_HISTORY_WINDOW_TOO_LARGE`): read a shorter window.
 
 <VenueDepositHistory />
 
 ```json Example output
-{"asset":"USDC","chainRef":"eip155:11155111","state":"supported","since":"…","until":"…","deposits":0,"unreachable":[]}
+{"asset":"USDC","chainRef":"eip155:11155111","status":"supported","since":"…","until":"…","deposits":0,"unreachable":[]}
 ```
 
   </Accordion>
