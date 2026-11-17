@@ -12,6 +12,8 @@ contract is still changing, and every change is listed in the [changelog](/chang
 **Launch date: not yet declared.** The policy below takes effect on the date written here, and only
 here.
 
+At launch, the reference's `info.version` moves off `1.0.0-beta.1`.
+
 It covers:
 
 - the token exchange and the calling credential;
@@ -56,8 +58,9 @@ ships only when it is approved for that release and listed in the [changelog](/c
 
 ## What we promise
 
-After launch, a change to the integrator API is **additive**. A breaking change happens only
-through the [deprecation process](#deprecation).
+After launch, a change to an existing version is **additive**. A breaking change ships only as a
+new dated [version](#versioning): a key pinned to an older version keeps that version's shape until
+that whole version is retired through the [deprecation process](#deprecation).
 
 | Change | Class | What you do |
 |---|---|---|
@@ -67,10 +70,10 @@ through the [deprecation process](#deprecation).
 | Add a new error code | Additive | Handle by status class |
 | Add a status code to an operation, using the [error body](#the-error-body) | Additive | Handle by status class |
 | Make a request rule looser, e.g. accept a value that used to be refused | Additive | Nothing |
-| Remove or rename an operation, field, value, header or code | Breaking | Migrate before the sunset date |
-| Change a field's type or meaning, or a code's HTTP status | Breaking | Migrate before the sunset date |
-| Make an optional request field required, or a request rule stricter | Breaking | Migrate before the sunset date |
-| Stop sending a response field documented as always present | Breaking | Migrate before the sunset date |
+| Remove or rename an operation, field, value, header or code | Breaking | New version only; move before your version's sunset date |
+| Change a field's type or meaning, or a code's HTTP status | Breaking | New version only; move before your version's sunset date |
+| Make an optional request field required, or a request rule stricter | Breaking | New version only; move before your version's sunset date |
+| Stop sending a response field documented as always present | Breaking | New version only; move before your version's sunset date |
 
 Values are camelCase. Identifiers (permissions, API key scopes, workspace types) and values that
 name stored records (fee treatment, funding and leg states, review reasons, approval and order
@@ -322,19 +325,21 @@ sent on every status change of an order placed in that workspace.
 
 ## Deprecation
 
-When something has to go after launch:
+After launch, nothing is removed or changed incompatibly inside a version. A removal or breaking
+change reaches only callers on a newer dated version (see [Versioning](#versioning)); a key pinned to
+an older version keeps its shape until that version is retired. Retiring a whole version is the only
+thing announced this way:
 
-1. **Notice.** The changelog announces it, with a removal date at least 6 months away. A security
-   fix may need a shorter window, and the notice says why.
-2. **Marking.** Every affected response carries:
+1. **Notice.** The changelog announces the version's retirement, with a sunset date at least 6
+   months away. A security fix may need a shorter window, and the notice says why.
+2. **Marking.** Every response answered in the retiring version carries:
    - a `Deprecation` header (RFC 9745);
-   - a `Sunset` header with the removal date (RFC 8594);
+   - a `Sunset` header with the retirement date (RFC 8594);
    - a `Link: <…>; rel="deprecation"` header pointing to the notice.
-
-   The spec marks the operation or field `deprecated: true`.
-3. **Replacement.** The replacement ships before the notice, so you can move at any point in the
-   window.
-4. **Removal.** On the sunset date, the old shape is removed.
+3. **Replacement.** The newer version ships before the notice, so you can move at any point in the
+   window: test it with `TetraFi-Version`, then create a key pinned to it.
+4. **Retirement.** On the sunset date, the retired version is no longer served. Move keys and
+   webhook endpoints pinned to it to a supported version before then.
 
 ## How we check ourselves
 
