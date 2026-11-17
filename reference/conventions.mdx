@@ -18,6 +18,7 @@ Example outputs across these docs were recorded on test networks, so some show t
 | Base URL | `https://api.tetrafi.io`. Every path starts with `/api/v1`. |
 | Credentials | `X-API-Key` on every request, plus a signature when request signing is on ([Authentication](/authentication)). |
 | Workspace | The key implies its workspace, so `X-Workspace-Id` is optional. When sent, it must be the key's own. |
+| Version | Optional `TetraFi-Version: YYYY-MM-DD`. Without it, a key's requests use the version it pinned when created ([Versioning](#versioning)). |
 | Bodies | JSON, sent with `Content-Type: application/json`. |
 
 ## Values
@@ -28,10 +29,12 @@ Example outputs across these docs were recorded on test networks, so some show t
 | Amount precision | At most the asset's decimals. More is refused with `400 AMOUNT_PRECISION_EXCEEDED` (`details.field`, `details.decimals`, `details.allowed`) before any quote or funding check. | |
 | Times | RFC 3339, in UTC. | `"2026-10-30T00:40:13.162Z"` |
 | Durations | ISO 8601. | `"PT2S"` |
-| Chains | CAIP-2 chain ids. | `"eip155:8453"` |
+| Networks | CAIP-2 network ids, in fields and parameters named `network`. | `"eip155:8453"` |
 | Field names | camelCase. | `expiresAt` |
 | Ids | Opaque strings. Store and compare them whole; never parse. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
 | Enumerations | Open sets that can gain values. Treat an unknown value as "other". | `"status": "answered"` |
+| Variants | A record whose shape depends on a tag (`kind`, `status`) can gain variants. Branch on the tag, read a known variant's fields only inside its branch, and keep a default branch for one you do not know. | `"kind": "basicTrade"` |
+| Lifecycle | A record's lifecycle is always `status`. | `"status": "settled"` |
 
 <Accordion title="Example: read amounts and times">
   <ConventionsValues />
@@ -93,7 +96,7 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 | Rule | Detail |
 | --- | --- |
 | Rate limits | Every limit answers `429` with `Retry-After` ([Rate limits](/reference/rate-limits)). |
-| Idempotency | Send an `Idempotency-Key` with every `POST /api/v1/orders`. A retry with the same key and body returns the first answer, with `Idempotent-Replayed: true` ([Retries and recovery](/trade/orders#retries-and-recovery)). |
+| Idempotency | Send an `Idempotency-Key` with every `POST /api/v1/orders`, and with `POST /api/v1/quotes` to make a quote retry safe. A retry with the same key and body returns the first answer, with `Idempotent-Replayed: true` ([Retries and recovery](/trade/orders#retries-and-recovery), [Retry a quote](/search/how-it-works#request-and-read-quotes)). |
 
 ## Read several resources at once
 
@@ -119,6 +122,14 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 ## Versioning
 
-The API is versioned in its path, `/api/v1`. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something; each one is listed in the [Changelog](/changelog) with what to change. From launch on, changes within a version are additive: new operations, optional fields, headers, enumeration values and error codes.
+The API is versioned by date. The one supported version today is `2026-11-17`.
+
+- **Your key's pin.** Every API key records the version current when it was created, and its requests are answered in that version.
+- **One request.** Send `TetraFi-Version: YYYY-MM-DD` to choose the version of that request. A value that is not exactly one supported date answers `400 API_VERSION_UNSUPPORTED` before anything runs.
+- **The answer.** Every response names its version in a `TetraFi-Version` header.
+- **Webhooks.** Each endpoint records the version current when it was created; every body carries it as `apiVersion`.
+- **Upgrading.** Test a newer version by sending its date in `TetraFi-Version`, then create a new key, which pins the newest version, and retire the old one.
+
+Within a version, changes are additive: new operations, optional fields, headers, enumeration values, variants and error codes. A breaking change ships only as a new dated version, so a pinned key never sees it until you move. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something in place; each one is listed in the [Changelog](/changelog) with what to change.
 
 See the full [Compatibility](/compatibility) policy and the [Changelog](/changelog).

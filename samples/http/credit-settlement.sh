@@ -73,8 +73,8 @@ workspace=$TETRAFI_WORKSPACE_ID
 accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-enablements?limit=50")
 for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); do
   credit=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-accounts/$id/credit")
-  jq -c '{venueAccountId, line: (.observation | if .state == "reported"
-      then {limit, used, available, overrun, asset, observedAt} else {state, code: .error} end),
+  jq -c '{venueAccountId, line: (.observation | if .status == "reported"
+      then {limit, used, available, overrun, asset, observedAt} else {status, code: .error} end),
     facility: .facility.state, positions: (.positions | if .state == "observed"
       then [.value[] | {asset, netPosition}] else {state} end), readAt}' <<<"$credit" >&2
 done
@@ -100,16 +100,16 @@ fi
 # could not be read: the plan is partial then, not "nothing due". It is one snapshot, never paged: a plan of
 # more than 512 windows is refused whole with 422 SETTLEMENT_PLAN_TOO_LARGE, so read a shorter horizonDays.
 plan=$(tetrafi GET "/api/v1/workspaces/$workspace/settlement/plan?horizonDays=30")
-jq -c '{state, complete, accounts: (.accountSummaries | length), windows: (.windows | length),
+jq -c '{status, complete, accounts: (.accountSummaries | length), windows: (.windows | length),
   failedReads: [.failedReads[].error] | unique}' <<<"$plan" >&2
 # endregion
 
 # region settlement-windows
-# The account's windows, newest first; filter with state and follow nextCursor until it is null. A ready
+# The account's windows, newest first; filter with status and follow nextCursor until it is null. A ready
 # window's statement says its provenance, whether each price was available, and whether the minimum
 # settlement makes it due.
 windows=$(tetrafi GET "$base/settlement/windows?limit=20")
-jq -c '.items[:3][] | {windowId, state, snapshotAt, paymentDeadlineAt, dueState}' <<<"$windows" >&2
+jq -c '.items[:3][] | {windowId, status, snapshotAt, paymentDeadlineAt, dueState}' <<<"$windows" >&2
 window_id=$(jq -r '.items[0].windowId // empty' <<<"$windows")
 if [[ -n $window_id ]]; then
   window=$(tetrafi GET "$base/settlement/windows/$window_id")
@@ -122,7 +122,7 @@ fi
 # What each side owes and by when. Filter with windowId or tradeId; the detail adds its events and the
 # movements matched to it.
 obligations=$(tetrafi GET "$base/settlement/obligations${window_id:+?windowId=$window_id}")
-jq -c '.items[] | {obligationId, payer, asset, remainingAmount, dueAt, state, dueState}' <<<"$obligations" >&2
+jq -c '.items[] | {obligationId, payer, asset, remainingAmount, dueAt, status, dueState}' <<<"$obligations" >&2
 obligation_id=$(jq -r '.items[0].obligationId // empty' <<<"$obligations")
 if [[ -n $obligation_id ]]; then
   tetrafi GET "$base/settlement/obligations/$obligation_id" | jq -c '{obligationId, events: [.events[].kind]}' >&2
@@ -142,7 +142,7 @@ jq -c '{observation: ([.included.observation // {} | .[].value][0]), unreachable
 # …/trades/{tradeId}/settlement answers a named 404 for it.
 if [[ -n ${TETRAFI_TRADE_ID:-} ]]; then
   tetrafi GET "/api/v1/workspaces/$workspace/trades/$TETRAFI_TRADE_ID/settlement/obligations" \
-    | jq -c --arg trade "$TETRAFI_TRADE_ID" '{tradeId: $trade, obligations: [.items[] | {windowId, obligationId, state}]}' >&2
+    | jq -c --arg trade "$TETRAFI_TRADE_ID" '{tradeId: $trade, obligations: [.items[] | {windowId, obligationId, status}]}' >&2
 fi
 # endregion
 

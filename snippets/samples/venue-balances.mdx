@@ -8,7 +8,7 @@
 # venue's free balance less TetraFi's open trades and withdrawals, null when unknown; usdValue is
 # null without a reference price, never 0. A balance never authorizes a payment.
 balances=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/balances")
-jq -c '{state, observedAt, expiresAt, balances: (.balances | if . == null then null else
+jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then null else
   [.[] | {asset, total, free, available, usdValue}] end)}' <<<"$balances" >&2
 ```
 

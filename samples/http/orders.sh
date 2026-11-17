@@ -148,13 +148,13 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   # anything else. ordered: read the order at statusUrl. notOrdered: nothing was placed.
   # unknown: wait, then read again.
   recovered=$(tetrafi GET "/api/v1/orders/by-quote/$order_quote")
-  jq -c '{state, orderId, statusUrl}' <<<"$recovered" >&2
+  jq -c '{status, orderId, statusUrl}' <<<"$recovered" >&2
   unordered=$(tetrafi GET "/api/v1/orders/by-quote/$quote_id")
-  jq -c '{state, expired}' <<<"$unordered" >&2
+  jq -c '{status, expired}' <<<"$unordered" >&2
   # endregion
   summary=$(jq -c --argjson p "$placed" --argjson r "$recovered" --arg c "$(error_of "$conflict")" '. + {order: {
     kind: $p.kind, quoteId: $p.quoteId, id: $p.orderId,
-    conflict: $c, recovered: $r.state}}' <<<"$summary")
+    conflict: $c, recovered: $r.status}}' <<<"$summary")
 
   # region order-status
   # Read the order at the statusUrl its answer gave: the same envelope as POST /orders, even

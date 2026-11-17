@@ -10,8 +10,8 @@
 accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-enablements?limit=50")
 for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); do
   credit=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-accounts/$id/credit")
-  jq -c '{venueAccountId, line: (.observation | if .state == "reported"
-      then {limit, used, available, overrun, asset, observedAt} else {state, code: .error} end),
+  jq -c '{venueAccountId, line: (.observation | if .status == "reported"
+      then {limit, used, available, overrun, asset, observedAt} else {status, code: .error} end),
     facility: .facility.state, positions: (.positions | if .state == "observed"
       then [.value[] | {asset, netPosition}] else {state} end), readAt}' <<<"$credit" >&2
 done
@@ -23,16 +23,15 @@ done
  * available and overrun; `notReported` and `unavailable` carry no figures, never zeros. `positions` are the
  * signed positions from the last recorded ledger read, with the time they were observed.
  */
-type ObservedPositions = Extract<VenueAccountCredit['positions'], { state: 'observed' }>;
-
 function creditSummary(credit: VenueAccountCredit): Record<string, unknown> {
   const observation = credit.observation;
-  const line = 'limit' in observation
+  // The tags are open: isVariant narrows to a known variant, and a value a newer server adds falls through.
+  const line = isVariant(observation, 'status', 'reported')
     ? { limit: observation.limit, used: observation.used, available: observation.available,
         overrun: observation.overrun, asset: observation.asset ?? null, observedAt: observation.observedAt }
-    : { state: observation.state, code: 'error' in observation ? observation.error : null };
-  const positions = credit.positions.state === 'observed'
-    ? (credit.positions as ObservedPositions).value.map((position) => ({ asset: position.asset, netPosition: position.netPosition }))
+    : { status: observation.status, code: 'error' in observation ? observation.error : null };
+  const positions = isVariant(credit.positions, 'state', 'observed')
+    ? credit.positions.value.map((position) => ({ asset: position.asset, netPosition: position.netPosition }))
     : { state: credit.positions.state };
   return { venueAccountId: credit.venueAccountId, line, facility: credit.facility.state, positions, readAt: credit.readAt };
 }

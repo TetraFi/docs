@@ -83,7 +83,7 @@ fi
 # venue's free balance less TetraFi's open trades and withdrawals, null when unknown; usdValue is
 # null without a reference price, never 0. A balance never authorizes a payment.
 balances=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/balances")
-jq -c '{state, observedAt, expiresAt, balances: (.balances | if . == null then null else
+jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then null else
   [.[] | {asset, total, free, available, usdValue}] end)}' <<<"$balances" >&2
 # endregion
 
@@ -108,7 +108,7 @@ jq -c --arg account "$account" '(.included.observation[$account].value // {}) as
      deposits: (.items | length), unreachable: [.unreachable[] | .reason]}' <<<"$history" >&2
 # endregion
 
-jq -e 'has("balances") and has("state") and has("observedAt")' <<<"$balances" >/dev/null || fail BALANCES_SHAPE
+jq -e 'has("balances") and has("status") and has("observedAt")' <<<"$balances" >/dev/null || fail BALANCES_SHAPE
 jq -e '(.balances // []) | all(has("asset") and has("total") and has("free"))' <<<"$balances" >/dev/null \
   || fail BALANCE_LINE_SHAPE
 jq -e 'has("items") and has("unreachable")' <<<"$history" >/dev/null || fail DEPOSIT_HISTORY_SHAPE
@@ -124,6 +124,6 @@ if unknown=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-account
 fi
 [[ $(jq -r '.error // empty' <<<"$unknown") == VENUE_ACCOUNT_NOT_FOUND ]] || fail UNKNOWN_ACCOUNT_REFUSAL
 
-jq -cn --argjson b "$balances" --argjson h "$history" '{state: $b.state,
+jq -cn --argjson b "$balances" --argjson h "$history" '{status: $b.status,
   assets: (($b.balances // []) | length), unknownAccount: "VENUE_ACCOUNT_NOT_FOUND", foreignCursor: "INVALID_CURSOR",
   depositHistory: (if ($h.unreachable | length) > 0 then "unavailable" else ($h.items | length) end)}'
