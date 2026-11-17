@@ -28,7 +28,7 @@ Read every venue's current price for a pair from prices TetraFi already holds, w
 | --- | --- | --- |
 | `sell`, `buy` | Yes | Asset ids from [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery). |
 | `sellAmount`, `buyAmount` or `sizes` | Exactly one | One amount you sell or buy, or `sizes`: 1 to 8 comma-separated sell amounts, such as `100,1000,10000`. |
-| `sell.chain`, `buy.chain` | No | A CAIP-2 chain id to pin that side. |
+| `sell.network`, `buy.network` | No | A CAIP-2 network id to pin that side. |
 | `locations`, `modalities`, `venues.include`, `venues.exclude`, `variants.sell`, `variants.buy` | No | The [quote filters](/search/how-it-works#filters-and-sort), comma-separated. A venue they exclude has no row. |
 
   </Accordion>
@@ -129,7 +129,7 @@ Treat a status you do not recognise as "other".
 | --- | --- | --- |
 | `400 UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. | Use values from `GET /api/v1/assets`. |
 | `400 INVALID_AMOUNT` | An amount or a size is not a positive decimal. | Send positive decimals. |
-| `400 SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same asset with no chain pinned. | Add `sell.chain` or `buy.chain`. |
+| `400 SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same asset with no chain pinned. | Add `sell.network` or `buy.network`. |
 | `400 INVALID_REQUEST` | Both amounts, `sizes` with an amount, no amount at all, or an unknown parameter, such as `pay`, `receive`, `amount` or `side`. | Send `sell`, `buy` and one of `sellAmount`, `buyAmount` or `sizes`. |
 | `403 INSUFFICIENT_SCOPE` | The key lacks `prices_read`. | Use a key with Read quotes. |
 | `429 PRICES_RATE_LIMIT`, `PRICES_STREAM_LIMIT` | Too many price reads, or streams. | Wait `Retry-After` seconds, or close a stream. |

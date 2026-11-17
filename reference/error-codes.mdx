@@ -13,7 +13,7 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 
 | Status | Codes | Usually means |
 | :--- | :--- | :--- |
-| [400 Bad request](#400-bad-request) | 138 | The request is malformed or a value is out of range. |
+| [400 Bad request](#400-bad-request) | 139 | The request is malformed or a value is out of range. |
 | [401 Unauthorized](#401-unauthorized) | 1 | The credential or its signature was not accepted. |
 | [403 Forbidden](#403-forbidden) | 92 | The credential lacks a permission, scope or grant, or the workspace cannot do this yet. |
 | [404 Not found](#404-not-found) | 23 | The resource does not exist or is not visible to this credential. |
@@ -44,6 +44,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="AGGREGATION_ERROR"></span>`AGGREGATION_ERROR` | No venue could price the request. | Change the pair, amount or filters, then request quotes again. | No |
 | <span id="ALL_SOLVERS_FAILED"></span>`ALL_SOLVERS_FAILED` | Every venue asked refused or failed to price the request. | Change the pair, amount or filters, then request quotes again. | No |
 | <span id="AMOUNT_PRECISION_EXCEEDED"></span>`AMOUNT_PRECISION_EXCEEDED` | The amount has more fractional digits than its asset allows; details names the field, decimals supplied and allowed precision. | Use at most details.allowed fractional digits for details.field, then send the request again. | No |
+| <span id="API_VERSION_UNSUPPORTED"></span>`API_VERSION_UNSUPPORTED` | The TetraFi-Version header is not exactly one supported version date (YYYY-MM-DD); nothing ran. | Send a supported version (the message lists them), or omit the header to use your API key's pinned version. | No |
 | <span id="ASSET_HAS_NO_CHAIN_DEPOSIT"></span>`ASSET_HAS_NO_CHAIN_DEPOSIT` | The selected asset has no on-chain deposit. | Use bank-deposit instructions for this currency, or select an asset with an on-chain token. | No |
 | <span id="ASSET_NOT_ON_CHAIN"></span>`ASSET_NOT_ON_CHAIN` | The asset has no deployment on the chain pinned for that side. | Pin a chain the asset is on (see GET /assets), or remove the pin. | No |
 | <span id="AUTO_WITHDRAW_WALLET_REQUIRED"></span>`AUTO_WITHDRAW_WALLET_REQUIRED` | Automatic withdrawal needs a settlement wallet. | Select a settlement wallet, then place the order again. | No |

@@ -191,7 +191,7 @@ Read `GET /api/v1/orders/by-quote/{quoteId}` whenever you lost the answer, the k
 
 It says what a quote produced, never places anything, and works after the quote expired.
 
-| `state` | What it means | What to do |
+| `status` | What it means | What to do |
 | --- | --- | --- |
 | `ordered` | An order exists. | Follow its `statusUrl` until `terminal` ([Order status](/trade/order-status)). Do not order again. |
 | `notOrdered` | No order was placed with this quote. | If `expired` is `false`, order it with the saved body and key, or with a new key if that key answered `IDEMPOTENCY_OUTCOME_UNKNOWN`. If `true`, requote or search again. |
@@ -204,8 +204,8 @@ An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND
     <OrderRecoverByQuote />
 
     ```json
-    {"state":"ordered","orderId":"acb84378-…","statusUrl":"/api/v1/orders/acb84378-…"}
-    {"state":"notOrdered","expired":false}
+    {"status":"ordered","orderId":"acb84378-…","statusUrl":"/api/v1/orders/acb84378-…"}
+    {"status":"notOrdered","expired":false}
     ```
   </Accordion>
 </AccordionGroup>

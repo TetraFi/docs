@@ -3,9 +3,15 @@ title: "Changelog"
 description: "Every change to the TetraFi API that a client can see, newest first, with what to do about it."
 ---
 
-The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
+The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
-<Update label="2026-11-17" description="Credit for every account, and a richer settlement plan">
+<Update label="2026-11-17" description="Dated versions, quote retries, open variants, and credit for every account">
+  - **Dated versions.** The API version is `2026-11-17`. Each API key and webhook endpoint pins the version current when it was created; send `TetraFi-Version: YYYY-MM-DD` to choose one request's version (`400 API_VERSION_UNSUPPORTED` for any other value), and every response names its version in the same header. Webhook bodies carry the endpoint's version as `apiVersion` ([Versioning](/reference/conventions#versioning)).
+  - `POST /api/v1/quotes` takes an `Idempotency-Key`: a retry with the same key and body returns the first answer and asks no venue again ([Retry safely](/search/how-it-works#request-and-read-quotes)).
+  - A record tagged by `kind` or `status` can gain variants without a new version: keep a default branch for a tag you do not know ([Conventions](/reference/conventions#values)). Identifiers are opaque strings; the reference no longer marks them `uuid`.
+  - **Breaking.** Lifecycle fields read `status`, not `state`: the settlement plan, windows (filter with `status`) and obligations, a trade's obligations, a credit `observation`, quote order recovery (`GET /api/v1/orders/by-quote/{quoteId}`) and venue balances.
+  - **Breaking.** `GET /api/v1/prices` takes `sell.network` and `buy.network` instead of `sell.chain` and `buy.chain`.
+  - **Breaking.** `treasury.balance.low` and `treasury.balance.recovered` use the standard `{id, type, apiVersion, createdAt, data}` envelope, with their fields under `data` ([Webhook events](/reference/webhook-events)).
   - **Breaking.** A quote's, order's and venue trade's `settlement` names its mode `settlementMode` (`window` or `anytime`), as documented; it had been sent as `settlement_mode`.
   - New `GET /api/v1/workspaces/{workspaceId}/venue-account-credit` lists every venue account's credit in one call, or those named in `venueAccountId`; an account that cannot be read is one `unreachable` entry ([Settlement and credit](/trade/settlement-and-credit#monitor-credit-per-account)).
   - The settlement plan takes `venueAccountId`, answers `nextTransitionAt` (re-read then instead of polling), and each window carries `carries` and `minimumOutcome`. An account whose settlement facts are not ready is its own `failedReads` entry, such as `SETTLEMENT_PROJECTION_PENDING`.

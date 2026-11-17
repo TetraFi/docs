@@ -60,6 +60,13 @@ flowchart LR
 | `integrationAppId` | No | The integration app whose partner fee terms apply ([Monetize](/monetize)). |
 
       </Accordion>
+      <Accordion title="Retry safely with an Idempotency-Key">
+        Send an `Idempotency-Key` header (1 to 255 bytes; a UUID is a good choice) to make a retry safe. A retry with the same key and body within 24 hours returns the first answer, with `Idempotent-Replayed: true`, and asks no venue again; its quotes may have expired since, so check `expiresAt`. A retry while the first is still running waits for its answer.
+
+        - The same key with a different body: `409 IDEMPOTENCY_CONFLICT`.
+        - Refusals are not stored, so a retry after one asks again.
+        - Not with `Accept: text/event-stream`: a stream cannot be replayed (`400 IDEMPOTENCY_KEY_INVALID`).
+      </Accordion>
     </AccordionGroup>
   </Step>
   <Step title="Read the quotes">
@@ -423,6 +430,8 @@ A refused request answers the standard [error body](/trade/errors#read-a-refusal
 | `INVALID_AMOUNT` | The amount is not a positive decimal string. | Send it as a string, such as `"10"`. |
 | `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. | Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
 | `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. | Wait `Retry-After` seconds. |
+| `IDEMPOTENCY_CONFLICT` | An `Idempotency-Key` already used with a different body. | Use a new key for a new request. |
+| `IDEMPOTENCY_KEY_INVALID` | The key is empty, longer than 255 bytes, or sent with a stream. | Send 1 to 255 bytes, on a JSON request only. |
 
   </Accordion>
   <Accordion title="Chain, venue and filter refusals">

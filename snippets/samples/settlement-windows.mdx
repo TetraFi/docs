@@ -3,11 +3,11 @@
 <CodeGroup>
 
 ```bash cURL
-# The account's windows, newest first; filter with state and follow nextCursor until it is null. A ready
+# The account's windows, newest first; filter with status and follow nextCursor until it is null. A ready
 # window's statement says its provenance, whether each price was available, and whether the minimum
 # settlement makes it due.
 windows=$(tetrafi GET "$base/settlement/windows?limit=20")
-jq -c '.items[:3][] | {windowId, state, snapshotAt, paymentDeadlineAt, dueState}' <<<"$windows" >&2
+jq -c '.items[:3][] | {windowId, status, snapshotAt, paymentDeadlineAt, dueState}' <<<"$windows" >&2
 window_id=$(jq -r '.items[0].windowId // empty' <<<"$windows")
 if [[ -n $window_id ]]; then
   window=$(tetrafi GET "$base/settlement/windows/$window_id")
@@ -23,7 +23,7 @@ fi
 const windows: Array<Record<string, unknown>> = [];
 for await (const page of client.listSettlementWindowsAll(accountId, { limit: 20 })) {
   for (const window of page.items) {
-    windows.push({ windowId: window.windowId, state: window.state, snapshotAt: window.snapshotAt,
+    windows.push({ windowId: window.windowId, status: window.status, snapshotAt: window.snapshotAt,
       paymentDeadlineAt: window.paymentDeadlineAt ?? null, dueState: window.dueState ?? null });
   }
 }

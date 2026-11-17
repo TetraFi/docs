@@ -22,6 +22,27 @@ It covers:
 - the fee schedule and workspace capabilities;
 - webhooks and their event bodies.
 
+## Versioning
+
+The API is versioned by date. A version is named `YYYY-MM-DD`; the one supported version today is
+`2026-11-17`.
+
+- **Your key's pin.** Every API key records the version that was current when it was created.
+  Requests from that key are answered in its pinned version. Rotating a key keeps its pin.
+- **The header.** Send `TetraFi-Version: YYYY-MM-DD` to choose the version of one request. A value
+  that is not exactly one supported date answers `400 API_VERSION_UNSUPPORTED` before anything runs;
+  it is never replaced by another version. Without the header a key's request uses its pin, and a
+  member session uses the current version.
+- **The answer.** Every response names the version it was answered in, in its `TetraFi-Version`
+  header (only the `400 API_VERSION_UNSUPPORTED` refusal carries none).
+- **Webhooks.** Each webhook endpoint records the version current when it was created, and every
+  body it receives carries it as `apiVersion`.
+- **Upgrading.** When a new version ships, send its date in `TetraFi-Version` from your client to
+  test it while your key stays on its pin. When your client is ready, create a new key (it pins the
+  newest version) and retire the old one; recreate a webhook endpoint to move its bodies.
+- **After launch,** an [additive](#what-we-promise) change reaches every version. A breaking change
+  ships only as a new dated version, so a pinned key never sees it until you move.
+
 ## Reference exposure and launch availability
 
 `GET /api-docs/openapi.json` serves this reference exactly as it is published, and never serves
@@ -42,7 +63,7 @@ through the [deprecation process](#deprecation).
 |---|---|---|
 | Add an operation, an optional request field, a query parameter or a header | Additive | Nothing |
 | Add a field to a response object | Additive | Ignore unknown fields |
-| Add a value to a response enum or a tagged union | Additive | Fall back on unknown values |
+| Add a value to a response enum, or a new variant (discriminator value) to a response tagged union | Additive | Fall back on unknown values |
 | Add a new error code | Additive | Handle by status class |
 | Add a status code to an operation, using the [error body](#the-error-body) | Additive | Handle by status class |
 | Make a request rule looser, e.g. accept a value that used to be refused | Additive | Nothing |
@@ -67,6 +88,15 @@ your last upgrade before you update a client.
   marked `x-extensible-enum`. Handle the values you know, and give anything else a neutral fallback:
   - a quote source with an unknown `status` is a source you can't use;
   - a `next` action with an unknown `kind` is a step you can't take automatically.
+
+  A tagged union (a `oneOf` told apart by `kind`, `status`, `state` or another tag) can gain a
+  variant with a tag value you have not seen. Switch on the tag with a default branch that skips
+  the value or treats it as "other"; never let an exhaustive match fail on it. The TypeScript SDK
+  types every response union with an open member for such variants: narrow a known variant with
+  `isVariant(value, 'kind', 'known')`. Request unions stay closed; send only documented variants.
+- **Treat identifiers as opaque strings.** Every `id` and `…Id` field and path parameter is a
+  string. Compare it as a string and store it as returned; don't parse it, validate it as a UUID or
+  derive anything from its shape. Its format can change without notice.
 - **Handle unknown error codes by status.** Act on the codes you know, and treat any other code by
   its HTTP status class:
   - `429` or `503`: retry after `Retry-After`;
@@ -182,6 +212,12 @@ This pre-launch change of status from timeout/unavailable to 429 is recorded in 
   order.
 - A different body under the same key answers `409 IDEMPOTENCY_CONFLICT`.
 - Refusals are not stored: after one, fix the request and send it again.
+- `POST /api/v1/quotes` takes an optional `Idempotency-Key`. A quote request asks venues (a firm
+  ask reaches a desk) and holds the quotes it answers, so a retry without a key asks again. With a
+  key, the same key and body return the first quote set (its quotes may have expired since) and ask
+  no venue again; a different body answers `409 IDEMPOTENCY_CONFLICT`. A streamed answer
+  (`Accept: text/event-stream`) cannot be replayed, so a key there answers
+  `400 IDEMPOTENCY_KEY_INVALID`.
 - The OpenAPI description of the header has the full rules.
 
 ## Cancellation
@@ -258,8 +294,11 @@ sent on every status change of an order placed in that workspace.
   `statusUrl` for its full state.
 - If durable lifecycle facts are temporarily unavailable, `terminal` is omitted (never guessed) and
   `status` names the observed event.
+- For `treasury.balance.low` and `treasury.balance.recovered`, `data` is `{ruleId, workspaceId,
+  walletId, asset, units, available, threshold, direction, observedAt}`.
 - New `type` values and new fields can appear without notice, so ignore what you don't know.
-- A breaking change to a body ships under a new `apiVersion`.
+- `apiVersion` is the version the endpoint pinned when it was created ([Versioning](#versioning)).
+  A breaking change to a body ships only under a new version.
 
 ### Signature
 

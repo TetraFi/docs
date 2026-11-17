@@ -184,7 +184,7 @@ On some venue accounts, the liquidity provider (LP) and your workspace net what 
 
 | Object | What it is | How to read it |
 | --- | --- | --- |
-| Window | One settlement period. Once its snapshot is ready, it carries an indicative statement: positions, snapshot prices (an unavailable one names its stage and reason) and the minimum-settlement decision. An LP-issued window adds the LP's statement. | Newest first; filter by `state`, page with `cursor`. `…/windows/{windowId}/matches`: movements matched to its obligations, oldest first. |
+| Window | One settlement period. Once its snapshot is ready, it carries an indicative statement: positions, snapshot prices (an unavailable one names its stage and reason) and the minimum-settlement decision. An LP-issued window adds the LP's statement. | Newest first; filter by `status`, page with `cursor`. `…/windows/{windowId}/matches`: movements matched to its obligations, oldest first. |
 | Obligation | What you and the LP owe each other, with status, deadline and origin. | Filter by `windowId` or `tradeId`. The detail lists its matched movements. |
 | Movement | A deposit or withdrawal that settles obligations, with its finality and how it matched. | As recorded by TetraFi; `include=observation` says how current (`lastSuccessfulReadAt`, `observationState`), and an unread LP history is an `unreachable` entry. A key never starts a read from the LP. |
 | Schedule | The LP's published schedules. | The one in effect, with its minimum settlement, and the next window. |
@@ -201,7 +201,7 @@ Each step reads only. A refused read answers with its code, never an empty page.
     <SettlementPlan />
   </Step>
   <Step title="Read the account's windows and statement">
-    Filter by `state` and follow `nextCursor`. The SDK's `listSettlementWindowsAll` follows it for you.
+    Filter by `status` and follow `nextCursor`. The SDK's `listSettlementWindowsAll` follows it for you.
 
     <SettlementWindows />
   </Step>
@@ -220,12 +220,12 @@ Each step reads only. A refused read answers with its code, never an empty page.
   <Accordion title="Example output">
 
 ```json Example output
-{"state":"incomplete","complete":false,"accounts":38,"windows":50,"failedReads":["SETTLEMENT_WALLET_NOT_LINKED"]}
-{"windowId":"d3050000-…-f2","state":"ready","snapshotAt":"2026-10-31T00:00:00Z","paymentDeadlineAt":null,"dueState":"dueNow"}
-{"windowId":"d3050000-…-f2","state":"ready","provenance":"indicative","prices":["available"],"minimum":"due"}
-{"obligationId":"5b91bc49-…","payer":"workspace","asset":"USD","remainingAmount":"100000","dueAt":"2026-11-04T09:33:49.629345Z","state":"open","dueState":"dueNow"}
+{"status":"incomplete","complete":false,"accounts":38,"windows":50,"failedReads":["SETTLEMENT_WALLET_NOT_LINKED"]}
+{"windowId":"d3050000-…-f2","status":"ready","snapshotAt":"2026-10-31T00:00:00Z","paymentDeadlineAt":null,"dueState":"dueNow"}
+{"windowId":"d3050000-…-f2","status":"ready","provenance":"indicative","prices":["available"],"minimum":"due"}
+{"obligationId":"5b91bc49-…","payer":"workspace","asset":"USD","remainingAmount":"100000","dueAt":"2026-11-04T09:33:49.629345Z","status":"open","dueState":"dueNow"}
 {"observation":{"observationState":"unavailable","reasonCode":"SETTLEMENT_MOVEMENTS_LP_UNAVAILABLE","lastSuccessfulReadAt":null},"unreachable":[{"source":"lpHistory","reason":"SETTLEMENT_MOVEMENTS_LP_UNAVAILABLE"}],"count":0}
-{"tradeId":"d9200000-…-e1","obligations":[{"windowId":null,"obligationId":"d9200000-…-106","state":"lapsed"}]}
+{"tradeId":"d9200000-…-e1","obligations":[{"windowId":null,"obligationId":"d9200000-…-106","status":"lapsed"}]}
 ```
 
   </Accordion>
@@ -272,7 +272,7 @@ To be told instead of polling, subscribe to [`credit.updated`](#webhooks).
 
 ```json Example output
 {"venueAccountId":"d3050000-…-a1","line":{"limit":"50000","used":"12000","available":"38000","overrun":"0","asset":"USD","observedAt":"2026-11-10T17:28:38.983588Z"},"facility":"observed","positions":[{"asset":"BTC","netPosition":"0.5"},{"asset":"USD","netPosition":"-12000"}],"readAt":"2026-11-12T12:32:19.066Z"}
-{"venueAccountId":"d9200000-…-a1","line":{"state":"unavailable","code":"LEDGER_READ_UNAVAILABLE"},"facility":"observed","positions":{"state":"notStarted"},"readAt":"2026-11-12T12:32:32.758Z"}
+{"venueAccountId":"d9200000-…-a1","line":{"status":"unavailable","code":"LEDGER_READ_UNAVAILABLE"},"facility":"observed","positions":{"state":"notStarted"},"readAt":"2026-11-12T12:32:32.758Z"}
 {"source":"recorded","stale":true,"observedAt":"2026-11-10T17:28:38.983588Z","readAt":"2026-11-12T12:32:34.936Z","positions":[{"asset":"BTC","amount":"0.5"},{"asset":"USD","amount":"-12000"}]}
 {"refused":{"status":409,"code":"LEDGER_NOT_OBSERVED","message":"Not observed yet: no ledger read is recorded for this account. A member opening it in Treasury records one."}}
 ```

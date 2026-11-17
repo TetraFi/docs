@@ -153,9 +153,9 @@ fi
 # key. Read the order by its quote: "ordered" gives its statusUrl, "notOrdered" means nothing was
 # placed, "unknown" means wait and read again.
 recovered=$(tetrafi GET "/api/v1/orders/by-quote/$quote_id")
-jq -c '{state, orderId, statusUrl}' <<<"$recovered" >&2
-if [[ $(jq -r '.state' <<<"$recovered") != ordered ]]; then
-  jq -c --arg q "$quote_id" '{quoteId: $q, ordered: false, state}' <<<"$recovered"
+jq -c '{status, orderId, statusUrl}' <<<"$recovered" >&2
+if [[ $(jq -r '.status' <<<"$recovered") != ordered ]]; then
+  jq -c --arg q "$quote_id" '{quoteId: $q, ordered: false, status}' <<<"$recovered"
   exit 0
 fi
 # endregion
