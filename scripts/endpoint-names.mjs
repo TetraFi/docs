@@ -43,6 +43,7 @@ const NAMES = {
 
   'GET /api/v1/workspaces/{workspaceId}/balances': 'List workspace balances',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances': 'Get account balances',
+  'GET /api/v1/workspaces/{workspaceId}/venue-account-credit': 'List account credit',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit': 'Get account credit',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history': 'List account deposits',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions': 'Get deposit instructions',

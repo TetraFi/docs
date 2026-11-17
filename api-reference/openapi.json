@@ -1258,7 +1258,7 @@
         "x-extensible-enum": true
       },
       "CardFirmness": {
-        "description": "How firm a card's price is, read with `expiresAt`: `firm: true` delivers exactly\n`buy.amount` until `expiresAt`; `firm: false` with `expiresAt` executes held to `minOut`;\n`firm: false` with `expiresAt` null is indicative (it lapses at `staleAfter`, and is\norderable only through its `next: order`, executed within the caller's minimum receive).",
+        "description": "How firm a card's price is: `quality: firm` delivers exactly `buy.amount` until `expiresAt`;\n`quality: executable` executes held to `minOut`, until `expiresAt` when it states one, or, for a\ndesk's live price (`basis: liveQuote`, `expiresAt` null), until `staleAfter`, after which its\norder is still taken within the caller's minimum receive for a short window at a fresh venue\nprice; `quality: indicative` (`expiresAt` null) lapses at `staleAfter` and is orderable only\nthrough its `next: order`, executed within the caller's minimum receive.",
         "properties": {
           "firm": {
             "description": "Whether the venue is bound to this price until `expiresAt`, derived from `quality`.",
@@ -7317,6 +7317,18 @@
           },
           {
             "properties": {
+              "included": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IncludedRelations",
+                    "description": "With `include=`: per relation, one entry keyed by the related GET it read (path and query), holding\nthat GET's answer to this caller or `null` with its refusal. Absent without `include`."
+                  }
+                ],
+                "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+              },
               "lastNudge": {
                 "oneOf": [
                   {
@@ -9576,7 +9588,7 @@
                 "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
               },
               "expiresAt": {
-                "description": "When an executable quote stops being orderable; null for an indicative one (see `staleAfter`).",
+                "description": "When an executable quote stops being orderable; null for an indicative one and for a desk's\nlive price, which is executable but lapses by `staleAfter`.",
                 "format": "date-time",
                 "type": [
                   "string",
@@ -9791,7 +9803,7 @@
                 "description": "The price's distance from the Reference mid, or the reason it is unknown."
               },
               "staleAfter": {
-                "description": "When an indicative price goes stale; null for an executable quote.",
+                "description": "When an indicative price, or a desk's live executable price (`expiresAt` null), goes\nstale; null for an executable quote that states `expiresAt`.",
                 "format": "date-time",
                 "type": [
                   "string",
@@ -10672,6 +10684,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "instructionsStale": {
+            "description": "The instructions come from the last good read, past its refresh time (a refresh is\ndue or failed). Paying re-reads them from the venue and refuses on any change.",
+            "type": "boolean"
+          },
           "kind": {
             "type": "string"
           },
@@ -10937,6 +10953,18 @@
             ],
             "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
+          "carries": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WindowCarries",
+                "description": "Where the window's amounts came from (`from`) and went (`to`): nettings, carried-forward\namounts and carry fees, each naming the other window, asset, exact amount and fee facts. Null\nbefore the window's statement, or when its carries could not be read (`failedReads` names\n`carries`)."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "client": {
             "oneOf": [
               {
@@ -11000,6 +11028,18 @@
               "null"
             ]
           },
+          "minimumOutcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MinimumSettlementOutcome",
+                "description": "What the window's statement decided against the schedule's minimum settlement\n(`belowMinimum`: the workspace's payments carry into a later window). Null before the\nstatement or when the schedule has no minimum."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "owed": {
             "items": {
               "$ref": "#/components/schemas/SettlementObligation"
@@ -11045,6 +11085,14 @@
             "format": "int64",
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "supersededBy": {
+            "description": "The later window whose statement covers this one (it lists this window among its deferred\nwindows). Null when no later window covers it.",
+            "format": "uuid",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -11100,6 +11148,9 @@
           "state",
           "group",
           "amountBasis",
+          "carries",
+          "minimumOutcome",
+          "supersededBy",
           "owed",
           "toReceive",
           "proposedTransfers",
@@ -15394,7 +15445,7 @@
           },
           {
             "properties": {
-              "settlement_mode": {
+              "settlementMode": {
                 "oneOf": [
                   {
                     "type": "null"
@@ -22818,6 +22869,48 @@
         ],
         "type": "string",
         "x-extensible-enum": true
+      },
+      "VenueAccountCreditPage": {
+        "description": "One page of venue-account credit.",
+        "properties": {
+          "included": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncludedRelations",
+                "description": "With `include=consumers`: every listed account's commitment rows under\n`included.consumers[venueAccountId]`, as the item read expands them; omitted otherwise."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VenueAccountCredit"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unreachable": {
+            "description": "Accounts on this page whose credit could not be read: one entry each, source\n`venueAccounts/<venueAccountId>`, reason that account's refusal code (the item read's error,\nsuch as `VENUE_ACCOUNT_NOT_FOUND` for an asked account this workspace does not hold). The other\naccounts are still listed; an unread account is never a zero standing.",
+            "items": {
+              "$ref": "#/components/schemas/UnreachableSource"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "unreachable"
+        ],
+        "type": "object"
       },
       "VenueAccountCreditUsage": {
         "description": "The account's credit standing, computed read-only by the same arithmetic a trade's credit\ncheck uses (the LP's own availability, the exposure the venue's positions show, the valuation\nfreshness and the active credit holds). Reading it never reserves credit. Amounts are exact\ndecimals in `asset`; a figure that could not be read is absent, never zero.",
@@ -35123,6 +35216,360 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/venue-account-credit": {
+      "get": {
+        "description": "Each venue account's credit as the item read (`GET …/venue-accounts/{venueAccountId}/credit`) composes it, for the accounts named in `venueAccountId` (comma-separated) or, without it, every account of the workspace that settles through a venue account (newest first). Accounts are read concurrently; an account whose credit cannot be read is one `unreachable` entry (source `venueAccounts/<venueAccountId>`, reason its own refusal code, such as VENUE_ACCOUNT_NOT_FOUND for an asked account this workspace does not hold, VENUE_ACCOUNT_FUNDS_IN_WALLETS for an asked wallet-based venue, or a 503 code of the item read) while the others are listed. Within an item each component keeps its own named state, as on the item read: an account no current key holds names the missing key on each component, and one whose key state can't be read names VENUE_ACCOUNT_KEY_STATE_UNAVAILABLE. The list admits an account by its stored row and venue kind. The caller must be allowed to view the workspace's wallets and credit; an API key or OAuth client additionally needs treasury_read. 400 INVALID_REQUEST, INVALID_LIMIT or INVALID_CURSOR; 403 INSUFFICIENT_WORKSPACE_PERMISSION without permission to view credit; 503 when the account list itself cannot be read.",
+        "operationId": "listVenueAccountCredit",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "description": "Current company or broker workspace",
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only these venue accounts, comma-separated (any of, at most 100). Without it, every venue\naccount of the workspace that settles through a venue account.",
+            "in": "query",
+            "name": "venueAccountId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`consumers` expands every listed account's commitment rows under the page's\n`included.consumers[venueAccountId]`, as on the item read.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 100 (default 20); any other value is 400 INVALID_LIMIT.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The `nextCursor` of the previous page of this list.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenueAccountCreditPage"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The path workspace is unknown or is not the authenticated workspace (`WORKSPACE_NOT_FOUND`).",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "treasury_read"
+            ]
+          },
+          {
+            "api_key": [
+              "treasury_read"
+            ]
+          }
+        ],
+        "summary": "List venue-account credit",
+        "tags": [
+          "venue-accounts"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances": {
       "get": {
         "description": "The caller must be allowed to view wallets in a company or broker workspace (or be an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in the company's own wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its owner lost permission to view wallets, its membership or taker admission); a session that has itself ended answers 401.",
@@ -39286,6 +39733,15 @@
             "required": true,
             "schema": {
               "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Related reads to expand into `included`, comma-separated, each keyed by the GET it read (path and query) with that GET's own answer to this caller or null with its refusal. `terms`: the account's settlement terms. `schedules`: the account's settlement schedules. `obligations`: the window's obligations (`obligations?windowId=`). `nudges`: the window's latest nudge (`nudges?limit=1`). `payments`: its first 100 payments. `matches`: its first page of matches. `statements`: its statement versions. `messages`: its first 100 messages. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not available on a signed API-key request (400 `INCLUDE_SIGNED_REQUEST_UNSUPPORTED`).",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
               "type": "string"
             }
           }

@@ -5,6 +5,14 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive only, with removals announced at least six months ahead.
 
+<Update label="2026-11-17" description="Credit for every account, and a richer settlement plan">
+  - **Breaking.** A quote's, order's and venue trade's `settlement` names its mode `settlementMode` (`window` or `anytime`), as documented; it had been sent as `settlement_mode`.
+  - New `GET /api/v1/workspaces/{workspaceId}/venue-account-credit` lists every venue account's credit in one call, or those named in `venueAccountId`; an account that cannot be read is one `unreachable` entry ([Settlement and credit](/trade/settlement-and-credit#monitor-credit-per-account)).
+  - The settlement plan takes `venueAccountId`, answers `nextTransitionAt` (re-read then instead of polling), and each window carries `carries` and `minimumOutcome`. An account whose settlement facts are not ready is its own `failedReads` entry, such as `SETTLEMENT_PROJECTION_PENDING`.
+  - A settlement window read takes `include=` (`terms`, `schedules`, `obligations`, `nudges`, `payments`, `matches`, `statements`, `messages`) and answers them in `included`.
+  - A batch item that has not answered by the batch's deadline answers `504 SOURCE_TIMEOUT` inside the `200`.
+</Update>
+
 <Update label="2026-11-16" description="One name per field, slippage limits, and uncertain retries">
   - **Breaking: one name per field.** Every field that had an older twin now has only its new name:
     - `asset` replaces `currency` and `assetId` everywhere, including credit amounts and terms, ledger and bank reads, quote funding instructions and a quote card's pay-from source, and refusal `details`; `assetSymbol` replaces `symbol`.
