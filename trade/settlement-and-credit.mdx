@@ -35,7 +35,7 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 | `GET …/trades/{tradeId}/settlement` and `…/settlement/obligations` | Read settlements | Your side of one trade's settlement. |
 | `GET …/settlement/plan` | Read settlements | What is due across your venue accounts. |
 | `GET …/venue-accounts/{venueAccountId}/settlement/…` | Read settlements | One account's movements, obligations, schedules, windows and matches. |
-| `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read | The account's credit line and positions. |
+| `GET …/venue-account-credit`, `…/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read | Every account's credit at once, or one account's credit line and positions. |
 | `settlement.*` and `credit.updated` [webhooks](#webhooks) | Read settlements, Treasury read | A window ready, a payment due or overdue, a payment matched, credit changed. |
 
 ```mermaid
@@ -158,6 +158,7 @@ On some venue accounts, the liquidity provider (LP) and your workspace net what 
 | What each side owes, and by when | `GET …/venue-accounts/{venueAccountId}/settlement/obligations` and `…/obligations/{obligationId}` |
 | The deposits and withdrawals that settled them | `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/movements/{movementId}` |
 | The LP's settlement schedule | `GET …/venue-accounts/{venueAccountId}/settlement/schedules` |
+| Every venue account's credit, in one call | `GET …/venue-account-credit` |
 | The account's credit line and positions | `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` |
 
   </Accordion>
@@ -165,10 +166,13 @@ On some venue accounts, the liquidity provider (LP) and your workspace net what 
     `GET /api/v1/workspaces/{workspaceId}/settlement/plan` is a snapshot of what is due:
 
     - up to `horizonDays` ahead (1 to 90), as one snapshot that is never paged: a plan of more than 512 windows is refused whole with `422 SETTLEMENT_PLAN_TOO_LARGE`, so ask for a shorter horizon;
-    - a summary per account, with its upcoming `windows`;
+    - a summary per account, with its upcoming `windows`; `venueAccountId` narrows it to the accounts you name;
+    - each window's `carries` (what was netted or carried forward into it, or out of it) and `minimumOutcome` (whether it is below the venue's minimum settlement, and so due or not);
     - an unknown deadline stays unknown, never a guess.
 
-    A source that could not be read is listed in `failedReads`, with `complete: false`: the plan is partial, not "nothing due".
+    `nextTransitionAt` is the earliest time the clock alone changes the plan, such as a deadline passing: read it again then instead of polling.
+
+    A source that could not be read is listed in `failedReads`, with `complete: false`: the plan is partial, not "nothing due". An account whose settlement facts are not ready yet is its own entry, such as `SETTLEMENT_PROJECTION_PENDING` or `SETTLEMENT_PROJECTION_LAGGING` (the last good facts, a little behind); read again shortly.
   </Accordion>
   <Accordion title="One trade's settlement">
     - `GET …/trades/{tradeId}/settlement`: your side of the trade, with its lifecycle stages, transactions and the LP's response.
@@ -216,7 +220,7 @@ Each step reads only. A refused read answers with its code, never an empty page.
   <Accordion title="Example output">
 
 ```json Example output
-{"state":"incomplete","complete":false,"accounts":38,"windows":50,"failedReads":["SETTLEMENT_WALLET_NOT_LINKED"],"more":true}
+{"state":"incomplete","complete":false,"accounts":38,"windows":50,"failedReads":["SETTLEMENT_WALLET_NOT_LINKED"]}
 {"windowId":"d3050000-…-f2","state":"ready","snapshotAt":"2026-10-31T00:00:00Z","paymentDeadlineAt":null,"dueState":"dueNow"}
 {"windowId":"d3050000-…-f2","state":"ready","provenance":"indicative","prices":["available"],"minimum":"due"}
 {"obligationId":"5b91bc49-…","payer":"workspace","asset":"USD","remainingAmount":"100000","dueAt":"2026-11-04T09:33:49.629345Z","state":"open","dueState":"dueNow"}
@@ -236,6 +240,7 @@ Each step reads only. A refused read answers with its code, never an empty page.
 
 | Read | Answers | How current |
 | --- | --- | --- |
+| `GET …/venue-account-credit` | The same as the credit read, for every venue account (or those named in `venueAccountId`), with the ones that could not be read in `unreachable`. | As the credit read. |
 | `GET …/venue-accounts/{venueAccountId}/credit` | The provider's reported line (limit, used, available and overrun), the agreed facility, TetraFi's open credit commitments and the signed positions, each with its observation time. | The last recorded ledger observation; no provider call. |
 | `GET …/venue-accounts/{venueAccountId}/ledger` | The signed positions and credit line. | For a key, the last recorded observation (`source: "recorded"`), dated `observedAt`, `stale: true` past an hour. A key never starts a venue read. |
 
@@ -246,7 +251,7 @@ A position with `prefundedOnly: true` is one the venue lets the account hold onl
 
 ### Monitor credit per account
 
-List your venue accounts, then read each one's credit. `observation.state` says what the provider reported:
+`GET …/venue-account-credit` lists every venue account's credit in one call, newest account first, or only the accounts named in `venueAccountId` (comma-separated); page it with `limit` and `cursor`. An account whose credit cannot be read is one `unreachable` entry (source `venueAccounts/<venueAccountId>`, reason its refusal code) while the others are listed. Each item is what `GET …/venue-accounts/{venueAccountId}/credit` answers for that account. `observation.state` says what the provider reported:
 
 - `reported`: `limit`, `used`, `available` and `overrun`, in `asset`, as of `observedAt`. `available` is negative when use exceeds the limit.
 - `notReported`: the provider does not report credit. An agreed facility in `facility` still applies.

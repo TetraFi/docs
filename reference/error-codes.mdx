@@ -13,7 +13,7 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 
 | Status | Codes | Usually means |
 | :--- | :--- | :--- |
-| [400 Bad request](#400-bad-request) | 137 | The request is malformed or a value is out of range. |
+| [400 Bad request](#400-bad-request) | 138 | The request is malformed or a value is out of range. |
 | [401 Unauthorized](#401-unauthorized) | 1 | The credential or its signature was not accepted. |
 | [403 Forbidden](#403-forbidden) | 92 | The credential lacks a permission, scope or grant, or the workspace cannot do this yet. |
 | [404 Not found](#404-not-found) | 23 | The resource does not exist or is not visible to this credential. |
@@ -31,8 +31,8 @@ Find the code from the `error` field of the response, or jump to its HTTP status
 | [500 Internal error](#500-internal-error) | 10 | TetraFi failed while handling the request. |
 | [501 Not implemented](#501-not-implemented) | 1 | The operation is not available. |
 | [502 Bad gateway](#502-bad-gateway) | 7 | A venue or provider failed. |
-| [503 Unavailable](#503-unavailable) | 139 | A dependency is temporarily unavailable. |
-| [504 Gateway timeout](#504-gateway-timeout) | 3 | A venue or provider did not answer in time. |
+| [503 Unavailable](#503-unavailable) | 146 | A dependency is temporarily unavailable. |
+| [504 Gateway timeout](#504-gateway-timeout) | 4 | A venue or provider did not answer in time. |
 | [Stream events](#stream-events) | 1 | Sent on a stream, not as an HTTP response. |
 
 Act on each code's own **What to do** and **Retryable**, not on its status: codes under one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/orders#retries-and-recovery).
@@ -141,6 +141,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="SETTLEMENT_MATCH_CURSOR_INVALID"></span>`SETTLEMENT_MATCH_CURSOR_INVALID` | The matches cursor does not belong to this window. | Start the listing again without a cursor. | No |
 | <span id="SETTLEMENT_MATCH_PAGE_INVALID"></span>`SETTLEMENT_MATCH_PAGE_INVALID` | The matches limit is out of range. | Send a limit in the documented range, or leave it out. | No |
 | <span id="SETTLEMENT_MOVEMENT_LIMIT_INVALID"></span>`SETTLEMENT_MOVEMENT_LIMIT_INVALID` | limit is outside 1 to 100. | Send a limit from 1 to 100, or leave it out. | No |
+| <span id="SETTLEMENT_PLAN_FILTER_UNSUPPORTED"></span>`SETTLEMENT_PLAN_FILTER_UNSUPPORTED` | venueAccountId filters the taker plan only; the maker perspective takes no account filter. | Leave venueAccountId out of a maker plan read. | No |
 | <span id="SETTLEMENT_PLAN_HORIZON_INVALID"></span>`SETTLEMENT_PLAN_HORIZON_INVALID` | horizonDays is outside 1 to 90. | Send horizonDays from 1 to 90, or leave it out. | No |
 | <span id="SETTLEMENT_WALLET_REQUIRED"></span>`SETTLEMENT_WALLET_REQUIRED` | This route needs settlementWalletId. | Include settlementWalletId. | No |
 | <span id="SIGNATURE_FORMAT_INVALID"></span>`SIGNATURE_FORMAT_INVALID` | The signature is not 65 bytes. | Send the 65-byte signature as hex. | No |
@@ -621,7 +622,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="SETTLEMENT_MATCHING_RULE_UNCONFIRMED"></span>`SETTLEMENT_MATCHING_RULE_UNCONFIRMED` | The account's matching rule is not confirmed, so no movement was matched to an obligation. | Confirm the matching rule for this account, then read again. | No |
 | <span id="SETTLEMENT_MOVEMENT_JOURNAL_CONFLICT"></span>`SETTLEMENT_MOVEMENT_JOURNAL_CONFLICT` | Retained movement journal evidence conflicts with its canonical finality events; no payment or continuity was inferred. | Reconcile the named canonical movement evidence before building a new cumulative snapshot. | No |
 | <span id="SETTLEMENT_MOVEMENT_JOURNAL_UNPROVEN"></span>`SETTLEMENT_MOVEMENT_JOURNAL_UNPROVEN` | A retained allocated movement has no durable finality history; no continuity was inferred. | Re-observe the canonical movement to establish finality evidence, then build a new cumulative snapshot. | No |
-| <span id="SETTLEMENT_PLAN_TOO_LARGE"></span>`SETTLEMENT_PLAN_TOO_LARGE` | The horizon holds more settlement windows than one plan answers (512); the plan is never truncated. | Send a shorter horizonDays, then read again. | No |
+| <span id="SETTLEMENT_PLAN_TOO_LARGE"></span>`SETTLEMENT_PLAN_TOO_LARGE` | The horizon holds more settlement windows than one plan answers (512); the plan is never truncated. As one account's failedReads entry in a 200 plan: that account holds more than 512 stored windows, so its windows are not shown and the rest of the plan is unaffected. | Send a shorter horizonDays, then read again; for an account's entry, contact support. | No |
 | <span id="SETTLEMENT_PREDECESSOR_CHANGED_AFTER_SNAPSHOT"></span>`SETTLEMENT_PREDECESSOR_CHANGED_AFTER_SNAPSHOT` | An earlier settlement window was paid, delivered or changed after this snapshot; no successor obligation was created. | Continue in a newer cumulative settlement window whose snapshot includes the earlier payment, delivery or change; do not retry the unchanged older snapshot. | No |
 | <span id="SETTLEMENT_SCHEDULE_INVALID"></span>`SETTLEMENT_SCHEDULE_INVALID` | The venue account has no confirmed settlement schedule that can produce a window, so nothing was sent. | Confirm the account's settlement schedule, then request a new quote. | No |
 | <span id="SETTLEMENT_SCHEDULE_UNAVAILABLE"></span>`SETTLEMENT_SCHEDULE_UNAVAILABLE` | The account's published settlement schedule cannot be used. | Ask the LP to publish a valid schedule, then read again. | No |
@@ -807,6 +808,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="SETTLEMENT_CORRIDOR_UNAVAILABLE"></span>`SETTLEMENT_CORRIDOR_UNAVAILABLE` | Settlement capabilities for the chain pair could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_LP_CORRECTION_RECEIPT_UNAVAILABLE"></span>`SETTLEMENT_LP_CORRECTION_RECEIPT_UNAVAILABLE` | An LP agreement correction or its immutable receipt could not be verified; no position was inferred. | Restore the named agreement receipt and journal evidence, then retry the read. | Yes |
 | <span id="SETTLEMENT_LP_DELIVERY_AGREEMENT_RECEIPT_UNAVAILABLE"></span>`SETTLEMENT_LP_DELIVERY_AGREEMENT_RECEIPT_UNAVAILABLE` | This window's agreement record could not be read, so the LP delivery deadline is unavailable. | Restore the window's agreement receipt, then retry the read. | Yes |
+| <span id="SETTLEMENT_MATCH_PRICE_UNAVAILABLE"></span>`SETTLEMENT_MATCH_PRICE_UNAVAILABLE` | A failedReads entry: the price that values the window's matched movements could not be read, so its counterparty progress is not stated. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_MATCH_READ_UNAVAILABLE"></span>`SETTLEMENT_MATCH_READ_UNAVAILABLE` | The matched movements could not be read; nothing was changed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_MOVEMENTS_ACCOUNT_UNAVAILABLE"></span>`SETTLEMENT_MOVEMENTS_ACCOUNT_UNAVAILABLE` | The venue account could not be read for its movements. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_MOVEMENTS_AUTHORITY_UNAVAILABLE"></span>`SETTLEMENT_MOVEMENTS_AUTHORITY_UNAVAILABLE` | The caller's current workspace authority could not be read; nothing was released. | Retry the same request shortly, with backoff. | Yes |
@@ -818,6 +820,12 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | <span id="SETTLEMENT_OVERDUE_STATE_UNAVAILABLE"></span>`SETTLEMENT_OVERDUE_STATE_UNAVAILABLE` | Overdue status could not be read; nothing was changed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_PLAN_ACCOUNTS_UNAVAILABLE"></span>`SETTLEMENT_PLAN_ACCOUNTS_UNAVAILABLE` | The workspace's venue accounts could not be read for the plan. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_PLAN_PERMISSION_FIX_UNAVAILABLE"></span>`SETTLEMENT_PLAN_PERMISSION_FIX_UNAVAILABLE` | Who could grant the missing permission could not be read. | Retry the same request shortly, with backoff. | Yes |
+| <span id="SETTLEMENT_PLAN_READ_UNAVAILABLE"></span>`SETTLEMENT_PLAN_READ_UNAVAILABLE` | The settlement plan's answer could not be assembled; nothing was changed. | Retry the same request shortly, with backoff. | Yes |
+| <span id="SETTLEMENT_PROJECTION_FAILED"></span>`SETTLEMENT_PROJECTION_FAILED` | A failedReads entry: the account's settlement facts could not be projected; the last good ones, if any, are shown with lastGoodReadAt and nothing is proposed from them. | Retry the same request shortly, with backoff. | Yes |
+| <span id="SETTLEMENT_PROJECTION_LAGGING"></span>`SETTLEMENT_PROJECTION_LAGGING` | A failedReads entry: the account's settlement facts are more than 30 seconds behind a recorded change; the last projected ones are shown and nothing is proposed from them. | Retry the same request shortly, with backoff. | Yes |
+| <span id="SETTLEMENT_PROJECTION_PENDING"></span>`SETTLEMENT_PROJECTION_PENDING` | A failedReads entry: the account's settlement facts are not projected yet (a new account, or a new projector version), so its windows are not shown. | Retry the same request shortly, with backoff. | Yes |
+| <span id="SETTLEMENT_PROJECTION_UNAVAILABLE"></span>`SETTLEMENT_PROJECTION_UNAVAILABLE` | A failedReads entry: the account's stored settlement facts could not be read, so its windows are not shown. | Retry the same request shortly, with backoff. | Yes |
+| <span id="SETTLEMENT_PROJECTION_UNDECODABLE"></span>`SETTLEMENT_PROJECTION_UNDECODABLE` | A failedReads entry: the account's stored settlement facts could not be decoded; they are being projected again and its windows are not shown. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_SCHEDULE_READ_UNAVAILABLE"></span>`SETTLEMENT_SCHEDULE_READ_UNAVAILABLE` | The account's settlement schedules could not be read. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_SNAPSHOT_READ_UNAVAILABLE"></span>`SETTLEMENT_SNAPSHOT_READ_UNAVAILABLE` | The settlement windows or statement could not be read; nothing was changed. | Retry the same request shortly, with backoff. | Yes |
 | <span id="SETTLEMENT_SOURCE_BALANCE_UNAVAILABLE"></span>`SETTLEMENT_SOURCE_BALANCE_UNAVAILABLE` | A source the plan needs could not be read; details.fix names the read. | Retry the same request shortly, with backoff. | Yes |
@@ -864,6 +872,7 @@ Act on each code's own **What to do** and **Retryable**, not on its status: code
 | :--- | :--- | :--- | :--- |
 | <span id="AGGREGATION_TIMEOUT"></span>`AGGREGATION_TIMEOUT` | No venue returned a valid quote before the deadline. | Retry the same request shortly, with backoff. | Yes |
 | <span id="REQUOTE_TIMED_OUT"></span>`REQUOTE_TIMED_OUT` | The venue did not answer the requote in time; the original quote still holds. | Requote again, or use the original quote before it expires. | Yes |
+| <span id="SOURCE_TIMEOUT"></span>`SOURCE_TIMEOUT` | Answered as one item's status and body inside a 200 batch: that item had not answered when the request's own deadline came, so the other items kept their answers. A list that composes several sources names a source that ran past its own deadline as an unreachable entry with reason timeout instead, beside the rows the other sources returned. | Read that item again, on its own if it keeps timing out. | Yes |
 | <span id="UPSTREAM_TIMEOUT"></span>`UPSTREAM_TIMEOUT` | An upstream service timed out. | Retry the same request shortly, with backoff. | Yes |
 
 ### Stream events

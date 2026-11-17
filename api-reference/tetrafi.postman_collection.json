@@ -1343,6 +1343,66 @@
       "response": []
     },
     {
+      "name": "List account credit",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "description": "List venue-account credit\n\nEach venue account's credit as the item read (`GET …/venue-accounts/{venueAccountId}/credit`) composes it, for the accounts named in `venueAccountId` (comma-separated) or, without it, every account of the workspace that settles through a venue account (newest first). Accounts are read concurrently; an account whose credit cannot be read is one `unreachable` entry (source `venueAccounts/<venueAccountId>`, reason its own refusal code, such as VENUE_ACCOUNT_NOT_FOUND for an asked account this workspace does not hold, VENUE_ACCOUNT_FUNDS_IN_WALLETS for an asked wallet-based venue, or a 503 code of the item read) while the others are listed. Within an item each component keeps its own named state, as on the item read: an account no current key holds names the missing key on each component, and one whose key state can't be read names VENUE_ACCOUNT_KEY_STATE_UNAVAILABLE. The list admits an account by its stored row and venue kind. The caller must be allowed to view the workspace's wallets and credit; an API key or OAuth client additionally needs treasury_read. 400 INVALID_REQUEST, INVALID_LIMIT or INVALID_CURSOR; 403 INSUFFICIENT_WORKSPACE_PERMISSION without permission to view credit; 503 when the account list itself cannot be read.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-account-credit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "venue-account-credit"
+          ],
+          "query": [
+            {
+              "key": "venueAccountId",
+              "value": "<venueAccountId>",
+              "disabled": true,
+              "description": "Only these venue accounts, comma-separated (any of, at most 100). Without it, every venue\naccount of the workspace that settles through a venue account."
+            },
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "`consumers` expands every listed account's commitment rows under the page's\n`included.consumers[venueAccountId]`, as on the item read."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size, 1 to 100 (default 20); any other value is 400 INVALID_LIMIT."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The `nextCursor` of the previous page of this list."
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Current company or broker workspace"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "Get account balances",
       "request": {
         "method": "GET",
@@ -1987,6 +2047,14 @@
             "settlement",
             "windows",
             ":windowId"
+          ],
+          "query": [
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "Related reads to expand into `included`, comma-separated, each keyed by the GET it read (path and query) with that GET's own answer to this caller or null with its refusal. `terms`: the account's settlement terms. `schedules`: the account's settlement schedules. `obligations`: the window's obligations (`obligations?windowId=`). `nudges`: the window's latest nudge (`nudges?limit=1`). `payments`: its first 100 payments. `matches`: its first page of matches. `statements`: its statement versions. `messages`: its first 100 messages. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not available on a signed API-key request (400 `INCLUDE_SIGNED_REQUEST_UNSUPPORTED`)."
+            }
           ],
           "variable": [
             {
