@@ -4,11 +4,11 @@
 
 ```bash cURL
 # GET …/deposit-instructions lists the asset and network pairs the account takes deposits on
-# (options); GET …/deposit-history?asset=…&chainRef=… lists the deposits the venue credited on one
+# (options); GET …/deposit-history?asset=…&network=… lists the deposits the venue credited on one
 # of them. An empty items is a read that found none only when unreachable is empty; otherwise the history
-# was not read and unreachable says why. include=observation returns this read's own window and state.
+# was not read and unreachable says why. include=observation returns this read's own window and status.
 instructions=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-instructions")
-read -r asset chain < <(jq -r '(.options // [])[0] | "\(.asset // "") \(.chainRef // "")"' <<<"$instructions")
+read -r asset chain < <(jq -r '(.options // [])[0] | "\(.asset // "") \(.network // "")"' <<<"$instructions")
 if [[ -z $asset ]]; then
   # A venue that declares no deposit network answers options [] and names its assets in
   # unconfirmedNetworkAssets: ask for one of them on a chain GET /api/v1/assets lists for it.
@@ -17,9 +17,9 @@ if [[ -z $asset ]]; then
     | .variants[] | select(.kind == "native") | .deployments[] | .network) // ""')
 fi
 [[ -n $asset && -n $chain ]] || fail NO_DEPOSIT_OPTION
-history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&chainRef=$chain&include=observation")
+history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&network=$chain&include=observation")
 jq -c --arg account "$account" '(.included.observation[$account].value // {}) as $o
-  | {asset: $o.asset, chainRef: $o.chainRef, state: $o.state, since: $o.since, until: $o.until,
+  | {asset: $o.asset, network: $o.network, status: $o.status, since: $o.since, until: $o.until,
      deposits: (.items | length), unreachable: [.unreachable[] | .reason]}' <<<"$history" >&2
 ```
 
