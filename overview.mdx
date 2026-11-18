@@ -84,15 +84,11 @@ Send one quote request: the asset you sell, the asset you buy and one exact amou
 
 Each quote's `next.kind` names your next step: `order`, `fund` (the paying account is short) or `requote`.
 
+Every quote you can order today is **Basic**: TetraFi executes directly at the venue, through its own API or its own smart contracts, and the order answers `"kind": "basicTrade"` (`legs[].venue.integrationMode` says which a quote is). Advanced execution, through TetraFi's router and escrow, is not open yet ([Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts)).
+
 <AccordionGroup>
   <Accordion title="Which venues are asked">
     Venues include on-chain protocols and DEXs, bridges, solvers, and your connected exchange and OTC accounts. Each one considered is listed with its outcome, so a missing quote always has a reason.
-  </Accordion>
-
-  <Accordion title="Basic and Advanced execution">
-    Every quote you can order today is Basic: direct execution at the venue. TetraFi calls the venue's own API (exchanges, OTC desks) or the venue's own smart contracts (on-chain venues such as Uniswap, Across, Relay and CCTP), from your venue account or an organisation wallet granted to your API key, inside the limits its owners approved. The order answers `"kind": "basicTrade"`.
-
-    Advanced execution, which settles through TetraFi's own router and escrow contracts, is not open yet. Advanced venues read `unavailable` with the reason `advancedModeDisabled` and are not asked, and an order on an Advanced quote answers `403 ADVANCED_MODE_DISABLED`. A quote's `legs[].venue.integrationMode` says which it is.
   </Accordion>
 
   <Accordion title="I want to…">

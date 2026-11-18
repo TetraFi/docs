@@ -16,7 +16,7 @@ Answers to the questions teams ask most on arrival. For anything else, [ask the 
     - [orders](/trade/orders) that TetraFi executes on your exchange and OTC venue accounts, or from organisation wallets granted to your key;
     - [prices](/search/prices).
 
-    Escrow-settled delivery-versus-payment through your own router (Advanced) is not open yet. [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design, with integration shapes sketched under [netting](/netting-api/introduction) and [shared collateral](/collateral-api/introduction) so you can design against them early; [propAMM](/propamm/introduction) is also coming soon.
+    Advanced execution (TetraFi's router and escrow) is not open yet. [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design, with integration shapes sketched under [netting](/netting-api/introduction) and [shared collateral](/collateral-api/introduction) so you can design against them early; [propAMM](/propamm/introduction) is also coming soon.
   </Accordion>
 
   <Accordion title="What are the three primitives?">
@@ -42,16 +42,13 @@ Answers to the questions teams ask most on arrival. For anything else, [ask the 
 
 <AccordionGroup>
   <Accordion title="Who holds custody?">
-    Today, your assets stay in your own venue accounts and organisation wallets, and TetraFi executes orders there for you. With Advanced execution, not open yet, each workspace gets its own immutable on-chain router: the counterparty delivers through a compliance-gated escrow, or your funds are refunded through a permissionless path that cannot be paused. TetraFi holds no custody key and no upgrade key anywhere in the stack ([Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts)).
+    You do. Your assets stay in your own venue accounts and organisation wallets, and TetraFi executes orders there for you, signing for an organisation wallet only inside the grant its owners approved. Advanced execution, not open yet, is described under [Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts).
   </Accordion>
 
   <Accordion title="What does the compliance policy mean for my integration?">
-    One policy, composed per deployment and controlled by your institution, is enforced on-chain at the escrow against attested credentials. RFQ requests reach only workspace-approved LPs, with jurisdiction filtering before a request reaches a desk, and the same policy re-runs on every clearing run entry and vault draw when those layers ship. [Compliance Policy](/core-concepts/compliance-policy) covers where each check runs.
+    Quote requests reach only the venues and LPs your workspace can use, with jurisdiction filtering before a request reaches a desk, and wallets are screened before they trade. [Compliance Policy](/core-concepts/compliance-policy) covers where each check runs.
   </Accordion>
 
-  <Accordion title="Where does my workspace's router come from, and can it be upgraded?">
-    It is provisioned when your workspace is created, at a deterministic address predicted before deployment, and belongs to your workspace permanently. It is immutable: upgrades only add venue modules to an allowlist, and an existing module can never be swapped out. Never hardcode addresses: the ones in quote responses are authoritative for every trade.
-  </Accordion>
 </AccordionGroup>
 
 ## Keys, wallets and agents
@@ -62,13 +59,7 @@ Answers to the questions teams ask most on arrival. For anything else, [ask the 
   </Accordion>
 
   <Accordion title="Can my backend sign orders without holding keys?">
-    Yes (rolling out), with one of three signers:
-
-    - a hosted wallet with several owners puts the approvers you define behind each signature;
-    - a hosted wallet with one owner ("just you") signs in that person's own session;
-    - a bounded delegate is a limited, expiring, revocable signer the owners approve.
-
-    No root key or provider token ever reaches TetraFi.
+    Yes. TetraFi signs for an organisation wallet granted to your key, inside the caps its owners approved ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). Signing with a wallet whose key only you hold is rolling out ([Sign with your own wallet](/trade/sign-with-your-own-wallet)). No root key or provider token ever reaches TetraFi.
   </Accordion>
 
   <Accordion title="Can I let an agent run part of my treasury?">

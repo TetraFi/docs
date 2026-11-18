@@ -73,12 +73,12 @@ flowchart LR
     </Accordion>
   </Step>
   <Step title="Acknowledge, then handle each event once">
-    Answer any `2xx` within 10 seconds, once verified and stored; work afterwards. Deduplicate on `webhook-id` and read `statusUrl` for the current status.
+    Answer any `2xx` within 10 seconds, once verified and stored; work afterwards. Deduplicate on the body's `id` and read `statusUrl` for the current status.
 
     <Accordion title="Ordering and duplicates">
       Deliveries arrive at least once, possibly out of order:
 
-      - deduplicate on `webhook-id`; the body's `id` identifies the same event across deliveries;
+      - deduplicate on the body's `id`: it stays the same across retries and redeliveries, while `webhook-id` changes on a redelivery;
       - read `statusUrl` for the current status, not the arrival order.
 
       Anything but a `2xx` is [retried](#retries-pauses-and-missed-events).
@@ -102,7 +102,7 @@ A `POST` with a JSON body and the `webhook-id`, `webhook-timestamp` and `webhook
 
 | Header | What it carries |
 | --- | --- |
-| `webhook-id` | The delivery's id, the same on its retries. |
+| `webhook-id` | The delivery's id: the same on its retries, new on a redelivery. Signed, not for deduplication. |
 | `webhook-timestamp` | When it was signed, in Unix seconds. |
 | `webhook-signature` | `v1,` and the base64 signature; two space-separated values during a secret rotation. |
 

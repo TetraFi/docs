@@ -49,6 +49,8 @@ flowchart LR
 | [On-chain venue, TetraFi signs](/recipes/cross-chain-stablecoins) | `prefunded`, `dvp` or `fop` | Owners approve a signing grant | `quoteId` | On-chain, as its transactions confirm | Live |
 | [On-chain venue, you sign](/trade/sign-with-your-own-wallet) | `signing.firstStep` | Nothing to register | `quoteId`, `firstStep` | On-chain, as its transactions confirm | Rolling out |
 
+All five are **Basic**: execution at the venue, through its API or its own smart contracts. On-chain does not mean Advanced; Advanced (TetraFi's router and escrow) is not open yet.
+
 <AccordionGroup>
   <Accordion title="Exchange account, prefunded">
     Deposit first: `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` says where. The trade spends the account's balance at the venue and settles on the venue's own ledger (`venueLedger`, `immediate`). A quote whose `next.kind` is `fund` has an account short by `readiness.amount` ([Before your first trade](/before-you-trade#fund-it)).
@@ -71,9 +73,6 @@ flowchart LR
 | `fop` | Free of payment: one side moves first; `firstLeg` says whose. `taker` is you, as with a bridge deposit or a payment you send in. |
 
     `settlement.timing` is `immediate`, `byDeadline` (a pay-in, by its deadline) or `delayed` (in a settlement window, or whenever either side asks). Both lists can grow: treat a value you do not know as other.
-  </Accordion>
-  <Accordion title="Basic and Advanced">
-    Every quote you can order today is Basic: direct execution at the venue, through its own API (exchanges, OTC desks, fiat providers) or its own smart contracts (Uniswap, Across, Relay, Circle CCTP and others). On-chain does not mean Advanced. Advanced settles through TetraFi's own router and escrow and is not open yet.
   </Accordion>
   <Accordion title="What a key cannot trade from">
     A personal wallet, a custody account, or, until signing with your own wallet opens, an external wallet it signs itself. With no usable wallet, on-chain venues read `needsWallet` in `sources` ([When a quote needs a wallet](/trade/wallets-and-accounts#when-a-quote-needs-a-wallet)).

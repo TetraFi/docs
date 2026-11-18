@@ -112,10 +112,10 @@ jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status
 
 # next "order" with signing.mode "tetrafi": TetraFi executes the move from an organisation wallet, so
 # the key can order it. signing.mode "you" is a wallet you sign for (recipe-own-wallet.sh).
-# next "preflight": settles through TetraFi's router and escrow (Advanced), not open yet.
+# next "preflight": Advanced, not open yet.
 jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
   sell: "\(.sell.amount) on \(.sell.network)", buy: "\(.buy.amount) on \(.buy.network)",
-  eta, tradesFrom: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
+  eta, tradingSource: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order" and .signing.mode != "you")) // empty' <<<"$quotes")
 # endregion
 

@@ -259,9 +259,9 @@ open, camelCase enum; nested native status fields retain their own vocabulary.
 | `working` | Sent; executing | 0 New / 1 PartiallyFilled | no |
 | `filled` | Executed; settlement or delivery remains | 2 Filled | no |
 | `settled` | Executed and settled, or no settlement applies | 2 Filled | yes |
-| `unfilled` | Venue did not fill; nothing traded | 4 Canceled / C Expired | yes |
+| `unfilled` | Not filled, or never sent; nothing traded | 4 Canceled / C Expired | yes |
 | `cancelled` | Cancelled before dispatch | 4 Canceled | yes |
-| `failed` | Refused or failed; nothing more will happen | 8 Rejected | yes |
+| `failed` | Failed after it was sent; nothing more will happen, but it does not by itself prove nothing traded | 8 Rejected | yes |
 | `refunded` | Funds returned to the payer | 4 Canceled | yes |
 | `reviewRequired` | A person must review before it continues | 9 Suspended | no |
 | `outcomeUnknown` | Venue outcome is being reconciled | none | no |
@@ -320,7 +320,8 @@ sent on every status change of an order placed in that workspace.
 
 - Delivery is at least once. A delivery that does not get a `2xx` is retried after 5 s, 30 s,
   10 min, 1 h, 6 h and 24 h.
-- Deduplicate on `webhook-id`, and on the body's `id` for the event itself.
+- Deduplicate on the body's `id`: it stays the same across retries and redeliveries, while
+  `webhook-id` is new on a redelivery.
 - The delivery log and the test call are in the webhook endpoints.
 
 ## Deprecation

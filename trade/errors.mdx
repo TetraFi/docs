@@ -32,7 +32,7 @@ A timeout or 5xx on an order is unknown until you [recover it](/trade/orders#ret
 
 ## Read a refusal
 
-Every refusal carries `error`, `message`, `requestId`, `timestamp`, `docUrl` and, when there is one, `next`. Look up codes in the [error-code reference](/reference/error-codes).
+Every refusal carries `error`, `message`, `retryable`, `requestId`, `timestamp`, `docUrl` and, when there is one, `next`. Look up codes in the [error-code reference](/reference/error-codes).
 
 <AccordionGroup>
   <Accordion title="The body, field by field">
@@ -44,6 +44,7 @@ Every refusal carries `error`, `message`, `requestId`, `timestamp`, `docUrl` and
   "requestId": "5ee4d511-5ef8-4e47-9999-5b144ec4fcbc",
   "timestamp": "2026-10-19T20:56:39Z",
   "docUrl": "https://tetrafi.mintlify.app/reference/error-codes#QUOTE_EXPIRED",
+  "retryable": false,
   "next": { "kind": "requote", "needs": [] }
 }
 ```
@@ -55,6 +56,7 @@ Every refusal carries `error`, `message`, `requestId`, `timestamp`, `docUrl` and
 | `requestId` | The `X-Request-Id` header. Log it; quote it to support. |
 | `timestamp` | When it was refused, RFC 3339 UTC. |
 | `docUrl` | The code's reference entry. |
+| `retryable` | Whether the same request, unchanged, may succeed later. `false` means change something first. |
 | `next` | The way forward, when there is one. |
 | `details` | Optional detail. Read the camelCase keys you know; more can appear. `details.value` names a refused value, `details.reason` says why, `details.retryAfter` how long to wait. |
 
@@ -85,7 +87,7 @@ use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 | `requote` | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`. `next.needs` lists what the new quote needs, such as a wallet; empty means requote as it is ([Requotes and expiry](/search/firmness-and-lifetime#requote-a-quote)). |
 | `fund` | The paying account holds too little. Fund it, then get a new price. |
 | `order` | Order the quote as it is. |
-| `preflight` | Advanced execution through TetraFi's router and escrow, not open yet. Order a Basic quote. |
+| `preflight` | Advanced, not open yet. Order a Basic quote. |
 
 A `kind` you do not recognise is a step you cannot take automatically: show `message` and stop.
 
@@ -149,13 +151,13 @@ An API key is bound to one workspace. It may leave `X-Workspace-Id` out, and a h
 
 | You are | Refusals |
 | --- | --- |
-| Requesting quotes | [Request quotes](/search/how-it-works#refusals), [Filters and sort](/search/how-it-works#refusals) |
+| Requesting quotes, with or without filters | [Request quotes](/search/how-it-works#refusals) |
 | Reading prices | [Prices](/search/prices#refusals) |
 | Requoting | [Requotes and expiry](/search/firmness-and-lifetime#refusals) |
-| Placing or cancelling an order | [Place an order](/trade/orders#refusals), [Retries and recovery](/trade/orders#conflict-same-key-different-body) |
+| Placing or cancelling an order | [Place an order](/trade/orders#refusals), [Same key, different body](/trade/orders#conflict-same-key-different-body) |
 | Choosing a wallet or account | [When a source is refused](/trade/wallets-and-accounts#when-a-source-is-refused) |
 | Reading balances, settlement or fees | [Balances and fees](/trade/balances#refusals), [Credit and settlement](/trade/settlement-and-credit#refusals) |
-| Managing webhooks | [Webhooks](/trade/webhooks#retries-pauses-and-missed-events) |
+| Managing webhooks | [Webhook redelivery](/trade/webhooks#retries-pauses-and-missed-events) |
 
 A venue left out of a successful quote request is not a refusal: its line in `sources` says why ([Sources](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote), [Source reasons](/reference/error-codes#source-reasons)).
 
