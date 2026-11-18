@@ -5,6 +5,10 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-18" description="Create organisation wallets with an API key">
+  - New wallet creation: `POST /api/v1/workspaces/{workspaceId}/wallets` starts an organisation wallet with the owners who approve it, `GET …/wallets` and `GET …/wallets/{walletId}` follow it, and `POST …/wallets/{walletId}/cancel` withdraws it. Each owner approves on their own signing page; an API key never approves ([Create an organisation wallet](/trade/wallets-and-accounts#create-an-organisation-wallet)).
+</Update>
+
 <Update label="2026-11-17" description="Dated versions, quote retries, open variants, status and network names, and credit for every account">
   - **Dated versions.** The API version is `2026-11-17`. Each API key and webhook endpoint pins the version current when it was created; send `TetraFi-Version: YYYY-MM-DD` to choose one request's version (`400 API_VERSION_UNSUPPORTED` for any other value), and every response names its version in the same header. Webhook bodies carry the endpoint's version as `apiVersion` ([Versioning](/reference/conventions#versioning)).
   - `POST /api/v1/quotes` takes an `Idempotency-Key`: a retry with the same key and body returns the first answer and asks no venue again ([Retry safely](/search/how-it-works#request-and-read-quotes)).

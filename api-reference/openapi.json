@@ -2253,6 +2253,54 @@
         ],
         "type": "object"
       },
+      "CreateWalletRequest": {
+        "description": "An organisation wallet to create (scope organisation): the wallet connection, family, networks and name, the owner group that approves it, and optionally the registered URL the approval page returns each person to.",
+        "properties": {
+          "connectionId": {
+            "description": "A workspace wallet connection id, or `platform-<provider>` for TetraFi's platform account.",
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "family": {
+            "$ref": "#/components/schemas/WalletFamily"
+          },
+          "networks": {
+            "description": "The networks of the family switched on at creation (CAIP-2). Others can be switched on later.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "ownerGroup": {
+            "$ref": "#/components/schemas/OwnerGroupChoice"
+          },
+          "returnUrl": {
+            "description": "Where TetraFi's approval page sends each person of an organisation wallet\nback once the signing page has recorded their part: an `https` URL (plain\n`http` only on localhost) whose exact origin (scheme, host and port) is one\nof the workspace's registered embedded-wallet callback origins. The person\nreturns to it with `signingRequestId` and `outcome` added to its query:\n`approved` (their part is recorded), `pending` (recorded, the wallet waits\nfor others) or `refused` (the signing page refused to finish; the person is\nshown why first and goes back only when they choose). Any other URL, and one\non TetraFi's own app or signing origin, is refused with 400\n`RETURN_URL_NOT_REGISTERED`; refused for a personal wallet.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "$ref": "#/components/schemas/WalletCreationScope"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/TreasuryResourceVisibilityDto",
+            "description": "An organisation wallet's visibility to the workspace, as the organisation\nsetup form states it; `readable` when absent. Refused for a personal wallet."
+          }
+        },
+        "required": [
+          "connectionId",
+          "displayName",
+          "family",
+          "networks",
+          "ownerGroup",
+          "scope"
+        ],
+        "type": "object"
+      },
       "CreateWebhookDeliveryRequest": {
         "additionalProperties": false,
         "description": "Create a test delivery under an existing webhook.",
@@ -5211,6 +5259,13 @@
                 "description": "The user who issued the grant.",
                 "type": "string"
               },
+              "grantedNetworks": {
+                "description": "The CAIP-2 networks this grant lets the key act on, recorded when it was\nwritten. The key acts on one only while the wallet has it switched on.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "organisationWalletId": {
                 "type": "string"
               }
@@ -5219,7 +5274,8 @@
               "organisationWalletId",
               "financialAccountId",
               "grantedBy",
-              "grantedAt"
+              "grantedAt",
+              "grantedNetworks"
             ],
             "type": "object"
           }
@@ -9261,6 +9317,50 @@
         ],
         "type": "object"
       },
+      "OrganizationSetupCreatorTradeGrant": {
+        "properties": {
+          "accountId": {
+            "description": "The wallet's Treasury inventory account, once published.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entitlementId": {
+            "description": "Derived from the setup request, so a repeat is the same grant. Present\nfrom `pending` on.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrganizationSetupCreatorTradeGrantState"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "OrganizationSetupCreatorTradeGrantState": {
+        "description": "Where the creator's chosen `trade` grant stands. Nothing here is a grant:\nthe right exists only as the wallet's installed operating grant (`written`).\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "notRequested",
+          "pending",
+          "written",
+          "awaitingStepUp",
+          "refused",
+          "unavailable"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "OwnBankVerification": {
         "properties": {
           "credit": {
@@ -9399,6 +9499,72 @@
         "required": [
           "solverId",
           "status"
+        ],
+        "type": "object"
+      },
+      "OwnerGroupChoice": {
+        "additionalProperties": false,
+        "description": "The owner group as the person picked it: the people, how many of them must\napprove, and the confirmations the threshold count depends on.",
+        "properties": {
+          "countedPerMember": {
+            "description": "The people the creator confirmed count once per member they appear as\n(\"this person counts twice\"); every owner sees it. Absent: every person counts once.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerGroupMemberChoice"
+            },
+            "type": "array"
+          },
+          "minMemberFactors": {
+            "description": "\"Each member has at least N factors\": an alert to the owners, never a block on approvals.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "threshold": {
+            "description": "How many people must approve. It counts people, not members.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "threshold"
+        ],
+        "type": "object"
+      },
+      "OwnerGroupMemberChoice": {
+        "additionalProperties": false,
+        "description": "One person of the owner group being created and the factors they approve with,\n`needed` of them.",
+        "properties": {
+          "factors": {
+            "items": {
+              "$ref": "#/components/schemas/WalletFactorChoice"
+            },
+            "type": "array"
+          },
+          "needed": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "person": {
+            "description": "The workspace user id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "factors",
+          "needed"
         ],
         "type": "object"
       },
@@ -15924,18 +16090,25 @@
         "description": "A server-owned recovery step. Describing a request never grants authority.\n\nNew values may be added; treat unknown values as other.",
         "discriminator": {
           "mapping": {
+            "addFactor": "#/components/schemas/RefusalFix/oneOf/13",
+            "chooseNetworkOrWallet": "#/components/schemas/RefusalFix/oneOf/18",
+            "contactSupport": "#/components/schemas/RefusalFix/oneOf/16",
             "finishVenueAccountSetup": "#/components/schemas/RefusalFix/oneOf/4",
             "fundWallet": "#/components/schemas/RefusalFix/oneOf/1",
             "grantStatementAccess": "#/components/schemas/RefusalFix/oneOf/9",
+            "inviteMember": "#/components/schemas/RefusalFix/oneOf/14",
             "linkFundingAccount": "#/components/schemas/RefusalFix/oneOf/6",
+            "linkWallet": "#/components/schemas/RefusalFix/oneOf/2",
             "none": "#/components/schemas/RefusalFix/oneOf/11",
             "reconnectVenue": "#/components/schemas/RefusalFix/oneOf/8",
+            "reconnectWalletProvider": "#/components/schemas/RefusalFix/oneOf/15",
             "requestPermission": "#/components/schemas/RefusalFix/oneOf/0",
             "retryRead": "#/components/schemas/RefusalFix/oneOf/3",
             "reviewInstructions": "#/components/schemas/RefusalFix/oneOf/5",
             "reviewSettlementWindow": "#/components/schemas/RefusalFix/oneOf/7",
             "setUpEmbeddedWallets": "#/components/schemas/RefusalFix/oneOf/10",
-            "verifyWallet": "#/components/schemas/RefusalFix/oneOf/2"
+            "setUpTwoFactor": "#/components/schemas/RefusalFix/oneOf/12",
+            "switchNetworkOn": "#/components/schemas/RefusalFix/oneOf/17"
           },
           "propertyName": "kind"
         },
@@ -16010,7 +16183,7 @@
             "type": "object"
           },
           {
-            "description": "Prove ownership of the named wallet through Treasury's ownership-signature flow.",
+            "description": "Link the named wallet (sign its ownership proof on its Treasury page), then come back:\na wallet that is not linked only receives and is watched; it cannot pay.",
             "properties": {
               "action": {
                 "type": "string"
@@ -16018,13 +16191,13 @@
               "kind": {
                 "description": "New values may be added; treat unknown values as other.",
                 "enum": [
-                  "verifyWallet"
+                  "linkWallet"
                 ],
                 "type": "string",
                 "x-extensible-enum": true
               },
               "target": {
-                "$ref": "#/components/schemas/RefusalFixWallet"
+                "$ref": "#/components/schemas/RefusalFixLinkWallet"
               }
             },
             "required": [
@@ -16241,6 +16414,152 @@
               "kind"
             ],
             "type": "object"
+          },
+          {
+            "description": "Turn on two-factor sign-in (Settings › Security), then come back: the action\nneeds a confirmed second factor and the person has none enrolled.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "setUpTwoFactor"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Add the named sign-in method to the person's own account (Settings › Security),\nthen come back: the action needs one and the person has none.",
+            "properties": {
+              "factor": {
+                "$ref": "#/components/schemas/RefusalFixFactor"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "addFactor"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "factor",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Invite the person to the workspace (Members) before naming them: the request\nnames someone who is not a current member.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "inviteMember"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Reconnect the named wallet-provider connection (Integrations › Wallet providers):\nits key is missing, revoked or refused by the provider.",
+            "properties": {
+              "connectionId": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "reconnectWalletProvider"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "connectionId",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Nothing the person can change fixes this: contact TetraFi support with the\nresponse's `requestId`.",
+            "properties": {
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "contactSupport"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Switch the named network on for the wallet account (its Networks section), then\ncome back: the wallet's family has the network but it is switched off.",
+            "properties": {
+              "accountId": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "switchNetworkOn"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "network": {
+                "description": "CAIP-2.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "accountId",
+              "network",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Choose a network of the wallet's family (`evm`, `solana`, `tron`, `bitcoin`),\nor another wallet: the network named is not one this wallet can hold, or mixes\ntest and main networks. `accountId` names the wallet when the site knows it.",
+            "properties": {
+              "accountId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "family": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "chooseNetworkOrWallet"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              }
+            },
+            "required": [
+              "family",
+              "kind"
+            ],
+            "type": "object"
           }
         ],
         "x-extensible-enum": true
@@ -16306,6 +16625,15 @@
         ],
         "type": "object"
       },
+      "RefusalFixFactor": {
+        "description": "A sign-in method a person adds to their own account.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "passkey",
+          "totp"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "RefusalFixFundWallet": {
         "properties": {
           "asset": {
@@ -16352,6 +16680,18 @@
           "venueAccountId",
           "asset",
           "networks"
+        ],
+        "type": "object"
+      },
+      "RefusalFixLinkWallet": {
+        "description": "The wallet a `linkWallet` fix names: the workspace or organisation wallet's own id, which\nits Treasury page is addressed by (not its financial account id).",
+        "properties": {
+          "walletId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "walletId"
         ],
         "type": "object"
       },
@@ -16699,6 +17039,41 @@
         ],
         "type": "string",
         "x-extensible-enum": true
+      },
+      "RequestedWalletFactor": {
+        "description": "A factor a wallet creation asked for, as the signing page shows it. A display\nhint; never the owner readback's trust root: the page compares the provider's\nowners with what its own ceremonies created.",
+        "properties": {
+          "class": {
+            "$ref": "#/components/schemas/WalletFactorClass"
+          },
+          "curve": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletKeyCurve",
+                "description": "An external key's curve."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "identity": {
+            "description": "The identity picked, masked when it is personal data: an email address as\n`a•••@example.com`, a phone and a Google account by their last digits only;\nan external wallet's address in full. A person's own signing request\n(`requestedFactors`) shows that person's own identities in full.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WalletFactorKind"
+          }
+        },
+        "required": [
+          "kind",
+          "class"
+        ],
+        "type": "object"
       },
       "RequoteNeed": {
         "description": "A funding or delivery selection a requote needs filled. An empty `needs` means requote as is.\n\nNew values may be added; treat unknown values as other.",
@@ -22693,6 +23068,14 @@
         ],
         "type": "object"
       },
+      "TreasuryResourceVisibilityDto": {
+        "enum": [
+          "readable",
+          "discoverable",
+          "hidden"
+        ],
+        "type": "string"
+      },
       "TxRef": {
         "allOf": [
           {
@@ -26167,6 +26550,613 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "WalletCreationAccepted": {
+        "description": "`202` for a creation body: the pending wallet and the caller's signing request.",
+        "properties": {
+          "signingRequest": {
+            "$ref": "#/components/schemas/WalletCreationSigningRequest"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WalletCreationStatus"
+          },
+          "wallet": {
+            "$ref": "#/components/schemas/WalletCreationView"
+          },
+          "walletId": {
+            "description": "The pending wallet's id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "walletId",
+          "status",
+          "signingRequest",
+          "wallet"
+        ],
+        "type": "object"
+      },
+      "WalletCreationKeyStart": {
+        "description": "The API key that started a wallet creation, as its pages name it.",
+        "properties": {
+          "creatorSteppedUpAt": {
+            "description": "When the key's member confirmed it was them (a TOTP or security-key\nstep-up) before completing it; absent until then.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "description": "The key's name when it asked for the wallet.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "type": "object"
+      },
+      "WalletCreationMemberView": {
+        "description": "One person of a wallet being created and whether they still have to prove their factors.",
+        "properties": {
+          "choosing": {
+            "description": "`true` while this person, invited with no factor, has still to pick their\nown factors on their signing page (\"to choose\"); `factors` is empty then.",
+            "type": "boolean"
+          },
+          "factors": {
+            "items": {
+              "$ref": "#/components/schemas/RequestedWalletFactor"
+            },
+            "type": "array"
+          },
+          "name": {
+            "description": "This person's display name as their account records it, or their email\nwhen no name is recorded; absent only when their account records neither.\nNever their user id.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "needed": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ownerMatches": {
+            "description": "This person's factors as their own proofs proved them, in the form a page\nmatches against the owners of the provider. Empty for a person who has not\nproven, and for every entry when the reader is not a person of the\ncreation; a factor no proof of this person proved is never listed.",
+            "items": {
+              "$ref": "#/components/schemas/WalletCreationOwnerMatch"
+            },
+            "type": "array"
+          },
+          "ownerMatchesUnavailable": {
+            "description": "Set instead of `ownerMatches` when this person's owners cannot be matched,\nnaming why: their stored proofs could not be read\n(`WALLET_OWNER_MATCH_UNREADABLE`), or TetraFi keeps no proof of theirs\n(`WALLET_OWNER_MATCH_NOT_KEPT`: they proved before what their proofs proved\nwas kept, or they left the wallet's owners, or it was retired). A page\nrefuses rather than treat them as none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ownersConfirmedAt": {
+            "description": "When this person's own signing page reported that its first-hand read of\nthe provider's owners found their own factors. Written only through their own\nsigning capability, never by anyone else (the creator included).",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "person": {
+            "description": "The workspace user id.",
+            "type": "string"
+          },
+          "proven": {
+            "description": "`true` once this person proved their factors on their signing page. The\nprovider holds nothing until the creator completes the creation.",
+            "type": "boolean"
+          },
+          "yours": {
+            "description": "`true` on the reader's own entry. A page that reads the owners first-hand\nchecks this person's factors itself and never accepts them from\n`ownerMatches`; a page that shows TetraFi's readback names them as the\nreader's own, as TetraFi reports them (a return visit holds no factor).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "person",
+          "proven",
+          "choosing",
+          "needed",
+          "factors"
+        ],
+        "type": "object"
+      },
+      "WalletCreationOwnerMatch": {
+        "description": "One factor of another person of a wallet being created, as that person's own\nproof proved it, in the form a page matches against the provider's owners:\na passkey by its credential id, an external key by its curve and key, a login\n(email, phone, Google account) by `matchToken`.",
+        "properties": {
+          "address": {
+            "description": "An external key's address, as picked.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credentialId": {
+            "description": "A passkey's credential id, as its attestation named it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "curve": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletKeyCurve",
+                "description": "An external key's curve."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "identity": {
+            "description": "The identity, masked as everywhere else (an external key's address in full).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WalletFactorKind"
+          },
+          "matchToken": {
+            "description": "A login's match token: the lowercase hex sha256 digest of the string's bytes\n`tetrafi-owner-match:v1:{walletId}:{kind}:{identity}`, with `kind` the factor\nkind's wire value (`emailCode`, `smsCode`, `google`) and the identity\nnormalized: an email trimmed and lowercased, a phone without whitespace or\n`(`, `)`, `.`, `-`, a Google subject trimmed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publicKey": {
+            "description": "An external key's public key (hex, compressed for secp256k1), when its proof recovered it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "WalletCreationPage": {
+        "description": "A page of the workspace's wallets being created, newest first.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WalletCreationView"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "description": "Absent (null) on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "WalletCreationReturn": {
+        "description": "Where an organisation wallet's approval page sends a person back, and who asked.",
+        "properties": {
+          "integratorName": {
+            "description": "Who asked for the wallet: the workspace's name when the wallet was asked for.",
+            "type": "string"
+          },
+          "origin": {
+            "description": "Its origin (scheme, host and port), which the pages show.",
+            "type": "string"
+          },
+          "url": {
+            "description": "The registered return URL the creation named.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "origin",
+          "integratorName"
+        ],
+        "type": "object"
+      },
+      "WalletCreationScope": {
+        "description": "Whose wallet is being created.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "personal",
+          "organisation"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "WalletCreationSigningRequest": {
+        "description": "The creation's signing request: its id, and the approval page each person of the wallet opens to set up their factors and approve.",
+        "properties": {
+          "approvalUrl": {
+            "description": "An organisation wallet's approval page in TetraFi (as on the wallet), to\nhand each person of it. Absent for a personal wallet.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "WalletCreationStatus": {
+        "description": "The state of a wallet being created. Clients must read a value they do not know as not usable yet.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "pending",
+          "creating",
+          "uncertain",
+          "created",
+          "active",
+          "readbackMismatch",
+          "failed",
+          "expired",
+          "cancelled",
+          "declined"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "WalletCreationView": {
+        "description": "A wallet being created: what was asked for, who is still missing and where it stands.",
+        "properties": {
+          "address": {
+            "description": "The family address, once the provider created the wallet.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approvalUrl": {
+            "description": "An organisation wallet's approval page in TetraFi: each person of it opens\nthis link, signs in, and proves or confirms their own part on the signing\npage. Absent for a personal wallet.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connectionId": {
+            "type": "string"
+          },
+          "countedPerMember": {
+            "description": "The people the creator confirmed count once per member they appear as.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "description": "The workspace user who started the creation.",
+            "type": "string"
+          },
+          "creatorTradeGrant": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrganizationSetupCreatorTradeGrant",
+                "description": "An organisation wallet's creator `trade` grant chosen with\n`tradeFromThisWallet` (`notRequested` when it was not), read back from the\nregistered wallet's installed access policy; `pending` until the wallet is\nregistered and its creator acts on it in their own session. Absent for a\npersonal wallet."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "failureCode": {
+            "description": "The named code of a failed or mismatched creation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "family": {
+            "$ref": "#/components/schemas/WalletFamily"
+          },
+          "home": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletHomeRef",
+                "description": "Where the provider holds the wallet, once it created it (status `created`\nor later): a pointer for reading its owners back, never proof of who owns it."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "homeProvider": {
+            "$ref": "#/components/schemas/WalletInfraProvider",
+            "description": "The provider that will hold the wallet's key and verify its owners."
+          },
+          "id": {
+            "description": "The wallet id; it stays the wallet's id once created.",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/WalletCreationMemberView"
+            },
+            "type": "array"
+          },
+          "missing": {
+            "description": "The people who have not proven their factors yet.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "networkNames": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The display name of each network in `networks`, keyed by its CAIP-2 id, as\nthe platform's network registry names it. A network the registry does not\nname is absent here; it is never given a made-up label.",
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "networks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "registeredAt": {
+            "description": "When the active wallet was registered in the wallet directory, where it\nis listed and used like any other wallet; absent until then.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "registrationFailure": {
+            "description": "Why the active wallet's last registration was refused (for example\n`WALLET_REGISTRATION_AUTHORITY_LOST`); it is retried while absent from\nthe directory. Absent once registered.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "returnTo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletCreationReturn",
+                "description": "Where the approval page sends a person back, when the creation named a `returnUrl`."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/WalletCreationScope"
+          },
+          "signingRequestId": {
+            "description": "The caller's own signing request, present only while the caller is a\nperson of this wallet who still has to act on it (the creator included,\nuntil they complete it). Mint its capability with `POST\n…/signing-requests/{signingRequestId}/capabilities`; a read never mints one.\nAnother person's request is never shown.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startedWithApiKey": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletCreationKeyStart",
+                "description": "The API key its creator (`createdBy`) asked with; absent when they asked\nin a signed-in session."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "status": {
+            "$ref": "#/components/schemas/WalletCreationStatus"
+          },
+          "threshold": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspaceId",
+          "scope",
+          "connectionId",
+          "homeProvider",
+          "family",
+          "networks",
+          "displayName",
+          "status",
+          "threshold",
+          "members",
+          "missing",
+          "countedPerMember",
+          "expiresAt",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "WalletFactorChoice": {
+        "description": "One factor as the person picked it for a wallet being created: its kind and\nthe identity picked. A passkey or an authenticator app is made in the signing\npage, so it carries nothing yet.",
+        "discriminator": {
+          "mapping": {
+            "emailCode": "#/components/schemas/WalletFactorChoice/oneOf/2",
+            "externalKey": "#/components/schemas/WalletFactorChoice/oneOf/5",
+            "google": "#/components/schemas/WalletFactorChoice/oneOf/1",
+            "passkey": "#/components/schemas/WalletFactorChoice/oneOf/0",
+            "smsCode": "#/components/schemas/WalletFactorChoice/oneOf/3",
+            "totp": "#/components/schemas/WalletFactorChoice/oneOf/4"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "description": "A passkey or hardware security key, created in the signing page.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "passkey"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A Google login; `subject` is the Google account id linked to the person's TetraFi account.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "google"
+                ],
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "subject",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An email code sent by the provider to `address`, one of the person's verified TetraFi emails.",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "emailCode"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "address",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An SMS code sent by the provider to `phone`.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "smsCode"
+                ],
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "phone",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An authenticator app, set up in the signing page.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "totp"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An external wallet whose private key the person controls, named by its address.",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "curve": {
+                "$ref": "#/components/schemas/WalletKeyCurve"
+              },
+              "kind": {
+                "enum": [
+                  "externalKey"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "curve",
+              "address",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WalletFactorClass": {
+        "description": "Who could impersonate the person through this factor. Clients must tolerate a value they do not know.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "heldByYou",
+          "checkedByThirdParty"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "WalletFactorKind": {
+        "description": "The kind of a permanent wallet factor. Clients must read a kind they do not know as a factor they can't name.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "passkey",
+          "google",
+          "emailCode",
+          "smsCode",
+          "totp",
+          "externalKey",
+          "browserKey"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "WalletFamily": {
         "description": "A wallet family. Clients must read a family they do not know as one they can't name.\n\nNew values may be added; treat unknown values as other.",
         "enum": [
@@ -26174,6 +27164,45 @@
           "solana",
           "tron",
           "bitcoin"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "WalletHomeRef": {
+        "description": "The provider's wallet an owner group belongs to: ids only, no provider name.",
+        "properties": {
+          "providerOrganizationId": {
+            "description": "The provider namespace the wallet lives in (a sub-organisation), when it has one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "providerWalletId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerWalletId"
+        ],
+        "type": "object"
+      },
+      "WalletInfraProvider": {
+        "description": "Wallet-infrastructure providers selectable by a workspace.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "privy",
+          "turnkey",
+          "lit"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
+      "WalletKeyCurve": {
+        "description": "The curve of a key. Clients must tolerate a value they do not know.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "secp256k1",
+          "ed25519",
+          "p256"
         ],
         "type": "string",
         "x-extensible-enum": true
@@ -26229,6 +27258,18 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "holdings": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletNetworkHoldings",
+                "description": "What TetraFi last observed held on the network, so a switch off can be confirmed first.\nAnswered only by a wallet's own networks read (`GET …/accounts/{accountId}/networks`);\nabsent on every other read."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
           "network": {
             "description": "The CAIP-2 network.",
@@ -26287,6 +27328,36 @@
           "networks"
         ],
         "type": "object"
+      },
+      "WalletNetworkHoldings": {
+        "description": "What TetraFi last observed held on a network. Switching a network off never moves or hides\nfunds: balances already there stay visible.",
+        "properties": {
+          "assets": {
+            "description": "The assets (symbols) last observed above zero on the network; empty unless `held`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WalletNetworkHoldingsStatus"
+          }
+        },
+        "required": [
+          "status",
+          "assets"
+        ],
+        "type": "object"
+      },
+      "WalletNetworkHoldingsStatus": {
+        "description": "What TetraFi last observed held on the network. Clients must read a value they do not know as not observed.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "held",
+          "empty",
+          "notObserved"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
       },
       "WalletNetworkSource": {
         "description": "Who recorded the network. Clients must read a value they do not know as unknown.\n\nNew values may be added; treat unknown values as other.",
@@ -27836,6 +28907,13 @@
             "permission": "Treasury read",
             "permissionIds": [
               "ReadWallets"
+            ]
+          },
+          "treasury_write": {
+            "description": "Includes Treasury read. Start transfers, payouts and Run now within your current authority. Key-initiated payouts wait for a person's approval.",
+            "permission": "Treasury write",
+            "permissionIds": [
+              "ManageWallets"
             ]
           },
           "webhooks_manage": {
@@ -29986,7 +31064,7 @@
                 }
               }
             },
-            "description": "TREASURY_FROZEN: the deferred trade's integrator workspace is frozen",
+            "description": "TREASURY_FROZEN: the deferred trade's integrator workspace is frozen. TREASURY_ACCOUNT_FROZEN: the paying wallet's account is paused (an owner said its owners are not theirs); nothing was placed",
             "headers": {
               "RateLimit": {
                 "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
@@ -43441,6 +44519,1713 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/wallets": {
+      "get": {
+        "description": "The wallets created on a wallet connection, newest first, each with its status and the people who have not proven their factors yet (`missing`). `status=pending` lists the pending wallets; a pending wallet past its expiry reads as `expired`. `assignee=me` lists only the wallets waiting for you: your factors to prove while pending, or the created wallet's owners to confirm from your own signing page while `created` or `active` (each with its `signingRequestId`); never one you confirmed or that does not name you. A personal wallet is listed to its creator only; an organisation wallet to its people and to members with ManageWallets. Workspace membership is enough to read the wallets that name you (an invitation to prove your factors); `createdBy` names who started each. Registered custody wallets are read from wallet-directory. A member's API key with `treasury_read` reads the wallets its member would, as that member's permissions stand now.",
+        "operationId": "list_workspace_wallet_creations",
+        "parameters": [
+          {
+            "description": "Workspace ID",
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated statuses (`pending`, `creating`, `uncertain`, `created`, `active`, `readbackMismatch`, `failed`, `expired`).",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`me`: only the wallets with your own signing request open (factors to prove\nwhile pending, or the created wallet's owners to confirm), at any status.",
+            "in": "query",
+            "name": "assignee",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TetraFiVersion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletCreationPage"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The path workspace is unknown or is not the authenticated workspace (`WORKSPACE_NOT_FOUND`).",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "treasury_read"
+            ]
+          },
+          {
+            "api_key": [
+              "treasury_read"
+            ]
+          }
+        ],
+        "summary": "List the workspace's wallets being created",
+        "tags": [
+          "wallets"
+        ]
+      },
+      "post": {
+        "description": "Starts an organisation wallet on a wallet connection (`connectionId`: a workspace connection, or `platform-turnkey` for the one TetraFi provides) with the owner group you choose (`ownerGroup`: the people who approve, the factors each proves, and the threshold). Everything is checked before anything is recorded: the connection's capabilities, the threshold, each person's current membership and every email or Google factor being that person's verified sign-in. The answer is `202` with the pending wallet and the signing request's `id`. An API key never receives an approval capability and never approves: each person, the key's own member included, proves their factors on their own signing page, so no wallet exists at the provider until the owners have approved. Read the creation with `GET …/wallets/{walletId}` until its `status` is `active` (or `failed`, `cancelled` or `declined`).\n\nSend the person to `signingRequest.approvalUrl` (also `wallet.approvalUrl`): TetraFi's own page, where they sign in and set up their factors. With `returnUrl`, an https URL whose exact origin (scheme, host and port) is one of the workspace's registered wallet callback origins, the page sends them back there with `signingRequestId` and `outcome` added to its query: `approved` or `pending` (their part is recorded; `pending` while the wallet waits for others) at once, and `refused` only after the page has shown why and the person chose to go back. The creation's `returnTo` echoes it. An origin that is not registered, or TetraFi's own app or signing origin, is `400 RETURN_URL_NOT_REGISTERED`.\n\nA member's own API key with `treasury_write` may call this, checked as that member's permissions and standing are now (an organisation wallet needs Manage wallets). A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`); access and grants are set in the app. A key creates organisation wallets only (`scope` `personal` is `403 API_KEY_PERSONAL_WALLET_REFUSED`), and a service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`. The key's own member confirms it was them (an authenticator app or security key) when they first open the approval page, before the wallet can be completed; `startedWithApiKey` names the key. Send an `Idempotency-Key`: the same key and body make one creation, and the same key with another body is `409 IDEMPOTENCY_CONFLICT`.",
+        "operationId": "register_workspace_wallet",
+        "parameters": [
+          {
+            "description": "Workspace ID",
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional client-generated retry key, 1-255 bytes",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TetraFiVersion"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWalletRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletCreationAccepted"
+                }
+              }
+            },
+            "description": "A creation body: the pending wallet and the caller's signing request. Nothing exists at the provider until the signing page completes it",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request could not be read, or `returnUrl` is not registered (`RETURN_URL_NOT_REGISTERED`); `error` names the cause.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Unauthenticated: `MISSING_CREDENTIALS` (no `Authorization: Bearer` header), `INVALID_TOKEN`, or `SESSION_REVOKED`",
+            "headers": {
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "This credential may not create the wallet: the key lacks `treasury_write` (`INSUFFICIENT_SCOPE`), its member lacks Manage wallets (`INSUFFICIENT_PERMISSION`), it asked for a grant (`API_KEY_WALLET_GRANT_REFUSED`) or a personal wallet (`API_KEY_PERSONAL_WALLET_REFUSED`), or it is not a member's own key (`API_KEY_WALLET_CREATOR_NOT_A_PERSON`).",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`connectionId` names no wallet connection of this workspace (`WALLET_CONNECTION_NOT_FOUND`).",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The wallet cannot be made as asked: `error` names the rule (the name, networks, owner group or threshold, a member who is not in the workspace, or a connection that does not create wallets), or the `Idempotency-Key` was used with another body.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request body is too large.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request body must be sent as `application/json`.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something failed on TetraFi's side, or a read the request needs was unavailable; nothing was created. Retry when `retryable` is true.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something failed on TetraFi's side, or a read the request needs was unavailable; nothing was created. Retry when `retryable` is true.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "treasury_write"
+            ]
+          },
+          {
+            "api_key": [
+              "treasury_write"
+            ]
+          }
+        ],
+        "summary": "Create an organisation wallet",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/wallets/{walletId}": {
+      "get": {
+        "description": "One wallet created on a wallet connection (its id is the `walletId` the creation answered), as the list shows it: its status, the people who have not proven their factors yet (`missing`) and, for the caller's own open request, its `signingRequestId`. Listed to the same people as the list: a personal wallet to its creator, an organisation wallet to its people and to members with ManageWallets; any other id is 404 `WALLET_NOT_FOUND`. A signed-in member, or a member's API key with `treasury_read` (read as that member's permissions stand now). Nothing is read from the provider here; `POST …/wallets/{walletId}/reconcile` does that.",
+        "operationId": "get_workspace_wallet_creation",
+        "parameters": [
+          {
+            "description": "Workspace ID",
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The wallet creation's id",
+            "in": "path",
+            "name": "walletId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TetraFiVersion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletCreationView"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request could not be read or failed validation; `error` names the cause.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "treasury_read"
+            ]
+          },
+          {
+            "api_key": [
+              "treasury_read"
+            ]
+          }
+        ],
+        "summary": "Read one wallet being created",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/wallets/{walletId}/cancel": {
+      "post": {
+        "description": "Withdraws a wallet being created, saying what is known at its provider. A `pending` creation (nothing sent yet) is withdrawn at once and reads `cancelled` with `failureCode` `WALLET_CREATION_CANCELLED`. An `uncertain` one is read again first: one the provider holds, or one still inside its settle window, is refused by name (`WALLET_CREATION_EXISTS_AT_PROVIDER`, `WALLET_CREATION_ACTIVITY_EXISTS`, `WALLET_CREATION_ABSENCE_UNPROVEN`); a failed read withdraws nothing (`503 WALLET_CREATION_CANCEL_UNAVAILABLE`). Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`. A member's own API key with `treasury_write` may withdraw what its member could. `Idempotency-Key` is required: the same key replays the withdrawal.",
+        "operationId": "cancel_workspace_wallet_creation",
+        "parameters": [
+          {
+            "description": "Workspace ID",
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The wallet creation's id",
+            "in": "path",
+            "name": "walletId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required; one withdrawal per key",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TetraFiVersion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletCreationView"
+                }
+              }
+            },
+            "description": "The withdrawn creation",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Always sent on 401: `api_key, Bearer`, naming the `api_key` security scheme (X-API-Key and its HMAC request-signing contract) and the `bearer_auth` security scheme's HTTP scheme (Bearer). A presented bearer token adds `error=\"invalid_token\"` to the Bearer challenge (RFC 6750 section 3).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "The request timed out before a response was ready.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Too many requests. Wait the number of seconds in `Retry-After` before retrying.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "Something went wrong on our side.",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "",
+            "headers": {
+              "RateLimit": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.5: quota and window in seconds, for example `100;w=60`. Sent on every status when a finite limiter counted the request. The applicable policy closest to exhaustion is reported (section 3.2): lowest remaining, then longest reset. On a limiter's 429 this is exactly the policy that refused; if a venue discloses no quota, the headers are absent.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying. Always sent on 429; sent on 503 when the wait is known. `details.retryAfter` carries the same wait as an ISO 8601 duration.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "TetraFi-Version": {
+                "description": "The dated API version this request was answered in: the request's TetraFi-Version, else the API key's pinned version, else the current version. Absent only on a 400 API_VERSION_UNSUPPORTED.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "The request's id: the caller's valid `X-Request-Id`, or a generated UUID v4. Quote it when asking for support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": [
+              "treasury_write"
+            ]
+          },
+          {
+            "api_key": [
+              "treasury_write"
+            ]
+          }
+        ],
+        "summary": "Withdraw a wallet being created",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/webhooks": {
       "get": {
         "operationId": "list_webhooks",
@@ -47860,6 +50645,10 @@
     {
       "description": "Balances across the workspace's wallets and venue accounts.",
       "name": "treasury"
+    },
+    {
+      "description": "Start an organisation wallet with the owners you choose, send each owner to TetraFi's approval page, and follow the wallet until it is active.",
+      "name": "wallets"
     },
     {
       "description": "One venue account's balances, deposit instructions and history, credit and ledger.",

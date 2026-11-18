@@ -376,6 +376,7 @@ const ENDPOINT_GROUPS = [
   { group: 'Orders', tags: ['orders'], guide: '/trade/orders', purpose: 'Order a quote by its id, follow the order, recover it by quote and cancel it.' },
   { group: 'Trades and settlement', tags: ['trades', 'settlements'], guide: '/trade/settlement-and-credit', purpose: 'Read your trades, how each settles, and the settlement plan, windows and movements per venue account.' },
   { group: 'Balances and accounts', tags: ['treasury', 'venue-accounts', 'venue-enablements', 'workspaces'], guide: '/trade/balances', purpose: 'Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do.' },
+  { group: 'Wallets', tags: ['wallets'], guide: '/trade/wallets-and-accounts#create-an-organisation-wallet', purpose: 'Create an organisation wallet with the owners who approve it, follow its creation and withdraw it.' },
   { group: 'Webhooks', tags: ['webhooks'], guide: '/trade/webhooks', purpose: 'Receive order and settlement updates by webhook, and manage endpoints, deliveries and secrets.' },
   { group: 'Batch', tags: ['batch'], guide: '/reference/conventions#read-several-resources-at-once', purpose: 'Run up to 20 reads in one request.' },
 ];
