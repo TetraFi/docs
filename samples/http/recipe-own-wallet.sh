@@ -184,5 +184,4 @@ done
 # endregion
 
 jq -c --arg q "$quote_id" --arg k "$idempotency_key" --arg a "$address" \
-  '{quoteId: $q, orderId, address: $a, status, terminal, idempotencyKey: $k,
-    steps: [.operation.steps[]? | {purpose, status, txHash}]}' <<<"$state"
+  '{quoteId: $q, orderId, address: $a, status, terminal, idempotencyKey: $k}' <<<"$state"
