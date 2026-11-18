@@ -20,6 +20,7 @@ Every quote says where it trades from, how it is funded and settles, and where t
 | Trade from a wallet or account | `source` on `POST /api/v1/quotes` |
 | Send the output elsewhere | `deliverTo` on `POST /api/v1/quotes` |
 | Change a held quote | A [requote](/search/firmness-and-lifetime#requote-a-quote) with only those parts |
+| Create an organisation wallet | `POST /api/v1/workspaces/{workspaceId}/wallets` ([below](#create-an-organisation-wallet)) |
 
 ```mermaid
 flowchart LR
@@ -221,6 +222,34 @@ When one venue reads `tradingSourceNotLinked`, the others still quote.
 </AccordionGroup>
 
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/wallets.sh">Reads the wallets a key may name, quotes with one per chain and places no order.</Card>
+
+## Create an organisation wallet
+
+A member's own API key with `treasury_write` can start an organisation wallet. Each owner approves it on their own signing page, so no wallet exists at the provider until they have.
+
+<Steps>
+  <Step title="Start it">
+    `POST /api/v1/workspaces/{workspaceId}/wallets` with `scope: organisation`, a `connectionId` (a workspace wallet connection, or `platform-turnkey`), `family`, `networks`, `displayName` and an `ownerGroup`: the people who approve, the factors each proves and the `threshold`. Send an `Idempotency-Key`. The answer is `202` with the pending wallet and `signingRequest.approvalUrl`.
+  </Step>
+  <Step title="Send the owners to approve">
+    Each owner, the key's member included, opens `approvalUrl`, signs in and proves their factors. The key's member first confirms it was them with an authenticator app or security key. With `returnUrl`, on one of the workspace's registered wallet callback origins, the page sends them back with `signingRequestId` and `outcome`.
+  </Step>
+  <Step title="Follow it">
+    `GET …/wallets/{walletId}` until `status` is `active`, or `failed`, `cancelled` or `declined`. `missing` names who has not approved yet. `GET …/wallets?status=pending` lists the pending ones.
+  </Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title="What a key may not do">
+    A key creates organisation wallets only: `scope: personal` is `403 API_KEY_PERSONAL_WALLET_REFUSED`, and a service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`. A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`): set access and grants in the app. An API key never approves.
+  </Accordion>
+  <Accordion title="Withdraw a creation">
+    `POST …/wallets/{walletId}/cancel` with an `Idempotency-Key`. A `pending` creation is withdrawn at once and reads `cancelled`. An `uncertain` one is checked at the provider first and refused by name when the wallet may exist there. Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`.
+  </Accordion>
+  <Accordion title="Status values">
+    `pending`, `creating`, `uncertain`, `created`, `active`, `readbackMismatch`, `failed`, `expired`, `cancelled`, `declined`. The list can grow: read a value you do not know as not usable yet.
+  </Accordion>
+</AccordionGroup>
 
 ## Next
 

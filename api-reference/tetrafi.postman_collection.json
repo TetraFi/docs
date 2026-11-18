@@ -2473,6 +2473,230 @@
       "response": []
     },
     {
+      "name": "List wallet creations",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "List the workspace's wallets being created\n\nThe wallets created on a wallet connection, newest first, each with its status and the people who have not proven their factors yet (`missing`). `status=pending` lists the pending wallets; a pending wallet past its expiry reads as `expired`. `assignee=me` lists only the wallets waiting for you: your factors to prove while pending, or the created wallet's owners to confirm from your own signing page while `created` or `active` (each with its `signingRequestId`); never one you confirmed or that does not name you. A personal wallet is listed to its creator only; an organisation wallet to its people and to members with ManageWallets. Workspace membership is enough to read the wallets that name you (an invitation to prove your factors); `createdBy` names who started each. Registered custody wallets are read from wallet-directory. A member's API key with `treasury_read` reads the wallets its member would, as that member's permissions stand now.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "wallets"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "<status>",
+              "disabled": true,
+              "description": "Comma-separated statuses (`pending`, `creating`, `uncertain`, `created`, `active`, `readbackMismatch`, `failed`, `expired`)."
+            },
+            {
+              "key": "assignee",
+              "value": "<assignee>",
+              "disabled": true,
+              "description": "`me`: only the wallets with your own signing request open (factors to prove\nwhile pending, or the created wallet's owners to confirm), at any status."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create organisation wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": true,
+            "description": "Optional client-generated retry key, 1-255 bytes"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Create an organisation wallet\n\nStarts an organisation wallet on a wallet connection (`connectionId`: a workspace connection, or `platform-turnkey` for the one TetraFi provides) with the owner group you choose (`ownerGroup`: the people who approve, the factors each proves, and the threshold). Everything is checked before anything is recorded: the connection's capabilities, the threshold, each person's current membership and every email or Google factor being that person's verified sign-in. The answer is `202` with the pending wallet and the signing request's `id`. An API key never receives an approval capability and never approves: each person, the key's own member included, proves their factors on their own signing page, so no wallet exists at the provider until the owners have approved. Read the creation with `GET …/wallets/{walletId}` until its `status` is `active` (or `failed`, `cancelled` or `declined`).\n\nSend the person to `signingRequest.approvalUrl` (also `wallet.approvalUrl`): TetraFi's own page, where they sign in and set up their factors. With `returnUrl`, an https URL whose exact origin (scheme, host and port) is one of the workspace's registered wallet callback origins, the page sends them back there with `signingRequestId` and `outcome` added to its query: `approved` or `pending` (their part is recorded; `pending` while the wallet waits for others) at once, and `refused` only after the page has shown why and the person chose to go back. The creation's `returnTo` echoes it. An origin that is not registered, or TetraFi's own app or signing origin, is `400 RETURN_URL_NOT_REGISTERED`.\n\nA member's own API key with `treasury_write` may call this, checked as that member's permissions and standing are now (an organisation wallet needs Manage wallets). A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`); access and grants are set in the app. A key creates organisation wallets only (`scope` `personal` is `403 API_KEY_PERSONAL_WALLET_REFUSED`), and a service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`. The key's own member confirms it was them (an authenticator app or security key) when they first open the approval page, before the wallet can be completed; `startedWithApiKey` names the key. Send an `Idempotency-Key`: the same key and body make one creation, and the same key with another body is `409 IDEMPOTENCY_CONFLICT`.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "wallets"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"connectionId\": \"<connectionId>\",\n  \"displayName\": \"<displayName>\",\n  \"family\": \"evm\",\n  \"networks\": [\n    \"<networks>\"\n  ],\n  \"ownerGroup\": {\n    \"members\": [\n      {\n        \"person\": \"<person>\",\n        \"factors\": [\n          {\n            \"kind\": \"passkey\"\n          }\n        ],\n        \"needed\": 0\n      }\n    ],\n    \"threshold\": 0\n  },\n  \"scope\": \"personal\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get wallet creation",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "Read one wallet being created\n\nOne wallet created on a wallet connection (its id is the `walletId` the creation answered), as the list shows it: its status, the people who have not proven their factors yet (`missing`) and, for the caller's own open request, its `signingRequestId`. Listed to the same people as the list: a personal wallet to its creator, an organisation wallet to its people and to members with ManageWallets; any other id is 404 `WALLET_NOT_FOUND`. A signed-in member, or a member's API key with `treasury_read` (read as that member's permissions stand now). Nothing is read from the provider here; `POST …/wallets/{walletId}/reconcile` does that.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets/:walletId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "wallets",
+            ":walletId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "walletId",
+              "value": "<walletId>",
+              "description": "The wallet creation's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Cancel wallet creation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required; one withdrawal per key"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "Withdraw a wallet being created\n\nWithdraws a wallet being created, saying what is known at its provider. A `pending` creation (nothing sent yet) is withdrawn at once and reads `cancelled` with `failureCode` `WALLET_CREATION_CANCELLED`. An `uncertain` one is read again first: one the provider holds, or one still inside its settle window, is refused by name (`WALLET_CREATION_EXISTS_AT_PROVIDER`, `WALLET_CREATION_ACTIVITY_EXISTS`, `WALLET_CREATION_ABSENCE_UNPROVEN`); a failed read withdraws nothing (`503 WALLET_CREATION_CANCEL_UNAVAILABLE`). Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`. A member's own API key with `treasury_write` may withdraw what its member could. `Idempotency-Key` is required: the same key replays the withdrawal.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets/:walletId/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "wallets",
+            ":walletId",
+            "cancel"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "walletId",
+              "value": "<walletId>",
+              "description": "The wallet creation's id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "List webhooks",
       "request": {
         "method": "GET",
