@@ -510,6 +510,20 @@
             "description": "Display symbol, independent of the asset id.",
             "type": "string"
           },
+          "coingeckoId": {
+            "description": "CoinGecko's id for this asset, when the registry has verified it from a deployment address.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issuer": {
+            "description": "The entity that issues this asset (`circle`), when the registry declares it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "kind": {
             "$ref": "#/components/schemas/AssetKind"
           },
@@ -10086,8 +10100,7 @@
             "kind": "known"
           },
           "next": {
-            "kind": "sign",
-            "typedData": {}
+            "kind": "order"
           },
           "observedAt": null,
           "quality": "executable",
@@ -12737,15 +12750,13 @@
         "description": "The one action the caller takes next; later legs run\nunder the order.\n\nNew values may be added; treat unknown values as other.",
         "discriminator": {
           "mapping": {
-            "contact": "#/components/schemas/QuoteNextAction/oneOf/8",
-            "fund": "#/components/schemas/QuoteNextAction/oneOf/4",
+            "contact": "#/components/schemas/QuoteNextAction/oneOf/6",
+            "fund": "#/components/schemas/QuoteNextAction/oneOf/2",
             "order": "#/components/schemas/QuoteNextAction/oneOf/0",
             "preflight": "#/components/schemas/QuoteNextAction/oneOf/1",
-            "requote": "#/components/schemas/QuoteNextAction/oneOf/5",
-            "search": "#/components/schemas/QuoteNextAction/oneOf/6",
-            "sign": "#/components/schemas/QuoteNextAction/oneOf/3",
-            "transact": "#/components/schemas/QuoteNextAction/oneOf/2",
-            "wait": "#/components/schemas/QuoteNextAction/oneOf/7"
+            "requote": "#/components/schemas/QuoteNextAction/oneOf/3",
+            "search": "#/components/schemas/QuoteNextAction/oneOf/4",
+            "wait": "#/components/schemas/QuoteNextAction/oneOf/5"
           },
           "propertyName": "kind"
         },
@@ -12780,49 +12791,6 @@
               }
             },
             "required": [
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "description": "Send these transactions, then order.",
-            "properties": {
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "transact"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              },
-              "transactions": {
-                "items": {
-                  "$ref": "#/components/schemas/TakerTransaction"
-                },
-                "type": "array"
-              }
-            },
-            "required": [
-              "transactions",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "description": "Sign this EIP-712 document, then order.",
-            "properties": {
-              "kind": {
-                "description": "New values may be added; treat unknown values as other.",
-                "enum": [
-                  "sign"
-                ],
-                "type": "string",
-                "x-extensible-enum": true
-              },
-              "typedData": {}
-            },
-            "required": [
-              "typedData",
               "kind"
             ],
             "type": "object"
@@ -15206,7 +15174,7 @@
             "type": "object"
           },
           {
-            "description": "Link a personal wallet that pays on `chain`: an Advanced card trades only from the member's\nown wallet, and none is linked there.",
+            "description": "Link a personal wallet that pays on `chain`: this card pays from a member's personal wallet,\nwhich only Advanced (TetraFi's router) serves, and none is linked there.",
             "properties": {
               "kind": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -20957,32 +20925,6 @@
         ],
         "x-extensible-enum": true
       },
-      "TakerTransaction": {
-        "description": "One transaction the Taker sends itself (an approval included).",
-        "properties": {
-          "data": {
-            "description": "Hex calldata (`0x…`).",
-            "type": "string"
-          },
-          "network": {
-            "$ref": "#/components/schemas/Caip2Chain"
-          },
-          "to": {
-            "type": "string"
-          },
-          "value": {
-            "description": "Native value in base units, as a decimal string.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "data",
-          "network",
-          "to",
-          "value"
-        ],
-        "type": "object"
-      },
       "TimeResolution": {
         "properties": {
           "ambiguous": {
@@ -26642,6 +26584,18 @@
             },
             "type": "array"
           },
+          "memberWallet": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletCreationMemberWalletConsent",
+                "description": "On the reader's own entry, when their slot names one of their wallets\n(`walletId`) and they have not proven yet: what that wallet's own factor\nstamps to approve as their member."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "name": {
             "description": "This person's display name as their account records it, or their email\nwhen no name is recorded; absent only when their account records neither.\nNever their user id.",
             "type": [
@@ -26695,6 +26649,34 @@
           "choosing",
           "needed",
           "factors"
+        ],
+        "type": "object"
+      },
+      "WalletCreationMemberWalletConsent": {
+        "description": "The approval a person gives with one of their own wallets: the exact bytes\nits root's factor stamps (a passkey, at the wallet's provider organisation),\nsent back as a `memberWallet` proof. The bytes name this creation, signing\nrequest, person and wallet, so the stamp approves nothing else.",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "payload": {
+            "description": "The exact bytes to stamp.",
+            "type": "string"
+          },
+          "providerOrganizationId": {
+            "description": "The wallet's provider organisation, where its factor stamps.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "walletId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "walletId",
+          "address",
+          "payload"
         ],
         "type": "object"
       },
@@ -29011,6 +28993,42 @@
             "description": "`registry`: the registry snapshot the listing was built from, in `included.registry`.",
             "in": "query",
             "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only assets a venue offers: its venue id (`b2c2`) or one of its venue entries (`b2c2-rfq`).\nWith `venueCode`, only the asset that venue's code is (`USC` at `b2c2` is USDC).",
+            "in": "query",
+            "name": "venue",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A venue's own code for an asset; needs `venue` (400 `ASSET_FILTER_INCOMPLETE` otherwise).",
+            "in": "query",
+            "name": "venueCode",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only assets with a deployment on this CAIP-2 network (`eip155:1`). With `address`, only the\nasset deployed at that address there.",
+            "in": "query",
+            "name": "network",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A token address on `network`; needs `network`. A token the registry does not list matches\nnothing, whatever it calls itself.",
+            "in": "query",
+            "name": "address",
             "required": false,
             "schema": {
               "type": "string"
@@ -44561,7 +44579,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/wallets": {
       "get": {
-        "description": "The wallets created on a wallet connection, newest first, each with its status and the people who have not proven their factors yet (`missing`). `status=pending` lists the pending wallets; a pending wallet past its expiry reads as `expired`. `assignee=me` lists only the wallets waiting for you: your factors to prove while pending, or the created wallet's owners to confirm from your own signing page while `created` or `active` (each with its `signingRequestId`); never one you confirmed or that does not name you. A personal wallet is listed to its creator only; an organisation wallet to its people and to members with ManageWallets. Workspace membership is enough to read the wallets that name you (an invitation to prove your factors); `createdBy` names who started each. Registered custody wallets are read from wallet-directory. A member's API key with `treasury_read` reads the wallets its member would, as that member's permissions stand now.",
+        "description": "The wallets created on a wallet connection, newest first, each with its status and the people who have not proven their factors yet (`missing`). `status=pending` lists the pending wallets; a pending wallet past its expiry reads as `expired`. `assignee=me` lists only the wallets waiting for you: your factors to prove while pending, or the created wallet's owners to confirm from your own signing page while `created` or `active` (each with its `signingRequestId`); never one you confirmed or that does not name you. It also lists a registered organisation wallet you created whose Trade grant, chosen at creation, is not written yet (`creatorTradeGrant`): `POST …/wallets/{walletId}/reconcile` in your own session writes it. A personal wallet is listed to its creator only; an organisation wallet to its people and to members with ManageWallets. Workspace membership is enough to read the wallets that name you (an invitation to prove your factors); `createdBy` names who started each. Registered custody wallets are read from wallet-directory. A member's API key with `treasury_read` reads the wallets its member would, as that member's permissions stand now.",
         "operationId": "list_workspace_wallet_creations",
         "parameters": [
           {

@@ -139,6 +139,30 @@
               "value": "<include>",
               "disabled": true,
               "description": "`registry`: the registry snapshot the listing was built from, in `included.registry`."
+            },
+            {
+              "key": "venue",
+              "value": "<venue>",
+              "disabled": true,
+              "description": "Only assets a venue offers: its venue id (`b2c2`) or one of its venue entries (`b2c2-rfq`).\nWith `venueCode`, only the asset that venue's code is (`USC` at `b2c2` is USDC)."
+            },
+            {
+              "key": "venueCode",
+              "value": "<venueCode>",
+              "disabled": true,
+              "description": "A venue's own code for an asset; needs `venue` (400 `ASSET_FILTER_INCOMPLETE` otherwise)."
+            },
+            {
+              "key": "network",
+              "value": "<network>",
+              "disabled": true,
+              "description": "Only assets with a deployment on this CAIP-2 network (`eip155:1`). With `address`, only the\nasset deployed at that address there."
+            },
+            {
+              "key": "address",
+              "value": "<address>",
+              "disabled": true,
+              "description": "A token address on `network`; needs `network`. A token the registry does not list matches\nnothing, whatever it calls itself."
             }
           ]
         }
@@ -2488,7 +2512,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List the workspace's wallets being created\n\nThe wallets created on a wallet connection, newest first, each with its status and the people who have not proven their factors yet (`missing`). `status=pending` lists the pending wallets; a pending wallet past its expiry reads as `expired`. `assignee=me` lists only the wallets waiting for you: your factors to prove while pending, or the created wallet's owners to confirm from your own signing page while `created` or `active` (each with its `signingRequestId`); never one you confirmed or that does not name you. A personal wallet is listed to its creator only; an organisation wallet to its people and to members with ManageWallets. Workspace membership is enough to read the wallets that name you (an invitation to prove your factors); `createdBy` names who started each. Registered custody wallets are read from wallet-directory. A member's API key with `treasury_read` reads the wallets its member would, as that member's permissions stand now.",
+        "description": "List the workspace's wallets being created\n\nThe wallets created on a wallet connection, newest first, each with its status and the people who have not proven their factors yet (`missing`). `status=pending` lists the pending wallets; a pending wallet past its expiry reads as `expired`. `assignee=me` lists only the wallets waiting for you: your factors to prove while pending, or the created wallet's owners to confirm from your own signing page while `created` or `active` (each with its `signingRequestId`); never one you confirmed or that does not name you. It also lists a registered organisation wallet you created whose Trade grant, chosen at creation, is not written yet (`creatorTradeGrant`): `POST …/wallets/{walletId}/reconcile` in your own session writes it. A personal wallet is listed to its creator only; an organisation wallet to its people and to members with ManageWallets. Workspace membership is enough to read the wallets that name you (an invitation to prove your factors); `createdBy` names who started each. Registered custody wallets are read from wallet-directory. A member's API key with `treasury_read` reads the wallets its member would, as that member's permissions stand now.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets",
           "host": [
