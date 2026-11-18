@@ -38,7 +38,7 @@ You need a key with venue trading and request signing ([Authentication](/authent
 
 <Steps>
   <Step title="Quote with your address">
-    Send your wallet's address as the value for its network in `source.tradingWallets`. Exchange and OTC venues quote as usual; each on-chain quote is firm for that address and carries the first step to sign.
+    Send your wallet's address as the value for its network in `source.tradingWallets`, and fix the side you sell with `sellAmount`. Exchange and OTC venues quote as usual; each on-chain quote is firm for that address and carries the first step to sign.
 
     ```json Request (shortened)
     {"kind":"pair","sell":{"asset":"USDC","network":"eip155:8453"},"buy":{"asset":"USDC","network":"eip155:1"},"sellAmount":"100",
@@ -73,7 +73,7 @@ You need a key with venue trading and request signing ([Authentication](/authent
     ```
   </Step>
   <Step title="Sign any later step">
-    While the order's `next.kind` is `sign`, sign `next.step` and send it to `POST /api/v1/orders/{orderId}/steps/{stepId}` with the same body shape. Then follow the order until `terminal` is `true` ([Order status](/trade/order-status)).
+    While the order's `next.kind` is `sign`, sign `next.step` and send it to `POST /api/v1/orders/{orderId}/steps/{stepId}` with the same body shape and a new `Idempotency-Key`. The answer is the order once its `next` has moved past the step, or after at most 15 seconds. Then follow the order until `terminal` is `true` ([Order status](/trade/order-status)).
   </Step>
 </Steps>
 
@@ -95,7 +95,7 @@ You need a key with venue trading and request signing ([Authentication](/authent
     `signing.mode` is `you` for an address TetraFi cannot sign for, and `tetrafi` for an organisation wallet granted to your key. Send `source.signer: "you"` to sign yourself for a wallet TetraFi could sign. The list of modes can grow.
   </Accordion>
   <Accordion title="Your wallet in TetraFi">
-    The address is screened before anything is relayed. Your first checked signature proves the wallet is yours: it then appears in Treasury as an external wallet, and an Owner can remove it. The output goes to the signing wallet unless `deliverTo` names another wallet of your workspace.
+    The address is screened before anything is relayed. Your first checked signature proves the wallet is yours: it then appears in Treasury as an external wallet, and an Owner can remove it. The output goes back to the signing wallet; delivery to another wallet of your workspace comes later.
   </Accordion>
   <Accordion title="When the chain moved">
     If your wallet's nonce, allowance or balance changed between the quote and the order, or the `minReceive` you send changes the trade's transaction, nothing is relayed: the order opens and `next` carries a fresh first step to sign.
@@ -110,10 +110,10 @@ You need a key with venue trading and request signing ([Authentication](/authent
 
   </Accordion>
   <Accordion title="Refusals">
-    Nothing was relayed on any of these: `SIGNING_STEP_REQUIRED` (422, an order on a `you` quote without `firstStep`), `SIGNING_STEP_MISMATCH` (422, the signed step differs; `details.field` says where), `SIGNING_STEP_NOT_OPEN` (409), `SIGNING_STEP_EXPIRED` (410), `SIGNING_TRANSACTION_NOT_FOUND` (409, retry shortly) and `SIGNING_WALLET_REFUSED` (403).
+    Nothing was relayed on any of these: `SIGNING_STEP_REQUIRED` (422, an order on a `you` quote without `firstStep`), `SIGNING_STEP_MISMATCH` (422, the signed step differs; `details.field` says where), `SIGNING_STEP_NOT_OPEN` (409), `SIGNING_STEP_EXPIRED` (410), `SIGNING_TRANSACTION_NOT_FOUND` (409, retry shortly), `SIGNING_WALLET_SCREENING_PENDING` (409, the wallet's screening is still running: retry shortly), `SIGNING_WALLET_REFUSED` (403, the address failed screening), `SIGNING_STEP_REFUSED` (403, the key may not trade from this wallet now; the message says why), `SIGNING_WALLET_NETWORK_UNSUPPORTED` (422) and `SIGNING_WALLET_NOT_ALLOWED` (403, your workspace does not let keys trade from wallets it has not approved).
   </Accordion>
   <Accordion title="Venues and networks at opening">
-    Uniswap, Across, Relay, Circle CCTP and Multiliquid on EVM networks. More venues, Solana and Tron follow as new step types.
+    Uniswap, Across, Relay, Circle CCTP and Multiliquid on EVM networks, for a quote with `sellAmount`: with `buyAmount` these venues read `unavailable` (`exactOutputDeliveryUnsupported`). Other venues read `unavailable` (`clientSignedVenueUnsupported`). More venues, Solana and Tron follow as new step types.
   </Accordion>
   <Accordion title="What comes next">
     Planned, and not available yet:
