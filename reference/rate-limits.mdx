@@ -1,20 +1,21 @@
 ---
 title: "Rate limits"
 description: "The limits on quotes, prices and every other request, the headers that report them, and how to wait before retrying a 429."
+keywords: ["429", "throttling", "Retry-After", "quota", "RateLimit header", "rate limiting"]
 ---
 
 import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
 
 On a `429`, wait `Retry-After` seconds, then retry once unless the code says otherwise; an order [retry](/trade/orders#retries-and-recovery) keeps its `Idempotency-Key` and body. Most refusals also give the wait as `details.retryAfter`, an ISO 8601 duration such as `PT3S`.
 
-| Limit | What it counts | Over it |
-| --- | --- | --- |
-| Quotes | One live `POST /api/v1/quotes` every 3 seconds per key. A requote counts; a request answered entirely from cached prices does not. | `429 QUOTE_RATE_LIMITED` |
-| Requests per key | Every request, up to the key's `rateLimits` in `GET /api/v1/me` (`requestsPerMinute`, `burstSize`). Costlier operations spend more. | `429 RATE_LIMITED` |
-| Requests per address | Requests from one network address, before the key is checked. | `429 RATE_LIMITED` |
-| Price reads | Price reads per caller, separate from quotes. | `429 PRICES_RATE_LIMIT` |
-| Price streams | At most 4 open price streams per caller. | `429 PRICES_STREAM_LIMIT`: close one first. |
-| TetraFi briefly at capacity | Refused before anything is sent; no quota counted. | `429 RATE_LIMITED` |
+| Limit | What it counts |
+| --- | --- |
+| Quotes | One live `POST /api/v1/quotes` every 3 seconds per key. A requote counts; a request answered entirely from cached prices does not. Over it: `429 QUOTE_RATE_LIMITED`. |
+| Requests per key | Every request, up to the key's `rateLimits` in `GET /api/v1/me` (`requestsPerMinute`, `burstSize`). Costlier operations spend more. Over it: `429 RATE_LIMITED`. |
+| Requests per address | Requests from one network address, before the key is checked. Over it: `429 RATE_LIMITED`. |
+| Price reads | Price reads per caller, separate from quotes. Over it: `429 PRICES_RATE_LIMIT`. |
+| Price streams | At most 4 open price streams per caller. Over it: `429 PRICES_STREAM_LIMIT`; close one first. |
+| TetraFi briefly at capacity | Refused before anything is sent, with `429 RATE_LIMITED`; no quota counted. |
 
 ## Why quotes are limited
 
@@ -40,10 +41,10 @@ Each venue limits how often it answers live quotes: watch a market with [prices]
 
 An answer a limit counted carries two [IETF RateLimit](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) headers:
 
-| Header | Meaning | Example |
-| --- | --- | --- |
-| `RateLimit-Policy` | The limit and its window in seconds. | `1;w=3`: one request every 3 seconds. |
-| `RateLimit` | `limit`; `remaining`, the requests you may send now; `reset`, whole seconds until quota next frees up (a wait, not a timestamp or a full refill). | `limit=1, remaining=0, reset=3` |
+| Header | Meaning |
+| --- | --- |
+| `RateLimit-Policy` | The limit and its window in seconds. Example: `1;w=3`, one request every 3 seconds. |
+| `RateLimit` | `limit`; `remaining`, the requests you may send now; `reset`, whole seconds until quota next frees up (a wait, not a timestamp or a full refill). Example: `limit=1, remaining=0, reset=3`. |
 
 <Accordion title="Which limit the headers describe">
 
