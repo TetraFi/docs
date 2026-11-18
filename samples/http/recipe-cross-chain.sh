@@ -110,12 +110,13 @@ quotes=$(quote "$request")
 # means the key has no organisation wallet granted to it that the venue can use.
 jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$quotes" >&2
 
-# next "order": TetraFi executes the move from an organisation wallet, so the key can order it.
-# next "preflight", "sign" or "transact": settles through TetraFi's router and escrow (Advanced), not open yet.
+# next "order" with signing.mode "tetrafi": TetraFi executes the move from an organisation wallet, so
+# the key can order it. signing.mode "you" is a wallet you sign for (recipe-own-wallet.sh).
+# next "preflight": Advanced, not open yet.
 jq -c '.quotes[] | {quoteId: .id, venue: .legs[0].venue.id, next: .next.kind,
   sell: "\(.sell.amount) on \(.sell.network)", buy: "\(.buy.amount) on \(.buy.network)",
-  eta, tradesFrom: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
-quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order")) // empty' <<<"$quotes")
+  eta, tradingSource: (.tradingSource | {kind, financialAccountId, network}), fundingModel}' <<<"$quotes" >&2
+quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order" and .signing.mode != "you")) // empty' <<<"$quotes")
 # endregion
 
 if [[ -z $quote ]]; then

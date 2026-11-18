@@ -9,7 +9,7 @@ import OrderIdempotentReplay from '/snippets/samples/order-idempotent-replay.mdx
 import OrderIdempotencyConflict from '/snippets/samples/order-idempotency-conflict.mdx';
 import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
 
-Order a quote you hold by naming its id: ordering it is the accept, with no separate accept call, and TetraFi executes it through your venue account or an organisation wallet granted to your key.
+Order a quote by its id: ordering is the accept, with no separate call.
 
 ## At a glance
 
@@ -19,33 +19,16 @@ Order a quote you hold by naming its id: ordering it is the accept, with no sepa
 | `GET /api/v1/orders/by-quote/{quoteId}` | Read orders | What a quote produced. |
 | `POST /api/v1/orders/{orderId}/cancel` | Submit orders | The order, `cancelled`. |
 
-```mermaid
-flowchart LR
-  A[Quote id] --> B[POST order with Idempotency-Key]
-  B --> C[Answer]
-  B --> D[Timeout]
-  D --> R[Replay same key and body]
-  R --> E[Read by quote]
-```
-
-You need a quote whose `next.kind` is `order`, and an account or wallet that holds what you sell ([Before your first trade](/before-you-trade)).
-
-<Accordion title="Which quotes you can order">
-  Today you can order Basic quotes (`legs[].venue.integrationMode` `basic`): TetraFi executes them from your venue account, or from an organisation wallet granted to your key inside the limits its owners approved.
-</Accordion>
+You need a quote whose `next.kind` is `order`, and an account or wallet holding what you sell ([Before your first trade](/before-you-trade)). Every orderable quote today is Basic (`legs[].venue.integrationMode` `basic`): TetraFi executes it from your venue account, or from an organisation wallet granted to your key within its owners' limits.
 
 ## Place an order
 
 <Steps>
   <Step title="Choose an Idempotency-Key">
-    An API key must send one with every order. Generate a new random value and save it with the exact body before you send.
-
-    <Warning>
-    Retry only with the same key and body. A new key on a retry can place a second order.
-    </Warning>
+    Generate a new random key per order and store it with the exact body before you send ([Retries and recovery](#retries-and-recovery)).
   </Step>
   <Step title="Send the order">
-    `POST /api/v1/orders` with the `Idempotency-Key` header. TetraFi kept the quote's terms, so send only what you alone can supply.
+    `POST /api/v1/orders` with the `Idempotency-Key` header. TetraFi kept the quote's terms; send only what you alone can supply.
 
     | Field | Required | Value |
     | --- | --- | --- |
@@ -53,11 +36,7 @@ You need a quote whose `next.kind` is `order`, and an account or wallet that hol
     | `minReceive` | When the quote's `minReceiveRequired` is `true` | The least you accept to receive, in units of the asset you buy, such as `"4.99"`. |
     | `acknowledgeHighSlippage` | When your `minReceive` is more than 10% below the quote's receive amount | `true`, to confirm you accept that much slippage ([Slippage limits](#slippage-limits)). |
 
-    Each quote can be ordered once.
-
-    <Accordion title="Fields a Basic quote refuses">
-      Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them.
-    </Accordion>
+    Each quote can be ordered once. Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them.
 
     <OrderPlace />
 
@@ -77,7 +56,7 @@ You need a quote whose `next.kind` is `order`, and an account or wallet that hol
     ```
   </Step>
   <Step title="Follow it to the end">
-    The answer comes when the order is recorded, not when it completes: a `2xx` only means the order exists. Follow it at `statusUrl` until `terminal` is `true`, or with [webhooks](/trade/webhooks) ([Order status](/trade/order-status)).
+    A `2xx` means the order is recorded, not complete. Follow it at `statusUrl` ([Order status](/trade/order-status)); if it ends without filling, order a new quote.
 
     <Accordion title="On-chain orders that answer working before signing">
       A Basic order on an on-chain venue answers `working` before its wallet signs. If the wallet then refuses to sign, nothing is sent and the order ends `unfilled`, with the cause in `operation.dispatch.notSentCause`.
@@ -87,7 +66,7 @@ You need a quote whose `next.kind` is `order`, and an account or wallet that hol
 
 ## Minimum receive
 
-Send `minReceive` when the quote reads `minReceiveRequired: true`; otherwise it is your own optional floor.
+Send `minReceive` when the quote reads `minReceiveRequired: true`. Other venue quotes may accept it as your own floor; a quote that executes at the price shown refuses it (`400 MIN_RECEIVE_NOT_ACCEPTED`).
 
 ### Venues that execute within your limit
 
@@ -108,31 +87,34 @@ Send `minReceive` when the quote reads `minReceiveRequired: true`; otherwise it 
 | Quote | `minReceive` | If it is not met |
 | --- | --- | --- |
 | `minReceiveRequired: true` | Required. The trade happens only if the venue delivers at least that. | Missing: `400 MIN_RECEIVE_REQUIRED`, and nothing is sent. |
-| Any other Basic quote | Optional: your own floor. | The venue's held firm price already delivers less: `409 VENUE_QUOTE_OUTSIDE_BOUNDS`. |
+| Another venue quote that accepts it | Optional: your own floor. | The venue's held firm price already delivers less: `409 VENUE_QUOTE_OUTSIDE_BOUNDS`. |
+| A quote that executes at the price shown | Leave it out. | Sent anyway: `400 MIN_RECEIVE_NOT_ACCEPTED`. |
 
   </Accordion>
 </AccordionGroup>
 
 ### Slippage limits
 
-On an exchange or OTC venue quote, a `minReceive` is checked against the receive amount the quote showed before anything is sent. Without a `minReceive`, nothing is checked.
+On an exchange or OTC venue quote, a `minReceive` is checked against the quote's receive amount before anything is sent; without one, nothing is checked. On-chain venue quotes are not checked this way.
 
-<AccordionGroup>
-  <Accordion title="Your workspace's maximum, and the 10% acknowledgement">
-    - **Workspace maximum.** When your workspace sets a maximum slippage (Trading defaults in the app), a `minReceive` further below the quote than that maximum is refused with `403 WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED`, whatever else the body says. Raise `minReceive`, or ask an admin to change the maximum.
-    - **More than 10% below.** A `minReceive` more than 10% below the quote's receive amount is refused with `422 HIGH_SLIPPAGE_ACK_REQUIRED` unless the body also sends `"acknowledgeHighSlippage": true`. Send it only when a person has accepted that slippage.
+<Accordion title="Your workspace's maximum, and the 10% acknowledgement">
 
-    On either refusal nothing is sent, and the quote can still be ordered. On-chain venue quotes are not checked this way.
-  </Accordion>
-</AccordionGroup>
+| `minReceive` below the quote by | Refused with | To pass |
+| --- | --- | --- |
+| More than your workspace's maximum slippage (Trading defaults in the app), whatever else the body says | `403 WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | Raise `minReceive`, or ask an admin to change the maximum. |
+| More than 10% | `422 HIGH_SLIPPAGE_ACK_REQUIRED` | Also send `"acknowledgeHighSlippage": true`, only when a person has accepted that slippage. |
+
+On either refusal nothing is sent, and the quote can still be ordered.
+
+</Accordion>
 
 ## Retries and recovery
 
-A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` does not prove an order failed: the trade may have filled. Resolve it by reading, never by ordering again.
+An API key sends an `Idempotency-Key` with every order, and retries only with the same key and body: a new key can place a second order. A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` does not prove an order failed; resolve it by reading, never by ordering again.
 
 <AccordionGroup>
-  <Accordion title="Send a key with every order">
-    Every `POST /api/v1/orders` with an API key needs an `Idempotency-Key` header, or it is refused with `400 IDEMPOTENCY_KEY_REQUIRED`.
+  <Accordion title="The key: format, storage and scope">
+    Without one, `POST /api/v1/orders` is refused with `400 IDEMPOTENCY_KEY_REQUIRED`.
 
     - Generate a new random value per order, such as 32 hexadecimal characters: exactly one value, 1 to 255 bytes, with no surrounding spaces (otherwise `400 IDEMPOTENCY_KEY_INVALID`).
     - Store the key and the exact body with your record of the order before you send it, so a retry after a crash can reuse both.
@@ -170,7 +152,7 @@ A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` does not prov
 
 ### Conflict: same key, different body
 
-Reusing a key with a different body is refused with `409 IDEMPOTENCY_CONFLICT`, and nothing is placed.
+A reused key with a different body is refused with `409 IDEMPOTENCY_CONFLICT`; nothing is placed.
 
 <Accordion title="Example: a changed body on a reused key">
   A conflict means your code reused a key by mistake. Use a new key for a new order, but only after you have [recovered by quote](#recover-an-order-by-its-quote). Here the same quote with a `minReceive` added counts as a different body:
@@ -184,12 +166,12 @@ Reusing a key with a different body is refused with `409 IDEMPOTENCY_CONFLICT`, 
 
 ### Recover an order by its quote
 
-Read `GET /api/v1/orders/by-quote/{quoteId}` whenever you lost the answer, the key or both.
+Read `GET /api/v1/orders/by-quote/{quoteId}` when you lost the answer, the key or both. It places nothing.
 
 <AccordionGroup>
   <Accordion title="States and what to do">
 
-It says what a quote produced, never places anything, and works after the quote expired.
+It says what a quote produced, and works after the quote expired.
 
 | `status` | What it means | What to do |
 | --- | --- | --- |
@@ -214,27 +196,23 @@ An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND
 
 <Steps>
   <Step title="Replay">
-    Send the saved body with the saved key.
+    Send the saved body with the saved key. On `IDEMPOTENCY_OUTCOME_UNKNOWN`, stop replaying it.
   </Step>
   <Step title="Read by quote">
-    Read `GET /api/v1/orders/by-quote/{quoteId}`, even if the replay failed.
+    Read it by its quote, even if the replay failed.
   </Step>
   <Step title="Follow">
-    Follow the order it names until `terminal` is `true`.
-
-    <Accordion title="On the way to terminal">
-      Keep following through `outcomeUnknown`, `next.kind: "wait"` (read again after `retryAfter`) or `next.kind: "contact"` (contact support with `reference`).
-    </Accordion>
+    Follow the order it names until `terminal` is `true` ([Order status](/trade/order-status)).
   </Step>
 </Steps>
 
 <Warning>
-Never retry with a new key, change the body, or treat `unknown` or a failed read as "not ordered". Only `notOrdered`, or a final status that did not fill, makes it safe to order again, on a new quote.
+While the outcome is unknown, never change the key or body: only `notOrdered` lets you submit again, never `unknown`, a `404` or a failed read.
 </Warning>
 
 ## Cancel an order
 
-`POST /api/v1/orders/{orderId}/cancel`, with an `Idempotency-Key` and Submit orders, cancels an order not yet sent to a venue, or a pay-in still waiting for your funds.
+`POST /api/v1/orders/{orderId}/cancel` (Submit orders, its own `Idempotency-Key`) cancels an order not yet sent to a venue, or a pay-in still waiting for your funds.
 
 <AccordionGroup>
   <Accordion title="When a cancel is refused">
@@ -285,7 +263,7 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 </Accordion>
 
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/orders.sh">
-  Places one order with an Idempotency-Key, replays it, reuses the key on a changed body, recovers the order by quote and reads its status.
+  Orders, replays, conflicts, recovers by quote and reads the status.
 </Card>
 
 ## Next

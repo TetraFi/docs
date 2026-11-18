@@ -120,70 +120,108 @@ function errorCodesPage() {
     return `<span id="${name}"></span>`;
   };
   const sorted = (rows, key) => [...rows].sort((a, b) => a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0);
-  // Codes are grouped by HTTP status so a reader holding a status jumps straight to its codes.
-  // A code with several statuses sits under its first; one with none is a stream event.
+  // Codes are grouped by product area, in the order an integration meets them, so a reader holding
+  // a code from one task finds its neighbours. Status is a column: a code's status says what kind of
+  // refusal it is, its area says where it came from. An area owns a code by its longest matching
+  // prefix (the whole code, or the code up to an underscore). A code no area claims refuses the page
+  // (ERROR_CODE_AREA_UNMAPPED): name it here, never let it fall into a catch-all.
   const STATUS = {
-    400: ['Bad request', 'The request is malformed or a value is out of range.'],
-    401: ['Unauthorized', 'The credential or its signature was not accepted.'],
-    403: ['Forbidden', 'The credential lacks a permission, scope or grant, or the workspace cannot do this yet.'],
-    404: ['Not found', 'The resource does not exist or is not visible to this credential.'],
-    405: ['Method not allowed', 'The method is not supported on this path.'],
-    408: ['Request timeout', 'The request timed out on the server.'],
-    409: ['Conflict', 'The resource is in a state that does not allow this, or a replay does not match.'],
-    410: ['Gone', 'The resource or quote no longer exists.'],
-    412: ['Precondition failed', 'The `If-Match` revision is stale.'],
-    413: ['Payload too large', 'The request body is too large.'],
-    415: ['Unsupported media type', 'The body is not JSON.'],
-    422: ['Unprocessable', 'The request is valid but cannot be carried out as asked.'],
-    423: ['Locked', 'The workspace or resource is frozen.'],
-    428: ['Precondition required', 'A required header such as `If-Match` is missing.'],
-    429: ['Too many requests', 'A rate limit, budget or credit limit was reached.'],
-    500: ['Internal error', 'TetraFi failed while handling the request.'],
-    501: ['Not implemented', 'The operation is not available.'],
-    502: ['Bad gateway', 'A venue or provider failed.'],
-    503: ['Unavailable', 'A dependency is temporarily unavailable.'],
-    504: ['Gateway timeout', 'A venue or provider did not answer in time.'],
+    400: 'Bad request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not found', 405: 'Method not allowed',
+    408: 'Request timeout', 409: 'Conflict', 410: 'Gone', 412: 'Precondition failed', 413: 'Payload too large',
+    415: 'Unsupported media type', 422: 'Unprocessable', 423: 'Locked', 428: 'Precondition required',
+    429: 'Too many requests', 500: 'Internal error', 501: 'Not implemented', 502: 'Bad gateway',
+    503: 'Unavailable', 504: 'Gateway timeout',
+  };
+  const AREAS = [
+    ['Requests, keys and access', 'Malformed requests, credentials, request signing, permissions, workspaces, idempotency, paging and batch reads.', [
+      'ACCESS', 'ACCOUNT_KEY', 'API_KEY_UNAVAILABLE', 'API_VERSION', 'AUTH', 'AUTHORIZATION', 'BATCH', 'CREDENTIAL', 'CSV', 'CURSOR',
+      'EMAIL', 'EXPORT', 'FORBIDDEN', 'IDEMPOTENCY', 'IDEMPOTENT', 'INCLUDE', 'INSUFFICIENT_PERMISSION', 'INSUFFICIENT_SCOPE',
+      'INSUFFICIENT_WORKSPACE_PERMISSION', 'INTEGRATION', 'INVALID', 'IP', 'JWT', 'KEY', 'METADATA', 'METHOD', 'MFA', 'MISSING',
+      'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
+      'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
+    ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
+      'ACROSS', 'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BUDGET', 'CCTP', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'DELIVER',
+      'DESK', 'EXACT', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'RELAY_FEE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
+      'UNKNOWN', 'USABLE', 'VENUE_QUOTE_RATE_LIMITED']],
+    ['Orders', 'Placing, following and cancelling an order: minimum receive, slippage, caps, the source it trades from and its execution.', [
+      'ADVANCED', 'BROWSER', 'CLIENT', 'DIRECT', 'EXECUTION', 'FIRM', 'HELD', 'HIGH', 'INSUFFICIENT_BALANCE', 'INSUFFICIENT_LIQUIDITY',
+      'INSUFFICIENT_LP_BALANCE', 'LEGACY', 'MIN', 'OPERATION', 'ORDER', 'PERIOD', 'PILOT', 'PREFLIGHT', 'PRICE', 'RECORDED', 'RELAY',
+      'REPRICING', 'ROUTE', 'SELF', 'SOURCE', 'SUBMIT', 'TRADING', 'TRANSPORT', 'VENUE_QUOTE', 'WORKSPACE_ORDER_PLACING',
+      'WORKSPACE_SLIPPAGE']],
+    ['Signing and grants', 'Signing grants, wallet signatures, signed steps and owner authorizations.', [
+      'EIP712', 'EXPIRED', 'FUNDER', 'GRANT', 'NATIVE', 'OWNER', 'PERMIT', 'RELEASE', 'SIGNATURE', 'SIGNED', 'SIGNER', 'SIGNING',
+      'STABLEFX', 'STEP', 'TRADER']],
+    ['Venues and accounts', 'Connecting and reading venue and LP accounts, onboarding and company details.', [
+      'ACCOUNT', 'ACTIVATION', 'AGENT', 'BASE', 'COMPANY', 'COUNTERPARTY_STANDING', 'EDD', 'INVENTORY', 'KYC', 'LP', 'OBSERVATION',
+      'TAKER', 'VENUE']],
+    ['Wallets and custody', 'Organisation, personal and custody wallets, and which wallet a key may trade from.', [
+      'API_KEY_ORGANISATION_WALLET', 'API_KEY_WALLET', 'AUTO', 'CUSTODY', 'DELEGATION', 'DESTINATION', 'ONCHAIN', 'PERSONAL', 'TARGET',
+      'WALLET']],
+    ['Funding, balances and treasury', 'Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees.', [
+      'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'PAY', 'TREASURY', 'WITHDRAWAL']],
+    ['Settlement, credit and trades', 'Settlement windows and obligations, credit, the ledger and trade records.', [
+      'CREDIT', 'DEFERRED', 'LEDGER', 'RECORDS', 'RUN', 'SETTLEMENT', 'TRADE']],
+    ['Webhooks', 'Creating, testing and redelivering webhook endpoints.', ['MAX_WEBHOOKS', 'WEBHOOK']],
+    ['Compliance', 'Capabilities, jurisdiction, screening and compliance policy.', [
+      'ADDRESS', 'CAPABILITIES', 'CAPABILITY', 'COMPLIANCE', 'PLATFORM_JURISDICTION', 'PLATFORM_POLICY', 'SCREENING',
+      'WORKSPACE_COMPLIANCE', 'WORKFLOW']],
+    ['Availability', 'TetraFi or an upstream provider could not answer: retry as each row says.', [
+      'CLOCK', 'DATABASE', 'INTEGRITY', 'INTERNAL', 'PLATFORM_PROVIDER', 'REQUEST_TIMEOUT', 'RESPONSE', 'SERIALIZATION', 'SERVER',
+      'SERVICE_UNAVAILABLE', 'STORAGE', 'UPSTREAM']],
+    ['Other execution', 'Route continuations, server-side source execution and escrow settlement, mostly Advanced, which is not open yet.', [
+      'CONTINUATION', 'COUNTERPARTY_ROUTER', 'DELEGATED', 'ROUTER', 'SOLANA']],
+  ];
+  const owner = new Map();
+  for (const [index, [, , prefixes]] of AREAS.entries()) for (const prefix of prefixes) {
+    if (owner.has(prefix)) throw new Error(`ERROR_CODE_AREA_DUPLICATE ${prefix}`);
+    owner.set(prefix, index);
+  }
+  const areaOf = (code) => {
+    const parts = code.split('_');
+    for (let length = parts.length; length > 0; length -= 1) {
+      const prefix = parts.slice(0, length).join('_');
+      if (owner.has(prefix)) return owner.get(prefix);
+    }
+    throw new Error(`ERROR_CODE_AREA_UNMAPPED ${code}: name its prefix in sync-contract.mjs AREAS`);
   };
   const codes = contract.codes.filter(keep('code'));
   const groups = new Map();
   for (const row of sorted(codes, 'code')) {
-    const status = row.status.length ? row.status[0] : 0;
-    if (status && !STATUS[status]) throw new Error(`ERROR_CODE_STATUS_UNNAMED ${status}: name it in sync-contract.mjs`);
-    if (!groups.has(status)) groups.set(status, []);
-    groups.get(status).push(row);
+    for (const status of row.status) if (!STATUS[status]) throw new Error(`ERROR_CODE_STATUS_UNNAMED ${status}: name it in sync-contract.mjs`);
+    const area = areaOf(row.code);
+    if (!groups.has(area)) groups.set(area, []);
+    groups.get(area).push(row);
   }
-  const order = [...groups.keys()].sort((a, b) => (a || 1000) - (b || 1000));
-  const title = (status) => status ? `${status} ${STATUS[status][0]}` : 'Stream events';
-  const slug = (status) => title(status).toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().replace(/\s+/g, '-');
+  const order = [...groups.keys()].sort((a, b) => a - b);
+  const slug = (title) => title.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().replace(/\s+/g, '-');
+  const statusCell = (row) => row.status.length ? row.status.join(', ') : 'Stream event';
   return { page: [
     '---',
     'title: "Error codes"',
-    'description: "Every API refusal and source reason, grouped by HTTP status, with its meaning, what to do and whether to retry."',
+    'description: "Every API refusal and source reason, grouped by product area, with its HTTP status, meaning, what to do and whether to retry."',
     '---',
     '',
     '{/* Generated by scripts/sync-contract.mjs from tetrafi-rfq docs/api/integrator/error-codes.json. Edit the source, then run npm run sync. */}',
     ...(withheldRows.length ? [`{/* Withheld by the leak rules until the API changes its text: ${withheldRows.join(', ')} */}`] : []),
     '',
-    'Find the code from the `error` field of the response, or jump to its HTTP status below. To parse the error body and retry safely, read [Errors and refusals](/trade/errors).',
+    'Find the code from the `error` field of the response (its `docUrl` links straight to the row), or open its area below. To parse the error body and retry safely, read [Errors and refusals](/trade/errors).',
     '',
     '<Note>New codes and reasons can appear at any time. Handle one you do not recognise by its HTTP status ([Codes you do not know](/trade/errors#codes-you-do-not-know)).</Note>',
     '',
     '## Refusal codes',
     '',
-    '| Status | Codes | Usually means |',
+    '| Area | Codes | Covers |',
     '| :--- | :--- | :--- |',
-    ...order.map((status) => status
-      ? `| [${title(status)}](#${slug(status)}) | ${groups.get(status).length} | ${STATUS[status][1]} |`
-      : `| [Stream events](#stream-events) | ${groups.get(status).length} | Sent on a stream, not as an HTTP response. |`),
+    ...order.map((area) => `| [${AREAS[area][0]}](#${slug(AREAS[area][0])}) | ${groups.get(area).length} | ${AREAS[area][1]} |`),
     '',
-    'Act on each code\'s own **What to do** and **Retryable**, not on its status: codes under one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/orders#retries-and-recovery).',
+    'Act on each code\'s own **What to do** and **Retryable**, not on its status alone: codes with one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/orders#retries-and-recovery).',
     '',
-    ...order.flatMap((status) => [
-      `### ${title(status)}`,
+    ...order.flatMap((area) => [
+      `### ${AREAS[area][0]}`,
       '',
-      '| Code | Meaning | What to do | Retryable |',
-      '| :--- | :--- | :--- | :--- |',
-      ...groups.get(status).map((row) => `| ${anchor(row.code)}\`${cell(row.code)}\`${row.status.length > 1 ? ` (also ${row.status.slice(1).join(', ')})` : ''} | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+      '| Code | Status | Meaning | What to do | Retryable |',
+      '| :--- | :--- | :--- | :--- | :--- |',
+      ...groups.get(area).map((row) => `| ${anchor(row.code)}\`${cell(row.code)}\` | ${statusCell(row)} | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
       '',
     ]),
     '## Source reasons',
@@ -406,7 +444,21 @@ function endpointMap() {
   // One stub page per operation, so the sidebar, the links below and `mint broken-links` all see a
   // real page; Mintlify renders it from the spec.
   const stubPath = (op) => `api-reference/${pageSlug(op.tag)}/${pageSlug(endpointName(op.method, op.route))}`;
-  const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `title: "${endpointName(op.method, op.route)}"`, `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', ''].join('\n')]);
+  // Each stub links the guide that walks through its operation, named by that guide's own title.
+  // A guide with an #anchor is named by that heading, so the link text says where it lands.
+  const guideTitle = (guide) => {
+    const [page, anchor] = guide.split('#');
+    const file = path.join(root, `${page.replace(/^\//, '')}.mdx`);
+    const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+    const heading = anchor && [...text.matchAll(/^#{2,4} (.+)$/gm)].map((m) => m[1].trim())
+      .find((h) => h.toLowerCase().replace(/[^a-z0-9 -]/g, '').trim().replace(/\s+/g, '-') === anchor);
+    const title = anchor ? heading : (text.match(/^title:\s*"([^"]+)"/m) ?? [])[1];
+    if (!title) throw new Error(`ENDPOINT_GUIDE_MISSING ${guide}`);
+    return title;
+  };
+  const guideFor = (op) => ENDPOINT_GUIDES[`${op.method} ${op.route}`] ?? ENDPOINT_GROUPS.find(({ tags }) => tags.includes(op.tag)).guide;
+  const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `title: "${endpointName(op.method, op.route)}"`, `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', '',
+    `Walkthrough: [${guideTitle(guideFor(op))}](${guideFor(op)}).`, ''].join('\n')]);
   const seen = new Set();
   for (const [file] of stubs) {
     if (seen.has(file)) throw new Error(`ENDPOINT_PAGE_DUPLICATE ${file}`);

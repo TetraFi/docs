@@ -4,10 +4,10 @@ description: "Move USDC from Base to Ethereum from a wallet whose key only you h
 ---
 
 <Info>
-**Rolling out.** This flow is not live yet. The shapes on this page are the contract we are building to; field names can still change before it opens. Today, a key trades on-chain from organisation wallets granted to it, which TetraFi signs for ([Move stablecoins across chains](/recipes/cross-chain-stablecoins)).
+This flow is not live yet. The shapes on this page are the contract we are building to; field names can still change before it opens. Today, a key trades on-chain from organisation wallets granted to it, which TetraFi signs for ([Move stablecoins across chains](/recipes/cross-chain-stablecoins)).
 </Info>
 
-Move 100 USDC from Base to Ethereum through a bridge, from a wallet you sign for yourself: the first trade on a token takes two steps, an approval and then the deposit.
+Move 100 USDC from Base to Ethereum through a bridge, from a wallet you sign for yourself. The first trade on a token takes two steps: an approval, then the deposit.
 
 ## At a glance
 
@@ -29,9 +29,9 @@ flowchart LR
 
 ## Before you begin
 
-- An API key with Read quotes, Submit orders, Read orders and [venue trading](/authentication#trade-on-your-venue-accounts), signing every request ([Sign requests](/authentication#sign-requests)). It needs no organisation-wallet grant.
-- An EVM wallet whose private key you hold, with USDC and some ETH for gas on Base. It does not have to be registered in TetraFi first.
-- [Foundry](https://getfoundry.sh)'s `cast`, or Node.js with [viem](https://viem.sh), and an RPC endpoint for Base to read fees.
+- An API key with Read quotes, Submit orders, Read orders, [venue trading](/authentication#trade-on-your-venue-accounts) and [signed requests](/authentication#sign-requests); no organisation-wallet grant.
+- An EVM wallet whose private key you hold, with USDC and some ETH for gas on Base; it need not be registered in TetraFi.
+- [Foundry](https://getfoundry.sh)'s `cast`, or Node.js with [viem](https://viem.sh), and a Base RPC endpoint to read fees.
 
 <AccordionGroup>
   <Accordion title="Why you pay the gas">
@@ -48,7 +48,7 @@ This recipe moves funds out of your wallet once it is live.
 
 <Steps>
   <Step title="Quote with your address">
-    `POST /api/v1/quotes` with your wallet's address as the value for Base in `source.tradingWallets`, and only cross-chain quotes kept. Pick a quote whose `next.kind` is `order` and whose `signing.mode` is `you`.
+    `POST /api/v1/quotes` with your address for Base in `source.tradingWallets`, keeping cross-chain quotes. Pick one whose `next.kind` is `order` and `signing.mode` is `you`.
 
     ```json Request
     {"kind":"pair","sell":{"asset":"USDC","network":"eip155:8453"},"buy":{"asset":"USDC","network":"eip155:1"},"sellAmount":"100",
@@ -84,7 +84,7 @@ This recipe moves funds out of your wallet once it is live.
   </Step>
 
   <Step title="Sign the approval">
-    Sign `firstStep.transaction` exactly as given, with its `nonce`, on the chain of its `network` (`eip155:8453` is chain 8453). Gas and fees are yours to choose. Check first that `type` is `transaction` and `from` is your address.
+    Check that `type` is `transaction` and `from` is your address, then sign `firstStep.transaction` exactly as given, with its `nonce` ([the step object](/trade/sign-with-your-own-wallet#the-step-object)).
 
     <Tabs>
       <Tab title="cast">
@@ -99,7 +99,7 @@ This recipe moves funds out of your wallet once it is live.
           --private-key "$SIGNER_PRIVATE_KEY")
         ```
 
-        `cast mktx` signs without broadcasting and prints the raw transaction. It estimates gas and reads current fees from `--rpc-url`; pass `--gas-price` and `--priority-gas-price` to set them yourself.
+        `cast mktx` signs without broadcasting, estimating gas and fees from `--rpc-url`; `--gas-price` and `--priority-gas-price` set them yourself.
       </Tab>
       <Tab title="viem">
         ```ts
@@ -141,7 +141,7 @@ This recipe moves funds out of your wallet once it is live.
   </Step>
 
   <Step title="Order with it">
-    `POST /api/v1/orders` with an `Idempotency-Key` you store before sending. Send `minReceive`, the least you accept, because the quote reads `minReceiveRequired: true`. TetraFi checks the signed approval against the step it issued and against the chain, then relays it.
+    `POST /api/v1/orders` with an `Idempotency-Key` ([Retries and recovery](/trade/orders#retries-and-recovery)) and `minReceive`, because the quote reads `minReceiveRequired: true`. TetraFi checks the signed approval against its step and the chain, then relays it.
 
     ```json Request
     {"quoteId":"q_01M5…","minReceive":"99.45","firstStep":{"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","kind":"signedTransaction","raw":"0x02f8…"}}
@@ -155,8 +155,8 @@ This recipe moves funds out of your wallet once it is live.
     ```
   </Step>
 
-  <Step title="Sign and submit the deposit">
-    When `next.kind` is `sign`, sign `next.step` the same way, then send it to `POST /api/v1/orders/{orderId}/steps/{stepId}` with a new `Idempotency-Key`. The answer is the order again.
+  <Step title="Sign and submit each step the order asks for">
+    When `next.kind` is `sign`, sign `next.step` the same way and send it to `POST /api/v1/orders/{orderId}/steps/{stepId}` with a new `Idempotency-Key`. Here it is the deposit, or a fresh step 1 if the chain moved. Sign whatever `next.step` holds; never resend a transaction signed for an earlier step.
 
     ```json Request
     {"kind":"signedTransaction","raw":"0x02f9…"}
@@ -164,7 +164,7 @@ This recipe moves funds out of your wallet once it is live.
   </Step>
 
   <Step title="Follow it until it ends">
-    Read `GET /api/v1/orders/{orderId}` after each `retryAfter`, or wait for the `order.updated` [webhook](/trade/webhooks), which fires whenever `next` changes. Stop when `terminal` is `true` ([Order status](/trade/order-status)).
+    Read `GET /api/v1/orders/{orderId}` until `terminal` is `true` ([Order status](/trade/order-status)). Do not wait for an `order.updated` webhook to find a signing step: act before `next.step.signBy`.
 
     ```json Output shape when it ends (shortened) expandable
     {"orderId":"9410e38e-…","status":"settled","terminal":true,
@@ -178,11 +178,8 @@ This recipe moves funds out of your wallet once it is live.
 ## If it does not go to plan
 
 <AccordionGroup>
-  <Accordion title="The order opens with a fresh step 1">
-    Your nonce, allowance or balance changed between the quote and the order, so nothing was relayed. Sign `next.step` and submit it on the step endpoint.
-  </Accordion>
-  <Accordion title="You did not sign in time">
-    A later step not signed by its `signBy` ends the order `unfilled` with `outcomeCode: not_sent`. A mined approval stays; nothing else moved. To trade, quote again.
+  <Accordion title="A fresh step 1, or a step not signed in time">
+    A fresh step 1 means the chain moved and nothing was relayed: sign `next.step` and submit it on the step endpoint. A step not signed by its `signBy` ends the order `unfilled`; quote again. Every ending: [How it ends](/trade/sign-with-your-own-wallet#how-it-ends).
   </Accordion>
   <Accordion title="You would rather broadcast it yourself">
     Broadcast the signed transaction, then submit `{"kind":"transactionHash","txHash":"0x…"}`. TetraFi reads it from the chain and applies the same checks. `SIGNING_TRANSACTION_NOT_FOUND` (409) means the chain does not show it yet: retry with backoff.
@@ -191,9 +188,13 @@ This recipe moves funds out of your wallet once it is live.
     Submit `{"kind":"declined"}` on the step endpoint: the order ends `unfilled` and the deposit is never sent. An approval already mined stays.
   </Accordion>
   <Accordion title="A refusal">
-    Nothing was relayed: `SIGNING_STEP_MISMATCH` (422, `details.field` names what differs), `SIGNING_STEP_EXPIRED` (410), `SIGNING_STEP_NOT_OPEN` (409) or `SIGNING_WALLET_REFUSED` (403). The full list is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
+    TetraFi relayed nothing for that submission; earlier steps may already be on-chain. Every code: [Step refusals](/trade/sign-with-your-own-wallet#step-refusals).
   </Accordion>
 </AccordionGroup>
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/recipe-own-wallet.sh">
+  Runs every step above with `cast`; it signs and orders only with `TETRAFI_PLACE_ORDER=1`.
+</Card>
 
 ## Next
 

@@ -4,6 +4,8 @@ description: "Register an endpoint, verify each Standard Webhooks delivery, and 
 ---
 
 import WebhookVerify from '/snippets/samples/webhook-verify.mdx';
+import WebhookCreate from '/snippets/samples/webhook-create.mdx';
+import WebhookTest from '/snippets/samples/webhook-test.mdx';
 
 Register an HTTPS endpoint and TetraFi posts an `order.updated` event each time one of your orders changes status, signed to the [Standard Webhooks](https://www.standardwebhooks.com) spec.
 
@@ -17,21 +19,13 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 | `…/webhooks/{webhookId}` and its sub-paths | Manage webhooks | Test, rotate, redeliver, resume, read, change, remove. |
 | `statusUrl` from an event | Read orders | The order's current state. |
 
-```mermaid
-flowchart LR
-  A[Order changes] --> B[Signed POST]
-  B --> C[Verify signature]
-  C --> D[2xx, dedupe]
-  D --> E[Read statusUrl]
-```
-
 <AccordionGroup>
   <Accordion title="What the key needs">
     - Manage webhooks (`webhooks_manage`) on the key, and the owner's workspace permission to manage webhooks ([Permissions](/authentication#permissions)).
     - For `order.updated`, an endpoint owner who can read the orders: events it cannot read are withheld.
     - Read orders, to follow an event's `statusUrl`.
 
-    Calls send `X-API-Key`; a signing key [signs](/authentication#sign-requests) with `X-Timestamp`, `X-Signature` and, on writes, a fresh `X-Nonce`. `{workspaceId}` is your key's workspace. Other events are in the [event catalogue](/reference/webhook-events).
+    Calls send `X-API-Key`, and a signing key [signs them](/authentication#sign-requests). `{workspaceId}` is your key's workspace. Other events are in the [event catalogue](/reference/webhook-events).
   </Accordion>
 </AccordionGroup>
 
@@ -39,21 +33,19 @@ flowchart LR
 
 <Steps>
   <Step title="Create it">
-    `POST /api/v1/workspaces/{workspaceId}/webhooks` with an `Idempotency-Key` and `{"url": "https://…", "events": ["order.updated"]}`. Store the `whsec_` secret at once: a replay within 24 hours returns `201` with `secret: null`.
+    `POST /api/v1/workspaces/{workspaceId}/webhooks` with an `Idempotency-Key` and `{"url": "https://…", "events": ["order.updated"]}`. Store the `whsec_` secret at once: a replay within 24 hours returns `201` with `secret: null`. Lost it? [Rotate it](#manage-an-endpoint); it is not your request-signing secret.
 
-    <Accordion title="Lost the secret?">
-      [Rotate it](#manage-an-endpoint). It is not your request-signing secret.
+    <Accordion title="Create it from a script">
+      `tetrafi` is the signed request helper from the [Quickstart](/quickstart).
+
+      <WebhookCreate />
     </Accordion>
   </Step>
   <Step title="Verify every delivery">
     Check the HMAC-SHA256 signature over the exact bytes received, before parsing, and refuse a `webhook-timestamp` over five minutes from your clock. A [Standard Webhooks library](https://github.com/standard-webhooks/standard-webhooks), such as `standardwebhooks` on npm or PyPI, does it for you.
 
     <Accordion title="How to verify by hand, with samples">
-      The signature is HMAC-SHA256 over `<webhook-id>.<webhook-timestamp>.<raw body>`, keyed with the base64-decoded secret after `whsec_`.
-
-      - Compute it over the exact bytes received, before parsing.
-      - Compare in constant time; accept when any one `v1,` value matches.
-      - Refuse a `webhook-timestamp` over five minutes from your clock.
+      The signature is HMAC-SHA256 over `<webhook-id>.<webhook-timestamp>.<raw body>`, keyed with the base64-decoded secret after `whsec_`. Compare in constant time; accept when any one `v1,` value matches.
 
       Each sample checks the Standard Webhooks example delivery:
 
@@ -65,29 +57,27 @@ flowchart LR
     </Accordion>
   </Step>
   <Step title="Acknowledge, then handle each event once">
-    Answer any `2xx` within 10 seconds, once verified and stored; work afterwards. Deduplicate on `webhook-id` and read `statusUrl` for the current status.
+    Answer any `2xx` within 10 seconds, once verified and stored; work afterwards. Anything else is [retried](#retries-pauses-and-missed-events). Deliveries arrive at least once, possibly out of order: deduplicate on the body's `id` (`webhook-id` changes on a redelivery), and read `statusUrl` for the current status.
+  </Step>
+  <Step title="Send a test delivery">
+    `POST …/webhooks/{webhookId}/deliveries` with `{"kind":"test"}` and a new `Idempotency-Key`. The delivery reads `success: true` with your status code once your receiver acknowledged it.
 
-    <Accordion title="Ordering and duplicates">
-      Deliveries arrive at least once, possibly out of order:
-
-      - deduplicate on `webhook-id`; the body's `id` identifies the same event across deliveries;
-      - read `statusUrl` for the current status, not the arrival order.
-
-      Anything but a `2xx` is [retried](#retries-pauses-and-missed-events).
+    <Accordion title="From a script">
+      <WebhookTest />
     </Accordion>
   </Step>
 </Steps>
 
 ## What a delivery looks like
 
-A `POST` with a JSON body and the `webhook-id`, `webhook-timestamp` and `webhook-signature` headers. The event only says an order changed: read `statusUrl` for the full state.
+A `POST` with a JSON body and three `webhook-` headers. The event only says an order changed.
 
 <AccordionGroup>
   <Accordion title="Headers and body">
 
 | Header | What it carries |
 | --- | --- |
-| `webhook-id` | The delivery's id, the same on its retries. |
+| `webhook-id` | The delivery's id: the same on its retries, new on a redelivery. Signed, not for deduplication. |
 | `webhook-timestamp` | When it was signed, in Unix seconds. |
 | `webhook-signature` | `v1,` and the base64 signature; two space-separated values during a secret rotation. |
 
@@ -97,9 +87,11 @@ A `POST` with a JSON body and the `webhook-id`, `webhook-timestamp` and `webhook
   "type": "order.updated",
   "apiVersion": "2026-11-17",
   "createdAt": "2026-10-30T09:12:44.000Z",
-  "data": { "orderId": "…", "status": "…", "statusUrl": "/api/v1/orders/…" }
+  "data": { "orderId": "…", "kind": "basicTrade", "status": "working", "terminal": false, "statusUrl": "/api/v1/orders/…" }
 }
 ```
+
+`data.kind` is `basicTrade` or `advancedTrade`. If `terminal` is absent, read `statusUrl`: absent is not `false`.
 
 Answer unknown fields and event types with a `2xx` and ignore them. `apiVersion` is the version the endpoint recorded when it was created; a breaking change ships only under a new version, which an endpoint reaches when you create it again ([Versioning](/reference/conventions#versioning)).
 
@@ -108,7 +100,7 @@ Answer unknown fields and event types with a `2xx` and ignore them. `apiVersion`
 
 ## Manage an endpoint
 
-Other paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`. Every `POST` from an API key or OAuth client takes an `Idempotency-Key`: a new key for each action you intend, and the same key and body when you retry one whose answer you did not get, which returns the first answer instead of acting twice. A `PATCH` sends `If-Match` with the strong `ETag` from `GET` on the endpoint; without it the update is refused with `428 WEBHOOK_VERSION_REQUIRED`, and after a `412` read the endpoint again and review what changed before you update it. In the app: Integrations → Webhooks, for a member with Manage webhooks.
+Paths are under `…/webhooks/{webhookId}`. Each `POST` takes an `Idempotency-Key`, and a `PATCH` sends `If-Match` with the strong `ETag` from `GET`. In the app: Integrations → Webhooks.
 
 | Operation | Call |
 | --- | --- |
@@ -130,7 +122,6 @@ Other paths are under `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}`. E
 | List deliveries | `items`, `totalCount` and `nextCursor`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. How many receipts are kept is the endpoint's own `deliveryRetention` (`GET …/webhooks/{webhookId}`). |
 | Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Your receiver gets the event again; it keeps its body `id`, so [deduplicate](#set-up-an-endpoint) as for any delivery. A retry with the same `Idempotency-Key` and body returns the first redelivery instead of sending another. |
 | Resume | Reactivates a paused endpoint. Then redeliver what it missed. |
-| Create or update with automation events | Refused with `403 WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` when the credential may not see the amounts of every automation in the workspace, or `503 WEBHOOK_AUTOMATION_AMOUNTS_UNAVAILABLE` when that could not be read; nothing is saved. Subscribe with a member or service account that can read every account the automations use, or leave the automation events out; retry a `503` shortly. |
 | Get | The endpoint, with its `deliveryRetention`. An endpoint subscribed to automation events also carries `automationAmounts`: its `status` is `included`, `withheld` (some deliveries carry `amountVisibility` instead of amounts, because the endpoint's owner may not see them) or `unavailable`, with a `reason` when not included. Read a status you do not know as `withheld`. |
 
   </Accordion>
@@ -142,18 +133,36 @@ An unacknowledged delivery is retried after 5 seconds, 30 seconds, 10 minutes, 1
 
 <AccordionGroup>
   <Accordion title="The delivery log and redelivery codes">
-    The delivery log is bounded (see the endpoint's `deliveryRetention`: `capacity` receipts, and `scope` says whether they survive a TetraFi server restart), never a complete history; nothing replays every event since a time. When a delivery is gone, read the order's current state.
-
-| Code | Meaning |
-| --- | --- |
-| `404 WEBHOOK_DELIVERY_NOT_FOUND` | The delivery id is not in this endpoint's log. |
-| `409 WEBHOOK_REDELIVERY_REFUSED` | Not resendable now, such as while paused or an attempt is pending. |
-| `409 WEBHOOK_REDELIVERY_NOT_AVAILABLE` | Withheld for lack of read access; never resent. Restore access for later events. |
-
+    The delivery log is bounded (see the endpoint's `deliveryRetention`: `capacity` receipts, and `scope` says whether they survive a TetraFi server restart), never a complete history; nothing replays every event since a time. When a delivery is gone, read the order's current state. Redelivery refusals: [Refusals](#refusals).
   </Accordion>
 </AccordionGroup>
 
-<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-verify.sh">Verifies a delivery, and refuses a changed body and a stale timestamp.</Card>
+## Refusals
+
+<Accordion title="Webhook refusals">
+
+| Status and code | Why | What to do |
+| --- | --- | --- |
+| `400 WEBHOOK_EVENT_UNKNOWN` | An `events` entry is not a webhook event; `details.acceptedKeys` lists the ones you can subscribe to. | Subscribe only to listed events. |
+| `400 WEBHOOK_EVENT_RETIRED` | An `events` entry names a retired event; `message` names its replacement. | Subscribe to the replacement. |
+| `403 WEBHOOK_PRINCIPAL_UNRESOLVED` | The credential cannot be recorded as the endpoint's accountable principal. | Use a member session, a member's API key or a service account of this workspace. |
+| `403 WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` | Creating or updating with automation events, the credential may not see the amounts of every automation in the workspace; nothing is saved. | Use a member or service account that can read every account the automations use, or leave the automation events out. |
+| `404 WEBHOOK_NOT_FOUND` | No endpoint with that id in this workspace. | Use an id from the webhook list. |
+| `404 WEBHOOK_DELIVERY_NOT_FOUND` | The delivery id is not in this endpoint's log. | Use an id from its delivery log. |
+| `409 WEBHOOK_EXISTS` | The workspace already has an endpoint for that URL. | Use it, or register another URL. |
+| `409 WEBHOOK_CONFLICT` | The endpoint's state does not allow this action, such as a paused endpoint. | Resume it or read its state, then send again. |
+| `409 WEBHOOK_REDELIVERY_REFUSED` | Not resendable now, such as while paused or an attempt is pending. | Resume, or wait for the pending attempt. |
+| `409 WEBHOOK_REDELIVERY_NOT_AVAILABLE` | Withheld for lack of read access; never resent. | Restore access for later events. |
+| `412 WEBHOOK_VERSION_CONFLICT` | The endpoint changed since your `If-Match` version; nothing changed. | Read it again and review what changed before you update it. |
+| `428 WEBHOOK_VERSION_REQUIRED` | A `PATCH` without `If-Match`; nothing changed. | Send the `ETag` from `GET` in `If-Match`. |
+| `503 WEBHOOK_AUTOMATION_AMOUNTS_UNAVAILABLE` | Whether the credential may see automation amounts could not be read; nothing is saved. | Retry shortly. |
+
+</Accordion>
+
+<CardGroup cols={2}>
+  <Card title="Set up an endpoint" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-setup.sh">Creates it, keeps the secret in a 0600 file and sends a test delivery.</Card>
+  <Card title="Verify deliveries" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-verify.sh">Verifies a delivery, and refuses a changed body and a stale timestamp.</Card>
+</CardGroup>
 
 ## Next
 

@@ -7,7 +7,7 @@ import OrderStatus from '/snippets/samples/order-status.mdx';
 import OrdersList from '/snippets/samples/orders-list.mdx';
 import OrderExecution from '/snippets/samples/order-execution.mdx';
 
-Read an order at the `statusUrl` its answer gave every 10 to 15 seconds until `terminal` is `true`, or let [webhooks](/trade/webhooks) tell you when to read it.
+Read an order at its `statusUrl` every 10 to 15 seconds, or after `next.retryAfter`, until `terminal` is `true`. [Webhooks](/trade/webhooks) can tell you when to read it.
 
 ## At a glance
 
@@ -16,9 +16,7 @@ Read an order at the `statusUrl` its answer gave every 10 to 15 seconds until `t
 | `GET /api/v1/orders/{orderId}` | Read orders | One order, in the same envelope as the order answer, for every kind of order. |
 | `GET /api/v1/orders` | Read orders | Your workspace's orders, newest first, in the same envelope. |
 
-- Any member or key of the workspace with that permission can read the order.
-- An order that does not exist, or belongs to another workspace, answers `404 ORDER_NOT_FOUND`.
-- If you lost the order answer, [recover it by its quote](/trade/orders#recover-an-order-by-its-quote).
+Any member or key of the workspace with Read orders can read an order; one that does not exist, or belongs to another workspace, answers `404 ORDER_NOT_FOUND`. Lost the order answer? [Recover it by its quote](/trade/orders#recover-an-order-by-its-quote).
 
 <OrderStatus />
 
@@ -75,10 +73,11 @@ stateDiagram-v2
     outcomeUnknown --> reviewRequired
 ```
 
-The diagram shows common paths, not a required sequence. An order can skip statuses: treat a status you do not recognise as "other" and keep following `terminal`.
+The diagram shows common paths; an order can skip statuses. Treat a status you do not recognise as "other" and keep following `terminal`.
 
-- Not final: `pending`, `working`, `filled`, `reviewRequired`, `outcomeUnknown`.
-- Final: `settled`, `unfilled`, `cancelled`, `failed`, `refunded` and `refused`.
+| Not final | Final |
+| --- | --- |
+| `pending`, `working`, `filled`, `reviewRequired`, `outcomeUnknown` | `settled`, `unfilled`, `cancelled`, `failed`, `refunded`, `refused` |
 
 <Warning>
 `outcomeUnknown` is not a failure. Never place a new order for it: keep reading its status.
@@ -93,7 +92,7 @@ The diagram shows common paths, not a required sequence. An order can skip statu
 | `working` | Sent to the venue and executing, including an on-chain trade waiting to confirm. | No | Keep reading. |
 | `filled` | Executed; settlement or delivery is still to complete. | No | Keep reading until it is final. |
 | `reviewRequired` | A person must review it, such as for a compliance hold. | No | Keep reading. |
-| `outcomeUnknown` | TetraFi lost track of the outcome and is reconciling it. The trade may have filled. | No | Keep reading. Never place a new order for it. |
+| `outcomeUnknown` | TetraFi lost track of the outcome and is reconciling it. The trade may have filled. | No | Keep reading. Never order again. |
 | `settled` | Executed and settled, or there was nothing to settle. | Yes | Nothing. |
 | `unfilled` | Not filled, or never sent, for example because the wallet refused to sign (`operation.dispatch.notSentCause`). Nothing traded. | Yes | To trade, order a new quote. |
 | `refused` | A pre-trade check refused it before anything was sent; `operation.complianceRefusal` says why. | Yes | Clear the cause, then request a new quote. |
@@ -108,8 +107,8 @@ For a `failed` or `refunded` order, the trade history's `settlement.failureReaso
 
 | `next.kind` | What to do |
 | --- | --- |
-| `wait` | Read it again after `retryAfter`, an ISO 8601 duration such as `PT15S`. |
-| `contact` | Contact support with `reference`: a person has to look at the order. |
+| `wait` | `next.kind: "wait"`: read it again after `retryAfter`, an ISO 8601 duration such as `PT15S`. |
+| `contact` | `next.kind: "contact"`: contact support with `reference`; a person has to look at the order. |
 
 Without `next`, poll every 10 to 15 seconds.
 
@@ -118,7 +117,7 @@ Without `next`, poll every 10 to 15 seconds.
 
 ## What the order did
 
-A `basicTrade` order also records what it actually did, never the quote carried forward: its `fills`, `fees` and the amounts that landed.
+A `basicTrade` order records what it actually did, not the quote: its `fills`, `fees` and the amounts that landed.
 
 <AccordionGroup>
   <Accordion title="Execution fields">
@@ -146,7 +145,7 @@ A fee's `kind` is `trading`, `relayer`, `forwarding`, `transfer`, `network` (gas
 
 ## When it settles
 
-A quote's `expiresAt` is its ordering deadline, and its `eta` an expected delivery time; neither says the order settled. `settlesBy` on the order is the recorded deadline.
+A quote's `expiresAt` is its ordering deadline and `eta` an expected delivery time; neither says the order settled. The order's `settlesBy` is the recorded deadline.
 
 <Accordion title="How to read settlesBy">
   - For an on-chain Basic swap, it is the last wallet step's send-by time.
@@ -158,7 +157,7 @@ A quote's `expiresAt` is its ordering deadline, and its `eta` an expected delive
 
 ## List your orders
 
-`GET /api/v1/orders` lists your workspace's orders, newest first, up to 20 a page; in the app, the same orders appear under Trades.
+`GET /api/v1/orders` lists your workspace's orders, newest first, up to 20 a page; the app shows them under **Trades**.
 
 <AccordionGroup>
   <Accordion title="Filters and paging">
@@ -187,7 +186,7 @@ A quote's `expiresAt` is its ordering deadline, and its `eta` an expected delive
 </AccordionGroup>
 
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/orders-list.sh">
-  Lists your orders with filters, pages through them and reads what one order did.
+  Lists and pages your orders, and reads what one did.
 </Card>
 
 ## Next

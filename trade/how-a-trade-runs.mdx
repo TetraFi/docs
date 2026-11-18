@@ -4,7 +4,7 @@ sidebarTitle: "How a trade runs"
 description: "Every trade runs through the same quote, order and follow calls. Each quote states how it is funded, who signs and how it settles; this page lists the five ways a trade can run."
 ---
 
-Every trade uses one flow: quote, order, follow. What differs is where the money comes from, who signs and when it settles, and each quote states all three, so you never choose them.
+Every trade runs quote, order, follow. Each quote states where the money comes from, who signs and when it settles, so you never choose them.
 
 ## At a glance
 
@@ -16,23 +16,15 @@ Every trade uses one flow: quote, order, follow. What differs is where the money
 | Who signs, on an on-chain venue | `signing.mode`, rolling out: `tetrafi` or `you`. Today TetraFi signs. |
 | What to do next | `next.kind`: `order` when it can be ordered |
 
-```mermaid
-flowchart LR
-  A["Quote<br/>POST /api/v1/quotes"] --> B["Pick a quote"]
-  B --> C["Order<br/>POST /api/v1/orders"]
-  C --> D["Follow<br/>GET the order or webhooks"]
-  D --> E["terminal is true"]
-```
-
 <Steps>
   <Step title="Quote">
-    `POST /api/v1/quotes` with what you sell, what you buy and one amount. Naming a wallet or account in `source` is optional: without it, each venue quotes from your defaults ([Choose wallets and accounts](/trade/wallets-and-accounts)).
+    `POST /api/v1/quotes` with what you sell, what you buy and one amount. `source` is optional: without it, each venue quotes from your [defaults](/trade/wallets-and-accounts).
   </Step>
   <Step title="Pick a quote">
     Read how it runs from the fields above. The quote fixes its source; to change it, [requote](/search/firmness-and-lifetime#requote-a-quote).
   </Step>
   <Step title="Order">
-    `POST /api/v1/orders` with `quoteId`, an `Idempotency-Key`, and whatever that quote asks for (below).
+    `POST /api/v1/orders` with `quoteId`, an `Idempotency-Key`, and whatever that quote asks for (below). Lost the answer? [Recover it by quote](/trade/orders#retries-and-recovery), never with a new key.
   </Step>
   <Step title="Follow">
     Read `GET /api/v1/orders/{orderId}`, or receive [webhooks](/trade/webhooks), until `terminal` is `true` ([Order status](/trade/order-status)).
@@ -49,12 +41,14 @@ flowchart LR
 | [On-chain venue, TetraFi signs](/recipes/cross-chain-stablecoins) | `prefunded`, `dvp` or `fop` | Owners approve a signing grant | `quoteId` | On-chain, as its transactions confirm | Live |
 | [On-chain venue, you sign](/trade/sign-with-your-own-wallet) | `signing.firstStep` | Nothing to register | `quoteId`, `firstStep` | On-chain, as its transactions confirm | Rolling out |
 
+All five are **Basic**: execution at the venue, through its API or its own smart contracts. On-chain does not mean Advanced; Advanced (TetraFi's router and escrow) is not open yet.
+
 <AccordionGroup>
   <Accordion title="Exchange account, prefunded">
     Deposit first: `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` says where. The trade spends the account's balance at the venue and settles on the venue's own ledger (`venueLedger`, `immediate`). A quote whose `next.kind` is `fund` has an account short by `readiness.amount` ([Before your first trade](/before-you-trade#fund-it)).
   </Accordion>
   <Accordion title="OTC or credit account">
-    The trade goes on the account's credit and is netted with your other trades in a settlement window. The quote carries `creditPortion`, `creditCheck` and `settlement.window`; your order consents to that window with `settlementWindowId`. A trade that spends only what the account already holds settles at once instead. Settlement actions (agreeing a statement, paying) are taken by members in the TetraFi app: a key only reads them ([Credit and settlement](/trade/settlement-and-credit)).
+    The trade goes on the account's credit and is netted with your other trades in a settlement window. The quote carries `creditPortion`, `creditCheck` and `settlement.window`; your order consents to that window with `settlementWindowId`. A trade that spends only what the account already holds settles at once instead. A key only reads settlement actions ([they are for members](/trade/settlement-and-credit#settlement-actions-are-for-members)).
   </Accordion>
   <Accordion title="On-chain venue, TetraFi signs">
     The trade runs from an organisation wallet on Turnkey or Privy. Its owners approve, once per venue, a signing grant with per-trade and per-day caps that the provider itself enforces, and the wallet is granted to your key ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). TetraFi then signs each trade inside those caps, with no approval per trade. The wallet holds the funds and pays the gas.
@@ -71,15 +65,6 @@ flowchart LR
 | `fop` | Free of payment: one side moves first; `firstLeg` says whose. `taker` is you, as with a bridge deposit or a payment you send in. |
 
     `settlement.timing` is `immediate`, `byDeadline` (a pay-in, by its deadline) or `delayed` (in a settlement window, or whenever either side asks). Both lists can grow: treat a value you do not know as other.
-  </Accordion>
-  <Accordion title="Basic and Advanced">
-    Every quote you can order today is Basic: direct execution at the venue, through its own API (exchanges, OTC desks, fiat providers) or its own smart contracts (Uniswap, Across, Relay, Circle CCTP and others). On-chain does not mean Advanced. Advanced settles through TetraFi's own router and escrow and is not open yet.
-  </Accordion>
-  <Accordion title="What a key cannot trade from">
-    A personal wallet, a custody account, or, until signing with your own wallet opens, an external wallet it signs itself. With no usable wallet, on-chain venues read `needsWallet` in `sources` ([When a quote needs a wallet](/trade/wallets-and-accounts#when-a-quote-needs-a-wallet)).
-  </Accordion>
-  <Accordion title="If the order's answer never reaches you">
-    `GET /api/v1/orders/by-quote/{quoteId}` finds the order without placing one. Never order again with a new key ([Retries and recovery](/trade/orders#retries-and-recovery)).
   </Accordion>
   <Accordion title="Planned, not available yet">
     People approving one trade elsewhere (`signing.mode` `owners` or `custodian`, with an order `next.kind` of `approve` and an `approvalUrl`), Solana and Tron steps, more venues for your own wallet, and custody wallets that TetraFi signs for ([Sign with your own wallet](/trade/sign-with-your-own-wallet), under What comes next). Keep following the order on any value you do not know.

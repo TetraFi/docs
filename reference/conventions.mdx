@@ -100,7 +100,7 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 ## Read several resources at once
 
-`POST /api/v1/batch` runs up to 20 reads in one request. Use it to load a page of related resources in one round trip.
+`POST /api/v1/batch` runs up to 20 reads in one round trip. A signed API-key request cannot be batched, so a signing key sends its reads separately.
 
 | Rule | Detail |
 | --- | --- |
@@ -108,7 +108,6 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 | Authority | Each item runs as its own `GET` by the same caller: same permissions, scopes, workspace checks, body and error body. |
 | Rate limit | Each item counts as one request, all taken before any item runs. A `429 RATE_LIMITED` refuses the whole batch. |
 | Answer | `200` once admitted, items in request order. Items are independent, not atomic. |
-| Not batchable | Signed API-key requests: send those reads separately. |
 
 <Accordion title="Item answers, limits and whole-batch refusals">
 
@@ -124,11 +123,13 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 The API is versioned by date. The one supported version today is `2026-11-17`.
 
-- **Your key's pin.** Every API key records the version current when it was created, and its requests are answered in that version.
-- **One request.** Send `TetraFi-Version: YYYY-MM-DD` to choose the version of that request. A value that is not exactly one supported date answers `400 API_VERSION_UNSUPPORTED` before anything runs.
-- **The answer.** Every response names its version in a `TetraFi-Version` header.
-- **Webhooks.** Each endpoint records the version current when it was created; every body carries it as `apiVersion`.
-- **Upgrading.** Test a newer version by sending its date in `TetraFi-Version`, then create a new key, which pins the newest version, and retire the old one.
+| Rule | Detail |
+| --- | --- |
+| Your key's pin | Every API key records the version current when it was created, and its requests are answered in that version. |
+| One request | Send `TetraFi-Version: YYYY-MM-DD` to choose the version of that request. A value that is not exactly one supported date answers `400 API_VERSION_UNSUPPORTED` before anything runs. |
+| The answer | Every response names its version in a `TetraFi-Version` header. |
+| Webhooks | Each endpoint records the version current when it was created; every body carries it as `apiVersion`. |
+| Upgrading | Test a newer version by sending its date in `TetraFi-Version`, then create a new key, which pins the newest version, and retire the old one. |
 
 Within a version, changes are additive: new operations, optional fields, headers, enumeration values, variants and error codes. A breaking change ships only as a new dated version, so a pinned key never sees it until you move. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something in place; each one is listed in the [Changelog](/changelog) with what to change.
 

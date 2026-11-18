@@ -16,7 +16,9 @@ const NAMES = {
   'GET /api/v1/orders/{orderId}': 'Get order',
 };
 
-function fixture(spec, names = NAMES) {
+const AUTH_CODES = [{ code: 'AUTH_REQUIRED', status: [401], meaning: 'Authentication is required.', remedy: 'Send credentials.', retryable: false }];
+
+function fixture(spec, names = NAMES, codes = AUTH_CODES) {
   const workspace = mkdtempSync(path.join(tmpdir(), 'contract-permissions-'));
   const site = path.join(workspace, 'docs');
   const source = path.join(workspace, 'contract');
@@ -29,6 +31,11 @@ function fixture(spec, names = NAMES) {
   const terms = path.join(workspace, 'tetrafi-docs/public-site/leak-terms.json');
   writeFileSync(terms, JSON.stringify({ terms: ['private.example'] }));
   writeFileSync(path.join(source, 'COMPATIBILITY.md'), '# Compatibility\n\nAdditions stay compatible.\n');
+  // Endpoint pages link their guide by its title, so the guides the fixture's routes use exist.
+  for (const [page, title] of [['search/how-it-works', 'Request quotes'], ['trade/order-status', 'Order status'], ['trade/orders', 'Place an order'], ['authentication', 'Authentication']]) {
+    mkdirSync(path.dirname(path.join(site, `${page}.mdx`)), { recursive: true });
+    writeFileSync(path.join(site, `${page}.mdx`), `---\ntitle: "${title}"\n---\n`);
+  }
   // The endpoint map groups operations by tag; an untagged fixture operation joins the Quotes group.
   const keys = [];
   for (const [route, item] of Object.entries(spec.paths ?? {})) {
@@ -43,7 +50,7 @@ function fixture(spec, names = NAMES) {
   writeFileSync(path.join(source, 'integrator/openapi.json'), JSON.stringify(spec));
   writeFileSync(path.join(source, 'integrator/error-codes.json'), JSON.stringify({
     version: '1',
-    codes: [{ code: 'AUTH_REQUIRED', status: [401], meaning: 'Authentication is required.', remedy: 'Send credentials.', retryable: false }],
+    codes,
     sourceReasons: [{ reason: 'unavailable', meaning: 'No quote is available.', remedy: 'Try later.', retryable: true }],
   }));
   const run = (...args) => {
@@ -55,7 +62,8 @@ function fixture(spec, names = NAMES) {
     assert.ifError(result.error);
     return { status: result.status, output: result.stdout + result.stderr };
   };
-  return { run, page: path.join(site, 'reference/permissions.mdx'), endpoints: path.join(site, 'reference/endpoints.mdx') };
+  return { run, page: path.join(site, 'reference/permissions.mdx'), endpoints: path.join(site, 'reference/endpoints.mdx'),
+    errorCodes: path.join(site, 'reference/error-codes.mdx') };
 }
 
 const scopedSpec = () => ({
@@ -155,4 +163,41 @@ test('operations are named by their short name, and a missing name fails the syn
   const failed = unnamed.run();
   assert.notEqual(failed.status, 0);
   assert.match(failed.output, /ENDPOINT_NAME_MISSING GET \/api\/v1\/orders\/\{orderId\}/);
+});
+
+// Catches codes leaving their product area, a lost docUrl anchor, a dropped status, and a code
+// silently filed under a catch-all.
+test('error codes group by product area in journey order, with status as a column', () => {
+  const row = (code, status) => ({ code, status, meaning: `${code} meaning.`, remedy: 'Do this.', retryable: false });
+  const { run, errorCodes } = fixture(scopedSpec(), NAMES, [
+    row('WEBHOOK_NOT_FOUND', [404]), row('QUOTE_EXPIRED', [410]), row('AUTH_REQUIRED', [401]),
+    row('API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED', [403]), row('ORDER_NOT_FOUND', [404, 410]),
+  ]);
+  const synced = run();
+  assert.equal(synced.status, 0, synced.output);
+  const text = readFileSync(errorCodes, 'utf8');
+  const at = (heading) => text.indexOf(`### ${heading}`);
+  assert.ok(at('Requests, keys and access') > 0 && at('Requests, keys and access') < at('Quotes, prices and assets'));
+  assert.ok(at('Quotes, prices and assets') < at('Orders') && at('Orders') < at('Wallets and custody') && at('Wallets and custody') < at('Webhooks'));
+  // The longest prefix wins: API_KEY_ORGANISATION_WALLET is a wallet code, not an API-key code.
+  assert.ok(text.indexOf('API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED') > at('Wallets and custody'));
+  assert.ok(text.includes('| <span id="ORDER_NOT_FOUND"></span>`ORDER_NOT_FOUND` | 404, 410 |'));
+  assert.ok(text.includes('| [Orders](#orders) | 1 |'));
+  assert.equal(run('--check').status, 0);
+});
+
+test('a code no area claims refuses the page', () => {
+  const { run } = fixture(scopedSpec(), NAMES, [
+    { code: 'ZEBRA_STRIPES_MISSING', status: [400], meaning: 'Unmapped.', remedy: 'Map it.', retryable: false },
+  ]);
+  const failed = run();
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.output, /ERROR_CODE_AREA_UNMAPPED ZEBRA_STRIPES_MISSING/);
+});
+
+test('each endpoint page links the guide that walks through it, by the guide title', () => {
+  const { run, page } = fixture(scopedSpec());
+  assert.equal(run().status, 0);
+  const site = path.dirname(path.dirname(page));
+  assert.match(readFileSync(path.join(site, 'api-reference/quotes/request-quotes.mdx'), 'utf8'), /^Walkthrough: \[Request quotes\]\(\/search\/how-it-works\)\.$/m);
 });

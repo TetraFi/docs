@@ -3,116 +3,34 @@ title: "Go-live checklist"
 description: "What a production integration needs before it trades real assets: safe order retries, deduplicated webhooks, a synced clock, fresh nonces, key rotation and tolerant parsing."
 ---
 
-import SearchPrices from '/snippets/samples/search-prices.mdx';
-import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
+Check each item, then place your first production order at the [smallest amount a venue takes](/quickstart#find-the-smallest-amount-a-venue-takes).
 
-Check each item, then place your first production order at the [smallest amount a venue takes](/quickstart#find-the-smallest-amount-a-venue-takes). Open an item for how.
-
-## Orders survive a crash
-
-<AccordionGroup>
-  <Accordion title="Store the idempotency key before you send">
-    Persist `{quoteId, idempotencyKey, exactBody}`, then send `POST /api/v1/orders`; a retry sends the same key and body bytes ([Retries and recovery](/trade/orders#retries-and-recovery)).
-  </Accordion>
-  <Accordion title="Recover, never reorder">
-    A timeout, `5xx` or `outcomeUnknown` does not mean the order failed: replay with the same key, or find the order by its quote.
-
-    <OrderRecoverByQuote />
-  </Accordion>
-  <Accordion title="Order again only on a new quote">
-    Order again only on a new quote, and only when the order is shown not to exist or ended without filling.
-  </Accordion>
-  <Accordion title="Follow every order to the end">
-    Read its `statusUrl` until `terminal` is `true`, every 10 to 15 seconds or when a webhook arrives ([Order status](/trade/order-status)).
-  </Accordion>
-</AccordionGroup>
-
-## Webhooks are handled once
-
-<AccordionGroup>
-  <Accordion title="Verify the signature">
-    Verify the signature over the raw body before parsing it.
-  </Accordion>
-  <Accordion title="Deduplicate on webhook-id">
-    Deduplicate on `webhook-id`: deliveries arrive at least once and out of order.
-  </Accordion>
-  <Accordion title="Answer 2xx within 10 seconds">
-    Answer `2xx` within 10 seconds, then work. Read `statusUrl` for the current state.
-  </Accordion>
-  <Accordion title="Watch for a paused endpoint">
-    Resume a paused endpoint and redeliver what it missed. The delivery log does not survive a TetraFi restart ([Webhooks](/trade/webhooks#retries-pauses-and-missed-events)).
-  </Accordion>
-</AccordionGroup>
-
-## Signing holds up
-
-<AccordionGroup>
-  <Accordion title="Sync your clock with NTP">
-    `X-Timestamp` must be within 300 seconds of TetraFi's clock, and a write's at most 10 seconds ahead.
-  </Accordion>
-  <Accordion title="Use fresh nonces">
-    Generate every `X-Nonce` from a cryptographic random source, and sign each send, retries included, with a new nonce and timestamp ([Sign requests](/authentication#sign-requests)).
-  </Accordion>
-  <Accordion title="Keep secrets in a secret manager">
-    Keep secrets in a secret manager, never in code or a tracked file.
-  </Accordion>
-</AccordionGroup>
-
-## Keys can be rotated
-
-<AccordionGroup>
-  <Accordion title="Pick up a rotated key within one hour">
-    After **Rotate key**, the old key works for one hour ([Rotate and revoke](/authentication#rotate-and-revoke)).
-  </Accordion>
-  <Accordion title="Grant only the permissions a key uses">
-    Grant only the permissions a key uses.
-  </Accordion>
-  <Accordion title="Use a service account for software">
-    Use a [service account](/authentication#service-account-tokens) for software that should outlive one person's access.
-  </Accordion>
-  <Accordion title="Know how to revoke a leaked key">
-    Know how to revoke a leaked key at once.
-  </Accordion>
-</AccordionGroup>
-
-## Limits are respected
-
-<AccordionGroup>
-  <Accordion title="Watch markets with prices, never by polling quotes">
-    Each key may send one live quote request every 3 seconds ([Rate limits](/reference/rate-limits)).
-
-    <SearchPrices />
-  </Accordion>
-  <Accordion title="On any 429, wait Retry-After and retry once">
-    On any `429`, wait `Retry-After` seconds and retry once.
-  </Accordion>
-  <Accordion title="Requote a held quote">
-    Requote a held quote instead of searching again ([Requotes and expiry](/search/firmness-and-lifetime#requote-a-quote)).
-  </Accordion>
-</AccordionGroup>
-
-## Parsing tolerates change
-
-<AccordionGroup>
-  <Accordion title="Ignore response fields you do not recognise">
-    Ignore response fields you do not recognise.
-  </Accordion>
-  <Accordion title="Treat an unknown enum value as other">
-    Treat an unknown enum value as "other", such as a status, source reason or `next.kind`: keep following `terminal`, show `detail` or `message`, and carry on.
-  </Accordion>
-  <Accordion title="Keep following the order on an unknown signing mode, step type or next.kind">
-    `signing.mode`, a step's `type` and an order's `next.kind` gain values as new ways to sign and approve open ([Sign with your own wallet](/trade/sign-with-your-own-wallet), under What comes next). Never sign a step `type` you do not know; otherwise ignore the value, show the order as it is, and keep reading it until `terminal` is `true`.
-  </Accordion>
-  <Accordion title="Match refusals on error, never message">
-    Match refusals on `error`, never `message`, and treat an unknown code by its status class ([Errors and refusals](/trade/errors#codes-you-do-not-know)).
-  </Accordion>
-  <Accordion title="Parse amounts as decimals">
-    Parse amounts as decimals, never floats ([Conventions](/reference/conventions)).
-  </Accordion>
-  <Accordion title="Read the Changelog before each release">
-    Read the [Changelog](/changelog) before each release of your integration.
-  </Accordion>
-</AccordionGroup>
+| Check | Why | Link |
+| --- | --- | --- |
+| Point at the production base URL | `https://api.tetrafi.io`, with the key you will trade with. | [Requests](/reference/conventions#requests) |
+| The key has venue trading and signs requests | Without venue trading nothing on your venue accounts can be ordered (`venueTradeScopeRequired`). | [Venue trading](/authentication#trade-on-your-venue-accounts) |
+| Store `{quoteId, idempotencyKey, exactBody}` before you send | A retry sends the same key and body bytes. | [Retries and recovery](/trade/orders#retries-and-recovery) |
+| Recover, never reorder | A timeout, `5xx` or `outcomeUnknown` is not a failure; order again only on `notOrdered`, or after it ended unfilled. | [The recovery sequence](/trade/orders#the-recovery-sequence) |
+| Send `minReceive` when the quote needs it | `minReceiveRequired: true` refuses an order without it. | [Minimum receive](/trade/orders#minimum-receive) |
+| Handle `SETTLEMENT_WINDOW_CHANGED` | A credit trade's window can move before the order. | [Settlement window](/trade/settlement-and-credit#order-with-its-settlement-window) |
+| Follow every order until `terminal` | Every 10 to 15 seconds, or when a webhook arrives. | [Order status](/trade/order-status) |
+| Verify, store, then answer `2xx` within 10 seconds | Verify the signature over the raw body before parsing; work afterwards. | [Webhooks](/trade/webhooks) |
+| Deduplicate webhooks on the body's `id` | Delivery is at least once and out of order; a redelivery gets a new `webhook-id`. | [Webhooks](/trade/webhooks) |
+| Send a test delivery | `POST …/deliveries` with `{"kind":"test"}`. | [Set up an endpoint](/trade/webhooks#set-up-an-endpoint) |
+| Watch for a paused endpoint | Resume, redeliver, then reconcile orders: receipts kept are capped by `deliveryRetention`. | [Missed events](/trade/webhooks#retries-pauses-and-missed-events) |
+| Sync your clock with NTP; use fresh nonces on writes | `X-Timestamp` within 300 seconds; every write, retries included, gets a new random `X-Nonce` and signature. A read has no nonce. | [Sign requests](/authentication#sign-requests) |
+| Keep secrets in a secret manager | Never in code or a tracked file. | |
+| Pick up a rotated key within one hour | After **Rotate key**, the old key works for one hour. | [Rotate and revoke](/authentication#rotate-and-revoke) |
+| Grant only the permissions a key uses; know how to revoke a leaked key at once | A leaked key does less, for less time. | [Rotate and revoke](/authentication#rotate-and-revoke) |
+| Use a service account for software | It outlives one person's access. | [Service account tokens](/authentication#service-account-tokens) |
+| Watch markets with prices, never by polling quotes | One live quote request per key every 3 seconds. | [Prices](/search/prices) |
+| On a `429`, wait `Retry-After` and retry once, unless the code says otherwise | `PRICES_STREAM_LIMIT` needs a stream closed first; an order retry keeps its `Idempotency-Key` and body. | [Rate limits](/reference/rate-limits) |
+| Requote a held quote | Instead of searching again. | [Requote a quote](/search/firmness-and-lifetime#requote-a-quote) |
+| Tolerate what you do not know | Ignore unknown fields; treat an unknown enum value (a status, source reason, `next.kind`) as other, show `detail` or `message`, and keep following `terminal`. | [Codes you do not know](/trade/errors#codes-you-do-not-know) |
+| Never sign an unknown step `type` | `signing.mode`, step `type` and `next.kind` gain values; keep reading the order until `terminal` is `true`. | [What comes next](/trade/sign-with-your-own-wallet#what-comes-next) |
+| Match refusals on `error`, never `message` | Treat an unknown code by its status class. | [Errors](/trade/errors#codes-you-do-not-know) |
+| Parse amounts as decimals, never floats | | [Conventions](/reference/conventions) |
+| Read the [Changelog](/changelog) before each release | | |
 
 ## Next
 

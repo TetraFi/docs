@@ -5,7 +5,7 @@ description: "The limits on quotes, prices and every other request, the headers 
 
 import ErrorsRateLimit from '/snippets/samples/errors-rate-limit.mdx';
 
-On a `429`, wait `Retry-After` seconds, then retry once; for an order, keep the same `Idempotency-Key`. Most refusals also carry `details.retryAfter`, the same wait as an ISO 8601 duration such as `PT3S`.
+On a `429`, wait `Retry-After` seconds, then retry once unless the code says otherwise; an order [retry](/trade/orders#retries-and-recovery) keeps its `Idempotency-Key` and body. Most refusals also give the wait as `details.retryAfter`, an ISO 8601 duration such as `PT3S`.
 
 | Limit | What it counts | Over it |
 | --- | --- | --- |
@@ -14,14 +14,11 @@ On a `429`, wait `Retry-After` seconds, then retry once; for an order, keep the 
 | Requests per address | Requests from one network address, before the key is checked. | `429 RATE_LIMITED` |
 | Price reads | Price reads per caller, separate from quotes. | `429 PRICES_RATE_LIMIT` |
 | Price streams | At most 4 open price streams per caller. | `429 PRICES_STREAM_LIMIT`: close one first. |
-
-<Accordion title="RATE_LIMITED when TetraFi is at capacity">
-  `RATE_LIMITED` also answers, before anything is sent, when TetraFi is briefly at capacity. Then no quota was counted.
-</Accordion>
+| TetraFi briefly at capacity | Refused before anything is sent; no quota counted. | `429 RATE_LIMITED` |
 
 ## Why quotes are limited
 
-A live quote request asks venues, and each venue limits how often it answers. Watch a market with [prices](/search/prices), and request a quote only when you intend to trade.
+Each venue limits how often it answers live quotes: watch a market with [prices](/search/prices), and quote only to trade.
 
 <AccordionGroup>
   <Accordion title="When a venue is asked too often">
@@ -41,14 +38,12 @@ A live quote request asks venues, and each venue limits how often it answers. Wa
 
 ## Read the headers
 
-Any answer a limit counted carries two headers in the [IETF RateLimit header fields](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) format:
+An answer a limit counted carries two [IETF RateLimit](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) headers:
 
 | Header | Meaning | Example |
 | --- | --- | --- |
 | `RateLimit-Policy` | The limit and its window in seconds. | `1;w=3`: one request every 3 seconds. |
-| `RateLimit` | `limit`; `remaining`, the requests you may send now; `reset`, whole seconds until quota next frees up. | `limit=1, remaining=0, reset=3` |
-
-`reset` is a wait, not a timestamp or a promise that the whole allowance refills.
+| `RateLimit` | `limit`; `remaining`, the requests you may send now; `reset`, whole seconds until quota next frees up (a wait, not a timestamp or a full refill). | `limit=1, remaining=0, reset=3` |
 
 <Accordion title="Which limit the headers describe">
 

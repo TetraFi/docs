@@ -10,7 +10,7 @@ import ExchangeOrder from '/snippets/samples/recipe-exchange-order.mdx';
 import ExchangeRecover from '/snippets/samples/recipe-exchange-recover.mdx';
 import ExchangeStatus from '/snippets/samples/recipe-exchange-status.mdx';
 
-Swap 5 USDC for USDT on an exchange account your workspace has connected; TetraFi trades with that account's own balance, so no wallet signs anything.
+Swap 5 USDC for USDT on a connected exchange account. TetraFi trades with the account's own balance, so no wallet signs.
 
 ## At a glance
 
@@ -18,7 +18,7 @@ Swap 5 USDC for USDT on an exchange account your workspace has connected; TetraF
 | --- | --- |
 | You trade | 5 USDC for USDT on your connected exchange account. |
 | Endpoints | `POST /api/v1/quotes`, `POST /api/v1/orders`, `GET /api/v1/orders/by-quote/{quoteId}`, then the order's `statusUrl`. |
-| Result | A filled Basic trade, with what the account spent and received under `operation`. |
+| Result | A settled Basic trade, with what the account spent and received under `operation`. |
 
 ```mermaid
 flowchart LR
@@ -32,7 +32,7 @@ flowchart LR
 
 - `bash`, `curl`, `jq` and `openssl`.
 - A connected exchange account that holds the asset you sell ([Connect a venue account](/before-you-trade#connect-a-venue-account)).
-- An API key with Read quotes, Submit orders, Read orders and [venue trading](/authentication#trade-on-your-venue-accounts), and its signing secret: sign every request ([Sign requests](/authentication#sign-requests)).
+- An API key with Read quotes, Submit orders, Read orders, [venue trading](/authentication#trade-on-your-venue-accounts) and its signing secret ([Sign requests](/authentication#sign-requests)).
 
 <AccordionGroup>
   <Accordion title="Without venue trading">
@@ -54,7 +54,7 @@ This recipe places a real order on your exchange account and spends its balance.
 
 <Steps>
   <Step title="Find your account's venue">
-    Search with `filters.locations: ["offChain"]`: only your connected venue accounts answer. Take the venue id of the best Basic quote, such as `binance-orderbook`.
+    Search with `filters.locations: ["offChain"]`: only your connected venue accounts answer. Take the best Basic quote's venue id, such as `binance-orderbook`.
 
     <ExchangeVenue />
 
@@ -78,7 +78,7 @@ This recipe places a real order on your exchange account and spends its balance.
     ```
 
     <Accordion title="tradingSource and fundingModel">
-      The quote's `tradingSource` has `kind` `venueAccount`, and `fundingModel` says whether the account must already hold the funds (`prefunded`) or takes them in (`payIn`).
+      The quote's `tradingSource` has `kind` `venueAccount`, and `fundingModel` says whether the account must already hold the funds (`prefunded`), trades on the account's credit (`credit`, [Credit and settlement](/trade/settlement-and-credit#trade-on-a-credit-account)) or takes them in after the order (`payIn`).
     </Accordion>
   </Step>
 
@@ -103,7 +103,7 @@ This recipe places a real order on your exchange account and spends its balance.
   </Step>
 
   <Step title="Place the order">
-    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and store before you send it. A Basic quote takes no signature.
+    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` ([Retries and recovery](/trade/orders#retries-and-recovery)). A Basic quote takes no signature.
 
     <ExchangeOrder />
 
@@ -117,7 +117,7 @@ This recipe places a real order on your exchange account and spends its balance.
   </Step>
 
   <Step title="Recover the order by its quote">
-    If the order response never reaches you, read it with `GET /api/v1/orders/by-quote/{quoteId}`, which places nothing. Never order again with a new key: that is a second order.
+    If the order answer never reaches you, read `GET /api/v1/orders/by-quote/{quoteId}` ([Recover an order](/trade/orders#recover-an-order-by-its-quote)).
 
     <ExchangeRecover />
 
@@ -125,20 +125,10 @@ This recipe places a real order on your exchange account and spends its balance.
     {"status":"ordered","orderId":"0b23326f-…","statusUrl":"/api/v1/orders/0b23326f-…"}
     ```
 
-    <Accordion title="What each status means">
-
-| `status` | What to do |
-| --- | --- |
-| `ordered` | Read its status at `statusUrl`. Do not order again. |
-| `notOrdered` | Nothing was placed. If `expired` is `false`, you can order it. |
-| `unknown` | Wait and read again. Do not order again. |
-
-      See [Recover an order](/trade/orders#recover-an-order-by-its-quote).
-    </Accordion>
   </Step>
 
   <Step title="Read the status">
-    Read `statusUrl` every 10 seconds until `terminal` is `true`, or after `next.retryAfter` when `next` says `wait` ([Order status](/trade/order-status)). `outcomeUnknown` is not a failure: the trade may have filled, so keep reading and never order it again.
+    Read `statusUrl` until `terminal` is `true` ([Order status](/trade/order-status)).
 
     <ExchangeStatus />
 
@@ -169,7 +159,7 @@ This recipe places a real order on your exchange account and spends its balance.
     Wait `details.retryAfter`, then search again ([Rate limits](/reference/rate-limits)).
   </Accordion>
   <Accordion title="The order is refused">
-    A refused order names its code, such as `409 FUNDING_SHORTFALL`, and nothing was traded ([Orders](/trade/orders#refusals)).
+    A refused order names its code, such as `409 FUNDING_SHORTFALL`; nothing was traded ([Orders](/trade/orders#refusals)).
   </Accordion>
 </AccordionGroup>
 
