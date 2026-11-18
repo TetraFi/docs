@@ -110,9 +110,11 @@ A key can receive only permissions you hold in that workspace; TetraFi checks th
 
 Send `X-API-Key: <your key>` on every request. Without credentials, a request answers `401 AUTH_REQUIRED` before anything is looked up.
 
+Optionally send `TetraFi-Version: YYYY-MM-DD` to choose the API version of a request; without it, the version your key pinned when it was created applies, and every response names its version in the same header ([Versioning](/reference/conventions#versioning)).
+
 <Accordion title="Workspace header and workspace paths">
-  - `X-Workspace-Id` is optional with a key. When sent, it must name the key's own workspace: `403 WORKSPACE_SCOPE_MISMATCH` otherwise, `400 INVALID_WORKSPACE_ID` when malformed. A signed-in member's session must always send it (`400 MISSING_WORKSPACE`).
-  - Workspace paths (`/api/v1/workspaces/{workspaceId}/…`: balances, trades, settlement, venue accounts, fee schedule, capabilities, webhooks) take the `workspaceId` from `GET /api/v1/me`. Quotes and orders do not.
+  - A key is bound to its workspace, so it needs no `X-Workspace-Id`. If you send one anyway, it must name the key's own workspace: `403 WORKSPACE_SCOPE_MISMATCH` otherwise, `400 INVALID_WORKSPACE_ID` when malformed. A signed-in member's session sends it on calls whose path names no workspace (`400 MISSING_WORKSPACE` without it).
+  - Workspace paths (`/api/v1/workspaces/{workspaceId}/…`: balances, trades, settlement, venue accounts, fee schedule, capabilities, webhooks) name the workspace in the path, with the `workspaceId` from `GET /api/v1/me`, and take no workspace header. Quotes and orders do not name it.
 </Accordion>
 
 ## Trade on your venue accounts
