@@ -2277,7 +2277,7 @@
             "$ref": "#/components/schemas/OwnerGroupChoice"
           },
           "returnUrl": {
-            "description": "Where TetraFi's approval page sends each person of an organisation wallet\nback once the signing page has recorded their part: an `https` URL (plain\n`http` only on localhost) whose exact origin (scheme, host and port) is one\nof the workspace's registered embedded-wallet callback origins. The person\nreturns to it with `signingRequestId` and `outcome` added to its query:\n`approved` (their part is recorded), `pending` (recorded, the wallet waits\nfor others) or `refused` (the signing page refused to finish; the person is\nshown why first and goes back only when they choose). Any other URL, and one\non TetraFi's own app or signing origin, is refused with 400\n`RETURN_URL_NOT_REGISTERED`; refused for a personal wallet.",
+            "description": "Where TetraFi's approval page sends each person of an organisation wallet\nback once the signing page has recorded their part: an `https` URL (plain\n`http` only on localhost) whose exact origin (scheme, host and port) is one\nof the workspace's registered embedded-wallet callback origins. The person\nreturns to it with `signingRequestId` and `outcome` added to its query:\n`approved` (their part is recorded), `pending` (recorded, the wallet waits\nfor others) or `refused` (the signing page refused to finish; the person is\nshown why first and goes back only when they choose). Any other URL, and one\non TetraFi's own app or signing origin, is refused with 400\n`RETURN_URL_NOT_REGISTERED`.",
             "type": [
               "string",
               "null"
@@ -9559,6 +9559,13 @@
           "person": {
             "description": "The workspace user id.",
             "type": "string"
+          },
+          "walletId": {
+            "description": "The person approves with one of their own wallets instead of sign-in\nmethods: its TetraFi wallet id (`factors` empty, `needed` 1). Named only by\nthat person: the creator for themselves when asking, an invited person when\npicking. The key it approves with is read from the wallet's provider when\nthe person approves adding it on their signing page, never sent.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -12761,7 +12768,7 @@
             "type": "object"
           },
           {
-            "description": "This quote requires Advanced wallet preparation, which is not available to integrators at launch. Do not submit this quote; select an orderable Basic quote.",
+            "description": "This quote settles through TetraFi's router (Advanced), which is not available to integrators at launch. Do not submit this quote; select an orderable Basic quote.",
             "properties": {
               "kind": {
                 "description": "New values may be added; treat unknown values as other.",
@@ -16090,25 +16097,26 @@
         "description": "A server-owned recovery step. Describing a request never grants authority.\n\nNew values may be added; treat unknown values as other.",
         "discriminator": {
           "mapping": {
-            "addFactor": "#/components/schemas/RefusalFix/oneOf/13",
-            "chooseNetworkOrWallet": "#/components/schemas/RefusalFix/oneOf/18",
-            "contactSupport": "#/components/schemas/RefusalFix/oneOf/16",
-            "finishVenueAccountSetup": "#/components/schemas/RefusalFix/oneOf/4",
+            "addFactor": "#/components/schemas/RefusalFix/oneOf/14",
+            "chooseNetworkOrWallet": "#/components/schemas/RefusalFix/oneOf/19",
+            "contactSupport": "#/components/schemas/RefusalFix/oneOf/17",
+            "finishVenueAccountSetup": "#/components/schemas/RefusalFix/oneOf/5",
             "fundWallet": "#/components/schemas/RefusalFix/oneOf/1",
-            "grantStatementAccess": "#/components/schemas/RefusalFix/oneOf/9",
-            "inviteMember": "#/components/schemas/RefusalFix/oneOf/14",
-            "linkFundingAccount": "#/components/schemas/RefusalFix/oneOf/6",
+            "grantStatementAccess": "#/components/schemas/RefusalFix/oneOf/10",
+            "inviteMember": "#/components/schemas/RefusalFix/oneOf/15",
+            "linkFundingAccount": "#/components/schemas/RefusalFix/oneOf/7",
             "linkWallet": "#/components/schemas/RefusalFix/oneOf/2",
-            "none": "#/components/schemas/RefusalFix/oneOf/11",
-            "reconnectVenue": "#/components/schemas/RefusalFix/oneOf/8",
-            "reconnectWalletProvider": "#/components/schemas/RefusalFix/oneOf/15",
+            "none": "#/components/schemas/RefusalFix/oneOf/12",
+            "openWallet": "#/components/schemas/RefusalFix/oneOf/3",
+            "reconnectVenue": "#/components/schemas/RefusalFix/oneOf/9",
+            "reconnectWalletProvider": "#/components/schemas/RefusalFix/oneOf/16",
             "requestPermission": "#/components/schemas/RefusalFix/oneOf/0",
-            "retryRead": "#/components/schemas/RefusalFix/oneOf/3",
-            "reviewInstructions": "#/components/schemas/RefusalFix/oneOf/5",
-            "reviewSettlementWindow": "#/components/schemas/RefusalFix/oneOf/7",
-            "setUpEmbeddedWallets": "#/components/schemas/RefusalFix/oneOf/10",
-            "setUpTwoFactor": "#/components/schemas/RefusalFix/oneOf/12",
-            "switchNetworkOn": "#/components/schemas/RefusalFix/oneOf/17"
+            "retryRead": "#/components/schemas/RefusalFix/oneOf/4",
+            "reviewInstructions": "#/components/schemas/RefusalFix/oneOf/6",
+            "reviewSettlementWindow": "#/components/schemas/RefusalFix/oneOf/8",
+            "setUpEmbeddedWallets": "#/components/schemas/RefusalFix/oneOf/11",
+            "setUpTwoFactor": "#/components/schemas/RefusalFix/oneOf/13",
+            "switchNetworkOn": "#/components/schemas/RefusalFix/oneOf/18"
           },
           "propertyName": "kind"
         },
@@ -16192,6 +16200,31 @@
                 "description": "New values may be added; treat unknown values as other.",
                 "enum": [
                   "linkWallet"
+                ],
+                "type": "string",
+                "x-extensible-enum": true
+              },
+              "target": {
+                "$ref": "#/components/schemas/RefusalFixLinkWallet"
+              }
+            },
+            "required": [
+              "target",
+              "action",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Open the named wallet: it is already this workspace's, so adding it again changes nothing.",
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "kind": {
+                "description": "New values may be added; treat unknown values as other.",
+                "enum": [
+                  "openWallet"
                 ],
                 "type": "string",
                 "x-extensible-enum": true
@@ -26783,7 +26816,7 @@
         "description": "The creation's signing request: its id, and the approval page each person of the wallet opens to set up their factors and approve.",
         "properties": {
           "approvalUrl": {
-            "description": "An organisation wallet's approval page in TetraFi (as on the wallet), to\nhand each person of it. Absent for a personal wallet.",
+            "description": "The wallet's approval page in TetraFi (as on the wallet), to hand each\nperson of it.",
             "type": [
               "string",
               "null"
@@ -26826,7 +26859,7 @@
             ]
           },
           "approvalUrl": {
-            "description": "An organisation wallet's approval page in TetraFi: each person of it opens\nthis link, signs in, and proves or confirms their own part on the signing\npage. Absent for a personal wallet.",
+            "description": "The wallet's approval page in TetraFi: each person of it (a personal\nwallet's one owner too) opens this link, signs in, and proves or confirms\ntheir own part on the signing page.",
             "type": [
               "string",
               "null"
@@ -26864,6 +26897,13 @@
           },
           "displayName": {
             "type": "string"
+          },
+          "endedBy": {
+            "description": "The id of the person who ended it before it was created: the creator who\ncancelled it, or an invited owner who declined it. Absent otherwise.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "expiresAt": {
             "format": "date-time",
@@ -44925,7 +44965,7 @@
         ]
       },
       "post": {
-        "description": "Starts an organisation wallet on a wallet connection (`connectionId`: a workspace connection, or `platform-turnkey` for the one TetraFi provides) with the owner group you choose (`ownerGroup`: the people who approve, the factors each proves, and the threshold). Everything is checked before anything is recorded: the connection's capabilities, the threshold, each person's current membership and every email or Google factor being that person's verified sign-in. The answer is `202` with the pending wallet and the signing request's `id`. An API key never receives an approval capability and never approves: each person, the key's own member included, proves their factors on their own signing page, so no wallet exists at the provider until the owners have approved. Read the creation with `GET …/wallets/{walletId}` until its `status` is `active` (or `failed`, `cancelled` or `declined`).\n\nSend the person to `signingRequest.approvalUrl` (also `wallet.approvalUrl`): TetraFi's own page, where they sign in and set up their factors. With `returnUrl`, an https URL whose exact origin (scheme, host and port) is one of the workspace's registered wallet callback origins, the page sends them back there with `signingRequestId` and `outcome` added to its query: `approved` or `pending` (their part is recorded; `pending` while the wallet waits for others) at once, and `refused` only after the page has shown why and the person chose to go back. The creation's `returnTo` echoes it. An origin that is not registered, or TetraFi's own app or signing origin, is `400 RETURN_URL_NOT_REGISTERED`.\n\nA member's own API key with `treasury_write` may call this, checked as that member's permissions and standing are now (an organisation wallet needs Manage wallets). A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`); access and grants are set in the app. A key creates organisation wallets only (`scope` `personal` is `403 API_KEY_PERSONAL_WALLET_REFUSED`), and a service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`. The key's own member confirms it was them (an authenticator app or security key) when they first open the approval page, before the wallet can be completed; `startedWithApiKey` names the key. Send an `Idempotency-Key`: the same key and body make one creation, and the same key with another body is `409 IDEMPOTENCY_CONFLICT`.",
+        "description": "Starts a wallet (`scope`: `organisation`, or `personal` for the key's own member) on a wallet connection (`connectionId`: a workspace connection, or `platform-turnkey` for the one TetraFi provides) with the owner group you choose (`ownerGroup`: the people who approve, the factors each proves, and the threshold). Everything is checked before anything is recorded: the connection's capabilities, the threshold, each person's current membership and every email or Google factor being that person's verified sign-in. The answer is `202` with the pending wallet and the signing request's `id`. An API key never receives an approval capability and never approves: each person, the key's own member included, proves their factors on their own signing page, so no wallet exists at the provider until the owners have approved. Read the creation with `GET …/wallets/{walletId}` until its `status` is `active` (or `failed`, `cancelled` or `declined`).\n\nSend the person to `signingRequest.approvalUrl` (also `wallet.approvalUrl`): TetraFi's own page, where they sign in and set up their factors. With `returnUrl`, an https URL whose exact origin (scheme, host and port) is one of the workspace's registered wallet callback origins, the page sends them back there with `signingRequestId` and `outcome` added to its query: `approved` or `pending` (their part is recorded; `pending` while the wallet waits for others) at once, and `refused` only after the page has shown why and the person chose to go back. The creation's `returnTo` echoes it. An origin that is not registered, or TetraFi's own app or signing origin, is `400 RETURN_URL_NOT_REGISTERED`.\n\nA member's own API key with `treasury_write` may call this, checked as that member's permissions and standing are now (an organisation wallet needs Manage wallets). A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`); access and grants are set in the app. A service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`.\n\nAn end user's wallet: a member's own key sends `scope` `personal` with an owner group of that member's own factors only (another owner is `409 WALLET_CREATION_PERSONAL_OWNER`). Only that member, signed in on the approval page, approves it; send them to `approvalUrl` with your `returnUrl`. End-user wallets need Advanced on this platform (`403 ADVANCED_MODE_DISABLED` otherwise).\n\nFor an organisation wallet, the key's own member confirms it was them (an authenticator app or security key) when they first open the approval page, before the wallet can be completed; `startedWithApiKey` names the key. Send an `Idempotency-Key`: the same key and body make one creation, and the same key with another body is `409 IDEMPOTENCY_CONFLICT`.",
         "operationId": "register_workspace_wallet",
         "parameters": [
           {
@@ -45074,7 +45114,7 @@
                 }
               }
             },
-            "description": "This credential may not create the wallet: the key lacks `treasury_write` (`INSUFFICIENT_SCOPE`), its member lacks Manage wallets (`INSUFFICIENT_PERMISSION`), it asked for a grant (`API_KEY_WALLET_GRANT_REFUSED`) or a personal wallet (`API_KEY_PERSONAL_WALLET_REFUSED`), or it is not a member's own key (`API_KEY_WALLET_CREATOR_NOT_A_PERSON`).",
+            "description": "This credential may not create the wallet: the key lacks `treasury_write` (`INSUFFICIENT_SCOPE`), its member lacks Manage wallets (`INSUFFICIENT_PERMISSION`), it asked for a grant (`API_KEY_WALLET_GRANT_REFUSED`), it asked for a personal wallet where Advanced is not enabled (`ADVANCED_MODE_DISABLED`), or it is not a member's own key (`API_KEY_WALLET_CREATOR_NOT_A_PERSON`).",
             "headers": {
               "RateLimit": {
                 "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
@@ -45417,7 +45457,7 @@
             ]
           }
         ],
-        "summary": "Create an organisation wallet",
+        "summary": "Create a wallet",
         "tags": [
           "wallets"
         ]
