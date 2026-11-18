@@ -20,7 +20,7 @@ Order a quote by its id: ordering is the accept, with no separate call.
 | `GET /api/v1/orders/by-quote/{quoteId}`: what a quote produced | Read orders |
 | `POST /api/v1/orders/{orderId}/cancel` | Submit orders |
 
-You need a quote whose `next.kind` is `order`, and an account or wallet holding what you sell ([Before your first trade](/before-you-trade)).
+You need a quote whose `next.kind` is `order`, and the funds you sell ([Before your first trade](/before-you-trade)).
 
 <Accordion title="What executes today">
   Every orderable quote today is Basic (`legs[].venue.integrationMode` `basic`): TetraFi executes it from your venue account, or from an organisation wallet granted to your key within its owners' limits.
@@ -115,7 +115,7 @@ The acknowledgement is `"acknowledgeHighSlippage": true` in the order body. On e
 
 ## Retries and recovery
 
-Send an `Idempotency-Key` with every order and retry only with the same key and body: a new key can place a second order. A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` is not proof of failure: read, never order again.
+An API key must send an `Idempotency-Key` with every order; retry only with the same key and body: a new key can place a second order. A timeout, lost connection, `5xx` or `status: "outcomeUnknown"` is not proof of failure: read, never order again.
 
 <AccordionGroup>
   <Accordion title="The key: format, storage and scope">
@@ -171,7 +171,7 @@ Refused with `409 IDEMPOTENCY_CONFLICT`; nothing is placed.
 
 ### Recover an order by its quote
 
-Read `GET /api/v1/orders/by-quote/{quoteId}` when you lost the answer, the key or both. It places nothing.
+Read `GET /api/v1/orders/by-quote/{quoteId}` when you lost the answer or the key; it places nothing.
 
 <AccordionGroup>
   <Accordion title="States and what to do">
@@ -217,7 +217,7 @@ Until then, never change the key or body: only `notOrdered` lets you submit agai
 
 ## Cancel an order
 
-A cancel, with its own `Idempotency-Key`, stops an order not yet sent to a venue, or a pay-in still waiting for your funds.
+A cancel, with its own `Idempotency-Key`, stops an order until TetraFi claims it for dispatch, or a pay-in still waiting for funds; then it is `409 ORDER_NOT_CANCELLABLE`.
 
 <AccordionGroup>
   <Accordion title="When a cancel is refused">

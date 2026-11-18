@@ -10,12 +10,14 @@ A member's own API key can start an organisation wallet (with `treasury_write`) 
 
 Paths are under `/api/v1/workspaces/{workspaceId}`.
 
-| Call | Does |
+| Call (scope) | Does |
 | --- | --- |
-| `POST …/wallets` | Starts a wallet |
-| `GET …/wallets/{walletId}` | Follows one creation |
-| `GET …/wallets?status=pending` | Lists pending creations |
-| `POST …/wallets/{walletId}/cancel` | Withdraws a creation |
+| `POST …/wallets` (`orders_write` or `treasury_write`) | Starts a wallet |
+| `GET …/wallets/{walletId}` (`treasury_read`) | Follows one creation |
+| `GET …/wallets?status=pending` (`treasury_read`) | Lists pending creations |
+| `POST …/wallets/{walletId}/cancel` (as its create) | Withdraws a creation |
+
+The key's member also needs View wallets for a personal wallet, or Manage wallets for an organisation wallet.
 
 <Steps>
   <Step title="Start it">
@@ -42,7 +44,7 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
     Each owner, the key's member included, opens `approvalUrl`, signs in, chooses their sign-in methods and proves them. For an organisation wallet the key's member first confirms it was them with an authenticator app or security key. With `returnUrl`, on one of the workspace's registered wallet callback origins, the page sends them back with `signingRequestId` and `outcome`.
   </Step>
   <Step title="Follow it">
-    `GET …/wallets/{walletId}` until `status` is `active`, or `failed`, `cancelled` or `declined`. `missing` names who has not approved yet. `GET …/wallets?status=pending` lists the pending ones.
+    `GET …/wallets/{walletId}` until `status` is `active`, or `failed`, `expired`, `cancelled` or `declined`; after any of the last four, start again. `missing` names who has not approved yet. `GET …/wallets?status=pending` lists the pending ones.
   </Step>
 </Steps>
 

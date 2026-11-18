@@ -28,12 +28,12 @@ Use an API key bound to you and one workspace, or a service account for software
         In **Settings**, **Open API keys**, select **Create key** with **Read quotes**, **Submit orders** and **Read orders** ([permissions](#permissions)).
       </Step>
 
-      <Step title="Turn on venue trading">
-        Switch **Venue trading** on while creating it ([what it needs](#trade-on-your-venue-accounts)).
+      <Step title="Turn on venue trading, to trade">
+        To order, switch **Venue trading** on while creating it ([what it needs](#trade-on-your-venue-accounts)).
       </Step>
 
       <Step title="Store it">
-        Copy **API Key** and **Request-signing secret** to your secret manager, separately: both are shown once.
+        Copy **API Key** and any **Request-signing secret** to your secret manager, separately: both are shown once.
       </Step>
     </Steps>
 
@@ -108,7 +108,7 @@ A key gets only permissions you hold in that workspace, checked on every request
 
 ## Send the key
 
-Send `X-API-Key: <your key>` on every request; without it, a request answers `401 AUTH_REQUIRED` before anything is looked up.
+Send `X-API-Key: <your key>` on every request; without it, a request answers `401 AUTH_REQUIRED`.
 
 <Accordion title="Workspace and version headers">
   - `TetraFi-Version: YYYY-MM-DD` optionally picks a request's API version ([Versioning](/reference/conventions#versioning)).
@@ -144,10 +144,10 @@ A key orders only with **venue trading**: TetraFi then executes Basic quotes (th
   <ResponseField name="authKind" type="string">`apiKey`: the answer describes an API key.</ResponseField>
   <ResponseField name="auth" type="string">`apiKey` for the key itself; `oauthClientCredentials` for a service-account token.</ResponseField>
   <ResponseField name="keyId, name, origin" type="string">The key's identity. `keyId` is also its `credentialId`, and for a token, the key it was exchanged from.</ResponseField>
-  <ResponseField name="scopes, permissions, dataScope">Its current authority. A token's `scopes` are its issued scopes, narrowed by the key's and its sponsor's current permissions.</ResponseField>
+  <ResponseField name="scopes, permissions, dataScope" type="array | object">Its current authority. A token's `scopes` are its issued scopes, narrowed by the key's and its sponsor's current permissions.</ResponseField>
   <ResponseField name="workspaceId" type="string | null">The one workspace the key or token works in.</ResponseField>
   <ResponseField name="organisationWallets" type="object | null">Venue trading and wallet grants ([Check readiness](/before-you-trade#check-readiness-from-your-backend)).</ResponseField>
-  <ResponseField name="rateLimits, expiresAt">The key's own request limit and expiry, when set.</ResponseField>
+  <ResponseField name="rateLimits, expiresAt" type="object | string | null">The key's own request limit and expiry, when set.</ResponseField>
 
   It describes a key or token, not a user profile or verification record. `workspaceId` and `organisationWallets` may be absent or `null` when the key is bound to no workspace; rate limits and expiry are optional. With a token, `GET /api/v1/me` returns `IntrospectionResponse` for the key it came from, as for that key sent as `X-API-Key`.
 

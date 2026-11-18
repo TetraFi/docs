@@ -3,7 +3,14 @@
 <CodeGroup>
 
 ```bash cURL
-assets=$(tetrafi GET /api/v1/assets)
+items='[]' cursor=""
+while :; do # follow nextCursor to the last page
+  page=$(tetrafi GET "/api/v1/assets?limit=200${cursor:+&cursor=$cursor}")
+  items=$(jq -c --argjson seen "$items" '$seen + .items' <<<"$page")
+  cursor=$(jq -r '.nextCursor // empty | @uri' <<<"$page")
+  [[ -n $cursor ]] || break
+done
+assets=$(jq -c '{items: .}' <<<"$items")
 for asset in "$sell" "$buy"; do
   if ! jq -e --arg a "$asset" 'any(.items[]; .asset == $a)' <<<"$assets" >/dev/null; then
     echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
@@ -14,7 +21,14 @@ echo "assets: $(jq '.items | length' <<<"$assets") listed, quoting $sell for $bu
 ```
 
 ```javascript Node.js
-const assets = await tetrafi('GET', '/api/v1/assets');
+const assets = { items: [] };
+let cursor = '';
+do { // follow nextCursor to the last page
+  const next = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
+  const page = await tetrafi('GET', `/api/v1/assets?limit=200${next}`);
+  assets.items.push(...page.items);
+  cursor = page.nextCursor ?? '';
+} while (cursor);
 for (const asset of [sell, buy]) {
   if (!assets.items.some((item) => item.asset === asset)) {
     throw new Error(json({ error: 'ASSET_NOT_LISTED', asset }));
@@ -25,7 +39,15 @@ console.error(`assets: ${assets.items.length} listed,`,
 ```
 
 ```python Python
-assets = tetrafi("GET", "/api/v1/assets")
+assets = {"items": []}
+cursor = ""
+while True:  # follow nextCursor to the last page
+    query = f"&cursor={url_quote(cursor, safe='')}" if cursor else ""
+    page = tetrafi("GET", f"/api/v1/assets?limit=200{query}")
+    assets["items"] += page["items"]
+    cursor = page.get("nextCursor") or ""
+    if not cursor:
+        break
 for asset in (sell, buy):
     if not any(item["asset"] == asset for item in assets["items"]):
         error = {"error": "ASSET_NOT_LISTED", "asset": asset}

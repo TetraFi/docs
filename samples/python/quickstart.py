@@ -10,6 +10,7 @@ import time
 from decimal import Decimal, ROUND_DOWN, localcontext
 from pathlib import Path
 from urllib.error import HTTPError
+from urllib.parse import quote as url_quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 WRITES = ("POST", "PUT", "PATCH", "DELETE")
@@ -158,7 +159,15 @@ def main():
     # endregion
 
     # region quickstart-assets
-    assets = tetrafi("GET", "/api/v1/assets")
+    assets = {"items": []}
+    cursor = ""
+    while True:  # follow nextCursor to the last page
+        query = f"&cursor={url_quote(cursor, safe='')}" if cursor else ""
+        page = tetrafi("GET", f"/api/v1/assets?limit=200{query}")
+        assets["items"] += page["items"]
+        cursor = page.get("nextCursor") or ""
+        if not cursor:
+            break
     for asset in (sell, buy):
         if not any(item["asset"] == asset for item in assets["items"]):
             error = {"error": "ASSET_NOT_LISTED", "asset": asset}

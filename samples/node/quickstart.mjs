@@ -133,7 +133,14 @@ async function main() {
   // #endregion
 
   // #region quickstart-assets
-  const assets = await tetrafi('GET', '/api/v1/assets');
+  const assets = { items: [] };
+  let cursor = '';
+  do { // follow nextCursor to the last page
+    const next = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
+    const page = await tetrafi('GET', `/api/v1/assets?limit=200${next}`);
+    assets.items.push(...page.items);
+    cursor = page.nextCursor ?? '';
+  } while (cursor);
   for (const asset of [sell, buy]) {
     if (!assets.items.some((item) => item.asset === asset)) {
       throw new Error(json({ error: 'ASSET_NOT_LISTED', asset }));
