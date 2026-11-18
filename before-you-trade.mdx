@@ -78,7 +78,7 @@ Someone who can manage your workspace's venues connects each venue account in th
   </Step>
 </Steps>
 
-Its quotes then appear for members and keys allowed to trade on venue accounts, with `tradingSource.kind` `venueAccount`. Without an account, a venue reads `unavailable` with `notConnected`.
+Its quotes then appear, with `tradingSource.kind` `venueAccount`, for members and keys with [venue trading](/authentication#trade-on-your-venue-accounts). Without an account, a venue reads `unavailable` with `notConnected`.
 
 ## Fund it
 
@@ -91,7 +91,7 @@ A Basic order spends what the account or wallet already holds. A quote whose `ne
 
 ## Give a key organisation wallets
 
-An API key trades from an organisation wallet only when the wallet is granted to it, and only with venue trading ([Authentication](/authentication#trade-on-your-venue-accounts)); venue accounts need no wallet grant. Granted wallets appear in the key's [`sourceOptions`](/trade/wallets-and-accounts#read-sourceoptions).
+An API key with venue trading trades from an organisation wallet only when the wallet is granted to it; venue accounts need no wallet grant. Granted wallets appear in the key's [`sourceOptions`](/trade/wallets-and-accounts#read-sourceoptions).
 
 <AccordionGroup>
   <Accordion title="Grant or revoke a wallet">
@@ -112,7 +112,7 @@ An API key trades from an organisation wallet only when the wallet is granted to
 
 ## Check readiness from your backend
 
-`GET /api/v1/me` describes the key, including its `organisationWallets` trading authority. `venueTradeScope` and `venueTradeEnabled` must both be `true` for quotes from your venue accounts.
+`GET /api/v1/me` describes the key, including its `organisationWallets` trading authority. Quotes from your venue accounts need `venueTradeScope` and `venueTradeEnabled` both `true`.
 
 <MeOrganisationWallets />
 
@@ -124,7 +124,7 @@ An API key trades from an organisation wallet only when the wallet is granted to
   <Accordion title="organisationWallets fields">
 | Field | What it says |
 | --- | --- |
-| `venueTradeScope`, `venueTradeEnabled` | The key holds venue trading and it is switched on. Both must be `true` for quotes from your venue accounts. |
+| `venueTradeScope`, `venueTradeEnabled` | The key holds venue trading, and it is switched on. |
 | `requestSigningRequired` | Every request with the key must be signed. |
 | `grants` | The organisation wallets granted to the key, each with the `financialAccountId` that `source.tradingWallets` takes, the wallet's `family` (`evm`, `solana`, `tron` or `bitcoin`) and its `networks`: each CAIP-2 `network` with `enabled`, and when it was last switched (`changedAt`, `changedBy`). `networksUnreadable` names why they could not be read, such as `WALLET_NETWORKS_UNAVAILABLE`; then `networks` is empty, which never means "no networks". |
 | `blockedBy` | When present, the code an order from an organisation wallet would be refused with now, such as `API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED`. |
