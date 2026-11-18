@@ -1,6 +1,7 @@
 ---
 title: "Handle errors and refusals"
 description: "Read the one error body every refusal uses and decide whether to fix, retry or recover."
+keywords: ["error codes", "4xx", "5xx", "Retry-After", "refusal", "error handling", "requestId", "retryable"]
 ---
 
 import ErrorsParse from '/snippets/samples/errors-parse.mdx';
@@ -10,14 +11,14 @@ Every refusal, `413` and `415` included, is one JSON shape: match on `error`, an
 
 ## Decide what to do
 
-| Answer | What happened | What to do |
-| --- | --- | --- |
-| An order fails or times out | It may have been placed. | [Recover it by its quote](/trade/orders#retries-and-recovery); never resend with a new key. |
-| `409` conflict | It conflicts with the current state. | Retry only where the code says so, such as `ORDER_IN_PROGRESS`; else change the state first. |
-| `429` | A limit is used up, or TetraFi is briefly at capacity. | Wait `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
-| `503` | It could not be served just now. | Retry after `Retry-After`, else after a second or two with backoff, signing again. |
-| `408`, `500`, `502`, `504` or a timeout | Its outcome is unknown. | Read a write back first. Retry with backoff when `retryable` is `true`. |
-| Any other `4xx` | Refused. | Do not retry: fix the request, or act on [`next`](#what-next-tells-you). |
+| Answer | What to do |
+| --- | --- |
+| An order fails or times out | It may have been placed: [recover it by its quote](/trade/orders#retries-and-recovery); never resend with a new key. |
+| `409` conflict | It conflicts with the current state. Retry only where the code says so, such as `ORDER_IN_PROGRESS`; else change the state first. |
+| `429` | A limit is used up, or TetraFi is briefly at capacity. Wait `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
+| `503` | It could not be served just now. Retry after `Retry-After`, else after a second or two with backoff, signing again. |
+| `408`, `500`, `502`, `504` or a timeout | Its outcome is unknown. Read a write back first. Retry with backoff when `retryable` is `true`. |
+| Any other `4xx` | Refused. Do not retry: fix the request, or act on [`next`](#what-next-tells-you). |
 
 ## Read a refusal
 
@@ -38,16 +39,61 @@ Every refusal carries `error`, `message`, `retryable`, `requestId`, `timestamp`,
 }
 ```
 
-| Field | Use |
-| --- | --- |
-| `error` | The stable code. Match on it. |
-| `message` | For people. Show or log it, never match on it. |
-| `requestId` | The `X-Request-Id` header. Log it; quote it to support. |
-| `timestamp` | When it was refused, RFC 3339 UTC. |
-| `docUrl` | The code's reference entry. |
-| `retryable` | Whether the same request, unchanged, may succeed later. `false` means change something first. |
-| `next` | The way forward, when there is one. |
-| `details` | Optional detail. Read the camelCase keys you know; more can appear. `details.value` names a refused value, `details.reason` says why, `details.retryAfter` how long to wait. |
+<ResponseField name="error" type="string" required>The stable code. Match on it.</ResponseField>
+<ResponseField name="message" type="string" required>For people. Show or log it, never match on it.</ResponseField>
+<ResponseField name="requestId" type="string">The `X-Request-Id` header. Log it; quote it to support.</ResponseField>
+<ResponseField name="timestamp" type="string" required>When it was refused, RFC 3339 UTC.</ResponseField>
+<ResponseField name="docUrl" type="string" required>The code's reference entry.</ResponseField>
+<ResponseField name="retryable" type="boolean" required>Whether the same request, unchanged, may succeed later. `false` means change something first.</ResponseField>
+<ResponseField name="next" type="object">The way forward, when there is one.</ResponseField>
+<ResponseField name="details" type="object">Optional detail. Read the camelCase keys you know; more can appear. `details.value` names a refused value, `details.reason` says why, `details.retryAfter` how long to wait.</ResponseField>
+
+  </Accordion>
+  <Accordion title="Example bodies">
+
+One refusal of each class. `details` keys are the ones each code's [reference entry](/reference/error-codes) names.
+
+<CodeGroup>
+
+```json Validation (400)
+{
+  "error": "INVALID_REQUEST",
+  "message": "The request could not be read or has the wrong shape.",
+  "requestId": "0b6f2c1e-…",
+  "timestamp": "2026-11-18T09:14:03Z",
+  "docUrl": "https://tetrafi.mintlify.app/reference/error-codes#INVALID_REQUEST",
+  "retryable": false,
+  "next": null,
+  "details": { "field": "sell.asset", "remediation": "correctField" }
+}
+```
+
+```json Conflict (409)
+{
+  "error": "QUOTE_NOT_HELD",
+  "message": "The quote is no longer held; nothing was sent.",
+  "requestId": "7c41d9a2-…",
+  "timestamp": "2026-11-18T09:15:47Z",
+  "docUrl": "https://tetrafi.mintlify.app/reference/error-codes#QUOTE_NOT_HELD",
+  "retryable": false,
+  "next": { "kind": "requote", "needs": [] }
+}
+```
+
+```json Permission (403)
+{
+  "error": "INSUFFICIENT_SCOPE",
+  "message": "The API key lacks the scope this operation needs.",
+  "requestId": "e2a90f53-…",
+  "timestamp": "2026-11-18T09:16:20Z",
+  "docUrl": "https://tetrafi.mintlify.app/reference/error-codes#INSUFFICIENT_SCOPE",
+  "retryable": false,
+  "next": null,
+  "details": { "requiredScope": "orders_write", "remediation": "useKeyWithScope" }
+}
+```
+
+</CodeGroup>
 
   </Accordion>
   <Accordion title="Example: act on a refused asset">
@@ -73,10 +119,12 @@ use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 
 | `next.kind` | What to do |
 | --- | --- |
-| `requote` | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`. `next.needs` lists what the new quote needs, such as a wallet; empty means requote as it is ([Requotes and expiry](/search/firmness-and-lifetime#requote-a-quote)). |
+| `requote` | Requote it (below). `next.needs` lists what the new quote needs, such as a wallet; empty means requote as it is ([Requotes and expiry](/search/firmness-and-lifetime#requote-a-quote)). |
 | `fund` | The paying account holds too little. Fund it, then get a new price. |
 | `order` | Order the quote as it is. |
 | `preflight` | Advanced, not open yet. Order a Basic quote. |
+
+To requote, send `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`.
 
   </Accordion>
 </AccordionGroup>
@@ -90,25 +138,25 @@ Codes can be added at any time: handle an unknown one by its status class ([abov
 <AccordionGroup>
   <Accordion title="Authentication, workspace, limits and availability">
 
-| Status and code | When | What to do |
-| --- | --- | --- |
-| 401 `AUTH_REQUIRED` | Not authenticated. `details.reason`: `MISSING_CREDENTIALS`, `INVALID_API_KEY` (unknown or revoked), `API_KEY_EXPIRED`, or a [signing reason](/authentication#sign-requests). | Act on `details.reason`; treat an unknown one as "fix the credentials". |
-| 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. | Send it. |
-| 400 `INVALID_WORKSPACE_ID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is not a workspace id, or not yours. A key is bound to one workspace: it may leave `X-Workspace-Id` out, and `details` carries the key's workspace and the requested one. | Use the `workspaceId` from `GET /api/v1/me`. |
-| 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. | Contact support. |
-| 403 `CAPABILITY_BLOCKED`, 503 `CAPABILITY_UNAVAILABLE` | The workspace cannot do this yet (each blocker in `details.capabilityBlockers`), or that could not be read. | Fix each blocker ([Before your first trade](/before-you-trade#complete-your-company-details)); retry a `503` shortly. |
-| 403 `IP_NOT_ALLOWED` | Outside the key's IP allowlist. | Send from an allowed address. |
-| 403 `INSUFFICIENT_SCOPE` | The key lacks this call's permission. | Use a key with it ([Permissions](/authentication#permissions)). |
-| 403 `INSUFFICIENT_PERMISSION` | The key's owner no longer holds the permission. | Ask a workspace admin. |
-| 403 `VENUE_TRADE_SCOPE_REQUIRED`, `VENUE_TRADE_KEY_DISABLED`, `VENUE_TRADE_SIGNATURE_REQUIRED` | A venue-account trade by a key without venue trading, with it off, or unsigned. | [Trade on your venue accounts](/authentication#trade-on-your-venue-accounts). |
-| 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading changed mid-request. | Send it again. |
-| 413 `REQUEST_BODY_TOO_LARGE`, 415 `UNSUPPORTED_CONTENT_TYPE` | The body is too large, or not `application/json`. | Fix the body or header. |
-| 429 `RATE_LIMITED` | A limit is used up, or TetraFi is briefly at capacity. | Wait `Retry-After` seconds; `details.retryAfter` is an ISO 8601 duration that can carry a fraction, such as `PT1.5S`. Sending sooner is refused again. |
-| 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked. | Sign again with a new timestamp and nonce, then retry. |
-| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It may not have completed. | A read: retry with backoff. A write: read the resource back first (an order: [by its quote](/trade/orders#recover-an-order-by-its-quote)). Quote `requestId` if it persists. |
-| 409 `IDEMPOTENT_SECRET_ALREADY_SHOWN` | A retry with the same `Idempotency-Key` of a call that created a secret: the resource exists (`details.resourceId`), and its secret was shown once and is not stored. | Use the secret from the first answer, or rotate or reissue that resource. |
-| 500 `IDEMPOTENT_ANSWER_UNAVAILABLE` | The request ran, but its answer could not be read. | Read the resource before you retry; never send it again with a new `Idempotency-Key`. |
-| 409 `IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this `Idempotency-Key` may or may not have taken effect, and retrying the key can never tell. No `Retry-After`. | Stop sending this key. Read the resource back (`details.readTarget` names the read), and use a new key only once that read shows nothing happened. |
+| Status and code | When, and what to do |
+| --- | --- |
+| 401 `AUTH_REQUIRED` | Not authenticated. `details.reason`: `MISSING_CREDENTIALS`, `INVALID_API_KEY` (unknown or revoked), `API_KEY_EXPIRED`, or a [signing reason](/authentication#sign-requests). Act on `details.reason`; treat an unknown one as "fix the credentials". |
+| 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. Send it. |
+| 400 `INVALID_WORKSPACE_ID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is not a workspace id, or not yours. A key is bound to one workspace: it may leave `X-Workspace-Id` out, and `details` carries the key's workspace and the requested one. Use the `workspaceId` from `GET /api/v1/me`. |
+| 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. Contact support. |
+| 403 `CAPABILITY_BLOCKED`, 503 `CAPABILITY_UNAVAILABLE` | The workspace cannot do this yet, or that could not be read. `details` lists each blocker in `capabilityBlockers`: fix each ([Before your first trade](/before-you-trade#complete-your-company-details)); retry a `503` shortly. |
+| 403 `IP_NOT_ALLOWED` | Outside the key's IP allowlist. Send from an allowed address. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks this call's permission. Use a key with it ([Permissions](/authentication#permissions)). |
+| 403 `INSUFFICIENT_PERMISSION` | The key's owner no longer holds the permission. Ask a workspace admin. |
+| 403 `VENUE_TRADE_SCOPE_REQUIRED`, `VENUE_TRADE_KEY_DISABLED`, `VENUE_TRADE_SIGNATURE_REQUIRED` | A venue-account trade by a key without venue trading, with it off, or unsigned ([Trade on your venue accounts](/authentication#trade-on-your-venue-accounts)). |
+| 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading changed mid-request. Send it again. |
+| 413 `REQUEST_BODY_TOO_LARGE`, 415 `UNSUPPORTED_CONTENT_TYPE` | The body is too large, or not `application/json`. Fix the body or header. |
+| 429 `RATE_LIMITED` | A limit is used up, or TetraFi is briefly at capacity. Wait `Retry-After` seconds; `details.retryAfter` is an ISO 8601 duration that can carry a fraction, such as `PT1.5S`. Sending sooner is refused again. |
+| 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked. Sign again with a new timestamp and nonce, then retry. |
+| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It may not have completed. A read: retry with backoff. A write: read the resource back first (an order: [by its quote](/trade/orders#recover-an-order-by-its-quote)). Quote `requestId` if it persists. |
+| 409 `IDEMPOTENT_SECRET_ALREADY_SHOWN` | A retry with the same `Idempotency-Key` of a call that created a secret: the resource exists (`details.resourceId`), and its secret was shown once and is not stored. Use the secret from the first answer, or rotate or reissue that resource. |
+| 500 `IDEMPOTENT_ANSWER_UNAVAILABLE` | The request ran, but its answer could not be read. Read the resource before you retry; never send it again with a new `Idempotency-Key`. |
+| 409 `IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this `Idempotency-Key` may or may not have taken effect, and retrying the key can never tell. No `Retry-After`. Stop sending this key. Read the resource back (`details.readTarget` names the read), and use a new key only once that read shows nothing happened. |
 
   </Accordion>
   <Accordion title="Example: a workspace that is not your key's">

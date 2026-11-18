@@ -1,0 +1,44 @@
+---
+title: "Test before you trade"
+description: "The API has one environment, production. What you can build and check without moving assets, and how to place a first small order."
+keywords: ["sandbox", "test environment", "staging", "testnet", "dry run", "test mode"]
+---
+
+The API has one environment, production at `https://api.tetrafi.io`, with real assets and venue accounts. Only an order moves assets, so you can build and check everything up to the order: keys, assets, quotes, error handling and webhook signatures (with a test delivery). A fill, its settlement and order events need a real order: make it the smallest one a venue takes.
+
+## At a glance
+
+| Check | Moves assets? |
+| --- | --- |
+| [Sign requests against the test values](/authentication#sign-requests) | No: runs offline |
+| [List assets, quote and requote](/quickstart) | No |
+| [Find the smallest amount a venue takes](/quickstart#find-the-smallest-amount-a-venue-takes) | No |
+| [Send a test webhook delivery](/trade/webhooks#set-up-an-endpoint) | No |
+| [Handle refusals](/trade/errors) | No |
+| [Place a first order](/quickstart) | Yes: the smallest amount |
+
+<Steps>
+  <Step title="Check your signer offline">
+    Reproduce the published test values with your own request signer before you call the API ([Sign requests](/authentication#sign-requests)).
+  </Step>
+  <Step title="Quote as much as you like, within the rate limit">
+    Quotes cost nothing: one live `POST /api/v1/quotes` every 3 seconds per key ([Rate limits](/reference/rate-limits)). Read every venue's outcome in `sources`.
+  </Step>
+  <Step title="Test your webhook endpoint">
+    `POST …/webhooks/{webhookId}/deliveries` with `{"kind":"test"}` and a new `Idempotency-Key`. The delivery reads `success: true` with your status code once your receiver acknowledged it ([Webhooks](/trade/webhooks#set-up-an-endpoint)).
+  </Step>
+  <Step title="Place one small order">
+    Order the [smallest amount a venue takes](/quickstart#find-the-smallest-amount-a-venue-takes), follow it until `terminal` is `true`, and check every item of the [go-live checklist](/recipes/go-live-checklist).
+  </Step>
+</Steps>
+
+<Note>
+  The samples stop before ordering unless you set `TETRAFI_PLACE_ORDER=1` ([SDK and samples](/sdk)).
+</Note>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">Run your first quote and order.</Card>
+  <Card title="Go-live checklist" icon="list-check" href="/recipes/go-live-checklist">What production needs.</Card>
+</CardGroup>

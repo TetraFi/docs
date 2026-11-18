@@ -1,6 +1,7 @@
 ---
 title: "Firmness and requotes"
 description: "Read what a quote commits to and until when, and ask its venue again to change how it executes, get an executable price or refresh it after it expires."
+keywords: ["firm quote", "indicative", "expiry", "expiresAt", "TTL", "requote"]
 ---
 
 import RequoteAgain from '/snippets/samples/requote-again.mdx';
@@ -11,22 +12,24 @@ Each quote states what its venue commits to in `quality`, and until when in `exp
 
 ## At a glance
 
-| `quality` | What it guarantees | Can you order it? |
-| --- | --- | --- |
-| `firm` | The venue delivers exactly `buy.amount` until `expiresAt`. | When `next.kind` is `order`, until `expiresAt`. |
-| `executable` | The venue trades until `expiresAt`. Delivery may move, but never below `minOut`. | When `next.kind` is `order`, until `expiresAt`. |
-| `indicative` | Nothing: it is the venue's current price, not a commitment. | Only when `next.kind` is `order`, with `minReceive`. |
+Order any of them only when `next.kind` is `order`.
+
+| `quality` | What it guarantees |
+| --- | --- |
+| `firm` | The venue delivers exactly `buy.amount` until `expiresAt`, the ordering deadline. |
+| `executable` | The venue trades until `expiresAt`, the ordering deadline. Delivery may move, but never below `minOut`. |
+| `indicative` | Nothing: it is the venue's current price. Order it with `minReceive`. |
 
 ## Firm, executable and indicative
 
 <AccordionGroup>
   <Accordion title="How to recognise each, and what firmness does not cover">
 
-| `quality` | How to recognise it | Notes |
-| --- | --- | --- |
-| `firm` | `firm: true` and `expiresAt` set. `minOut` and `staleAfter` are `null`. | - |
-| `executable` | `firm: false`, `expiresAt` set and `minOut` set by your [price protection](/search/how-it-works#filters-and-sort). `staleAfter` is `null`. | Order-book and AMM quotes are executable. |
-| `indicative` | `firm: false`, `expiresAt` `null` and `staleAfter` set. `minOut` is `null`. | Order it with `minReceive` (below). |
+| `quality` | How to recognise it |
+| --- | --- |
+| `firm` | `firm: true` and `expiresAt` set. `minOut` and `staleAfter` are `null`. |
+| `executable` | `firm: false`, `expiresAt` set and `minOut` set by your [price protection](/search/how-it-works#filters-and-sort). `staleAfter` is `null`. Order-book and AMM quotes are executable. |
+| `indicative` | `firm: false`, `expiresAt` `null` and `staleAfter` set. `minOut` is `null`. Order it with `minReceive` (below). |
 
 - Ordering a `firm` or `executable` quote whose `next.kind` is `fund` is refused with `409 FUNDING_SHORTFALL`.
 - `firm` and `expiresAt` repeat `quality` in two fields. Treat a `quality` you do not recognise as `indicative`.
@@ -73,13 +76,11 @@ Use the returned `expiresAt`: each venue type sets its own window, and network t
 <AccordionGroup>
   <Accordion title="Every quote time">
 
-| Field | Set on | Meaning |
-| --- | --- | --- |
-| `expiresAt` | `firm` and `executable` quotes | The last time the quote can be ordered. It is not a settlement deadline. |
-| `staleAfter` | `indicative` quotes | When the price is old. |
-| `observedAt` | `indicative` quotes | When the venue's price or book was read. |
-| `retainUntil` | Every held quote | The last time it can be requoted: 10 minutes after it lapsed (`expiresAt`, or `staleAfter` for an indicative quote). |
-| `firmAskAvailableAt` | Desk quotes, when known | Your workspace has reached the desk's firm-quote limit until then. |
+<ResponseField name="expiresAt" type="string">On `firm` and `executable` quotes: the last time the quote can be ordered. It is not a settlement deadline.</ResponseField>
+<ResponseField name="staleAfter" type="string">On `indicative` quotes: when the price is old.</ResponseField>
+<ResponseField name="observedAt" type="string">On `indicative` quotes: when the venue's price or book was read.</ResponseField>
+<ResponseField name="retainUntil" type="string">On every held quote: the last time it can be requoted, 10 minutes after it lapsed (`expiresAt`, or `staleAfter` for an indicative quote).</ResponseField>
+<ResponseField name="firmAskAvailableAt" type="string">On desk quotes, when known: your workspace has reached the desk's firm-quote limit until then.</ResponseField>
 
 When `next.kind` is `requote`, `next.needs` lists what the new quote needs from you, such as a trading wallet to name; an empty list means requote it as it is.
 
@@ -132,14 +133,12 @@ Send a quote's id to get one new quote from its venue: to change how it executes
 <AccordionGroup>
   <Accordion title="Requote fields">
 
-| Field | Required | Value |
-| --- | --- | --- |
-| `kind` | Yes | `"requote"`. |
-| `requote` | Yes | The quote id (`q_…`). |
-| `source` | No | A different trading wallet per chain (`source.tradingWallets`), venue account (`source.venueAccountId`) or funding account (`source.fundingAccountId`), each a `financialAccountId` from the answer's `sourceOptions`. |
-| `deliverTo` | No | Where the output goes ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). With an API key, a venue account's output stays on the account. |
-| `corridor` | No | `{"from": "<chain>", "to": "<chain>"}`: another chain pair the original listed in `corridors`. |
-| `priceProtectionBps` | No | 0 to 1000, for the new quote's `minOut`. |
+<ParamField body="kind" type="string" required>`"requote"`.</ParamField>
+<ParamField body="requote" type="string" required>The quote id (`q_…`).</ParamField>
+<ParamField body="source" type="object">A different trading wallet per chain (`source.tradingWallets`), venue account (`source.venueAccountId`) or funding account (`source.fundingAccountId`), each a `financialAccountId` from the answer's `sourceOptions`.</ParamField>
+<ParamField body="deliverTo" type="object">Where the output goes ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). With an API key, a venue account's output stays on the account.</ParamField>
+<ParamField body="corridor" type="object">`{"from": "<chain>", "to": "<chain>"}`: another chain pair the original listed in `corridors`.</ParamField>
+<ParamField body="priceProtectionBps" type="integer">0 to 1000, for the new quote's `minOut`.</ParamField>
 
 A field you leave out keeps the original's. The pair, amount, side and filters cannot change: sending them is `400 REQUOTE_FIELDS_CONFLICT`. For a different pair or amount, search again.
 
@@ -180,22 +179,22 @@ Requote the same id, as above, while `retainUntil` holds.
 
 <Accordion title="Requote refusals">
 
-| Code | Status | Why | What to do |
-| --- | --- | --- | --- |
-| `REQUOTE_FIELDS_CONFLICT` | 400 | A field that cannot go with `requote`, such as `sellAmount` or `filters`. | Send only the requote fields, or search again. |
-| `CORRIDOR_NOT_OFFERED` | 400 | The original was not offered on that corridor. | Use one from its `corridors`. |
-| `WALLET_NOT_ON_CHAIN` | 400 | The trading wallet you named is not on that chain. | Name a wallet listed for that chain. |
-| `SOURCE_NOT_OWNED` | 403 | A wallet or account you named is not one you can use. | Name one from `sourceOptions`. |
-| `ACCOUNT_NOT_AVAILABLE` | 403 | That venue account is not the one this quote was priced on. | Leave out `source.venueAccountId`. |
-| `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | 403 | This credential cannot ask this venue for a firm quote. | Use a key with Read quotes and Submit orders. |
-| `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you, including another key's quote. | Requote only quotes your key requested. |
-| `PERSONAL_TARGET_NOT_ALLOWED` | 409 | An API key named a personal wallet. | Name an organisation wallet. |
-| `REQUOTE_REFUSED` | 409 | The venue declined; `details.reason` carries a token, such as `productNotQuoted`. | Show `message`. The original still holds until it expires. |
-| `REQUOTE_NEEDS_WALLET` | 409 | The venue quotes only once you choose a wallet. | Requote with `source.tradingWallets`. |
-| `REQUOTE_WINDOW_CLOSED` | 410 | Past `retainUntil`. | Search again. |
-| `QUOTE_RATE_LIMITED`, `VENUE_FIRM_QUOTE_LIMITED`, `BUDGET_EXHAUSTED` | 429 | The quote limit, the venue's firm-quote limit or the venue's quote budget is used up. | Wait `Retry-After` seconds; `firmAskAvailableAt` says when a desk reopens, where known. |
-| `QUOTE_STORE_UNAVAILABLE` | 503 | Held quotes cannot be read just now. | Send the same requote again after a second. |
-| `REQUOTE_TIMED_OUT` | 504 | The venue did not answer in time. | Try again, or order the original while it holds. |
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `REQUOTE_FIELDS_CONFLICT` | A field that cannot go with `requote`, such as `sellAmount` or `filters`. Send only the requote fields, or search again. |
+| 400 `CORRIDOR_NOT_OFFERED` | The original was not offered on that corridor. Use one from its `corridors`. |
+| 400 `WALLET_NOT_ON_CHAIN` | The trading wallet you named is not on that chain. Name a wallet listed for that chain. |
+| 403 `SOURCE_NOT_OWNED` | A wallet or account you named is not one you can use. Name one from `sourceOptions`. |
+| 403 `ACCOUNT_NOT_AVAILABLE` | That venue account is not the one this quote was priced on. Leave out `source.venueAccountId`. |
+| 403 `VENUE_NOT_AVAILABLE_TO_CREDENTIAL` | This credential cannot ask this venue for a firm quote. Use a key with Read quotes and Submit orders. |
+| 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you, including another key's quote. Requote only quotes your key requested. |
+| 409 `PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. Name an organisation wallet. |
+| 409 `REQUOTE_REFUSED` | The venue declined; `details.reason` carries a token, such as `productNotQuoted`. Show `message`. The original still holds until it expires. |
+| 409 `REQUOTE_NEEDS_WALLET` | The venue quotes only once you choose a wallet. Requote with `source.tradingWallets`. |
+| 410 `REQUOTE_WINDOW_CLOSED` | Past `retainUntil`. Search again. |
+| 429 `QUOTE_RATE_LIMITED`, `VENUE_FIRM_QUOTE_LIMITED`, `BUDGET_EXHAUSTED` | The quote limit, the venue's firm-quote limit or the venue's quote budget is used up. Wait `Retry-After` seconds; `firmAskAvailableAt` says when a desk reopens, where known. |
+| 503 `QUOTE_STORE_UNAVAILABLE` | Held quotes cannot be read just now. Send the same requote again after a second. |
+| 504 `REQUOTE_TIMED_OUT` | The venue did not answer in time. Try again, or order the original while it holds. |
 
 </Accordion>
 

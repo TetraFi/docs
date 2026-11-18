@@ -1,6 +1,7 @@
 ---
 title: "Prices"
 description: "Read every venue's current price for a pair before you ask for quotes. No venue is asked, and prices have their own rate limit."
+keywords: ["price stream", "market data", "reference price", "server-sent events", "ETag", "price ladder"]
 ---
 
 import SearchPrices from '/snippets/samples/search-prices.mdx';
@@ -9,10 +10,12 @@ Read every venue's current price for a pair from prices TetraFi already holds, w
 
 ## At a glance
 
-| Endpoint | You need | Result |
-| --- | --- | --- |
-| `GET /api/v1/prices` | [Read quotes](/authentication#permissions) (`prices_read`) | One row per venue, location and variant pair, sorted like quotes. |
-| `GET /api/v1/prices/stream` | The same | A `snapshot` server-sent event when a watched pair changes. |
+Both need [Read quotes](/authentication#permissions) (`prices_read`).
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /api/v1/prices` | One row per venue, location and variant pair, sorted like quotes. |
+| `GET /api/v1/prices/stream` | A `snapshot` server-sent event when a watched pair changes. |
 
 - Use prices to show prices, size a trade or choose venues, then [request quotes](/search/how-it-works) to trade.
 - No venue is asked, so it is fast and does not use the [quote limit](/reference/rate-limits).
@@ -24,12 +27,10 @@ Read every venue's current price for a pair from prices TetraFi already holds, w
 <AccordionGroup>
   <Accordion title="Query parameters">
 
-| Parameter | Required | Value |
-| --- | --- | --- |
-| `sell`, `buy` | Yes | Asset ids from [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery). |
-| `sellAmount`, `buyAmount` or `sizes` | Exactly one | One amount you sell or buy, or `sizes`: 1 to 8 comma-separated sell amounts, such as `100,1000,10000`. |
-| `sell.network`, `buy.network` | No | A CAIP-2 network id to pin that side. |
-| `locations`, `modalities`, `venues.include`, `venues.exclude`, `variants.sell`, `variants.buy` | No | The [quote filters](/search/how-it-works#filters-and-sort), comma-separated. A venue they exclude has no row. |
+<ParamField query="sell, buy" type="string" required>Asset ids from [`GET /api/v1/assets`](/search/how-it-works#use-values-from-discovery).</ParamField>
+<ParamField query="sellAmount, buyAmount or sizes" type="string" required>Exactly one: one amount you sell or buy, or `sizes`: 1 to 8 comma-separated sell amounts, such as `100,1000,10000`.</ParamField>
+<ParamField query="sell.network, buy.network" type="string">A CAIP-2 network id to pin that side.</ParamField>
+<ParamField query="locations, modalities, venues.include, venues.exclude, variants.sell, variants.buy" type="string">The [quote filters](/search/how-it-works#filters-and-sort), comma-separated. A venue they exclude has no row.</ParamField>
 
   </Accordion>
   <Accordion title="Response example">
@@ -85,17 +86,15 @@ Read every venue's current price for a pair from prices TetraFi already holds, w
 
 Rows that hold no price come last.
 
-| Field | Meaning |
-| --- | --- |
-| `sizes[]` | One entry per size you asked for: `sell`, `buy` (after included fees; `null` when nothing could be priced), `netReceived`, `filled` (`full`, `partial` or `none`) and `fees`. |
-| `basis` | `levels` (the venue's published levels) or `model`. |
-| `observedAt`, `staleAfter` | When the price was seen, and when it is old. |
-| `levels` | The venue's own price levels, in sell units, where it publishes them. Read them as `ladderSemantics` says. |
-| `ladderSemantics` | Present whenever `levels` is. `incremental`: levels add up, and a size walks them best first; each level is `size` more sell units at `price`. `allIn`: each level prices exactly its own total `size`, and a size takes the smallest level at or above it. |
-| `spreadFromMidBps` | The spread from the reference mid at the first size, or `unavailable` with a reason, never 0. |
-| `referenceMid` | The pair's reference price. `null` when it could not be read, with the reason in `referenceMidUnavailable`. |
-| `computedAt` | When this snapshot was built; it is reused for about a second. |
-| `sellBalances` | Always empty for an API key. |
+<ResponseField name="sizes[]" type="object[]">One entry per size you asked for: `sell`, `buy` (after included fees; `null` when nothing could be priced), `netReceived`, `filled` (`full`, `partial` or `none`) and `fees`.</ResponseField>
+<ResponseField name="basis" type="string">`levels` (the venue's published levels) or `model`.</ResponseField>
+<ResponseField name="observedAt, staleAfter" type="string">When the price was seen, and when it is old.</ResponseField>
+<ResponseField name="levels" type="object[]">The venue's own price levels, in sell units, where it publishes them. Read them as `ladderSemantics` says.</ResponseField>
+<ResponseField name="ladderSemantics" type="string">Present whenever `levels` is. `incremental`: levels add up, and a size walks them best first; each level is `size` more sell units at `price`. `allIn`: each level prices exactly its own total `size`, and a size takes the smallest level at or above it.</ResponseField>
+<ResponseField name="spreadFromMidBps" type="object">The spread from the reference mid at the first size, or `unavailable` with a reason, never 0.</ResponseField>
+<ResponseField name="referenceMid" type="object | null">The pair's reference price. `null` when it could not be read, with the reason in `referenceMidUnavailable`.</ResponseField>
+<ResponseField name="computedAt" type="string">When this snapshot was built; it is reused for about a second.</ResponseField>
+<ResponseField name="sellBalances" type="array">Always empty for an API key.</ResponseField>
 
   </Accordion>
   <Accordion title="Row statuses">
@@ -109,7 +108,7 @@ Rows that hold no price come last.
 | `needsWallet`, `restricted` | The venue prices only for a wallet, or a permission keeps the price from you. |
 | `unavailable` | A read failed, or a fee could not be worked out; `reason` says which. |
 
-Treat a status you do not recognise as "other".
+Treat a value you do not know as other ([Conventions](/reference/conventions#values)).
 
   </Accordion>
   <Accordion title="Caching, streaming and limits" id="caching-streaming-and-limits">
@@ -125,15 +124,15 @@ Treat a status you do not recognise as "other".
 
 <Accordion title="Price refusals">
 
-| Status and code | Why | What to do |
-| --- | --- | --- |
-| `400 UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. | Use values from `GET /api/v1/assets`. |
-| `400 INVALID_AMOUNT` | An amount or a size is not a positive decimal. | Send positive decimals. |
-| `400 SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same asset with no chain pinned. | Add `sell.network` or `buy.network`. |
-| `400 INVALID_REQUEST` | Both amounts, `sizes` with an amount, no amount at all, or an unknown parameter, such as `pay`, `receive`, `amount` or `side`. | Send `sell`, `buy` and one of `sellAmount`, `buyAmount` or `sizes`. |
-| `403 INSUFFICIENT_SCOPE` | The key lacks `prices_read`. | Use a key with Read quotes. |
-| `429 PRICES_RATE_LIMIT`, `PRICES_STREAM_LIMIT` | Too many price reads, or streams. | Wait `Retry-After` seconds, or close a stream. |
-| `503 PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. | Retry after `Retry-After` (about 1 second). |
+| Status and code | Why, and what to do |
+| --- | --- |
+| `400 UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. Use values from `GET /api/v1/assets`. |
+| `400 INVALID_AMOUNT` | An amount or a size is not a positive decimal. Send positive decimals. |
+| `400 SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same asset with no chain pinned. Add `sell.network` or `buy.network`. |
+| `400 INVALID_REQUEST` | Both amounts, `sizes` with an amount, no amount at all, or an unknown parameter, such as `pay`, `receive`, `amount` or `side`. Send `sell`, `buy` and one of `sellAmount`, `buyAmount` or `sizes`. |
+| `403 INSUFFICIENT_SCOPE` | The key lacks `prices_read`. Use a key with Read quotes. |
+| `429 PRICES_RATE_LIMIT`, `PRICES_STREAM_LIMIT` | Too many price reads, or streams. Wait `Retry-After` seconds, or close a stream. |
+| `503 PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. Retry after `Retry-After` (about 1 second). |
 
 </Accordion>
 

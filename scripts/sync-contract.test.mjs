@@ -83,7 +83,11 @@ const scopedSpec = () => ({
       'quotes:read': { permission: 'Read quotes', description: 'Read assets and prices.' },
       'orders:write': { permission: 'Submit orders', description: 'Place orders.' },
     },
-  } } },
+  } },
+  schemas: {
+    AssetKind: { type: 'string', enum: ['stablecoin', 'crypto'], 'x-extensible-enum': true },
+    AssetEntry: { type: 'object', properties: { kind: { $ref: '#/components/schemas/AssetKind' } } },
+  } },
 });
 
 // Catches lost scope-to-checkbox associations, inherited security, and false API-key access.

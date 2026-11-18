@@ -11,7 +11,57 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 - Every event is signed with Standard Webhooks.
 - New events can appear. Answer one you do not handle with a `2xx`.
 
-## Payouts
+## Orders
+
+| Event | What it means |
+| :--- | :--- |
+| <span id="order.updated"></span>`order.updated` | An order or venue trade changed status; carries its id, new status and where to read it. |
+
+## Settlement
+
+| Event | What it means |
+| :--- | :--- |
+| <span id="settlement.window.ready"></span>`settlement.window.ready` | A venue account's settlement window has a new statement to review. |
+| <span id="settlement.obligation.due"></span>`settlement.obligation.due` | A settlement payment is due soon, or payable now after the statement was agreed. |
+| <span id="settlement.obligation.overdue"></span>`settlement.obligation.overdue` | A settlement payment passed its deadline unpaid. |
+| <span id="settlement.payment.matched"></span>`settlement.payment.matched` | A received payment or delivery was matched to what a window owes, or a match was reversed. |
+| <span id="settlement.failed"></span>`settlement.failed` | A settlement attempt failed. |
+| <span id="settlement.retried"></span>`settlement.retried` | A failed settlement is being attempted again. |
+| <span id="settlement.disputed"></span>`settlement.disputed` | A counterparty disputed a settlement. |
+
+## Credit
+
+| Event | What it means |
+| :--- | :--- |
+| <span id="credit.updated"></span>`credit.updated` | A venue account's agreed credit terms or its LP-reported credit limit changed. |
+
+## Wallets
+
+| Event | What it means |
+| :--- | :--- |
+| <span id="wallet.session_signer.granted"></span>`wallet.session_signer.granted` | A session signer was granted on a workspace wallet. |
+| <span id="wallet.session_signer.revoked"></span>`wallet.session_signer.revoked` | A session signer was revoked from a workspace wallet. |
+
+## API keys
+
+| Event | What it means |
+| :--- | :--- |
+| <span id="api_key.rotated"></span>`api_key.rotated` | An API key was replaced with a new secret. |
+| <span id="api_key.revoked"></span>`api_key.revoked` | An API key was revoked and no longer works. |
+| <span id="api_key.expiring_soon"></span>`api_key.expiring_soon` | An API key will expire soon; rotate it to keep access. |
+
+## Webhooks
+
+| Event | What it means |
+| :--- | :--- |
+| <span id="webhook.subscription.paused"></span>`webhook.subscription.paused` | Another webhook in this workspace paused after repeated failed deliveries. |
+
+## Treasury and workspace events
+
+Events from the app's treasury, automation and workspace features, by area.
+
+<AccordionGroup>
+<Accordion title="Payouts">
 
 | Event | What it means |
 | :--- | :--- |
@@ -21,7 +71,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.payout.cancelled"></span>`treasury.payout.cancelled` | The payout was cancelled before anything was sent. |
 | <span id="treasury.payout.needs_checking"></span>`treasury.payout.needs_checking` | A payout's outcome is unknown: TetraFi can't yet tell whether it was sent. Don't pay it again until it's confirmed. |
 
-## Fiat
+</Accordion>
+<Accordion title="Fiat">
 
 | Event | What it means |
 | :--- | :--- |
@@ -54,7 +105,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.fiat_leg.expired_unfunded"></span>`treasury.fiat_leg.expired_unfunded` | The pay-by deadline passed before the deposit arrived. |
 | <span id="treasury.fiat_leg.late_funds"></span>`treasury.fiat_leg.late_funds` | The deposit arrived after its pay-by deadline. |
 
-## Transfers
+</Accordion>
+<Accordion title="Transfers">
 
 | Event | What it means |
 | :--- | :--- |
@@ -69,7 +121,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.transfer.replaced"></span>`treasury.transfer.replaced` | A replacement transaction was recorded for the original transfer. |
 | <span id="treasury.transfer.confirmation_threshold_set"></span>`treasury.transfer.confirmation_threshold_set` | A person changed how many confirmations this transfer waits for. |
 
-## Runs
+</Accordion>
+<Accordion title="Runs">
 
 | Event | What it means |
 | :--- | :--- |
@@ -89,7 +142,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.run.recovered"></span>`treasury.run.recovered` | The recovery finished. |
 | <span id="treasury.run.cancelled"></span>`treasury.run.cancelled` | The Run was cancelled before anything more was sent. |
 
-## Run steps
+</Accordion>
+<Accordion title="Run steps">
 
 | Event | What it means |
 | :--- | :--- |
@@ -109,7 +163,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.step.custodian_approval_relayed"></span>`treasury.step.custodian_approval_relayed` | A person's approval of the step's payment reached the custodian, which still decides the outcome. |
 | <span id="treasury.step.custodian_cancel_overridden"></span>`treasury.step.custodian_cancel_overridden` | The custodian completed the step's payment after accepting its cancel; it settles as sent at the actual fee. |
 
-## Approvals
+</Accordion>
+<Accordion title="Approvals">
 
 | Event | What it means |
 | :--- | :--- |
@@ -119,19 +174,22 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.approval.denied"></span>`treasury.approval.denied` | A member declined the request, so it will not go ahead. |
 | <span id="treasury.approval.expired"></span>`treasury.approval.expired` | Nobody decided before the approval window closed, so the request will not go ahead. |
 
-## Destinations
+</Accordion>
+<Accordion title="Destinations">
 
 | Event | What it means |
 | :--- | :--- |
 | <span id="treasury.destination.retired"></span>`treasury.destination.retired` | A person retired the Destination; it cannot receive new payouts. |
 
-## Workspace
+</Accordion>
+<Accordion title="Workspace">
 
 | Event | What it means |
 | :--- | :--- |
 | <span id="treasury.workspace.frozen"></span>`treasury.workspace.frozen` | Someone froze Treasury for the workspace; no money moves until it is unfrozen. |
 
-## Balances
+</Accordion>
+<Accordion title="Balances">
 
 | Event | What it means |
 | :--- | :--- |
@@ -139,7 +197,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.balance.recovered"></span>`treasury.balance.recovered` | A balance is back above its alert threshold. The body names the rule, the wallet and the asset by its exact id (`asset`). |
 | <span id="treasury.statement.ready"></span>`treasury.statement.ready` | A monthly statement for the previous month was generated and can be downloaded under current reporting access. |
 
-## Automations
+</Accordion>
+<Accordion title="Automations">
 
 | Event | What it means |
 | :--- | :--- |
@@ -151,7 +210,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.automation.resumed"></span>`treasury.automation.resumed` | The automation starts Runs again. |
 | <span id="treasury.automation.archived"></span>`treasury.automation.archived` | The automation was archived and will not run again. |
 
-## Agents
+</Accordion>
+<Accordion title="Agents">
 
 | Event | What it means |
 | :--- | :--- |
@@ -162,7 +222,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.agent.session_signer.revoked"></span>`treasury.agent.session_signer.revoked` | An agent's signer was taken away. |
 | <span id="treasury.agent.sponsor.changed"></span>`treasury.agent.sponsor.changed` | A different member is now accountable for the agent. |
 
-## Agent payments
+</Accordion>
+<Accordion title="Agent payments">
 
 | Event | What it means |
 | :--- | :--- |
@@ -171,25 +232,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="treasury.agent.payment.refused"></span>`treasury.agent.payment.refused` | An agent's payment was refused; its reason is recorded. |
 | <span id="treasury.agent.payment.received"></span>`treasury.agent.payment.received` | An agent received a payment. |
 
-## Orders
-
-| Event | What it means |
-| :--- | :--- |
-| <span id="order.updated"></span>`order.updated` | An order or venue trade changed status; carries its id, new status and where to read it. |
-
-## Settlement
-
-| Event | What it means |
-| :--- | :--- |
-| <span id="settlement.window.ready"></span>`settlement.window.ready` | A venue account's settlement window has a new statement to review. |
-| <span id="settlement.obligation.due"></span>`settlement.obligation.due` | A settlement payment is due soon, or payable now after the statement was agreed. |
-| <span id="settlement.obligation.overdue"></span>`settlement.obligation.overdue` | A settlement payment passed its deadline unpaid. |
-| <span id="settlement.payment.matched"></span>`settlement.payment.matched` | A received payment or delivery was matched to what a window owes, or a match was reversed. |
-| <span id="settlement.failed"></span>`settlement.failed` | A settlement attempt failed. |
-| <span id="settlement.retried"></span>`settlement.retried` | A failed settlement is being attempted again. |
-| <span id="settlement.disputed"></span>`settlement.disputed` | A counterparty disputed a settlement. |
-
-## Members
+</Accordion>
+<Accordion title="Members">
 
 | Event | What it means |
 | :--- | :--- |
@@ -198,15 +242,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="member.added"></span>`member.added` | A member was added to the workspace. |
 | <span id="member.removed"></span>`member.removed` | A member was removed from the workspace. |
 
-## API keys
-
-| Event | What it means |
-| :--- | :--- |
-| <span id="api_key.rotated"></span>`api_key.rotated` | An API key was replaced with a new secret. |
-| <span id="api_key.revoked"></span>`api_key.revoked` | An API key was revoked and no longer works. |
-| <span id="api_key.expiring_soon"></span>`api_key.expiring_soon` | An API key will expire soon; rotate it to keep access. |
-
-## Liquidity provision
+</Accordion>
+<Accordion title="Liquidity provision">
 
 | Event | What it means |
 | :--- | :--- |
@@ -214,7 +251,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="lp.disabled"></span>`lp.disabled` | A liquidity provider was disabled for the workspace. |
 | <span id="lp.sla_breach"></span>`lp.sla_breach` | A liquidity provider missed its service level. |
 
-## Compliance
+</Accordion>
+<Accordion title="Compliance">
 
 | Event | What it means |
 | :--- | :--- |
@@ -225,13 +263,8 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="compliance.sanctions.flag_added"></span>`compliance.sanctions.flag_added` | A sanctions screening flag was added. |
 | <span id="compliance.event"></span>`compliance.event` | A compliance event without its own name was recorded. |
 
-## Credit
-
-| Event | What it means |
-| :--- | :--- |
-| <span id="credit.updated"></span>`credit.updated` | A venue account's agreed credit terms or its LP-reported credit limit changed. |
-
-## Affiliation
+</Accordion>
+<Accordion title="Affiliation">
 
 | Event | What it means |
 | :--- | :--- |
@@ -239,14 +272,16 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="affiliation.accepted"></span>`affiliation.accepted` | An affiliation invitation was accepted. |
 | <span id="affiliation.revoked"></span>`affiliation.revoked` | An affiliation was ended. |
 
-## Bilateral
+</Accordion>
+<Accordion title="Bilateral">
 
 | Event | What it means |
 | :--- | :--- |
 | <span id="bilateral.requested"></span>`bilateral.requested` | A counterparty asked to trade bilaterally. |
 | <span id="bilateral.accepted"></span>`bilateral.accepted` | A bilateral trading request was accepted. |
 
-## Direct users
+</Accordion>
+<Accordion title="Direct users">
 
 | Event | What it means |
 | :--- | :--- |
@@ -258,15 +293,5 @@ Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) 
 | <span id="direct_user.verification.verified"></span>`direct_user.verification.verified` | A direct user passed verification. |
 | <span id="direct_user.verification.rejected"></span>`direct_user.verification.rejected` | A direct user's verification was rejected. |
 
-## Wallets
-
-| Event | What it means |
-| :--- | :--- |
-| <span id="wallet.session_signer.granted"></span>`wallet.session_signer.granted` | A session signer was granted on a workspace wallet. |
-| <span id="wallet.session_signer.revoked"></span>`wallet.session_signer.revoked` | A session signer was revoked from a workspace wallet. |
-
-## Webhooks
-
-| Event | What it means |
-| :--- | :--- |
-| <span id="webhook.subscription.paused"></span>`webhook.subscription.paused` | Another webhook in this workspace paused after repeated failed deliveries. |
+</Accordion>
+</AccordionGroup>

@@ -210,7 +210,14 @@ amount=${TETRAFI_AMOUNT:-10}
 # endregion
 
 # region quickstart-assets
-assets=$(tetrafi GET /api/v1/assets)
+items='[]' cursor=""
+while :; do # follow nextCursor to the last page
+  page=$(tetrafi GET "/api/v1/assets?limit=200${cursor:+&cursor=$cursor}")
+  items=$(jq -c --argjson seen "$items" '$seen + .items' <<<"$page")
+  cursor=$(jq -r '.nextCursor // empty | @uri' <<<"$page")
+  [[ -n $cursor ]] || break
+done
+assets=$(jq -c '{items: .}' <<<"$items")
 for asset in "$sell" "$buy"; do
   if ! jq -e --arg a "$asset" 'any(.items[]; .asset == $a)' <<<"$assets" >/dev/null; then
     echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
@@ -239,7 +246,7 @@ jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integration
   sell: .sell.amount, buy: .buy.amount, next: .next.kind, expiresAt}' <<<"$quote" >&2
 # endregion
 
-if [[ ${TETRAFI_PLACE_ORDER:-} != 1 && ${TETRAFI_PLACE_ORDER:-} != yes ]]; then
+if [[ ${TETRAFI_PLACE_ORDER:-} != 1 ]]; then
   # Stop before ordering: you did not ask to place the order.
   jq -c -n --arg q "$quote_id" '{quoteId: $q, ordered: false}'
   exit 0

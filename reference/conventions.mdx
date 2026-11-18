@@ -1,6 +1,7 @@
 ---
 title: "Conventions"
 description: "The rules every TetraFi API request and response follows: amounts, times, ids, chains, paging, errors, request ids, rate limits, idempotency and versioning."
+keywords: ["pagination", "cursor", "decimals", "CAIP-2", "camelCase", "batch", "time format", "idempotency", "request id", "API version"]
 ---
 
 import ConventionsPaging from '/snippets/samples/conventions-paging.mdx';
@@ -23,18 +24,24 @@ Example outputs across these docs were recorded on test networks, so some show t
 
 ## Values
 
-| Value | Form | Example |
-| --- | --- | --- |
-| Amounts | Decimal strings, never JSON numbers. Parse with a decimal type, not a float. | `"10.0147"` |
-| Amount precision | At most the asset's decimals. More is refused with `400 AMOUNT_PRECISION_EXCEEDED` (`details.field`, `details.decimals`, `details.allowed`) before any quote or funding check. | |
-| Times | RFC 3339, in UTC. | `"2026-10-30T00:40:13.162Z"` |
-| Durations | ISO 8601. | `"PT2S"` |
-| Networks | CAIP-2 network ids, in fields and parameters named `network`. | `"eip155:8453"` |
-| Field names | camelCase. | `expiresAt` |
-| Ids | Opaque strings, with no promised format (not UUIDs). Store and compare them whole; never parse or validate their shape. | `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"` |
-| Enumerations | Open sets that can gain values. Treat an unknown value as "other". | `"status": "answered"` |
-| Variants | A record whose shape depends on a tag (`kind`, `status`) can gain variants. Branch on the tag, read a known variant's fields only inside its branch, and keep a default branch for one you do not know. In the TypeScript SDK, narrow with `isVariant(value, tag, name)`: comparing the tag with `===` does not narrow to that variant's fields. | `"kind": "basicTrade"` |
-| Lifecycle | A record's lifecycle is always `status`; an observation of a figure read from a venue or ledger keeps `state` (`observed`, `notStarted`, …). | `"status": "settled"` |
+| Value | Form |
+| --- | --- |
+| Amounts | Decimal strings such as `"10.0147"`, never JSON numbers: parse with a decimal type, not a float. |
+| Times | RFC 3339, in UTC: `"2026-10-30T00:40:13.162Z"`. |
+| Durations | ISO 8601: `"PT2S"`. |
+| Networks | CAIP-2 network ids such as `"eip155:8453"`, in fields and parameters named `network`. |
+| Field names | camelCase: `expiresAt`. |
+| Ids | Opaque strings with no promised format (not UUIDs): store and compare them whole. |
+| Enumerations | Open sets that can gain values, such as `"status": "answered"`. Treat a value you do not know as other ([Conventions](/reference/conventions#values)). |
+
+<Accordion title="Precision, ids, variants and lifecycle">
+| Value | Rule |
+| --- | --- |
+| Amount precision | At most the asset's decimals. More is refused with `400 AMOUNT_PRECISION_EXCEEDED` (`details.field`, `details.decimals`, `details.allowed`) before any quote or funding check. |
+| Ids | Never parse or validate their shape. Example: `"q_01JAY7Q5M3ZK8V2N4R6T8W0XYB"`. |
+| Variants | A record whose shape depends on a tag (`kind`, `status`), such as `"kind": "basicTrade"`, can gain variants. Branch on the tag, read a known variant's fields only inside its branch, and keep a default branch for one you do not know. In the TypeScript SDK (not published yet; see [SDK and samples](/sdk)), narrow with `isVariant(value, tag, name)`: comparing the tag with `===` does not narrow to that variant's fields. |
+| Lifecycle | A record's lifecycle is always `status`, such as `"status": "settled"`; an observation of a figure read from a venue or ledger keeps `state` (`observed`, `notStarted`, …). |
+</Accordion>
 
 <Accordion title="Example: read amounts and times">
   <ConventionsValues />
@@ -52,10 +59,15 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 | --- | --- |
 | Opaque tokens | Never decode, construct or edit them; their encoding is not part of the contract. |
 | Same list only | Use a token only for the same workspace, list and filters. |
+
+<Accordion title="Expired tokens, snapshot lists and page sizes">
+| Rule | Detail |
+| --- | --- |
 | Expired or invalid token | Tokens may expire, including after a server-key rotation or private-format deployment. An invalid or expired authenticated cursor answers 400: restart without `cursor`. |
 | Snapshot lists | A list with a snapshot contract may answer `409 CURSOR_STALE` after the underlying selection changes: restart from its first page. |
 | `GET /api/v1/assets` | 1 to 200 assets a page. |
 | `GET /api/v1/orders` | Up to 20 orders a page; a page can hold fewer than `limit`, even none, while more follow. |
+</Accordion>
 
 <Accordion title="Example: page through every asset">
   <ConventionsPaging />
@@ -77,13 +89,11 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 ## Request ids
 
-| Rule | Detail |
-| --- | --- |
-| Every response | Carries `X-Request-Id`; a refusal repeats it as `requestId`. Quote it to support. |
-| Your own id | Send `X-Request-Id` (up to 64 letters, digits, `-` and `_`) to trace a request in your logs and ours; the response echoes it. |
-| Invalid id | Replaced with a generated UUID, which the response carries instead. |
+Every response carries `X-Request-Id`; a refusal repeats it as `requestId`. Quote it to support.
 
-<Accordion title="Example: send your own request id">
+<Accordion title="Send your own request id">
+  Send `X-Request-Id` (up to 64 letters, digits, `-` and `_`) to trace a request in your logs and ours; the response echoes it. An invalid id is replaced with a generated UUID, which the response carries instead.
+
   <ConventionsRequestId />
 
   ```json Example output
@@ -100,7 +110,9 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 ## Read several resources at once
 
-`POST /api/v1/batch` runs up to 20 reads in one round trip. A signed API-key request cannot be batched, so a signing key sends its reads separately.
+`POST /api/v1/batch` runs up to 20 reads in one round trip, each as its own `GET` by the same caller. A signed API-key request cannot be batched, so a signing key sends its reads separately.
+
+<Accordion title="Items, rate limit, answers and refusals">
 
 | Rule | Detail |
 | --- | --- |
@@ -108,11 +120,6 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 | Authority | Each item runs as its own `GET` by the same caller: same permissions, scopes, workspace checks, body and error body. |
 | Rate limit | Each item counts as one request, all taken before any item runs. A `429 RATE_LIMITED` refuses the whole batch. |
 | Answer | `200` once admitted, items in request order. Items are independent, not atomic. |
-
-<Accordion title="Item answers, limits and whole-batch refusals">
-
-| Rule | Detail |
-| --- | --- |
 | Item answer | Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers` (`Retry-After`, `Cache-Control`). An item that had not answered by the batch's deadline answers `504 SOURCE_TIMEOUT` inside the `200`: read it again on its own. |
 | Limits | Item bodies total at most 8 MiB (past it an item answers `413 BATCH_RESPONSE_TOO_LARGE`), and at most 200 reads with related reads (past it `429 SUB_REQUEST_BUDGET_EXHAUSTED`). |
 | Refused as a whole | A malformed batch, more than 20 items, a non-`GET` item, an unknown operation, or a stream, export or file read. `details.itemId` names the item. |
@@ -121,8 +128,9 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 ## Versioning
 
-The API is versioned by date. The one supported version today is `2026-11-17`.
+The API is versioned by date. The one supported version today is `2026-11-17`. Every API key is answered in the version current when it was created; `TetraFi-Version: YYYY-MM-DD` chooses one request's version.
 
+<Accordion title="Pins, requests, webhooks and upgrading">
 | Rule | Detail |
 | --- | --- |
 | Your key's pin | Every API key records the version current when it was created, and its requests are answered in that version. |
@@ -130,7 +138,8 @@ The API is versioned by date. The one supported version today is `2026-11-17`.
 | The answer | Every response names its version in a `TetraFi-Version` header. |
 | Webhooks | Each endpoint records the version current when it was created; every body carries it as `apiVersion`. |
 | Upgrading | Test a newer version by sending its date in `TetraFi-Version`, then create a new key, which pins the newest version, and retire the old one. |
+</Accordion>
 
-Within a version, changes are additive: new operations, optional fields, headers, enumeration values, variants and error codes. A breaking change ships only as a new dated version, so a pinned key never sees it until you move. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something in place; each one is listed in the [Changelog](/changelog) with what to change.
-
-See the full [Compatibility](/compatibility) policy and the [Changelog](/changelog).
+<Accordion title="What can change within a version">
+  Within a version, changes are additive: new operations, optional fields, headers, enumeration values, variants and error codes. A breaking change ships only as a new dated version. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something in place; each one is listed in the [Changelog](/changelog) with what to change.
+</Accordion>

@@ -115,7 +115,7 @@ sign_step() {
     printf 'Unknown step type %s: not signed\n' "$(jq -r '.type' <<<"$step")" >&2
     return 1
   fi
-  if [[ $(jq -r '.from | ascii_downcase' <<<"$step") != "${address,,}" ]]; then
+  if [[ $(jq -r '.from | ascii_downcase' <<<"$step") != $(tr '[:upper:]' '[:lower:]' <<<"$address") ]]; then
     printf 'The step is for another wallet\n' >&2
     return 1
   fi
@@ -184,5 +184,4 @@ done
 # endregion
 
 jq -c --arg q "$quote_id" --arg k "$idempotency_key" --arg a "$address" \
-  '{quoteId: $q, orderId, address: $a, status, terminal, idempotencyKey: $k,
-    steps: [.operation.steps[]? | {purpose, status, txHash}]}' <<<"$state"
+  '{quoteId: $q, orderId, address: $a, status, terminal, idempotencyKey: $k}' <<<"$state"

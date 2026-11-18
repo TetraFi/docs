@@ -69,6 +69,50 @@ Answers to the questions teams ask most on arrival. For anything else, [ask the 
   </Accordion>
 </AccordionGroup>
 
+## Integrating the API
+
+<AccordionGroup>
+  <Accordion title="Is there a test environment?">
+    The API has one environment, production at `https://api.tetrafi.io`. There is no public sandbox. Quotes cost nothing, so you can build and test everything up to the order; a fill, settlement and order events need a real order, so make the first the smallest a venue takes ([Test before you trade](/testing)).
+  </Accordion>
+
+  <Accordion title="My quote expired before I ordered it. What now?">
+    Ordering it is refused with `410 QUOTE_EXPIRED`, and nothing trades. [Requote it](/search/firmness-and-lifetime#requote-a-quote) for a new quote from the same venue, or request new quotes.
+  </Accordion>
+
+  <Accordion title="My order request timed out. Did it trade?">
+    Maybe. Never order again with a new key: read `GET /api/v1/orders/by-quote/{quoteId}`, which says what the quote produced ([Retries and recovery](/trade/orders#retries-and-recovery)).
+  </Accordion>
+
+  <Accordion title="How do I know an order is finished?">
+    Read it until `terminal` is `true`; its `status` then says how it ended: `settled`, `unfilled`, `cancelled`, `failed`, `refunded` or `refused` ([Order status](/trade/order-status)).
+  </Accordion>
+
+  <Accordion title="What happens to my funds when an order fails?">
+    `refunded` means your funds were returned. A `failed` order does not by itself prove nothing traded: read its fills and the trade's `settlement.failureReason` ([Trade history](/trade/trade-history#read-one-trade)).
+  </Accordion>
+
+  <Accordion title="Can I cancel an order?">
+    Only before TetraFi claims it for dispatch, or a pay-in still waiting for your funds; otherwise it is `409 ORDER_NOT_CANCELLABLE`: `POST /api/v1/orders/{orderId}/cancel` with its own `Idempotency-Key` ([Place an order](/trade/orders)).
+  </Accordion>
+
+  <Accordion title="How often can I request quotes?">
+    One live `POST /api/v1/quotes` every 3 seconds per key. To watch markets, use [prices](/search/prices), never repeated quotes ([Rate limits](/reference/rate-limits)).
+  </Accordion>
+
+  <Accordion title="Which time zone do times use?">
+    UTC, in RFC 3339 (`2026-10-30T00:40:13.162Z`) ([Conventions](/reference/conventions#values)).
+  </Accordion>
+
+  <Accordion title="Is there an SDK?">
+    A TypeScript SDK is not published yet. The guides show the API calls in cURL, and the quickstart also in Node.js and Python; [SDK and samples](/sdk) links the full, runnable scripts.
+  </Accordion>
+
+  <Accordion title="Why did a venue not quote?">
+    Every venue's outcome is in the quote response's `sources`, with a reason when it did not answer ([Request quotes](/search/how-it-works)).
+  </Accordion>
+</AccordionGroup>
+
 ## Solvers, netting and collateral
 
 <AccordionGroup>

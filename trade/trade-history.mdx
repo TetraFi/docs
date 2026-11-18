@@ -1,0 +1,119 @@
+---
+title: "Trade history"
+description: "Read every order and exchange-account trade your workspace made, newest first, one cursor page at a time, or one trade with how it ended."
+keywords: ["trades", "trade history", "CSV export", "fills", "reconciliation"]
+---
+
+import TradesList from '/snippets/samples/trades-list.mdx';
+import TradeDetail from '/snippets/samples/trade-detail.mdx';
+
+`GET /api/v1/workspaces/{workspaceId}/trades` lists orders and exchange-account trades, newest first. To follow one order, read its `statusUrl` ([Order status](/trade/order-status)).
+
+## At a glance
+
+Paths are under `/api/v1/workspaces/{workspaceId}`.
+
+| Call (permission) | Reads |
+| --- | --- |
+| `GET …/trades` (Read trades) | [A page of trades](#read-a-page) |
+| `GET …/trades/{tradeId}` (Read trades) | [One trade, with how it ended](#read-one-trade) |
+| `GET …/trades/{tradeId}/settlement` (Read settlements) | [How one trade settled](/trade/settlement-and-credit#settlement) |
+
+<AccordionGroup>
+  <Accordion title="What each read needs">
+    Your `workspaceId` comes from `GET /api/v1/me`; another answers `404 WORKSPACE_NOT_FOUND`. The key needs Read trades. The key owner needs no workspace permission; without View compliance records, the key reads only its own trades. Permissions are in [Permissions](/authentication#permissions) and [Before your first trade](/before-you-trade).
+  </Accordion>
+</AccordionGroup>
+
+## Read a page
+
+Filter by `kind`, `status`, `from` and `to`; page with `cursor` until `nextCursor` is `null`.
+
+<AccordionGroup>
+  <Accordion title="Fields and parameters">
+
+<ResponseField name="tradeId" type="string">The trade's id.</ResponseField>
+<ResponseField name="kind" type="string">`order` (placed through TetraFi) or `venueTrade` (on your exchange account). Show an unknown kind generically.</ResponseField>
+<ResponseField name="projection" type="string">The view read through: `workspace` for an API key.</ResponseField>
+<ResponseField name="createdAt" type="string">When the trade was placed.</ResponseField>
+
+The page also carries `totalCount` (rows matching your filters), `nextCursor`, and `unreachable` for any source that could not be read.
+
+<ParamField query="kind" type="string">`all`, `order` or `venueTrade`.</ParamField>
+<ParamField query="status" type="string">Rows in this status.</ParamField>
+<ParamField query="from" type="string">An RFC 3339 time: placed at or after.</ParamField>
+<ParamField query="to" type="string">An RFC 3339 time: placed at or before.</ParamField>
+<ParamField query="limit" type="integer">The page size, 25 by default.</ParamField>
+<ParamField query="cursor" type="string">The last `nextCursor`, same filters, until `null`.</ParamField>
+<ParamField query="format" type="string">`format=csv`: the same rows as CSV, for a signed-in member only; an API key pages through the JSON.</ParamField>
+
+  </Accordion>
+  <Accordion title="Request and output">
+
+<TradesList />
+
+```json Script output: a summary line per page and per trade, not the response body
+{"totalCount":628,"nextCursor":true,"unreachable":[]}
+{"tradeId":"9410e38e-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-02T01:36:46.856947Z"}
+{"tradeId":"3ba8fe03…","kind":"order","projection":"workspace","createdAt":"2026-11-01T23:51:28Z"}
+{"tradeId":"de0a1b4b-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-01T22:55:48.448012Z"}
+{"page":2,"rows":5}
+```
+
+  </Accordion>
+  <Accordion title="The page is partial">
+    `unreachable` lists what the page could not hold, one entry per `source` (a trade kind such as `order` or `venueTrade`, or `workspaceTrades`):
+
+    - reason `unavailable`: that kind's rows could not be read. The page is partial, not shorter: read again later; the missing rows are not absent.
+    - reason `filterNotApplicable`: a filter or sort left that kind out; `filter` names it. Drop that filter to see it.
+    - reason `permissionRequired` (source `workspaceTrades`): you were served only your own trades.
+
+    New sources and reasons can appear: treat one you do not know as "the page is partial".
+  </Accordion>
+</AccordionGroup>
+
+## Read one trade
+
+`GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one trade; an order's `settlement.status` says how it ended.
+
+<AccordionGroup>
+  <Accordion title="Settlement fields, request and output">
+
+| Field | Meaning |
+| --- | --- |
+| `settlement.status` | `pending`, `settled`, `failed`, `refunded` or `unknown`. Treat an unknown value as `unknown`. |
+| `settlement.failureReason` | Why, when `status` is `failed` or `refunded`; else `null`. Show it to people; branch on `status`, never this text. |
+
+<TradeDetail />
+
+```json Example output
+{"tradeId":"673828c6…","kind":"order","settlement":{"status":"failed","failureReason":"…"}}
+```
+
+  </Accordion>
+</AccordionGroup>
+
+## Refusals
+
+<AccordionGroup>
+  <Accordion title="Trade history">
+
+| Code | Status |
+| --- | --- |
+| `INVALID_REQUEST`: an unknown parameter or value, or an unappliable filter. The answer names the parameter. | 400 |
+| `WORKSPACE_NOT_FOUND`: the path's workspace is not your key's. | 404 |
+| `TRADE_PROJECTION_UNAVAILABLE`: trade history is unreadable on this deployment right now. Retry later. | 503 |
+
+A `404` on one trade means the `tradeId` is unknown, or belongs to another workspace.
+
+  </Accordion>
+</AccordionGroup>
+
+Every other code is in [Error codes](/reference/error-codes). Full script: [trades](https://github.com/TetraFi/docs/blob/main/samples/http/trades.sh).
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Credit and settlement" icon="scale-balanced" href="/trade/settlement-and-credit">How each trade settles, and credit.</Card>
+  <Card title="Order status" icon="signal" href="/trade/order-status">Follow one order.</Card>
+</CardGroup>

@@ -1,6 +1,7 @@
 ---
 title: "Quickstart"
 description: "Create a key, list assets, get quotes from every venue your workspace can use and place a small order from your terminal."
+keywords: ["getting started", "curl", "first trade", "hello world"]
 ---
 
 import QuickstartClient from '/snippets/samples/quickstart-client.mdx'
@@ -14,27 +15,27 @@ Get quotes on 10 USDC to USDT from every venue your workspace can use, and order
 
 ## At a glance
 
-| Call | Permission | Result |
-| --- | --- | --- |
-| `GET /api/v1/assets` | Read quotes | The assets you can trade. |
-| `POST /api/v1/quotes` | Read quotes and Submit orders | A quote per venue, and every venue's outcome in `sources`. |
-| `POST /api/v1/orders` | Submit orders | An order and its `statusUrl`. |
-| `GET` the `statusUrl` | Read orders | The order, until `terminal` is `true`. |
+| Call (permission) | Result |
+| --- | --- |
+| `GET /api/v1/assets` (Read quotes) | The assets you can trade. |
+| `POST /api/v1/quotes` (Read quotes and Submit orders) | A quote per venue, and every venue's outcome in `sources`. |
+| `POST /api/v1/orders` (Submit orders) | An order and its `statusUrl`. |
+| `GET` the `statusUrl` (Read orders) | The order, until `terminal` is `true`. |
 
 ```mermaid
 flowchart LR
   K[Key] --> A[Assets] --> Q[Quotes] --> O[Order] --> S[Status]
 ```
 
-You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic). To quote, your workspace needs its company details on file; to order, also a venue account or wallet with funds ([Before your first trade](/before-you-trade)).
+To quote, your workspace needs its company details on file; to order, also a venue account or wallet with funds ([Before your first trade](/before-you-trade)).
 
-<Accordion title="About the code samples">
-  The cURL steps show the API calls of [one Bash script](https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh); run it whole, since it also signs requests, checks inputs and keeps your order record. The TypeScript SDK tab (SDK coming soon to npm) quotes USDC for ETH and waits for the order to end.
+<Accordion title="Tools and code samples">
+  The cURL, Node.js and Python tabs show the API calls of one full script per language ([below](#run-the-full-script)): run it whole, since it also signs requests, checks inputs and saves the order record. cURL needs `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic); the Node.js (18 or later) and Python (3.8 or later) scripts need no third-party packages. The tab for the TypeScript SDK (not published yet; see [SDK and samples](/sdk)) quotes USDC for ETH and waits for the order to end.
 </Accordion>
 
 <Steps>
   <Step title="Get a key">
-    In the app at `https://app.tetrafi.io`, create a personal API key with Read quotes, Submit orders and Read orders, and Venue trading on. Store its API Key and Request-signing secret separately: both are shown once.
+    At `https://app.tetrafi.io`, create a personal API key with Read quotes, Submit orders, Read orders and Venue trading. Store its API Key and Request-signing secret separately: both are shown once.
 
     <Accordion title="Where to click">
       Sign in with a second factor, in a role that can request quotes and place orders ([who can turn on venue trading](/authentication#trade-on-your-venue-accounts)).
@@ -66,7 +67,7 @@ You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic)
   </Step>
 
   <Step title="List the assets you can trade">
-    `GET /api/v1/assets` returns every asset your workspace can trade, with its variants and networks. Check both sides of your pair are listed.
+    `GET /api/v1/assets` pages through the assets your workspace can trade: follow `nextCursor` until both sides of your pair are listed.
 
     <QuickstartAssets />
 
@@ -88,7 +89,7 @@ You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic)
   </Step>
 
   <Step title="Request quotes and pick the best">
-    `POST /api/v1/quotes` asks every venue your workspace can use for what you sell, what you buy and `sellAmount`, the exact amount you sell ([Request quotes](/search/how-it-works)). Take the first quote whose `next.kind` is `order`; if none is, read `sources` ([below](#if-something-goes-wrong)). For your first real trade, set `TETRAFI_VENUES` to the venue you connected, and check the quote's venue, amounts and expiry before ordering.
+    `POST /api/v1/quotes` asks every venue your workspace can use for one pair and `sellAmount`, the exact amount you sell ([Request quotes](/search/how-it-works)). Take the first quote whose `next.kind` is `order`; if none is, read `sources` ([below](#if-something-goes-wrong)). On your first real trade, set `TETRAFI_VENUES` to the venue you connected and check the quote's venue, amounts and expiry.
 
     <QuickstartQuote />
 
@@ -119,13 +120,15 @@ You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic)
   </Step>
 
   <Step title="Place the order">
-    `POST /api/v1/orders` with the quote id places the order on the held terms. Send an `Idempotency-Key` you generate. Before sending, save `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you, and keep it after success ([Retries and recovery](/trade/orders#retries-and-recovery)).
+    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate places the order on the held terms. Before sending, save `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you, and keep it ([Retries and recovery](/trade/orders#retries-and-recovery)).
 
     <Warning>
-    An order cannot be undone, and in production it trades real assets. The cURL step orders only with `TETRAFI_PLACE_ORDER=1`: start with the [smallest amount the venue takes](#find-the-smallest-amount-a-venue-takes).
+    An order cannot be undone; in production it trades real assets. The cURL step orders only with `TETRAFI_PLACE_ORDER=1`: start with the [smallest amount the venue takes](#find-the-smallest-amount-a-venue-takes).
     </Warning>
 
-    When `minReceiveRequired` is `true`, also send [`minReceive`](/trade/orders#minimum-receive): the quoted `buy.amount` less your slippage (`TETRAFI_SLIPPAGE_BPS`, default 50 basis points), rounded down to the asset's decimals.
+    <Accordion title="When the quote needs minReceive">
+      When `minReceiveRequired` is `true`, also send [`minReceive`](/trade/orders#minimum-receive): the quoted `buy.amount` less your slippage (`TETRAFI_SLIPPAGE_BPS`, default 50 basis points), rounded down to the asset's decimals.
+    </Accordion>
 
     <QuickstartOrder />
 
@@ -143,7 +146,7 @@ You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic)
   </Step>
 
   <Step title="Read the status">
-    Read the order at its `statusUrl` until `terminal` is `true` (the cURL step reads once); `outcomeUnknown` is not a failure ([Order status](/trade/order-status)). The trade also shows in the app under **Trades**.
+    Read the order at its `statusUrl` until `terminal` is `true` (each script reads once); `outcomeUnknown` is not a failure ([Order status](/trade/order-status)). The app shows the trade under **Trades**.
 
     <QuickstartStatus />
 
@@ -155,7 +158,7 @@ You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic)
 
 ## Find the smallest amount a venue takes
 
-Quotes cost nothing; only an order moves assets. Before your first production order, find the smallest amount each venue answers and sell that first.
+Quotes cost nothing. Sell the smallest amount a venue answers in your first order.
 
 <Accordion title="Probe 1, 5, 10 and 25 USDC">
   Quote 1, 5, 10 and 25 USDC, one request every 3 seconds, and note the smallest amount each venue answers. Nothing is ordered.
@@ -190,12 +193,18 @@ Quotes cost nothing; only an order moves assets. Before your first production or
 
 A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable order answer does not prove the order failed: [recover it](/trade/orders#retries-and-recovery) and never place a fresh order.
 
-<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh">
-  Lists assets, gets quotes and, with `TETRAFI_PLACE_ORDER=1`, orders the best one.
-</Card>
+## Run the full script
+
+Each script lists assets, gets quotes and, with `TETRAFI_PLACE_ORDER=1`, orders the best one.
+
+<CardGroup cols={3}>
+  <Card title="cURL" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh">Bash.</Card>
+  <Card title="Node.js" icon="node-js" href="https://github.com/TetraFi/docs/blob/main/samples/node/quickstart.mjs">Node.js 18+.</Card>
+  <Card title="Python" icon="python" href="https://github.com/TetraFi/docs/blob/main/samples/python/quickstart.py">Python 3.8+.</Card>
+</CardGroup>
 
 <Accordion title="Run it with other values">
-  The script reads these optional variables:
+  Every script reads these optional variables:
 
 | Variable | Default | Sets |
 | --- | --- | --- |
@@ -209,6 +218,12 @@ A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable order answer does not prove 
 
 ## Next
 
-<Card title="Go-live checklist" icon="flag-checkered" href="/recipes/go-live-checklist">
-  What to have in place before production.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Go-live checklist" icon="flag-checkered" href="/recipes/go-live-checklist">
+    What to have in place before production.
+  </Card>
+
+  <Card title="Retries and recovery" icon="rotate" href="/trade/orders#retries-and-recovery">
+    Retry an order safely and find out whether it was placed.
+  </Card>
+</CardGroup>
