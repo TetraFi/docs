@@ -9,7 +9,7 @@ import RequoteExpired from '/snippets/samples/requote-expired.mdx';
 
 Each quote states what its venue commits to in `quality`, and until when in `expiresAt`: read both before you order.
 
-## Firm, executable and indicative
+## At a glance
 
 | `quality` | What it guarantees | Can you order it? |
 | --- | --- | --- |
@@ -17,15 +17,18 @@ Each quote states what its venue commits to in `quality`, and until when in `exp
 | `executable` | The venue trades until `expiresAt`. Delivery may move, but never below `minOut`. | When `next.kind` is `order`, until `expiresAt`. |
 | `indicative` | Nothing: it is the venue's current price, not a commitment. | Only when `next.kind` is `order`, with `minReceive`. |
 
+## Firm, executable and indicative
+
 <AccordionGroup>
   <Accordion title="How to recognise each, and what firmness does not cover">
 
 | `quality` | How to recognise it | Notes |
 | --- | --- | --- |
-| `firm` | `firm: true` and `expiresAt` set. `minOut` and `staleAfter` are `null`. | A `fund` quote is refused with `409 FUNDING_SHORTFALL`. |
-| `executable` | `firm: false`, `expiresAt` set and `minOut` set by your [price protection](/search/how-it-works#filters-and-sort). `staleAfter` is `null`. | Order-book and AMM quotes are executable. A `fund` quote is refused with `409 FUNDING_SHORTFALL`. |
-| `indicative` | `firm: false`, `expiresAt` `null` and `staleAfter` set. `minOut` is `null`. | Order it with `minReceive`: see Order an indicative quote below. |
+| `firm` | `firm: true` and `expiresAt` set. `minOut` and `staleAfter` are `null`. | - |
+| `executable` | `firm: false`, `expiresAt` set and `minOut` set by your [price protection](/search/how-it-works#filters-and-sort). `staleAfter` is `null`. | Order-book and AMM quotes are executable. |
+| `indicative` | `firm: false`, `expiresAt` `null` and `staleAfter` set. `minOut` is `null`. | Order it with `minReceive` (below). |
 
+- Ordering a `firm` or `executable` quote whose `next.kind` is `fund` is refused with `409 FUNDING_SHORTFALL`.
 - `firm` and `expiresAt` repeat `quality` in two fields. Treat a `quality` you do not recognise as `indicative`.
 - `lastLook` is always `false`: no venue re-checks an accepted price before it fills. An order inside a firm quote's window trades at that price or is refused unsent.
 - Firmness does not waive funding, wallet, permission or pre-trade checks. It does not mean the order will be accepted or settle immediately.
@@ -44,31 +47,17 @@ Each quote states what its venue commits to in `quality`, and until when in `exp
 
 ## Lifetime and requotes
 
-```mermaid
-flowchart LR
-  A["Held: order until expiresAt"] --> B["Lapsed: requote it"]
-  B --> C["New quote, requoteOf"]
-  B --> D["After retainUntil: search again"]
-```
-
 - Order before `expiresAt`, read from the quote, never a timer started on your side.
-- Until `retainUntil`, ordering a lapsed quote answers `410 QUOTE_EXPIRED` with `next.kind: "requote"`: requote the same id.
+- Until `retainUntil`, ordering a lapsed quote answers `410 QUOTE_EXPIRED` with `next.kind: "requote"` and sends nothing: [requote the same id](#refresh-an-expired-quote).
 - After it, a requote or an order answers `410 REQUOTE_WINDOW_CLOSED` with `next.kind: "search"`: search again.
 
 ## Ask for firm prices
 
-`firmness` sets what venues are asked for; `filters.firmOnly` only removes results that are not firm. Send `firmness: "firm"` to ask every eligible desk for a firm price up front. With `auto`, the default, a production desk is asked for a firm price only when you name it in `filters.venues.include`.
+`firmness` sets what desks are asked for; `filters.firmOnly` only removes results that are not firm. `firmness: "firm"` asks every eligible desk for a firm price up front; `auto`, the default, asks a production desk only when you name it in `filters.venues.include`; `indicative` never asks.
 
-<Accordion title="The two firmness fields">
+<Accordion title="How filters.firmOnly behaves">
 
-Two independent request fields control firmness:
-
-| Field | Value | Effect |
-| --- | --- | --- |
-| `firmness` | `auto` (default), `firm` or `indicative` | How desks are asked. `auto` asks a production desk for a firm price only when you name it in `filters.venues.include`, `firm` asks every eligible desk for a firm price up front, and `indicative` never asks for one. |
-| `filters.firmOnly` | `true`, or `false` (default) | Keeps only `firm` quotes in `quotes`, after venues answer. |
-
-How `filters.firmOnly` behaves:
+`filters.firmOnly` is `true`, or `false` (default).
 
 - It drops executable estimates and indicative quotes after the venues answer. The same venues are asked, and the search counts against the [quote limit](/reference/rate-limits) as usual.
 - A venue that gave only estimates still reads `answered` in `sources`, with no quote in `quotes`.
@@ -111,7 +100,7 @@ When `next.kind` is `requote`, `next.needs` lists what the new quote needs from 
 
 ## Requote a quote
 
-Send a quote's id to ask its venue for a new price and get one new quote from that venue. Requote to change how it executes, to get an executable price for an indicative quote or a desk's firm price when its quote reads `next.kind: "requote"`, or to refresh it after it expires.
+Send a quote's id to get one new quote from its venue: to change how it executes (`source`, `deliverTo`, `corridor` or `priceProtectionBps`), to get an executable price for an indicative quote or a desk's firm price when it reads `next.kind: "requote"`, or to refresh it after it expires.
 
 <Steps>
   <Step title="Send the quote id">
@@ -141,13 +130,6 @@ Send a quote's id to ask its venue for a new price and get one new quote from th
 </Steps>
 
 <AccordionGroup>
-  <Accordion title="Why requote">
-
-- Change how it executes: another trading wallet or venue account (`source`), destination (`deliverTo`), corridor (`corridor`) or price protection (`priceProtectionBps`).
-- Get an executable price for an indicative quote, or a desk's firm price when its quote reads `next.kind: "requote"`.
-- Refresh a quote that expired.
-
-</Accordion>
   <Accordion title="Requote fields">
 
 | Field | Required | Value |
@@ -164,7 +146,6 @@ A field you leave out keeps the original's. The pair, amount, side and filters c
   </Accordion>
   <Accordion title="How a requote behaves">
 
-- You get one new quote whose `requoteOf` names the original. Order the new id.
 - The answer is JSON, never a stream.
 - The original stays orderable until its own `expiresAt`. Each quote can still be ordered once.
 - Only that venue is asked (for a route, every venue on that same route). If it declines, you get a named refusal; TetraFi never substitutes another venue.
@@ -182,7 +163,7 @@ Here a requote at 50 basis points lowers `minOut` from `4.99182` to `4.98181` on
 
 ## Refresh an expired quote
 
-An expired quote is refused with `410 QUOTE_EXPIRED` and nothing is sent. Requote the same id.
+Requote the same id, as above, while `retainUntil` holds.
 
 <Accordion title="Example">
 

@@ -24,15 +24,8 @@ Ask every venue at once with one request, then order the quote you want by its i
 | Endpoint | You need | Result |
 | --- | --- | --- |
 | `GET /api/v1/assets` | Read quotes | The assets, variants and chains you can trade. |
-| `POST /api/v1/quotes` | Read quotes and Submit orders, plus venue trading for your venue accounts ([Before your first trade](/before-you-trade)) | `quotes`, best first, each held under its `id`, and `sources`, every venue considered with its outcome. |
-| `GET /api/v1/quotes/requests/{quoteRequestId}` | Read quotes | A recorded search. |
-
-```mermaid
-flowchart LR
-  A["POST /api/v1/quotes"] --> B["Venues answer"]
-  B --> C["Ranked quotes + sources"]
-  C --> D["Order by quote id"]
-```
+| `POST /api/v1/quotes` | Read quotes and Submit orders; [venue trading](/authentication#trade-on-your-venue-accounts) for your venue accounts | `quotes`, best first, each held under its `id`, and `sources`, every venue considered with its outcome. |
+| `GET /api/v1/quotes/requests/{quoteRequestId}` | Read quotes | A recorded search. Its `request` echo (`QuoteRequestEcho`) is not a valid new request. |
 
 ## Request and read quotes
 
@@ -72,7 +65,7 @@ Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`
     </AccordionGroup>
   </Step>
   <Step title="Read the quotes">
-    `quotes` lists the quotes best first. Order one whose `next.kind` is `order` by its `id` before `expiresAt`.
+    `quotes` lists them best first. Order one whose `next.kind` is `order` before `expiresAt`.
 
 ```json POST /api/v1/quotes response expandable
 {
@@ -100,24 +93,14 @@ Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`
 }
 ```
 
-    <AccordionGroup>
-      <Accordion title="The quote fields to read first">
+The fields to read first (each quote also carries `legs`, `fees`, `eta` and more):
 
-Each quote also carries `legs`, `fees`, `netReceived`, `eta` and more.
-
-| Field | Meaning |
-| --- | --- |
-| `next.kind` | `order`: order it now. `fund`: the paying account is short. `requote`: ask the venue again. `preflight`: an Advanced quote, not open yet. |
-| `quality`, `firm`, `expiresAt` | What the price commits to ([Firmness and requotes](/search/firmness-and-lifetime)). |
-| `buy.amount` | What lands at `deliverTo` after every fee the quote includes. |
-| `netReceived` | Also subtracts fees you pay separately, for fair comparison. `{"kind": "unavailable", "reason": ...}` when a fee could not be read, never 0. |
-| `location.kind` | `singleChain`, `crossChain`, `offChain`, or `mixed` for a route whose legs differ. |
-| `venueAsked` | `false` when every quote came from cached prices and no venue was contacted. |
-
-`GET /api/v1/quotes/requests/{quoteRequestId}` reads a recorded search. Its `request` is the recorded echo (`QuoteRequestEcho`), not a valid new request: build a fresh body instead.
-
-      </Accordion>
-    </AccordionGroup>
+<ResponseField name="next.kind" type="string">`order`: order it now. `fund`: the paying account is short. `requote`: ask the venue again. `preflight`: an Advanced quote, not open yet.</ResponseField>
+<ResponseField name="quality, firm, expiresAt" type="string, boolean, string">What the price commits to ([Firmness and requotes](/search/firmness-and-lifetime)).</ResponseField>
+<ResponseField name="buy.amount" type="string">What lands at `deliverTo` after every fee the quote includes.</ResponseField>
+<ResponseField name="netReceived" type="object">Also subtracts fees you pay separately, for fair comparison. `{"kind": "unavailable", "reason": ...}` when a fee could not be read, never 0.</ResponseField>
+<ResponseField name="location.kind" type="string">`singleChain`, `crossChain`, `offChain`, or `mixed` for a route whose legs differ.</ResponseField>
+<ResponseField name="venueAsked" type="boolean">`false` when every quote came from cached prices and no venue was contacted.</ResponseField>
   </Step>
   <Step title="Order it">
     [Place an order](/trade/orders) with the quote's `id`.
@@ -338,13 +321,9 @@ Every venue considered appears once in `sources`, with a `status`, a `reason` to
 - `fix`, when present, names the next step.
 - `creditRefusal` carries a credit owner's exact refusal. An absent or `null` `creditRefusal` means no credit detail, not proof that credit is available.
 - [Error codes](/reference/error-codes#source-reasons) lists every reason.
+- A key without [venue trading](/authentication#trade-on-your-venue-accounts) still gets `200`; its venue accounts read `restricted` with `venueTradeScopeRequired`.
 
 </Accordion>
-  <Accordion title="A key without venue trading">
-
-A key without venue trading still gets `200`, but no quotes from your venue accounts: they read `restricted` with `venueTradeScopeRequired`. Check `GET /api/v1/me` first ([Authentication](/authentication#check-what-a-key-can-do)).
-
-  </Accordion>
 </AccordionGroup>
 
 ## Size limits and minimums
@@ -437,7 +416,7 @@ Optional filters narrow the list, never widen it:
 
 ## Refusals
 
-A refused request answers the standard [error body](/trade/errors#read-a-refusal). [Error codes](/reference/error-codes) lists every code.
+Refusals use the standard [error body](/trade/errors#read-a-refusal); [Error codes](/reference/error-codes) lists every code.
 
 <AccordionGroup>
   <Accordion title="Request refusals">

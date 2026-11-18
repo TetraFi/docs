@@ -22,23 +22,11 @@ Every quote says where it trades from, how it is funded and settles, and where t
 | Change a held quote | A [requote](/search/firmness-and-lifetime#requote-a-quote) with only those parts |
 | Create a wallet | `POST /api/v1/workspaces/{workspaceId}/wallets` ([below](#create-a-wallet)) |
 
-```mermaid
-flowchart LR
-  A[Read sourceOptions] --> B[Send source and deliverTo]
-  B --> C[Quote trades from it]
-  C --> D[Output to deliverTo]
-```
-
-You need:
-
-- nothing, to get a quote: venues price with your defaults;
-- organisation wallets granted to the key, to trade from them ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)).
-
-A key trades from your venue accounts and from the organisation wallets granted to it, which TetraFi signs for within the grant's limits. It cannot trade from an external wallet that you sign yourself, a custody account or a personal wallet. Signing with your own wallet is rolling out ([Sign with your own wallet](/trade/sign-with-your-own-wallet)).
+A quote needs nothing extra: venues price with your defaults. A key trades from your venue accounts, which need no wallet signature, and from organisation wallets [granted to it](/before-you-trade#give-a-key-organisation-wallets), which TetraFi [signs for](/trade/how-a-trade-runs) within the grant's limits. It cannot trade from a custody account, a personal wallet or an external wallet you sign yourself ([rolling out](/trade/sign-with-your-own-wallet)).
 
 ## What a quote trades from
 
-Read `tradingSource`, `fundingModel` and `deliverTo` on every quote: two quotes from one venue can trade from different sources. Each part you leave out comes from your defaults.
+Two quotes from one venue can trade from different sources, so read each quote's own fields.
 
 <AccordionGroup>
   <Accordion title="Quote fields: tradingSource, fundingModel, settlement and more">
@@ -63,14 +51,6 @@ Read `tradingSource`, `fundingModel` and `deliverTo` on every quote: two quotes 
     4. The workspace's defaults.
 
     The workspace's default organisation wallet is the first one created or linked in it. Saved defaults are always organisation wallets ([Wallets and signing](/core-concepts/wallets-and-signing)).
-  </Accordion>
-  <Accordion title="Who signs">
-    On an on-chain venue, one of two parties signs:
-
-    - **TetraFi**, for an organisation wallet whose owners approved a signing grant for that venue, with per-trade and per-day caps, and which is granted to your key. Live today ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)).
-    - **You**, for a wallet whose key only you hold: TetraFi prepares each step and you sign it. Rolling out ([Sign with your own wallet](/trade/sign-with-your-own-wallet)).
-
-    Exchange and OTC accounts need no wallet signature. All the ways a trade runs: [How a trade is funded, signed and settled](/trade/how-a-trade-runs).
   </Accordion>
   <Accordion title="Example: read the source and funding of a quote">
     <TradingSourceFunding />
@@ -153,12 +133,10 @@ The parts of `source` combine: name a venue account, a funding account and tradi
 
 ### When a source is refused
 
-A wallet or account you may not use is refused before any venue is asked. A wallet a venue account has not linked is not a refusal: that venue reads `unavailable` with `tradingSourceNotLinked`.
+A wallet or account you may not use is refused before any venue is asked. A wallet a venue account has not linked is not a refusal: that venue reads `unavailable` with `tradingSourceNotLinked`, and the others still quote.
 
 <AccordionGroup>
   <Accordion title="Source refusal codes">
-
-When one venue reads `tradingSourceNotLinked`, the others still quote.
 
 | Status and code | Meaning | What to do |
 | --- | --- | --- |
@@ -238,6 +216,23 @@ A member's own API key can start an organisation wallet (with `treasury_write`) 
 <Steps>
   <Step title="Start it">
     `POST /api/v1/workspaces/{workspaceId}/wallets` with `scope` (`organisation`, or `personal` for the key's own member), a `connectionId` (a workspace wallet connection, or `platform-turnkey`), `family`, `networks`, `displayName` and an `ownerGroup`: the people who approve, each with an empty `factors` list, and the `threshold`. A personal wallet's group is the key's member alone, threshold 1. Send an `Idempotency-Key`. The answer is `202` with the pending wallet and `signingRequest.approvalUrl`.
+
+```json Request body
+{
+  "scope": "organisation",
+  "connectionId": "platform-turnkey",
+  "family": "evm",
+  "networks": ["eip155:84532"],
+  "displayName": "Treasury",
+  "ownerGroup": {
+    "members": [
+      { "person": "<workspace user id>", "factors": [], "needed": 1 },
+      { "person": "<workspace user id>", "factors": [], "needed": 1 }
+    ],
+    "threshold": 2
+  }
+}
+```
   </Step>
   <Step title="Send the owners to approve">
     Each owner, the key's member included, opens `approvalUrl`, signs in, chooses their sign-in methods and proves them. For an organisation wallet the key's member first confirms it was them with an authenticator app or security key. With `returnUrl`, on one of the workspace's registered wallet callback origins, the page sends them back with `signingRequestId` and `outcome`.
