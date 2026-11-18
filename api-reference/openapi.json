@@ -3305,6 +3305,18 @@
                   "financialAccount"
                 ],
                 "type": "string"
+              },
+              "network": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Caip2Chain",
+                    "description": "The CAIP-2 network to deliver on, for a wallet switched on for several\nnetworks of its family."
+                  }
+                ],
+                "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
               }
             },
             "required": [
@@ -5180,31 +5192,39 @@
         "type": "object"
       },
       "KeyOrganisationWalletGrantView": {
-        "description": "One open grant.",
-        "properties": {
-          "financialAccountId": {
-            "description": "The wallet's stored financial account (`acct_…`): the id `POST /quotes`\n`source.tradingWallets` names for this wallet.",
-            "type": "string"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WalletNetworkFacts",
+            "description": "The wallet's `family` and `networks` (each switched on or off), or\n`networksUnreadable` with why they could not be read."
           },
-          "grantedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "grantedBy": {
-            "description": "The user who issued the grant.",
-            "type": "string"
-          },
-          "organisationWalletId": {
-            "type": "string"
+          {
+            "properties": {
+              "financialAccountId": {
+                "description": "The wallet's stored financial account (`acct_…`): the id `POST /quotes`\n`source.tradingWallets` names for this wallet.",
+                "type": "string"
+              },
+              "grantedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "grantedBy": {
+                "description": "The user who issued the grant.",
+                "type": "string"
+              },
+              "organisationWalletId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "organisationWalletId",
+              "financialAccountId",
+              "grantedBy",
+              "grantedAt"
+            ],
+            "type": "object"
           }
-        },
-        "required": [
-          "organisationWalletId",
-          "financialAccountId",
-          "grantedBy",
-          "grantedAt"
         ],
-        "type": "object"
+        "description": "One open grant."
       },
       "KeyOrganisationWalletsView": {
         "description": "What the presented key may trade through organisation wallets now: the same\nfacts and refusal order an organisation-wallet order is checked against.",
@@ -5601,7 +5621,7 @@
             "notReported": "#/components/schemas/LedgerAmount/oneOf/1",
             "reported": "#/components/schemas/LedgerAmount/oneOf/0"
           },
-          "propertyName": "state"
+          "propertyName": "status"
         },
         "oneOf": [
           {
@@ -5609,7 +5629,7 @@
               "amount": {
                 "type": "string"
               },
-              "state": {
+              "status": {
                 "description": "New values may be added; treat unknown values as other.",
                 "enum": [
                   "reported"
@@ -5619,14 +5639,14 @@
               }
             },
             "required": [
-              "state",
+              "status",
               "amount"
             ],
             "type": "object"
           },
           {
             "properties": {
-              "state": {
+              "status": {
                 "description": "New values may be added; treat unknown values as other.",
                 "enum": [
                   "notReported"
@@ -5636,7 +5656,7 @@
               }
             },
             "required": [
-              "state"
+              "status"
             ],
             "type": "object"
           }
@@ -13530,6 +13550,18 @@
                 ],
                 "type": "string",
                 "x-extensible-enum": true
+              },
+              "network": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteRequestEchoCaip2Chain",
+                    "description": "The CAIP-2 network to deliver on, for a wallet switched on for several\nnetworks of its family."
+                  }
+                ],
+                "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
               }
             },
             "required": [
@@ -26135,6 +26167,17 @@
         "type": "string",
         "x-extensible-enum": true
       },
+      "WalletFamily": {
+        "description": "A wallet family. Clients must read a family they do not know as one they can't name.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "evm",
+          "solana",
+          "tron",
+          "bitcoin"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
+      },
       "WalletLinkRecovery": {
         "description": "Recovery for an explicitly chosen organisation wallet not linked to a Basic account.",
         "properties": {
@@ -26165,6 +26208,94 @@
           "linkHref"
         ],
         "type": "object"
+      },
+      "WalletNetworkEnablement": {
+        "description": "One network of a wallet's family and whether it is switched on for the wallet.",
+        "properties": {
+          "changedAt": {
+            "description": "When the network was last switched on or off (or recorded).",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "changedBy": {
+            "description": "The person who last switched it; absent when it was recorded from the wallet's creation or by\nits provider.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "network": {
+            "description": "The CAIP-2 network.",
+            "type": "string"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletNetworkSource",
+                "description": "Who recorded the network."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          }
+        },
+        "required": [
+          "network",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "WalletNetworkFacts": {
+        "description": "A wallet's family and its networks, as a wallet read shows them.\n\n`networksUnreadable` names why they could not be read\n(`WALLET_NETWORKS_UNRECORDED`, `WALLET_FAMILY_UNREADABLE`,\n`WALLET_NETWORKS_UNAVAILABLE`); then `family` is absent and `networks` is\nempty, which never means \"no networks\".",
+        "properties": {
+          "family": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WalletFamily",
+                "description": "The wallet's family: one key and one address on every network of it."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
+          "networks": {
+            "description": "Every network of the family recorded for the wallet, switched on or off.",
+            "items": {
+              "$ref": "#/components/schemas/WalletNetworkEnablement"
+            },
+            "type": "array"
+          },
+          "networksUnreadable": {
+            "description": "Why the family and networks could not be read; absent when they were read.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "networks"
+        ],
+        "type": "object"
+      },
+      "WalletNetworkSource": {
+        "description": "Who recorded the network. Clients must read a value they do not know as unknown.\n\nNew values may be added; treat unknown values as other.",
+        "enum": [
+          "person",
+          "provider"
+        ],
+        "type": "string",
+        "x-extensible-enum": true
       },
       "WebhookAutomationAmounts": {
         "description": "Present on a subscription to automation events: whether its deliveries\ncarry the definitions' amounts, and why not.",
