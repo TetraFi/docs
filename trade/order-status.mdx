@@ -1,6 +1,7 @@
 ---
 title: "Order status"
 description: "Follow an order to the end: one read for every order, what each status means, when it is final, what it did and when it settles."
+keywords: ["polling", "terminal", "statusUrl", "order lifecycle", "outcomeUnknown", "fills"]
 ---
 
 import OrderStatus from '/snippets/samples/order-status.mdx';
@@ -11,10 +12,12 @@ Read an order at its `statusUrl` every 10 to 15 seconds, or after `next.retryAft
 
 ## At a glance
 
-| Endpoint | Permission | Result |
-| --- | --- | --- |
-| `GET /api/v1/orders/{orderId}` | Read orders | One order, in the same envelope as the order answer, for every kind of order. |
-| `GET /api/v1/orders` | Read orders | Your workspace's orders, newest first, in the same envelope. |
+Both need Read orders and answer in the same envelope as the order answer, for every kind of order.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /api/v1/orders/{orderId}` | One order. |
+| `GET /api/v1/orders` | Your workspace's orders, newest first. |
 
 Any member or key of the workspace with Read orders can read an order; one that does not exist, or belongs to another workspace, answers `404 ORDER_NOT_FOUND`. Lost the order answer? [Recover it by its quote](/trade/orders#recover-an-order-by-its-quote).
 
@@ -30,16 +33,14 @@ Stop on `terminal`, never on a particular `status`; `next` says what to do meanw
 
 <Accordion title="Envelope fields">
 
-| Field | Meaning |
-| --- | --- |
-| `orderId` | The order's id. |
-| `kind` | `basicTrade` today. New kinds may be added: for a kind you do not recognise, keep following `status` and `terminal`, and never resubmit it. |
-| `status` | Where the order is (below). |
-| `terminal` | `true` when the order can no longer change. Stop on this, never on a particular `status`. |
-| `next` | Present only while there is something to do meanwhile (below). |
-| `statusUrl` | Where to read the order again. |
-| `quoteId` | The quote it was placed from, when known. |
-| `operation` | The venue trade's own detail, on a `basicTrade` order only. |
+<ResponseField name="orderId" type="string">The order's id.</ResponseField>
+<ResponseField name="kind" type="string">`basicTrade` today. New kinds may be added: for a kind you do not recognise, keep following `status` and `terminal`, and never resubmit it.</ResponseField>
+<ResponseField name="status" type="string">Where the order is (below).</ResponseField>
+<ResponseField name="terminal" type="boolean">`true` when the order can no longer change. Stop on this, never on a particular `status`.</ResponseField>
+<ResponseField name="next" type="object">Present only while there is something to do meanwhile (below).</ResponseField>
+<ResponseField name="statusUrl" type="string">Where to read the order again.</ResponseField>
+<ResponseField name="quoteId" type="string">The quote it was placed from, when known.</ResponseField>
+<ResponseField name="operation" type="object">The venue trade's own detail, on a `basicTrade` order only.</ResponseField>
 
 The TypeScript SDK marks a kind it does not know with `unknownKind: true` and keeps `kind`, `orderId`, `status`, `terminal` and `statusUrl`. It is an SDK marker, not a wire field.
 
@@ -73,7 +74,7 @@ stateDiagram-v2
     outcomeUnknown --> reviewRequired
 ```
 
-The diagram shows common paths; an order can skip statuses. Treat a status you do not recognise as "other" and keep following `terminal`.
+The diagram shows common paths; an order can skip statuses. Treat a value you do not know as other ([Conventions](/reference/conventions#values)); keep following `terminal`.
 
 | Not final | Final |
 | --- | --- |
@@ -86,19 +87,21 @@ The diagram shows common paths; an order can skip statuses. Treat a status you d
 <AccordionGroup>
   <Accordion title="What each status means">
 
-| `status` | What it means | Final? | What to do |
-| --- | --- | --- | --- |
-| `pending` | Accepted; nothing sent to a venue yet. | No | Keep reading. |
-| `working` | Sent to the venue and executing, including an on-chain trade waiting to confirm. | No | Keep reading. |
-| `filled` | Executed; settlement or delivery is still to complete. | No | Keep reading until it is final. |
-| `reviewRequired` | A person must review it, such as for a compliance hold. | No | Keep reading. |
-| `outcomeUnknown` | TetraFi lost track of the outcome and is reconciling it. The trade may have filled. | No | Keep reading. Never order again. |
-| `settled` | Executed and settled, or there was nothing to settle. | Yes | Nothing. |
-| `unfilled` | Not filled, or never sent, for example because the wallet refused to sign (`operation.dispatch.notSentCause`). Nothing traded. | Yes | To trade, order a new quote. |
-| `refused` | A pre-trade check refused it before anything was sent; `operation.complianceRefusal` says why. | Yes | Clear the cause, then request a new quote. |
-| `cancelled` | Cancelled before it was sent. | Yes | To trade, order a new quote. |
-| `failed` | Failed; nothing more will happen. A `failed` order does not by itself prove nothing traded. | Yes | Read the fills and settlement detail, and `settlement.failureReason`. |
-| `refunded` | Your funds were returned. | Yes | Read `settlement.failureReason`. |
+| `status` | What it means, and what to do |
+| --- | --- |
+| `pending` | Not final. Accepted; nothing sent to a venue yet. Keep reading. |
+| `working` | Not final. Sent to the venue and executing, including an on-chain trade waiting to confirm. Keep reading. |
+| `filled` | Not final. Executed; settlement or delivery is still to complete. Keep reading until it is final. |
+| `reviewRequired` | Not final. A person must review it, such as for a compliance hold. Keep reading. |
+| `outcomeUnknown` | Not final. TetraFi lost track of the outcome and is reconciling it. The trade may have filled. Keep reading. Never order again. |
+| `settled` | Final. Executed and settled, or there was nothing to settle. Nothing to do. |
+| `unfilled` | Final. Not filled, or never sent, for example because the wallet refused to sign. Nothing traded. To trade, order a new quote. |
+| `refused` | Final. A pre-trade check refused it before anything was sent. Clear the cause, then request a new quote. |
+| `cancelled` | Final. Cancelled before it was sent. To trade, order a new quote. |
+| `failed` | Final. Failed; nothing more will happen. A `failed` order does not by itself prove nothing traded. Read the fills, the settlement detail and its failure reason (below). |
+| `refunded` | Final. Your funds were returned. Read its failure reason (below). |
+
+An `unfilled` order that was never sent names the cause in `operation.dispatch.notSentCause`; for a `refused` one, `operation.complianceRefusal` says why.
 
 For a `failed` or `refunded` order, the trade history's `settlement.failureReason` says why in words ([Read one trade](/trade/trade-history#read-one-trade)).
 
@@ -122,14 +125,12 @@ A `basicTrade` order records what it actually did, not the quote: its `fills`, `
 <AccordionGroup>
   <Accordion title="Execution fields">
 
-| Field | Meaning |
-| --- | --- |
-| `fills` | Each confirmed fill in execution order: `fillId` (stable: deduplicate repeated reads by it), `amount` delivered, `sellAmount`, `price`, `at`, `venue`, and `txHash` with `network` for an on-chain fill. Empty until a fill is confirmed; a field not recorded is `null`. |
-| `quotedBuyAmount` | What the executed quote said would land. `null` when not known. |
-| `settledBuyAmount` | What actually landed. `null` until measured. |
-| `fees` | Each fee charged: `kind`, `amount`, `asset`, `network` (CAIP-2) for an on-chain charge, and `includedInPrice` (`true`: the venue took it inside its price, so it is not charged on top). |
-| `unrecordedFees` | Fee kinds the order incurred whose amount is not recorded. Show these as "not recorded", never 0. |
-| `settlesBy` | The latest time the order settles or can no longer execute under its recorded terms (below). |
+<ResponseField name="fills" type="object[]">Each confirmed fill in execution order: `fillId` (stable: deduplicate repeated reads by it), `amount` delivered, `sellAmount`, `price`, `at`, `venue`, and `txHash` with `network` for an on-chain fill. Empty until a fill is confirmed; a field not recorded is `null`.</ResponseField>
+<ResponseField name="quotedBuyAmount" type="string">What the executed quote said would land. `null` when not known.</ResponseField>
+<ResponseField name="settledBuyAmount" type="string">What actually landed. `null` until measured.</ResponseField>
+<ResponseField name="fees" type="object[]">Each fee charged: `kind`, `amount`, `asset`, `network` (CAIP-2) for an on-chain charge, and `includedInPrice` (`true`: the venue took it inside its price, so it is not charged on top).</ResponseField>
+<ResponseField name="unrecordedFees" type="string[]">Fee kinds the order incurred whose amount is not recorded. Show these as "not recorded", never 0.</ResponseField>
+<ResponseField name="settlesBy" type="string">The latest time the order settles or can no longer execute under its recorded terms (below).</ResponseField>
 
 A fee's `kind` is `trading`, `relayer`, `forwarding`, `transfer`, `network` (gas the order's wallet paid) or `platform` (the TetraFi fee). Show a kind you do not recognise generically.
 
@@ -162,13 +163,11 @@ A quote's `expiresAt` is its ordering deadline and `eta` an expected delivery ti
 <AccordionGroup>
   <Accordion title="Filters and paging">
 
-| Query parameter | What it filters |
-| --- | --- |
-| `status` | One status from the list above. |
-| `kind` | `basicTrade` or `advancedTrade`. |
-| `sellAsset`, `buyAsset` | The asset sold or bought, such as `USDC`. |
-| `from`, `to` | Created at or after, and at or before, an RFC 3339 time. |
-| `limit`, `cursor` | Up to 20 orders a page (the default); the previous page's `nextCursor`. |
+<ParamField query="status" type="string">One status from the list above.</ParamField>
+<ParamField query="kind" type="string">`basicTrade` or `advancedTrade`.</ParamField>
+<ParamField query="sellAsset, buyAsset" type="string">The asset sold or bought, such as `USDC`.</ParamField>
+<ParamField query="from, to" type="string">Created at or after, and at or before, an RFC 3339 time.</ParamField>
+<ParamField query="limit, cursor" type="integer, string">Up to 20 orders a page (the default); the previous page's `nextCursor`.</ParamField>
 
 - A filtered page can hold fewer than `limit` orders, even none, with a `nextCursor` while more remain. Keep following `nextCursor` until it is `null`.
 - A cursor belongs to the key and its filters; any other answers `400 INVALID_CURSOR` ([Conventions](/reference/conventions)).

@@ -1,6 +1,7 @@
 ---
 title: "Place an order"
 description: "Order a quote you hold by its id, retry safely with one Idempotency-Key, and recover the order by its quote after a timeout."
+keywords: ["idempotency", "Idempotency-Key", "retry", "place order", "minReceive", "slippage", "recover order"]
 ---
 
 import OrderPlace from '/snippets/samples/order-place.mdx';
@@ -13,30 +14,34 @@ Order a quote by its id: ordering is the accept, with no separate call.
 
 ## At a glance
 
-| Endpoint | Permission | Result |
-| --- | --- | --- |
-| `POST /api/v1/orders` | Submit orders, with venue trading and request signing ([Authentication](/authentication#trade-on-your-venue-accounts)) | The recorded order. |
-| `GET /api/v1/orders/by-quote/{quoteId}` | Read orders | What a quote produced. |
-| `POST /api/v1/orders/{orderId}/cancel` | Submit orders | The order, `cancelled`. |
+| Endpoint | Permission |
+| --- | --- |
+| `POST /api/v1/orders` | Submit orders, with venue trading and request signing ([Authentication](/authentication#trade-on-your-venue-accounts)) |
+| `GET /api/v1/orders/by-quote/{quoteId}`: what a quote produced | Read orders |
+| `POST /api/v1/orders/{orderId}/cancel` | Submit orders |
 
-You need a quote whose `next.kind` is `order`, and an account or wallet holding what you sell ([Before your first trade](/before-you-trade)). Every orderable quote today is Basic (`legs[].venue.integrationMode` `basic`): TetraFi executes it from your venue account, or from an organisation wallet granted to your key within its owners' limits.
+You need a quote whose `next.kind` is `order`, and an account or wallet holding what you sell ([Before your first trade](/before-you-trade)).
+
+<Accordion title="What executes today">
+  Every orderable quote today is Basic (`legs[].venue.integrationMode` `basic`): TetraFi executes it from your venue account, or from an organisation wallet granted to your key within its owners' limits.
+</Accordion>
 
 ## Place an order
 
 <Steps>
   <Step title="Choose an Idempotency-Key">
-    Generate a new random key per order and store it with the exact body before you send ([Retries and recovery](#retries-and-recovery)).
+    Generate a new random key per order; store it with the exact body before you send ([Retries](#retries-and-recovery)).
   </Step>
   <Step title="Send the order">
-    `POST /api/v1/orders` with the `Idempotency-Key` header. TetraFi kept the quote's terms; send only what you alone can supply.
+    `POST /api/v1/orders` with the `Idempotency-Key` header and the quote's id. Each quote can be ordered once.
 
-    | Field | Required | Value |
-    | --- | --- | --- |
-    | `quoteId` | Yes | The quote id (`q_…`). |
-    | `minReceive` | When the quote's `minReceiveRequired` is `true` | The least you accept to receive, in units of the asset you buy, such as `"4.99"`. |
-    | `acknowledgeHighSlippage` | When your `minReceive` is more than 10% below the quote's receive amount | `true`, to confirm you accept that much slippage ([Slippage limits](#slippage-limits)). |
+    <Accordion title="Order fields">
+      TetraFi kept the quote's terms; send only what you alone can supply. Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them.
 
-    Each quote can be ordered once. Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them.
+      <ParamField body="quoteId" type="string" required>The quote id (`q_…`).</ParamField>
+      <ParamField body="minReceive" type="string">The least you accept to receive, in units of the asset you buy, such as `"4.99"`. Required when the quote's `minReceiveRequired` is `true` ([Minimum receive](#minimum-receive)).</ParamField>
+      <ParamField body="acknowledgeHighSlippage" type="boolean">`true`, to confirm you accept that much slippage. Required when your `minReceive` is more than 10% below the quote's receive amount ([Slippage limits](#slippage-limits)).</ParamField>
+    </Accordion>
 
     <OrderPlace />
 
@@ -56,9 +61,9 @@ You need a quote whose `next.kind` is `order`, and an account or wallet holding 
     ```
   </Step>
   <Step title="Follow it to the end">
-    A `2xx` means the order is recorded, not complete. Follow it at `statusUrl` ([Order status](/trade/order-status)); if it ends without filling, order a new quote.
+    A `2xx` means recorded, not complete: follow `statusUrl` ([Order status](/trade/order-status)).
 
-    <Accordion title="On-chain orders that answer working before signing">
+    <Accordion title="On-chain orders and wallet signing">
       A Basic order on an on-chain venue answers `working` before its wallet signs. If the wallet then refuses to sign, nothing is sent and the order ends `unfilled`, with the cause in `operation.dispatch.notSentCause`.
     </Accordion>
   </Step>
@@ -66,7 +71,7 @@ You need a quote whose `next.kind` is `order`, and an account or wallet holding 
 
 ## Minimum receive
 
-Send `minReceive` when the quote reads `minReceiveRequired: true`. Other venue quotes may accept it as your own floor; a quote that executes at the price shown refuses it (`400 MIN_RECEIVE_NOT_ACCEPTED`).
+Send `minReceive`, the least you accept, when the quote reads `minReceiveRequired: true`. Some other quotes take it as your own floor, and some refuse it.
 
 ### Venues that execute within your limit
 
@@ -84,33 +89,33 @@ Send `minReceive` when the quote reads `minReceiveRequired: true`. Other venue q
   </Accordion>
   <Accordion title="What happens when minReceive is not met">
 
-| Quote | `minReceive` | If it is not met |
-| --- | --- | --- |
-| `minReceiveRequired: true` | Required. The trade happens only if the venue delivers at least that. | Missing: `400 MIN_RECEIVE_REQUIRED`, and nothing is sent. |
-| Another venue quote that accepts it | Optional: your own floor. | The venue's held firm price already delivers less: `409 VENUE_QUOTE_OUTSIDE_BOUNDS`. |
-| A quote that executes at the price shown | Leave it out. | Sent anyway: `400 MIN_RECEIVE_NOT_ACCEPTED`. |
+- A quote with `minReceiveRequired: true` requires it: the trade happens only if the venue delivers at least that. Missing, it answers `400 MIN_RECEIVE_REQUIRED`, and nothing is sent.
+- Another venue quote that accepts it takes it as your own floor, optionally. When the venue's held firm price already delivers less, it answers `409 VENUE_QUOTE_OUTSIDE_BOUNDS`.
+- A quote that executes at the price shown takes none: leave it out. Sent anyway, it answers `400 MIN_RECEIVE_NOT_ACCEPTED`.
 
-  </Accordion>
+</Accordion>
 </AccordionGroup>
 
 ### Slippage limits
 
-On an exchange or OTC venue quote, a `minReceive` is checked against the quote's receive amount before anything is sent; without one, nothing is checked. On-chain venue quotes are not checked this way.
+An exchange or OTC venue quote checks `minReceive` against its receive amount before anything is sent.
 
-<Accordion title="Your workspace's maximum, and the 10% acknowledgement">
+<Accordion title="Maximum slippage and the 10% acknowledgement">
 
-| `minReceive` below the quote by | Refused with | To pass |
-| --- | --- | --- |
-| More than your workspace's maximum slippage (Trading defaults in the app), whatever else the body says | `403 WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | Raise `minReceive`, or ask an admin to change the maximum. |
-| More than 10% | `422 HIGH_SLIPPAGE_ACK_REQUIRED` | Also send `"acknowledgeHighSlippage": true`, only when a person has accepted that slippage. |
+Without a `minReceive`, nothing is checked. On-chain venue quotes are not checked this way.
 
-On either refusal nothing is sent, and the quote can still be ordered.
+| Refused with | When `minReceive` is below the quote by, and how to pass |
+| --- | --- |
+| `403 WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | More than your workspace's maximum slippage (Trading defaults in the app), whatever else the body says. Raise `minReceive`, or ask an admin to change the maximum. |
+| `422 HIGH_SLIPPAGE_ACK_REQUIRED` | More than 10%. Also send `acknowledgeHighSlippage` as `true`, only when a person has accepted that slippage. |
+
+The acknowledgement is `"acknowledgeHighSlippage": true` in the order body. On either refusal nothing is sent, and the quote can still be ordered.
 
 </Accordion>
 
 ## Retries and recovery
 
-An API key sends an `Idempotency-Key` with every order, and retries only with the same key and body: a new key can place a second order. A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` does not prove an order failed; resolve it by reading, never by ordering again.
+Send an `Idempotency-Key` with every order and retry only with the same key and body: a new key can place a second order. A timeout, dropped connection, `5xx` or `status: "outcomeUnknown"` is not proof of failure: read, never order again.
 
 <AccordionGroup>
   <Accordion title="The key: format, storage and scope">
@@ -137,24 +142,24 @@ An API key sends an `Idempotency-Key` with every order, and retries only with th
   </Accordion>
   <Accordion title="When to retry">
 
-| Answer | What it means | What to do |
-| --- | --- | --- |
-| No answer (timeout, dropped connection) | The order may or may not have been placed. | Send the same body with the same key. |
-| `409 ORDER_IN_PROGRESS` | An order with this key is still being placed. | Wait `Retry-After`, then read the order. |
-| `409 IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this key may or may not have placed an order, and retrying the key can never tell. It has no `Retry-After`. | Stop sending this key. [Recover by quote](#recover-an-order-by-its-quote) (`details.readTarget` names the read). |
-| `503 IDEMPOTENCY_UNAVAILABLE`, `QUOTE_STORE_UNAVAILABLE` | The key or the held quote could not be read just now. | Send the same body and key after a second. |
-| `403 IDEMPOTENCY_AUTHORITY_REQUIRED` | A replay, but the key no longer holds the permission the first order needed. | Restore the permission, then replay. |
-| `409 QUOTE_ALREADY_ORDERED` | Another order, sent with a different key, already used this quote. It is not a failure. | Recover by quote. |
-| `409 IDEMPOTENCY_CONFLICT` | The key was used for a different body. | Fix your code, then recover by quote. |
+| Answer | What it means, and what to do |
+| --- | --- |
+| No answer (timeout, dropped connection) | The order may or may not have been placed. Send the same body with the same key. |
+| `409 ORDER_IN_PROGRESS` | An order with this key is still being placed. Wait `Retry-After`, then read the order. |
+| `409 IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this key may or may not have placed an order, and retrying the key can never tell. It has no `Retry-After`. Stop sending this key; [recover by quote](#recover-an-order-by-its-quote) (`details.readTarget` names the read). |
+| `503 IDEMPOTENCY_UNAVAILABLE`, `QUOTE_STORE_UNAVAILABLE` | The key or the held quote could not be read just now. Send the same body and key after a second. |
+| `403 IDEMPOTENCY_AUTHORITY_REQUIRED` | A replay, but the key no longer holds the permission the first order needed. Restore the permission, then replay. |
+| `409 QUOTE_ALREADY_ORDERED` | Another order, sent with a different key, already used this quote. It is not a failure: recover by quote. |
+| `409 IDEMPOTENCY_CONFLICT` | The key was used for a different body. Fix your code, then recover by quote. |
 
   </Accordion>
 </AccordionGroup>
 
 ### Conflict: same key, different body
 
-A reused key with a different body is refused with `409 IDEMPOTENCY_CONFLICT`; nothing is placed.
+Refused with `409 IDEMPOTENCY_CONFLICT`; nothing is placed.
 
-<Accordion title="Example: a changed body on a reused key">
+<Accordion title="Example: a changed body">
   A conflict means your code reused a key by mistake. Use a new key for a new order, but only after you have [recovered by quote](#recover-an-order-by-its-quote). Here the same quote with a `minReceive` added counts as a different body:
 
   <OrderIdempotencyConflict />
@@ -173,11 +178,11 @@ Read `GET /api/v1/orders/by-quote/{quoteId}` when you lost the answer, the key o
 
 It says what a quote produced, and works after the quote expired.
 
-| `status` | What it means | What to do |
-| --- | --- | --- |
-| `ordered` | An order exists. | Follow its `statusUrl` until `terminal` ([Order status](/trade/order-status)). Do not order again. |
-| `notOrdered` | No order was placed with this quote. | If `expired` is `false`, order it with the saved body and key, or with a new key if that key answered `IDEMPOTENCY_OUTCOME_UNKNOWN`. If `true`, requote or search again. |
-| `unknown` | TetraFi cannot yet prove either way. | Wait and read again. Do not order. |
+| `status` | What it means, and what to do |
+| --- | --- |
+| `ordered` | An order exists. Follow its `statusUrl` until `terminal` ([Order status](/trade/order-status)). Do not order again. |
+| `notOrdered` | No order was placed with this quote. If `expired` is `false`, order it with the saved body and key, or with a new key if that key's outcome was unknown ([When to retry](#retries-and-recovery)). If `true`, requote or search again. |
+| `unknown` | TetraFi cannot yet prove either way. Wait and read again. Do not order. |
 
 An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND`. A failed read answers `503 QUOTE_ORDER_UNAVAILABLE`: retry the read, never the order.
 
@@ -196,27 +201,27 @@ An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND
 
 <Steps>
   <Step title="Replay">
-    Send the saved body with the saved key. On `IDEMPOTENCY_OUTCOME_UNKNOWN`, stop replaying it.
+    Send the saved body with the saved key; on `IDEMPOTENCY_OUTCOME_UNKNOWN`, stop.
   </Step>
   <Step title="Read by quote">
     Read it by its quote, even if the replay failed.
   </Step>
   <Step title="Follow">
-    Follow the order it names until `terminal` is `true` ([Order status](/trade/order-status)).
+    Follow the order it names until `terminal` is `true`.
   </Step>
 </Steps>
 
 <Warning>
-While the outcome is unknown, never change the key or body: only `notOrdered` lets you submit again, never `unknown`, a `404` or a failed read.
+Until then, never change the key or body: only `notOrdered` lets you submit again, never `unknown`, a `404` or a failed read.
 </Warning>
 
 ## Cancel an order
 
-`POST /api/v1/orders/{orderId}/cancel` (Submit orders, its own `Idempotency-Key`) cancels an order not yet sent to a venue, or a pay-in still waiting for your funds.
+A cancel, with its own `Idempotency-Key`, stops an order not yet sent to a venue, or a pay-in still waiting for your funds.
 
 <AccordionGroup>
   <Accordion title="When a cancel is refused">
-    It answers the order with `status` `cancelled`; cancelling again changes nothing.
+    It needs Submit orders, and answers the order with `status` `cancelled`; cancelling again changes nothing.
 
     - A Basic venue trade is sent as soon as it is placed, so in practice you can cancel only while it waits for a pay-in.
     - After it is sent, its funding or delivery moved, or it ended, the cancel is refused with `409 ORDER_NOT_CANCELLABLE` and the status in `details.status`.
@@ -233,32 +238,32 @@ While the outcome is unknown, never change the key or body: only `notOrdered` le
 
 ## Refusals
 
-A refused order answers the standard [error body](/trade/errors#read-a-refusal).
+Refusals use the standard [error body](/trade/errors#read-a-refusal).
 
 <Accordion title="Order refusal codes">
 
 Unless the table says otherwise, nothing was sent. [Error codes](/reference/error-codes) lists every code.
 
-| Code | Status | Why | What to do |
-| --- | --- | --- | --- |
-| `INVALID_REQUEST` | 400 | A field is unknown or malformed, or `priceProtectionBps` was sent on a Basic quote. | Fix the field `message` names. |
-| `SIGNATURE_NOT_ACCEPTED` | 400 | A `signature` was sent on a quote that takes none. | Leave it out. |
-| `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | 400 | `minReceive` is missing on a quote that needs it, or is not a positive amount. | Send it as a positive decimal string. |
-| `ADVANCED_MODE_DISABLED` | 403 | The quote is Advanced, which is not open yet. | Order a Basic quote. |
-| `WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | 403 | `minReceive` is further below the quote than your workspace's maximum slippage. | Raise `minReceive` ([Slippage limits](#slippage-limits)). |
-| `HIGH_SLIPPAGE_ACK_REQUIRED` | 422 | `minReceive` is more than 10% below the quote, without `acknowledgeHighSlippage`. | Raise `minReceive`, or send `acknowledgeHighSlippage: true` ([Slippage limits](#slippage-limits)). |
-| `QUOTE_NOT_FOUND` | 404 | No quote with this id is available to you. | Check the id. |
-| `QUOTE_NOT_EXECUTABLE`, `QUOTE_NOT_HELD` | 409 | The quote is a price for comparison, or is no longer held. `next` is `requote`. | [Requote it](/search/firmness-and-lifetime#requote-a-quote). |
-| `VENUE_QUOTE_SEND_WINDOW_CLOSED` | 409 | The venue's firm price reached its send deadline before the order could be sent, so it was not sent. | Request a new quote and order it. |
-| `QUOTE_RECONFIRMATION_REQUIRED` | 409 | The venue's firm price could no longer be accepted when the order reached it, so it was not sent. | Request a new quote and order it. |
-| `QUOTE_ALREADY_ORDERED` | 409 | Another order already used this quote. | Find it by its quote ([Recover an order by its quote](#recover-an-order-by-its-quote)). |
-| `VENUE_QUOTE_OUTSIDE_BOUNDS` | 409 | The venue's held firm price is below your `minReceive`. | Lower `minReceive` or get a new price. |
-| `FUNDING_SHORTFALL` | 409 | The venue account holds less than the trade needs. `next` is `fund`. | Fund the account, then get a new price. |
-| `PILOT_TRADE_CAP_EXCEEDED` | 409 | Above the venue's Pilot per-trade cap. | Get a price for a smaller amount. |
-| `IDEMPOTENCY_*`, `ORDER_IN_PROGRESS` | 400, 409, 503 | The `Idempotency-Key` is missing, malformed, reused, or its order is still being placed. | [Retries and recovery](#retries-and-recovery). |
-| `QUOTE_EXPIRED` | 410 | Past `expiresAt`. `next` is `requote`. | [Requote it](/search/firmness-and-lifetime#refresh-an-expired-quote). |
-| `REQUOTE_WINDOW_CLOSED` | 410 | Past `retainUntil`. `next` is `search`. | Search again. |
-| `QUOTE_STORE_UNAVAILABLE`, `VENUE_TEMPORARILY_REFUSED` | 503 | Held quotes cannot be read just now, or the venue briefly refused. | Send the same request with the same key shortly. |
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | A field is unknown or malformed, or `priceProtectionBps` was sent on a Basic quote. Fix the field `message` names. |
+| 400 `SIGNATURE_NOT_ACCEPTED` | A `signature` was sent on a quote that takes none. Leave it out. |
+| 400 `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | `minReceive` is missing on a quote that needs it, or is not a positive amount. Send it as a positive decimal string. |
+| 403 `ADVANCED_MODE_DISABLED` | The quote is Advanced, which is not open yet. Order a Basic quote. |
+| 403 `WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | `minReceive` is further below the quote than your workspace's maximum slippage. Raise `minReceive` ([Slippage limits](#slippage-limits)). |
+| 422 `HIGH_SLIPPAGE_ACK_REQUIRED` | `minReceive` is more than 10% below the quote, without `acknowledgeHighSlippage`. Raise `minReceive`, or send `acknowledgeHighSlippage` as `true` ([Slippage limits](#slippage-limits)). |
+| 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. Check the id. |
+| 409 `QUOTE_NOT_EXECUTABLE`, `QUOTE_NOT_HELD` | The quote is a price for comparison, or is no longer held. `next` is `requote`: [requote it](/search/firmness-and-lifetime#requote-a-quote). |
+| 409 `VENUE_QUOTE_SEND_WINDOW_CLOSED` | The venue's firm price reached its send deadline before the order could be sent, so it was not sent. Request a new quote and order it. |
+| 409 `QUOTE_RECONFIRMATION_REQUIRED` | The venue's firm price could no longer be accepted when the order reached it, so it was not sent. Request a new quote and order it. |
+| 409 `QUOTE_ALREADY_ORDERED` | Another order already used this quote. Find it by its quote ([Recover an order by its quote](#recover-an-order-by-its-quote)). |
+| 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. Lower `minReceive` or get a new price. |
+| 409 `FUNDING_SHORTFALL` | The venue account holds less than the trade needs. `next` is `fund`: fund the account, then get a new price. |
+| 409 `PILOT_TRADE_CAP_EXCEEDED` | Above the venue's Pilot per-trade cap. Get a price for a smaller amount. |
+| 400, 409, 503 `IDEMPOTENCY_*`, `ORDER_IN_PROGRESS` | The `Idempotency-Key` is missing, malformed, reused, or its order is still being placed ([Retries and recovery](#retries-and-recovery)). |
+| 410 `QUOTE_EXPIRED` | Past `expiresAt`. `next` is `requote`: [requote it](/search/firmness-and-lifetime#refresh-an-expired-quote). |
+| 410 `REQUOTE_WINDOW_CLOSED` | Past `retainUntil`. `next` is `search`: search again. |
+| 503 `QUOTE_STORE_UNAVAILABLE`, `VENUE_TEMPORARILY_REFUSED` | Held quotes cannot be read just now, or the venue briefly refused. Send the same request with the same key shortly. |
 
 </Accordion>
 
