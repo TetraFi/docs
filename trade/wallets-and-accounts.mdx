@@ -48,7 +48,7 @@ Read `tradingSource`, `fundingModel` and `deliverTo` on every quote: two quotes 
 | `tradingSource` | Where it executes from: `{"kind": "wallet", "financialAccountId", "network", "venueEnablementId"}` for an on-chain venue, or `{"kind": "venueAccount", "financialAccountId", "venueEnablementId"}` for an exchange or OTC account. |
 | `fundingModel` | `prefunded` (spends money in the trading source), `credit` (the trade goes negative on a credit account; [Trade on a credit account](/trade/settlement-and-credit#trade-on-a-credit-account)) or `payIn` (you pay in after ordering, on the `payIn` terms). |
 | `fundingAccount` | The account backing execution; `kind` is `wallet`, `venueAccount` or `bankAccount`. `linkId` only when money moves through that link. |
-| `settlement` | `method` (`venueLedger`, `dvp` or `fop`) and `timing` (`immediate`, `byDeadline` or `cycle`). |
+| `settlement` | `method` (`venueLedger`, `dvp` or `fop`) and `timing` (`immediate`, `byDeadline` or `delayed`). |
 | `deliverTo` | Where the output goes, resolved, with a `displayName`. |
 | `walletSelection` | Per chain, why the wallet was chosen: `accountDefault`, `preference` or `explicit`. A record, never authority. |
 | `sourceRefusal` | Present when no source you may use can execute the quote, and says why: `code` (why), `venueId` and `fix` (the next step). |
@@ -63,6 +63,14 @@ Read `tradingSource`, `fundingModel` and `deliverTo` on every quote: two quotes 
     4. The workspace's defaults.
 
     The workspace's default organisation wallet is the first one created or linked in it. Saved defaults are always organisation wallets ([Wallets and signing](/core-concepts/wallets-and-signing)).
+  </Accordion>
+  <Accordion title="Who signs">
+    On an on-chain venue, one of two parties signs:
+
+    - **TetraFi**, for an organisation wallet whose owners approved a signing grant for that venue, with per-trade and per-day caps, and which is granted to your key. Live today ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)).
+    - **You**, for a wallet whose key only you hold: TetraFi prepares each step and you sign it. Rolling out ([Sign with your own wallet](/trade/sign-with-your-own-wallet)).
+
+    Exchange and OTC accounts need no wallet signature. All the ways a trade runs: [How a trade is funded, signed and settled](/trade/how-a-trade-runs).
   </Accordion>
   <Accordion title="Example: read the source and funding of a quote">
     <TradingSourceFunding />
