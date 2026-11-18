@@ -482,6 +482,10 @@ const ENDPOINT_GUIDES = {
   'GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}': '/trade/trade-history',
   'GET /api/v1/workspaces/{workspaceId}/venue-enablements': '/trade/wallets-and-accounts',
 };
+// A rule a client must not miss on the operation's own page, one line under its walkthrough link.
+const ENDPOINT_NOTES = {
+  'POST /api/v1/orders': 'Lost the answer, or got a timeout or `5xx`? Never order again with a new key: [recover it by its quote](/trade/orders#retries-and-recovery).',
+};
 // Each operation's stub page is api-reference/<tag>/<short name>, lowercased and hyphenated.
 const WORKSPACE_PREFIX = '/api/v1/workspaces/{workspaceId}';
 const pageSlug = (text) => text.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -513,7 +517,7 @@ function endpointMap() {
   };
   const guideFor = (op) => ENDPOINT_GUIDES[`${op.method} ${op.route}`] ?? ENDPOINT_GROUPS.find(({ tags }) => tags.includes(op.tag)).guide;
   const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `title: "${endpointName(op.method, op.route)}"`, `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', '',
-    `Walkthrough: [${guideTitle(guideFor(op))}](${guideFor(op)}).`, ''].join('\n')]);
+    `Walkthrough: [${guideTitle(guideFor(op))}](${guideFor(op)}).`, ...(ENDPOINT_NOTES[`${op.method} ${op.route}`] ? ['', ENDPOINT_NOTES[`${op.method} ${op.route}`]] : []), ''].join('\n')]);
   const seen = new Set();
   for (const [file] of stubs) {
     if (seen.has(file)) throw new Error(`ENDPOINT_PAGE_DUPLICATE ${file}`);
