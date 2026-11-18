@@ -144,13 +144,13 @@
               "key": "venue",
               "value": "<venue>",
               "disabled": true,
-              "description": "Only assets a venue offers: its venue id (`b2c2`) or one of its venue entries (`b2c2-rfq`).\nWith `venueCode`, only the asset that venue's code is (`USC` at `b2c2` is USDC)."
+              "description": "Only assets a venue offers this workspace, on-chain venues included: its venue id (`b2c2`)\nor one of its venue entries (`b2c2-rfq`). With `venueCode`, only the asset that venue's code\nis (`USC` at `b2c2` is USDC). Every filter narrows the listing; an empty value answers 400\n`INVALID_REQUEST` with `details.reason` `ASSET_FILTER_BLANK`."
             },
             {
               "key": "venueCode",
               "value": "<venueCode>",
               "disabled": true,
-              "description": "A venue's own code for an asset; needs `venue` (400 `ASSET_FILTER_INCOMPLETE` otherwise)."
+              "description": "A venue's own code for an asset; needs `venue` (otherwise 400 `INVALID_REQUEST` with\n`details.reason` `ASSET_FILTER_INCOMPLETE`)."
             },
             {
               "key": "network",
@@ -162,7 +162,7 @@
               "key": "address",
               "value": "<address>",
               "disabled": true,
-              "description": "A token address on `network`; needs `network`. A token the registry does not list matches\nnothing, whatever it calls itself."
+              "description": "A token address on `network`, in that chain's own form (EVM hex, Solana base58, Tron\nbase58check or hex); needs `network` (otherwise 400 `INVALID_REQUEST` with `details.reason`\n`ASSET_FILTER_INCOMPLETE`). A token the registry does not list matches nothing, whatever it\ncalls itself."
             }
           ]
         }
@@ -511,6 +511,71 @@
               "description": "The identifier accepted by GET /orders/{orderId}"
             }
           ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Send order step",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "<Idempotency-Key>",
+            "disabled": false,
+            "description": "Required."
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "description": "Submit a step of an order\n\nAnswers a step of an order that trades from a wallet the client signs for itself: the order's `next` with `kind: sign`. The body is tagged by `kind`: `signedTransaction` (`raw`, for TetraFi to broadcast), `transactionHash` (`txHash` of the step's transaction the client broadcast), `signature` (a `typedData` step) or `declined`. A signed transaction is checked against the step (`chainId`, `from`, `to`, `data`, `value`, `nonce`) before anything is sent; a difference refuses SIGNING_STEP_MISMATCH with details.field. Nothing is sent until the wallet's screening passed. Answers the order envelope, the same as GET, once the order moved past the step (its next step to sign, or a terminal outcome), or after 15 s. Required API-key scope: `orders_write`, with an Idempotency-Key; a replay answers the first answer and sends nothing again.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/orders/:orderId/steps/:stepId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "orders",
+            ":orderId",
+            "steps",
+            ":stepId"
+          ],
+          "variable": [
+            {
+              "key": "orderId",
+              "value": "<orderId>",
+              "description": "The order's identifier"
+            },
+            {
+              "key": "stepId",
+              "value": "<stepId>",
+              "description": "The step's `stepId` from the order's `next.step`"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"raw\": \"<raw>\",\n  \"kind\": \"signedTransaction\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         }
       },
       "response": []
@@ -2549,6 +2614,12 @@
               "value": "<cursor>",
               "disabled": true,
               "description": ""
+            },
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "Related objects to expand into `included`, comma-separated, each keyed by the wallets' `connectionId`. `connection`: the wallet's connection exactly as `GET …/wallet-providers/setup-connections` lists it to this caller, or null with that list's refusal (403 without View wallets) or 404 `WALLET_CONNECTION_NOT_FOUND` for a connection the workspace no longer has. `capabilities`: its capability report exactly as `GET …/wallet-providers/connections/{connectionId}/capabilities` answers this caller, or null with that read's refusal. Unknown relation 400 `INCLUDE_UNKNOWN`, malformed or repeated 400 `INCLUDE_INVALID`; not on a signed API-key request."
             }
           ],
           "variable": [
@@ -2588,7 +2659,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Create a wallet\n\nStarts a wallet (`scope`: `organisation`, or `personal` for the key's own member) on a wallet connection (`connectionId`: a workspace connection, or `platform-turnkey` for the one TetraFi provides) with the owner group you choose (`ownerGroup`: the people who approve, the factors each proves, and the threshold). Everything is checked before anything is recorded: the connection's capabilities, the threshold, each person's current membership and every email or Google factor being that person's verified sign-in. The answer is `202` with the pending wallet and the signing request's `id`. An API key never receives an approval capability and never approves: each person, the key's own member included, proves their factors on their own signing page, so no wallet exists at the provider until the owners have approved. Read the creation with `GET …/wallets/{walletId}` until its `status` is `active` (or `failed`, `cancelled` or `declined`).\n\nSend the person to `signingRequest.approvalUrl` (also `wallet.approvalUrl`): TetraFi's own page, where they sign in and set up their factors. With `returnUrl`, an https URL whose exact origin (scheme, host and port) is one of the workspace's registered wallet callback origins, the page sends them back there with `signingRequestId` and `outcome` added to its query: `approved` or `pending` (their part is recorded; `pending` while the wallet waits for others) at once, and `refused` only after the page has shown why and the person chose to go back. The creation's `returnTo` echoes it. An origin that is not registered, or TetraFi's own app or signing origin, is `400 RETURN_URL_NOT_REGISTERED`.\n\nA member's own API key with `treasury_write` may call this, checked as that member's permissions and standing are now (an organisation wallet needs Manage wallets). A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`); access and grants are set in the app. A service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`.\n\nAn end user's wallet: a member's own key sends `scope` `personal` with an owner group of that member's own factors only (another owner is `409 WALLET_CREATION_PERSONAL_OWNER`). Only that member, signed in on the approval page, approves it; send them to `approvalUrl` with your `returnUrl`. End-user wallets need Advanced on this platform (`403 ADVANCED_MODE_DISABLED` otherwise).\n\nFor an organisation wallet, the key's own member confirms it was them (an authenticator app or security key) when they first open the approval page, before the wallet can be completed; `startedWithApiKey` names the key. Send an `Idempotency-Key`: the same key and body make one creation, and the same key with another body is `409 IDEMPOTENCY_CONFLICT`.",
+        "description": "Create a wallet\n\nStarts a wallet (`scope`: `organisation`, or `personal` for the key's own member) on a wallet connection (`connectionId`: a workspace connection, or `platform-turnkey` for the one TetraFi provides) with the owner group you choose (`ownerGroup`: the people who approve and the threshold; send each person with an empty `factors` list, since each chooses their own sign-in methods on TetraFi's page). Everything is checked before anything is recorded: the connection's capabilities, the threshold and each person's current membership. The answer is `202` with the pending wallet and the signing request's `id`. An API key never receives an approval capability, never approves and never names a person's sign-in methods (an owner sent with factors is `403 API_KEY_WALLET_FACTORS_REFUSED`, nothing recorded): each person, the key's own member included, chooses and proves their own on their own signing page, so no wallet exists at the provider until the owners have approved. Read the creation with `GET …/wallets/{walletId}` until its `status` is `active` (or `failed`, `cancelled` or `declined`).\n\nSend the person to `signingRequest.approvalUrl` (also `wallet.approvalUrl`): TetraFi's own page, where they sign in, choose their sign-in methods and set them up. With `returnUrl`, an https URL whose exact origin (scheme, host and port) is one of the workspace's registered wallet callback origins, the page sends them back there with `signingRequestId` and `outcome` added to its query: `approved` or `pending` (their part is recorded; `pending` while the wallet waits for others) at once, and `refused` only after the page has shown why and the person chose to go back. The creation's `returnTo` echoes it. An origin that is not registered, or TetraFi's own app or signing origin, is `400 RETURN_URL_NOT_REGISTERED`.\n\nA member's own API key may call this, checked as that member's permissions and standing are now, with the scope the body needs: `orders_write` for the member's own personal wallet (with View wallets), `treasury_write` for an organisation wallet (with Manage wallets). A key without it is `403 INSUFFICIENT_SCOPE`, `details.requiredScope` naming the one it needs. A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`); access and grants are set in the app. A service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`.\n\nAn end user's wallet: a member's own key sends `scope` `personal` with an owner group of that member alone, no factors (another owner is `409 WALLET_CREATION_PERSONAL_OWNER`). Only that member, signed in on the approval page, chooses its sign-in methods and approves it; send them to `approvalUrl` with your `returnUrl`. End-user wallets need Advanced on this platform (`403 ADVANCED_MODE_DISABLED` otherwise).\n\nFor an organisation wallet, the key's own member confirms it was them (an authenticator app or security key) when they first open the approval page, before the wallet can be completed; `startedWithApiKey` names the key. Send an `Idempotency-Key`: the same key and body make one creation, and the same key with another body is `409 IDEMPOTENCY_CONFLICT`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets",
           "host": [
@@ -2689,7 +2760,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Withdraw a wallet being created\n\nWithdraws a wallet being created, saying what is known at its provider. A `pending` creation (nothing sent yet) is withdrawn at once and reads `cancelled` with `failureCode` `WALLET_CREATION_CANCELLED`. An `uncertain` one is read again first: one the provider holds, or one still inside its settle window, is refused by name (`WALLET_CREATION_EXISTS_AT_PROVIDER`, `WALLET_CREATION_ACTIVITY_EXISTS`, `WALLET_CREATION_ABSENCE_UNPROVEN`); a failed read withdraws nothing (`503 WALLET_CREATION_CANCEL_UNAVAILABLE`). Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`. A member's own API key with `treasury_write` may withdraw what its member could. `Idempotency-Key` is required: the same key replays the withdrawal.",
+        "description": "Withdraw a wallet being created\n\nWithdraws a wallet being created, saying what is known at its provider. A `pending` creation (nothing sent yet) is withdrawn at once and reads `cancelled` with `failureCode` `WALLET_CREATION_CANCELLED`. An `uncertain` one is read again first: one the provider holds, or one still inside its settle window, is refused by name (`WALLET_CREATION_EXISTS_AT_PROVIDER`, `WALLET_CREATION_ACTIVITY_EXISTS`, `WALLET_CREATION_ABSENCE_UNPROVEN`); a failed read withdraws nothing (`503 WALLET_CREATION_CANCEL_UNAVAILABLE`). Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`. A member's own API key may withdraw what its member could, with the scope its creation needed: `orders_write` for a personal wallet, `treasury_write` for an organisation wallet (`403 INSUFFICIENT_SCOPE` otherwise). `Idempotency-Key` is required: the same key replays the withdrawal.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets/:walletId/cancel",
           "host": [

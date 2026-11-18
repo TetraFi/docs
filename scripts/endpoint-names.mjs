@@ -25,6 +25,7 @@ const NAMES = {
   'GET /api/v1/orders/by-quote/{quoteId}': 'Get order by quote',
   'GET /api/v1/orders/{orderId}': 'Get order',
   'POST /api/v1/orders/{orderId}/cancel': 'Cancel order',
+  'POST /api/v1/orders/{orderId}/steps/{stepId}': 'Send order step',
 
   'GET /api/v1/workspaces/{workspaceId}/trades': 'List trades',
   'GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}': 'Get trade',

@@ -177,7 +177,7 @@ function errorCodesPage() {
       'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
     ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
       'ACROSS', 'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BUDGET', 'CCTP', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'DELIVER',
-      'DESK', 'EXACT', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'RELAY_FEE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
+      'DESK', 'EXACT', 'MORE', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'RELAY_FEE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
       'UNKNOWN', 'USABLE', 'VENUE_QUOTE_RATE_LIMITED']],
     ['Orders', 'Placing, following and cancelling an order: minimum receive, slippage, caps, the source it trades from and its execution.', [
       'ADVANCED', 'BROWSER', 'CLIENT', 'DIRECT', 'EXECUTION', 'FIRM', 'HELD', 'HIGH', 'INSUFFICIENT_BALANCE', 'INSUFFICIENT_LIQUIDITY',
