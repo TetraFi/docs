@@ -18,11 +18,7 @@ import CreditOrderWindow from '/snippets/samples/credit-order-window.mdx';
 import CreditOrderRefusals from '/snippets/samples/credit-order-refusals.mdx';
 import CreditTradeReadback from '/snippets/samples/credit-trade-readback.mdx';
 
-Read every trade your workspace placed or made on an exchange account, and the credit and settlement behind each venue account. On a credit account you trade first and settle later: what you owe is netted over a settlement window, then paid.
-
-<Note>
-  **What an API key can do.** A key quotes, orders, and reads balances, credit and settlement. It never takes a settlement action. Agreeing a statement, disputing it, marking a payment sent and paying are done by signed-in members in the TetraFi app. A key that tries one gets `403 JWT_REQUIRED`.
-</Note>
+Read every trade your workspace made, and the credit and settlement behind each venue account. On a credit account you trade first; what you and the liquidity provider (LP) owe is netted over a settlement window, then paid.
 
 ## At a glance
 
@@ -30,13 +26,10 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 
 | Endpoint | Permission | Result |
 | --- | --- | --- |
-| `GET …/trades` | Read trades | Orders and exchange-account trades, newest first. |
-| `GET …/trades/{tradeId}` | Read trades | One trade, with how it ended. |
-| `GET …/trades/{tradeId}/settlement` and `…/settlement/obligations` | Read settlements | Your side of one trade's settlement. |
-| `GET …/settlement/plan` | Read settlements | What is due across your venue accounts. |
-| `GET …/venue-accounts/{venueAccountId}/settlement/…` | Read settlements | One account's movements, obligations, schedules, windows and matches. |
-| `GET …/venue-account-credit`, `…/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read | Every account's credit at once, or one account's credit line and positions. |
-| `settlement.*` and `credit.updated` [webhooks](#webhooks) | Read settlements, Treasury read | A window ready, a payment due or overdue, a payment matched, credit changed. |
+| `GET …/trades`, `GET …/trades/{tradeId}` | Read trades | Every trade, or one with how it ended. |
+| `GET …/settlement/plan`, `GET …/trades/{tradeId}/settlement`, `GET …/venue-accounts/{venueAccountId}/settlement/…` | Read settlements | What is due, and how it settles. |
+| `GET …/venue-account-credit`, `…/venue-accounts/{venueAccountId}/credit`, `…/ledger` | Treasury read | Credit lines and positions. |
+| `settlement.*`, `credit.updated` [webhooks](#webhooks) | Read settlements, Treasury read | Told instead of polling. |
 
 ```mermaid
 flowchart LR
@@ -59,18 +52,9 @@ flowchart LR
   </Accordion>
 </AccordionGroup>
 
-<CardGroup cols={3}>
-  <Card title="Trade history" icon="clock-rotate-left" href="#trade-history">Every trade, filtered and paged.</Card>
-  <Card title="Credit" icon="credit-card" href="#credit-and-the-ledger">Credit line and positions.</Card>
-  <Card title="Settlement" icon="scale-balanced" href="#settlement">Windows, obligations and movements.</Card>
-  <Card title="Trade on credit" icon="arrow-right-arrow-left" href="#trade-on-a-credit-account">Funding, windows and refusals.</Card>
-  <Card title="Webhooks" icon="bell" href="#webhooks">React instead of polling.</Card>
-  <Card title="Refusals" icon="triangle-exclamation" href="#refusals">Codes and what to do.</Card>
-</CardGroup>
-
 ## Trade history
 
-`GET /api/v1/workspaces/{workspaceId}/trades` lists orders placed through the API or app and trades on your exchange accounts, newest first, for reconciliation and reporting. To follow one order, read its `statusUrl` ([Order status](/trade/order-status)).
+`GET /api/v1/workspaces/{workspaceId}/trades` lists orders and exchange-account trades, newest first. To follow one order, read its `statusUrl` ([Order status](/trade/order-status)).
 
 ### Read a page
 
@@ -124,7 +108,7 @@ The page also carries `totalCount` (rows matching your filters), `nextCursor`, a
 
 ### Read one trade
 
-`GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one row with its detail; an order's `settlement.status` says how it ended.
+`GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one trade; an order's `settlement.status` says how it ended.
 
 <AccordionGroup>
   <Accordion title="Settlement fields, request and output">
@@ -145,7 +129,7 @@ The page also carries `totalCount` (rows matching your filters), `nextCursor`, a
 
 ## Settlement
 
-On some venue accounts, the liquidity provider (LP) and your workspace net what each owes over a settlement window, then settle the result. No read creates a transfer, reservation, approval or instruction to the LP.
+No settlement read creates a transfer, reservation, approval or instruction to the LP.
 
 <AccordionGroup>
   <Accordion title="Every settlement read">
@@ -195,27 +179,27 @@ On some venue accounts, the liquidity provider (LP) and your workspace net what 
 
 ### Follow what an account owes
 
-Each step reads only. A refused read answers with its code, never an empty page.
+A refused read answers with its code, never an empty page.
 
-<Steps>
-  <Step title="See what is due across accounts">
+<Tabs>
+  <Tab title="Plan">
     <SettlementPlan />
-  </Step>
-  <Step title="Read the account's windows and statement">
-    Filter by `status` and follow `nextCursor`. The SDK's `listSettlementWindowsAll` follows it for you.
+  </Tab>
+  <Tab title="Windows">
+    Filter by `status` and follow `nextCursor`; the SDK's `listSettlementWindowsAll` follows it for you.
 
     <SettlementWindows />
-  </Step>
-  <Step title="Read what each side owes">
+  </Tab>
+  <Tab title="Obligations">
     <SettlementObligations />
-  </Step>
-  <Step title="Read the payments that settle it">
+  </Tab>
+  <Tab title="Movements">
     <SettlementMovements />
-  </Step>
-  <Step title="Follow one trade into its window">
+  </Tab>
+  <Tab title="One trade">
     <TradeSettlement />
-  </Step>
-</Steps>
+  </Tab>
+</Tabs>
 
 <AccordionGroup>
   <Accordion title="Example output">
@@ -234,7 +218,7 @@ Each step reads only. A refused read answers with its code, never an empty page.
 
 ## Credit and the ledger
 
-`…/credit` and `…/ledger` read the account's credit line and signed positions from the last recorded observation. An unreadable component is `unavailable` with its code, never zero; readable positions still return when credit does not.
+`…/credit` and `…/ledger` read the last recorded credit line and signed positions. An unreadable part is `unavailable` with its code, never zero.
 
 <AccordionGroup>
   <Accordion title="What each read answers">
@@ -245,28 +229,32 @@ Each step reads only. A refused read answers with its code, never an empty page.
 | `GET …/venue-accounts/{venueAccountId}/credit` | The provider's reported line (limit, used, available and overrun), the agreed facility, TetraFi's open credit commitments and the signed positions, each with its observation time. | The last recorded ledger observation; no provider call. |
 | `GET …/venue-accounts/{venueAccountId}/ledger` | The signed positions and credit line. | For a key, the last recorded observation (`source: "recorded"`), dated `observedAt`, `stale: true` past an hour. A key never starts a venue read. |
 
-A position with `prefundedOnly: true` is one the venue lets the account hold only long: selling more than its positive balance is refused whatever credit the account has, so deposit first. Without the field, the venue states no such rule.
+Readable positions still return when credit does not. A position with `prefundedOnly: true` is one the venue lets the account hold only long: selling more than its positive balance is refused whatever credit the account has, so deposit first. Without the field, the venue states no such rule.
 
   </Accordion>
 </AccordionGroup>
 
 ### Monitor credit per account
 
-`GET …/venue-account-credit` lists every venue account's credit in one call, newest account first, or only the accounts named in `venueAccountId` (comma-separated); page it with `limit` and `cursor`. An account whose credit cannot be read is one `unreachable` entry (source `venueAccounts/<venueAccountId>`, reason its refusal code) while the others are listed. Each item is what `GET …/venue-accounts/{venueAccountId}/credit` answers for that account. `observation.state` says what the provider reported:
-
-- `reported`: `limit`, `used`, `available` and `overrun`, in `asset`, as of `observedAt`. `available` is negative when use exceeds the limit.
-- `notReported`: the provider does not report credit. An agreed facility in `facility` still applies.
-- `unavailable`: the report could not be read; `error` names why. There are no figures, never zeros.
+`GET …/venue-account-credit` lists every venue account's credit, or those named in `venueAccountId`; [`credit.updated`](#webhooks) tells you when it changes.
 
 <CreditMonitor />
 
-To be told instead of polling, subscribe to [`credit.updated`](#webhooks).
+<Accordion title="Paging, unreadable accounts and observation.state">
+  It lists newest account first; `venueAccountId` is comma-separated; page with `limit` and `cursor`. An account whose credit cannot be read is one `unreachable` entry (source `venueAccounts/<venueAccountId>`, reason its refusal code) while the others are listed.
+
+  Each item is what `GET …/venue-accounts/{venueAccountId}/credit` answers for that account. `observation.state` says what the provider reported:
+
+  - `reported`: `limit`, `used`, `available` and `overrun`, in `asset`, as of `observedAt`. `available` is negative when use exceeds the limit.
+  - `notReported`: the provider does not report credit. An agreed facility in `facility` still applies.
+  - `unavailable`: the report could not be read; `error` names why. There are no figures, never zeros.
+</Accordion>
 
 ### Read the ledger
 
 <CreditLedger />
 
-`409 LEDGER_NOT_OBSERVED` means no ledger read is recorded for the account yet. A key never starts a venue read, so a member opens the account in the app, which records one; then read again.
+`409 LEDGER_NOT_OBSERVED`: no ledger read is recorded yet. A member opens the account in the app, which records one; then read again.
 
 <AccordionGroup>
   <Accordion title="Example output">
@@ -283,11 +271,16 @@ To be told instead of polling, subscribe to [`credit.updated`](#webhooks).
 
 ## Trade on a credit account
 
-You quote and order on a credit account like on any venue account ([Orders](/trade/orders)). Three things differ: how the trade is funded, the settlement window it joins, and the refusals.
+Quote and order as on any venue account ([Orders](/trade/orders)); funding, the window and the refusals differ.
 
 ### Funding is derived, not chosen
 
-You never choose credit or balance. The account's positions and credit decide, and each quote says what they decided:
+The account's positions and credit decide, not you; each quote's `fundingModel` says which.
+
+<CreditQuoteFunding />
+
+<AccordionGroup>
+  <Accordion title="Funding fields on the quote">
 
 | Field | Meaning |
 | --- | --- |
@@ -297,9 +290,9 @@ You never choose credit or balance. The account's positions and credit decide, a
 | `creditReservation` | On a firm ask, the cash and credit held for this quote until `expiresAt` or until your order takes it. |
 | `settlement.window` | On a delayed trade, the window it settles in: `windowId`, `paymentDeadlineAt` and, on a clock window, `settlesBy`. |
 
-<CreditQuoteFunding />
-
-A card that cannot be ordered says why in `sourceRefusal`. On a credit account, `creditRefusal.fix` is the way forward:
+  </Accordion>
+  <Accordion title="A quote refused for credit: fix.kind">
+    A card that cannot be ordered says why in `sourceRefusal`. On a credit account, `creditRefusal.fix` is the way forward:
 
 | `fix.kind` | What to do |
 | --- | --- |
@@ -307,15 +300,17 @@ A card that cannot be ordered says why in `sourceRefusal`. On a credit account, 
 | `reduceExposure` | The account is over its limit by `overBy` of `asset`. Only a trade that reduces what it owes passes. |
 | `retryRead` | The credit figures could not be read fresh enough. Ask again. |
 
-Treat an unknown `kind` as "request a new quote".
+    Treat an unknown `kind` as "request a new quote".
 
-<CreditQuoteRefusal />
+    <CreditQuoteRefusal />
+  </Accordion>
+</AccordionGroup>
 
 ### Order with its settlement window
 
-A quote that settles later carries `settlement.window`. Your order consents to that window: send its `windowId` as `settlementWindowId` (leaving it out consents to the quote's own window).
+Your order consents to the quote's `settlement.window`: send its `windowId` as `settlementWindowId`, or leave it out to consent to the quote's own window.
 
-The window can change between the quote and the send, for example at a cut-off. Then the order is refused with `409 SETTLEMENT_WINDOW_CHANGED` and nothing is sent. `details.currentWindow` is the window the trade would join now, and `details.consentedWindow` the one you consented to. Show the new window to whoever decides, then send the same quote again with `settlementWindowId` set to `details.currentWindow.windowId`.
+If the window changes first, such as at a cut-off, the order is refused with `409 SETTLEMENT_WINDOW_CHANGED` and nothing is sent. Show `details.currentWindow` (the window now; `details.consentedWindow` is yours) to whoever decides, then send the same quote with `settlementWindowId` set to `details.currentWindow.windowId`.
 
 <CreditOrderWindow />
 
@@ -335,24 +330,27 @@ The window can change between the quote and the send, for example at a cut-off. 
 
 The SDK reads the details for you: `creditRefusalOf(error)` returns `details.creditRefusal` on `CREDIT_LIMIT_BREACH` and `CREDIT_READ_UNAVAILABLE`, and `prefundedHeadroomOf(error)` returns `{ maxAmount, asset }` on `VENUE_PREFUNDED_BALANCE_INSUFFICIENT`. Both return `null` on any other code.
 
+<CreditOrderRefusals />
+
   </Accordion>
 </AccordionGroup>
 
-<CreditOrderRefusals />
-
 ### Read it back
 
-After the fill, read the trade's settlement and the account's credit, which now includes the trade.
+After the fill, read the trade's settlement and the account's credit, which now includes it.
 
 <CreditTradeReadback />
 
 ## Settlement actions are for members
 
-Agreeing a statement, disputing it, marking a bank payment sent and paying a window are not part of the API. Signed-in members do them in the TetraFi app, with the approvals your workspace requires. An API key or service-account token that calls one gets `403 JWT_REQUIRED`. Use the reads and webhooks on this page to know when a member needs to act.
+A key never takes a settlement action. Signed-in members agree or dispute a statement, mark a bank payment sent and pay a window in the TetraFi app, with your workspace's approvals. A key or service-account token gets `403 JWT_REQUIRED`. The reads and webhooks here tell you when a member must act.
 
 ## Webhooks
 
-Subscribe to these through [webhooks](/trade/webhooks) instead of polling. A key subscribing to a `settlement.*` event needs Read settlements, and to `credit.updated` needs Treasury read; otherwise it gets `403 INSUFFICIENT_SCOPE`.
+Payloads carry ids, not statements: read the detail above. Delivery rules: [Webhooks](/trade/webhooks).
+
+<Accordion title="Events, payloads and permissions">
+  A key subscribing to a `settlement.*` event needs Read settlements, and to `credit.updated` needs Treasury read; otherwise it gets `403 INSUFFICIENT_SCOPE`.
 
 | Event | `data.status` | Then read |
 | --- | --- | --- |
@@ -362,9 +360,8 @@ Subscribe to these through [webhooks](/trade/webhooks) instead of polling. A key
 | [`settlement.payment.matched`](/reference/webhook-events#settlement.payment.matched) | `paymentReceived`, `deliveryReceived` or `reversed` | The movement (`movementId`) and the window's matches. |
 | [`credit.updated`](/reference/webhook-events#credit.updated) | `agreedTermsChanged` or `lpReportedLimitChanged` | The account's credit (`termsVersion` is the new terms version). |
 
-Every settlement event's `data` carries `workspaceId`, `venueAccountId`, `windowId` and `status`, plus the ids above when they apply. `credit.updated` carries `workspaceId`, `venueAccountId`, `termsVersion` and `status`. Payloads carry ids, not statements: read the detail with the reads above. New `status` values may appear, so keep a default branch.
-
-Verify each delivery before you parse it, and deduplicate on its `id`: delivery is at least once ([Verify a delivery](/trade/webhooks)).
+  Every settlement event's `data` carries `workspaceId`, `venueAccountId`, `windowId` and `status`, plus the ids above when they apply. `credit.updated` carries `workspaceId`, `venueAccountId`, `termsVersion` and `status`. New `status` values may appear, so keep a default branch.
+</Accordion>
 
 ## Refusals
 
@@ -401,10 +398,7 @@ A `404` on one trade means the `tradeId` is unknown, or belongs to another works
 
 Every other code is in [Error codes](/reference/error-codes).
 
-<CardGroup cols={2}>
-  <Card title="Run the trades script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/trades.sh">Pages your trade history and reads one trade.</Card>
-  <Card title="Run the credit and settlement script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/credit-settlement.sh">Reads credit, the ledger, the plan, windows, obligations, movements and one trade's settlement.</Card>
-</CardGroup>
+Full scripts: [trades](https://github.com/TetraFi/docs/blob/main/samples/http/trades.sh) and [credit and settlement](https://github.com/TetraFi/docs/blob/main/samples/http/credit-settlement.sh).
 
 ## Next
 

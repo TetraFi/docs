@@ -9,7 +9,7 @@ import CrossChainOrder from '/snippets/samples/recipe-cross-chain-order.mdx';
 import CrossChainStatus from '/snippets/samples/recipe-cross-chain-status.mdx';
 import CrossChainArrival from '/snippets/samples/recipe-cross-chain-arrival.mdx';
 
-Move USDC to the same USDC on another chain; TetraFi executes it from one of your organisation wallets, so no wallet signature is needed.
+Move USDC to the same USDC on another chain. TetraFi executes it from an organisation wallet, so you sign no transaction.
 
 ## At a glance
 
@@ -30,13 +30,10 @@ flowchart LR
 ## Before you begin
 
 - `bash`, `curl`, `jq` and `openssl`.
-- An API key with Read quotes, Submit orders and Read orders ([Authentication](/authentication)), plus [venue trading](/authentication#trade-on-your-venue-accounts): a move from an organisation wallet is a Basic trade.
-- An organisation wallet [granted to the key](/before-you-trade#give-a-key-organisation-wallets), holding USDC and gas on the chain you sell from.
+- An API key with Read quotes, Submit orders, Read orders, [venue trading](/authentication#trade-on-your-venue-accounts) (a move from an organisation wallet is a Basic trade) and [signed requests](/authentication#sign-requests).
+- An organisation wallet [granted to the key](/before-you-trade#give-a-key-organisation-wallets), holding USDC and gas on the chain you sell from: it sends the transactions itself.
 
 <AccordionGroup>
-  <Accordion title="Why venue trading, gas and signed requests">
-    A move from an organisation wallet is a Basic trade, so the key needs venue trading. Sign every request: see [Sign requests](/authentication#sign-requests). The wallet sends the transactions itself, so it needs gas as well as USDC on the chain you sell from.
-  </Accordion>
   <Accordion title="Environment variables">
     Export your environment, as in the [Quickstart](/quickstart):
 
@@ -88,7 +85,7 @@ This recipe places a real order that moves funds out of your organisation wallet
   </Step>
 
   <Step title="Place the order">
-    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate and keep: a retry with the same key and body returns the first answer, never a second move. When the quote's `minReceiveRequired` is `true`, also send `minReceive`.
+    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` ([Retries and recovery](/trade/orders#retries-and-recovery)). When the quote's `minReceiveRequired` is `true`, also send `minReceive`.
 
     <CrossChainOrder />
 
@@ -96,17 +93,15 @@ This recipe places a real order that moves funds out of your organisation wallet
     {"kind":"basicTrade","orderId":"f1103a3a-…","quoteId":"q_01M5XS49…","status":"working","terminal":false,"statusUrl":"/api/v1/orders/f1103a3a-…","operation":{"connectionId":"…","operationId":"f1103a3a-…"}}
     ```
 
-    <Accordion title="Retries and minReceive">
-      Retrying and recovering an order: [Retries and recovery](/trade/orders#retries-and-recovery).
-
+    <Accordion title="minReceive on a bridge">
       Bridges usually quote indicatively. `minReceive` is the least you accept, such as the quoted amount less 50 basis points ([Orders](/trade/orders#venues-that-execute-within-your-limit)). Without it, the order is refused with `400 MIN_RECEIVE_REQUIRED` and nothing is sent.
 
-      Follow the order at its `statusUrl`; `operation` identifies the venue trade for support.
+      `operation` identifies the venue trade for support.
     </Accordion>
   </Step>
 
   <Step title="Follow it until it ends">
-    The order answers `"kind": "basicTrade"` once accepted. Read its `statusUrl` every 10 seconds until `terminal` is `true`, or after `retryAfter` when `next` says `wait` ([Order status](/trade/order-status)). `working` and `outcomeUnknown` are not failures: keep reading, and never order it again.
+    The order answers `"kind": "basicTrade"` once accepted. Read its `statusUrl` until `terminal` is `true` ([Order status](/trade/order-status)).
 
     <CrossChainStatus />
 
@@ -121,7 +116,7 @@ This recipe places a real order that moves funds out of your organisation wallet
   </Step>
 
   <Step title="Confirm it arrived">
-    The venue trade's own detail is under `operation`. To confirm arrival independently, read the receiving wallet's balance ([Balances](/trade/balances)).
+    `operation` holds the venue trade's detail. To confirm arrival independently, read the receiving wallet's [balance](/trade/balances).
 
     <CrossChainArrival />
 
