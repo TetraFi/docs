@@ -30,9 +30,7 @@ flowchart LR
 To quote, your workspace needs its company details on file; to order, also a venue account or wallet with funds ([Before your first trade](/before-you-trade)).
 
 <Accordion title="Tools and code samples">
-  You need `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic).
-
-  The cURL steps show the API calls of [one Bash script](https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh); run it whole, since it also signs requests, checks inputs and keeps your order record. The tab for the TypeScript SDK (not published yet; see [SDK and samples](/sdk)) quotes USDC for ETH and waits for the order to end.
+  The cURL, Node.js and Python tabs show the API calls of one full script per language ([below](#run-the-full-script)): run it whole, since it also signs requests, checks inputs and saves the order record. cURL needs `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic); the Node.js (18 or later) and Python (3.8 or later) scripts need no third-party packages. The tab for the TypeScript SDK (not published yet; see [SDK and samples](/sdk)) quotes USDC for ETH and waits for the order to end.
 </Accordion>
 
 <Steps>
@@ -160,7 +158,7 @@ To quote, your workspace needs its company details on file; to order, also a ven
 
 ## Find the smallest amount a venue takes
 
-Quotes cost nothing; only an order moves assets. Sell the smallest amount a venue answers in your first production order.
+Quotes cost nothing. Sell the smallest amount a venue answers in your first order.
 
 <Accordion title="Probe 1, 5, 10 and 25 USDC">
   Quote 1, 5, 10 and 25 USDC, one request every 3 seconds, and note the smallest amount each venue answers. Nothing is ordered.
@@ -195,12 +193,18 @@ Quotes cost nothing; only an order moves assets. Sell the smallest amount a venu
 
 A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable order answer does not prove the order failed: [recover it](/trade/orders#retries-and-recovery) and never place a fresh order.
 
-<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh">
-  Lists assets, gets quotes and, with `TETRAFI_PLACE_ORDER=1`, orders the best one.
-</Card>
+## Run the full script
+
+Each script lists assets, gets quotes and, with `TETRAFI_PLACE_ORDER=1`, orders the best one.
+
+<CardGroup cols={3}>
+  <Card title="cURL" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh">Bash.</Card>
+  <Card title="Node.js" icon="node-js" href="https://github.com/TetraFi/docs/blob/main/samples/node/quickstart.mjs">Node.js 18+.</Card>
+  <Card title="Python" icon="python" href="https://github.com/TetraFi/docs/blob/main/samples/python/quickstart.py">Python 3.8+.</Card>
+</CardGroup>
 
 <Accordion title="Run it with other values">
-  The script reads these optional variables:
+  Every script reads these optional variables:
 
 | Variable | Default | Sets |
 | --- | --- | --- |
