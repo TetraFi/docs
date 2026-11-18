@@ -1,6 +1,7 @@
 ---
 title: "API overview"
 description: "Get quotes from every venue your workspace can use with one request, then order the one you choose by its id."
+keywords: ["introduction", "what is TetraFi", "API", "REST API", "integration"]
 ---
 
 Your backend gets quotes, places orders and follows them to the end, as your team does in the app.
@@ -81,12 +82,12 @@ A trade runs one of five ways, and each quote says which ([How a trade is funded
 
 One quote request names the asset you sell, the asset you buy and one exact amount. Every venue your workspace can use is asked at once (on-chain protocols, DEXs, bridges, solvers and your exchange and OTC accounts); quotes come back best first, net of fees, with each venue's outcome, so a missing quote always has a reason.
 
-| Step | Call | What happens |
-| --- | --- | --- |
-| Quote | `POST /api/v1/quotes` | Venues answer; each quote is held under its `id` until it expires. |
-| Order | `POST /api/v1/orders` with `{"quoteId": "<id>"}` | Places the order on the held terms. You send the id, never a copy of the quote. |
-| Follow | `GET` the order's `statusUrl`, or a [webhook](/trade/webhooks) | Read it until `terminal` is `true`. |
-| Requote | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<id>"}` | Asks the same venue again for fresh terms. |
+| Step | Call, and what happens |
+| --- | --- |
+| Quote | `POST /api/v1/quotes`: venues answer; each quote is held under its `id` until it expires. |
+| Order | `POST /api/v1/orders` with `{"quoteId": "<id>"}` places the order on the held terms. You send the id, never a copy of the quote. |
+| Follow | `GET` the order's `statusUrl`, or receive a [webhook](/trade/webhooks), until `terminal` is `true`. |
+| Requote | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<id>"}` asks the same venue again for fresh terms. |
 
 Each quote's `next.kind` names your next step: `order`, `fund` (the paying account is short) or `requote`.
 
