@@ -5,9 +5,14 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 The API is in preview until launch, so a change here can still remove or rename something. From launch on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
-<Update label="2026-11-18" description="Create organisation wallets with an API key">
+<Update label="2026-11-18" description="Create wallets with an API key, find assets by venue or address, and signing with your own wallet (rolling out)">
   - Rolling out, not live yet: trade on on-chain venues from a wallet you sign for yourself ([Sign with your own wallet](/trade/sign-with-your-own-wallet)).
   - New wallet creation: `POST /api/v1/workspaces/{workspaceId}/wallets` starts an organisation wallet with the owners who approve it, `GET …/wallets` and `GET …/wallets/{walletId}` follow it, and `POST …/wallets/{walletId}/cancel` withdraws it. Each owner approves on their own signing page; an API key never approves ([Create an organisation wallet](/trade/wallets-and-accounts#create-a-wallet)).
+  - A key can also start its own member's personal wallet (`scope: personal`, with `orders_write`, where Advanced is enabled); an organisation wallet needs `treasury_write`. A key holding only the other scope is `403 INSUFFICIENT_SCOPE` with `details.requiredScope`.
+  - **Breaking.** A key never names a person's sign-in methods: send each owner with empty `factors`; an owner with factors is `403 API_KEY_WALLET_FACTORS_REFUSED` and nothing is recorded. Each person chooses their own on the signing page at `approvalUrl`.
+  - An owner can be named by one of their own wallets (`ownerGroup.members[].walletId`, `needed` 1) instead of sign-in methods, once a wallet connection offers it; until then such a create is refused as before.
+  - `GET /api/v1/assets` takes optional filters `venue`, `venueCode`, `network` and `address`, and an asset gains `issuer` and `coingeckoId` ([Find one asset](/search/how-it-works#use-values-from-discovery)). USD, USDC, USDT, EUR and EURC are separate assets.
+  - **Breaking, never produced.** A quote's `next.kind` no longer lists `transact` or `sign`, and the `TakerTransaction` schema is gone: no quote ever carried them. `sign` now exists only on an order, for a step you sign ([Sign with your own wallet](/trade/sign-with-your-own-wallet)).
 </Update>
 
 <Update label="2026-11-17" description="Dated versions, quote retries, open variants, status and network names, and credit for every account">

@@ -65,14 +65,14 @@ This recipe moves funds out of your wallet once it is live.
         "mode": "you",
         "address": "0xAbc…",
         "firstStep": {
-          "stepId": "stp_01A…",
+          "stepId": "3f2b9c1e-8d4a-4c7e-9b1f-…",
           "sequence": 1,
           "purpose": "approval",
           "type": "transaction",
           "network": "eip155:8453",
           "from": "0xAbc…",
           "signBy": "2026-11-18T12:00:45Z",
-          "transaction": {"chainId": 8453, "to": "0x…", "data": "0x095ea7b3…", "value": "0", "nonce": 17, "gasLimit": "65000"}
+          "transaction": {"to": "0x…", "data": "0x095ea7b3…", "value": "0", "nonce": 17}
         }
       }
     }
@@ -84,7 +84,7 @@ This recipe moves funds out of your wallet once it is live.
   </Step>
 
   <Step title="Sign the approval">
-    Sign `firstStep.transaction` exactly as given, with its `nonce`. The fee is yours to choose and `gasLimit` is a suggestion. Check first that `type` is `transaction` and `from` is your address.
+    Sign `firstStep.transaction` exactly as given, with its `nonce`, on the chain of its `network` (`eip155:8453` is chain 8453). Gas and fees are yours to choose. Check first that `type` is `transaction` and `from` is your address.
 
     <Tabs>
       <Tab title="cast">
@@ -92,15 +92,14 @@ This recipe moves funds out of your wallet once it is live.
         # step holds firstStep (or a later next.step) as JSON
         tx=$(jq -c '.transaction' <<<"$step")
         raw=$(cast mktx "$(jq -r .to <<<"$tx")" "$(jq -r .data <<<"$tx")" \
-          --chain "$(jq -r .chainId <<<"$tx")" \
+          --chain "$(jq -r '.network | split(":")[1]' <<<"$step")" \
           --nonce "$(jq -r .nonce <<<"$tx")" \
           --value "$(jq -r .value <<<"$tx")" \
-          --gas-limit "$(jq -r .gasLimit <<<"$tx")" \
           --rpc-url "$BASE_RPC_URL" \
           --private-key "$SIGNER_PRIVATE_KEY")
         ```
 
-        `cast mktx` signs without broadcasting and prints the raw transaction. It reads current fees from `--rpc-url`; pass `--gas-price` and `--priority-gas-price` to set them yourself.
+        `cast mktx` signs without broadcasting and prints the raw transaction. It estimates gas and reads current fees from `--rpc-url`; pass `--gas-price` and `--priority-gas-price` to set them yourself.
       </Tab>
       <Tab title="viem">
         ```ts
@@ -111,8 +110,9 @@ This recipe moves funds out of your wallet once it is live.
         type TransactionStep = {
           stepId: string;
           type: string;
+          network: string; // CAIP-2, e.g. eip155:8453
           from: Address;
-          transaction: { chainId: number; to: Address; data: Hex; value: string; nonce: number; gasLimit: string };
+          transaction: { to: Address; data: Hex; value: string; nonce: number };
         };
 
         const account = privateKeyToAccount(process.env.SIGNER_PRIVATE_KEY as Hex);
@@ -122,14 +122,15 @@ This recipe moves funds out of your wallet once it is live.
           if (step.type !== 'transaction') throw new Error(`Unknown step type ${step.type}: do not sign it`);
           if (step.from.toLowerCase() !== account.address.toLowerCase()) throw new Error('Step is for another wallet');
           const tx = step.transaction;
-          const fees = await client.estimateFeesPerGas(); // fees are your choice
+          const fees = await client.estimateFeesPerGas(); // gas and fees are your choice
+          const gas = await client.estimateGas({ account, to: tx.to, data: tx.data, value: BigInt(tx.value) });
           return account.signTransaction({
-            chainId: tx.chainId,
+            chainId: Number(step.network.split(':')[1]),
             to: tx.to,
             data: tx.data,
             value: BigInt(tx.value),
             nonce: tx.nonce, // pinned: sign with it
-            gas: BigInt(tx.gasLimit), // a suggestion
+            gas,
             maxFeePerGas: fees.maxFeePerGas,
             maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
           });
@@ -143,14 +144,14 @@ This recipe moves funds out of your wallet once it is live.
     `POST /api/v1/orders` with an `Idempotency-Key` you store before sending. Send `minReceive`, the least you accept, because the quote reads `minReceiveRequired: true`. TetraFi checks the signed approval against the step it issued and against the chain, then relays it.
 
     ```json Request
-    {"quoteId":"q_01M5…","minReceive":"99.45","firstStep":{"stepId":"stp_01A…","kind":"signedTransaction","raw":"0x02f8…"}}
+    {"quoteId":"q_01M5…","minReceive":"99.45","firstStep":{"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","kind":"signedTransaction","raw":"0x02f8…"}}
     ```
 
     ```json Output shape while the approval confirms, then when the deposit is ready (shortened) expandable
     {"orderId":"9410e38e-…","status":"working","terminal":false,"next":{"kind":"wait","retryAfter":"PT5S"}}
     {"orderId":"9410e38e-…","status":"working","terminal":false,
-     "next":{"kind":"sign","step":{"stepId":"stp_01B…","sequence":2,"purpose":"trade","type":"transaction","network":"eip155:8453","from":"0xAbc…","signBy":"2026-11-18T12:02:10Z",
-       "transaction":{"chainId":8453,"to":"0x…","data":"0x…","value":"0","nonce":18,"gasLimit":"180000"}}}}
+     "next":{"kind":"sign","step":{"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","sequence":2,"purpose":"trade","type":"transaction","network":"eip155:8453","from":"0xAbc…","signBy":"2026-11-18T12:02:10Z",
+       "transaction":{"to":"0x…","data":"0x…","value":"0","nonce":18}}}}
     ```
   </Step>
 
@@ -168,8 +169,8 @@ This recipe moves funds out of your wallet once it is live.
     ```json Output shape when it ends (shortened) expandable
     {"orderId":"9410e38e-…","status":"settled","terminal":true,
      "operation":{"steps":[
-       {"stepId":"stp_01A…","purpose":"approval","status":"mined","txHash":"0x5e1…"},
-       {"stepId":"stp_01B…","purpose":"trade","status":"mined","txHash":"0x9c4…"}]}}
+       {"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","purpose":"approval","status":"mined","txHash":"0x5e1…"},
+       {"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","purpose":"trade","status":"mined","txHash":"0x9c4…"}]}}
     ```
   </Step>
 </Steps>

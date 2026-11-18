@@ -50,26 +50,26 @@ You need a key with venue trading and request signing ([Authentication](/authent
       "mode": "you",
       "address": "0xAbc…",
       "firstStep": {
-        "stepId": "stp_01…",
+        "stepId": "3f2b9c1e-8d4a-4c7e-9b1f-…",
         "sequence": 1,
         "purpose": "approval",
         "type": "transaction",
         "network": "eip155:8453",
         "from": "0xAbc…",
         "signBy": "2026-11-18T12:00:45Z",
-        "transaction": {"chainId": 8453, "to": "0x…", "data": "0x…", "value": "0", "nonce": 17, "gasLimit": "65000"}
+        "transaction": {"to": "0x…", "data": "0x…", "value": "0", "nonce": 17}
       }
     }
     ```
   </Step>
   <Step title="Sign the step">
-    Sign `transaction` with your wallet, keeping its `nonce`. The fee is yours to set; `gasLimit` is a suggestion. A step of `type` `typedData` carries an EIP-712 message to sign instead.
+    Sign `transaction` with your wallet on the chain of the step's `network` (`eip155:8453` is chain 8453), keeping its `nonce`. Gas and fees are yours to set. A step of `type` `typedData` carries an EIP-712 message to sign instead.
   </Step>
   <Step title="Order with it">
     `POST /api/v1/orders` with an `Idempotency-Key`. TetraFi checks the signed step against the one it issued, relays it and follows it on-chain.
 
     ```json Request
-    {"quoteId":"q_01M5…","firstStep":{"stepId":"stp_01…","kind":"signedTransaction","raw":"0x02f8…"}}
+    {"quoteId":"q_01M5…","firstStep":{"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","kind":"signedTransaction","raw":"0x02f8…"}}
     ```
   </Step>
   <Step title="Sign any later step">
@@ -98,7 +98,7 @@ You need a key with venue trading and request signing ([Authentication](/authent
     The address is screened before anything is relayed. Your first checked signature proves the wallet is yours: it then appears in Treasury as an external wallet, and an Owner can remove it. The output goes to the signing wallet unless `deliverTo` names another wallet of your workspace.
   </Accordion>
   <Accordion title="When the chain moved">
-    If your wallet's nonce, allowance or balance changed between the quote and the order, nothing is relayed: the order opens and `next` carries a fresh first step to sign.
+    If your wallet's nonce, allowance or balance changed between the quote and the order, or the `minReceive` you send changes the trade's transaction, nothing is relayed: the order opens and `next` carries a fresh first step to sign.
   </Accordion>
   <Accordion title="How it ends">
 
