@@ -5,32 +5,32 @@ description: "What a production integration needs before it trades real assets: 
 
 Check each item, then place your first production order at the [smallest amount a venue takes](/quickstart#find-the-smallest-amount-a-venue-takes).
 
-| Check | Why | Link |
-| --- | --- | --- |
-| Point at the production base URL | `https://api.tetrafi.io`, with the key you will trade with. | [Requests](/reference/conventions#requests) |
-| The key has venue trading and signs requests | Without venue trading nothing on your venue accounts can be ordered (`venueTradeScopeRequired`). | [Venue trading](/authentication#trade-on-your-venue-accounts) |
-| Store `{quoteId, idempotencyKey, exactBody}` before you send | A retry sends the same key and body bytes. | [Retries and recovery](/trade/orders#retries-and-recovery) |
-| Recover, never reorder | A timeout, `5xx` or `outcomeUnknown` is not a failure; order again only on `notOrdered`, or after it ended unfilled. | [The recovery sequence](/trade/orders#the-recovery-sequence) |
-| Send `minReceive` when the quote needs it | `minReceiveRequired: true` refuses an order without it. | [Minimum receive](/trade/orders#minimum-receive) |
-| Handle `SETTLEMENT_WINDOW_CHANGED` | A credit trade's window can move before the order. | [Settlement window](/trade/settlement-and-credit#order-with-its-settlement-window) |
-| Follow every order until `terminal` | Every 10 to 15 seconds, or when a webhook arrives. | [Order status](/trade/order-status) |
-| Verify, store, then answer `2xx` within 10 seconds | Verify the signature over the raw body before parsing; work afterwards. | [Webhooks](/trade/webhooks) |
-| Deduplicate webhooks on the body's `id` | Delivery is at least once and out of order; a redelivery gets a new `webhook-id`. | [Webhooks](/trade/webhooks) |
-| Send a test delivery | `POST …/deliveries` with `{"kind":"test"}`. | [Set up an endpoint](/trade/webhooks#set-up-an-endpoint) |
-| Watch for a paused endpoint | Resume, redeliver, then reconcile orders: receipts kept are capped by `deliveryRetention`. | [Missed events](/trade/webhooks#retries-pauses-and-missed-events) |
-| Sync your clock with NTP; use fresh nonces on writes | `X-Timestamp` within 300 seconds; every write, retries included, gets a new random `X-Nonce` and signature. A read has no nonce. | [Sign requests](/authentication#sign-requests) |
-| Keep secrets in a secret manager | Never in code or a tracked file. | |
-| Pick up a rotated key within one hour | After **Rotate key**, the old key works for one hour. | [Rotate and revoke](/authentication#rotate-and-revoke) |
-| Grant only the permissions a key uses; know how to revoke a leaked key at once | A leaked key does less, for less time. | [Rotate and revoke](/authentication#rotate-and-revoke) |
-| Use a service account for software | It outlives one person's access. | [Service account tokens](/authentication#service-account-tokens) |
-| Watch markets with prices, never by polling quotes | One live quote request per key every 3 seconds. | [Prices](/search/prices) |
-| On a `429`, wait `Retry-After` and retry once, unless the code says otherwise | `PRICES_STREAM_LIMIT` needs a stream closed first; an order retry keeps its `Idempotency-Key` and body. | [Rate limits](/reference/rate-limits) |
-| Requote a held quote | Instead of searching again. | [Requote a quote](/search/firmness-and-lifetime#requote-a-quote) |
-| Tolerate what you do not know | Ignore unknown fields; treat an unknown enum value (a status, source reason, `next.kind`) as other, show `detail` or `message`, and keep following `terminal`. | [Codes you do not know](/trade/errors#codes-you-do-not-know) |
-| Never sign an unknown step `type` | `signing.mode`, step `type` and `next.kind` gain values; keep reading the order until `terminal` is `true`. | [What comes next](/trade/sign-with-your-own-wallet#what-comes-next) |
-| Match refusals on `error`, never `message` | Treat an unknown code by its status class. | [Errors](/trade/errors#codes-you-do-not-know) |
-| Parse amounts as decimals, never floats | | [Conventions](/reference/conventions) |
-| Read the [Changelog](/changelog) before each release | | |
+| Check | Why |
+| --- | --- |
+| [Point at the production base URL](/reference/conventions#requests) | `https://api.tetrafi.io`, with the key you will trade with. |
+| [The key has venue trading and signs requests](/authentication#trade-on-your-venue-accounts) | Without venue trading nothing on your venue accounts can be ordered (`venueTradeScopeRequired`). |
+| [Store `{quoteId, idempotencyKey, exactBody}` before you send](/trade/orders#retries-and-recovery) | A retry sends the same key and body bytes. |
+| [Recover, never reorder](/trade/orders#the-recovery-sequence) | A timeout, `5xx` or `outcomeUnknown` is not a failure; order again only on `notOrdered`, or after it ended unfilled. |
+| [Send `minReceive` when the quote needs it](/trade/orders#minimum-receive) | `minReceiveRequired: true` refuses an order without it. |
+| [Handle `SETTLEMENT_WINDOW_CHANGED`](/trade/settlement-and-credit#order-with-its-settlement-window) | A credit trade's window can move before the order. |
+| [Follow every order until `terminal`](/trade/order-status) | Every 10 to 15 seconds, or when a webhook arrives. |
+| [Verify, store, then answer `2xx` within 10 seconds](/trade/webhooks) | Verify the signature over the raw body before parsing; work afterwards. |
+| [Deduplicate webhooks on the body's `id`](/trade/webhooks) | Delivery is at least once and out of order; a redelivery gets a new `webhook-id`. |
+| [Send a test delivery](/trade/webhooks#set-up-an-endpoint) | `POST …/deliveries` with `{"kind":"test"}`. |
+| [Watch for a paused endpoint](/trade/webhooks#retries-pauses-and-missed-events) | Resume, redeliver, then reconcile orders: receipts kept are capped by `deliveryRetention`. |
+| [Sync your clock with NTP; use fresh nonces on writes](/authentication#sign-requests) | `X-Timestamp` within 300 seconds; every write, retries included, gets a new random `X-Nonce` and signature. A read has no nonce. |
+| Keep secrets in a secret manager | Never in code or a tracked file. |
+| [Pick up a rotated key within one hour](/authentication#rotate-and-revoke) | After **Rotate key**, the old key works for one hour. |
+| [Grant only the permissions a key uses; know how to revoke a leaked key at once](/authentication#rotate-and-revoke) | A leaked key does less, for less time. |
+| [Use a service account for software](/authentication#service-account-tokens) | It outlives one person's access. |
+| [Watch markets with prices, never by polling quotes](/search/prices) | One live quote request per key every 3 seconds. |
+| [On a `429`, wait `Retry-After` and retry once, unless the code says otherwise](/reference/rate-limits) | `PRICES_STREAM_LIMIT` needs a stream closed first; an order retry keeps its `Idempotency-Key` and body. |
+| [Requote a held quote](/search/firmness-and-lifetime#requote-a-quote) | Instead of searching again. |
+| [Tolerate what you do not know](/trade/errors#codes-you-do-not-know) | Ignore unknown fields; treat an unknown enum value (a status, source reason, `next.kind`) as other, show `detail` or `message`, and keep following `terminal`. |
+| [Never sign an unknown step `type`](/trade/sign-with-your-own-wallet#what-comes-next) | `signing.mode`, step `type` and `next.kind` gain values; keep reading the order until `terminal` is `true`. |
+| [Match refusals on `error`, never `message`](/trade/errors#codes-you-do-not-know) | Treat an unknown code by its status class. |
+| [Parse amounts as decimals, never floats](/reference/conventions) |  |
+| Read the [Changelog](/changelog) before each release |  |
 
 ## Next
 

@@ -7,17 +7,31 @@
 // #region sign-request
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 
-// Returns the headers to add to one request. `path` includes the query string exactly as sent;
-// `body` is the exact bytes you send ('' for none). A write (POST, PUT, PATCH, DELETE) gets a fresh
-// X-Nonce; a read signs without one.
-function signRequest(signingSecret, method, path, body = '', timestamp = Math.floor(Date.now() / 1000),
+const WRITES = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+// Returns the headers to add to one request.
+// `path` includes the query string exactly as sent; `body` is the exact
+// bytes you send ('' for none). A write gets a fresh X-Nonce; a read
+// signs without one.
+function signRequest(signingSecret, method, path, body = '',
+  timestamp = Math.floor(Date.now() / 1000),
   nonce = randomBytes(18).toString('base64url')) {
-  const write = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  const write = WRITES.includes(method);
   const digest = createHash('sha256').update(body).digest('hex');
-  const lines = write ? [timestamp, nonce, method, path, digest] : [timestamp, method, path, digest];
-  // The secret is 64 hexadecimal characters: the key is its 32 decoded bytes.
-  const signature = createHmac('sha256', Buffer.from(signingSecret, 'hex')).update(lines.join('\n')).digest('hex');
-  return { 'X-Timestamp': String(timestamp), ...(write ? { 'X-Nonce': nonce } : {}), 'X-Signature': signature };
+  const lines = write
+    ? [timestamp, nonce, method, path, digest]
+    : [timestamp, method, path, digest];
+  // The secret is 64 hexadecimal characters: the key is its 32 bytes.
+  const key = Buffer.from(signingSecret, 'hex');
+  const signature = createHmac('sha256', key)
+    .update(lines.join('\n'))
+    .digest('hex');
+  const headers = {
+    'X-Timestamp': String(timestamp),
+    'X-Signature': signature,
+  };
+  if (write) headers['X-Nonce'] = nonce;
+  return headers;
 }
 // #endregion
 

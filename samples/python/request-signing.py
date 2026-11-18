@@ -13,21 +13,27 @@ import hmac
 import secrets
 import time
 
+WRITES = ("POST", "PUT", "PATCH", "DELETE")
 
-# Returns the headers to add to one request. path includes the query string exactly as sent;
-# body is the exact bytes you send (b"" for none). A write (POST, PUT, PATCH, DELETE) gets a fresh
-# X-Nonce; a read signs without one.
-def sign_request(signing_secret, method, path, body=b"", timestamp=None, nonce=None):
+
+# Returns the headers to add to one request.
+# path includes the query string exactly as sent; body is the exact bytes
+# you send (b"" for none). A write gets a fresh X-Nonce; a read signs
+# without one.
+def sign_request(signing_secret, method, path, body=b"",
+                 timestamp=None, nonce=None):
     timestamp = int(time.time()) if timestamp is None else timestamp
-    write = method in ("POST", "PUT", "PATCH", "DELETE")
+    write = method in WRITES
     digest = hashlib.sha256(body).hexdigest()
     lines = [str(timestamp)]
     if write:
         nonce = nonce or secrets.token_urlsafe(18)
         lines.append(nonce)
     lines += [method, path, digest]
-    # The secret is 64 hexadecimal characters: the key is its 32 decoded bytes.
-    signature = hmac.new(bytes.fromhex(signing_secret), "\n".join(lines).encode(), hashlib.sha256).hexdigest()
+    # The secret is 64 hexadecimal characters: the key is its 32 bytes.
+    key = bytes.fromhex(signing_secret)
+    message = "\n".join(lines).encode()
+    signature = hmac.new(key, message, hashlib.sha256).hexdigest()
     headers = {"X-Timestamp": str(timestamp), "X-Signature": signature}
     if write:
         headers["X-Nonce"] = nonce
