@@ -19,8 +19,8 @@ Check each item, then place your first production order at the [smallest amount 
 
     <OrderRecoverByQuote />
   </Accordion>
-  <Accordion title="Order again only on a new quote">
-    Order again only on a new quote, and only when the order is shown not to exist or ended without filling.
+  <Accordion title="Order again only when shown not ordered">
+    Submit again only when the quote reads `notOrdered`, or the order ended without filling, following the [recovery sequence](/trade/orders#the-recovery-sequence).
   </Accordion>
   <Accordion title="Follow every order to the end">
     Read its `statusUrl` until `terminal` is `true`, every 10 to 15 seconds or when a webhook arrives ([Order status](/trade/order-status)).
@@ -36,11 +36,11 @@ Check each item, then place your first production order at the [smallest amount 
   <Accordion title="Deduplicate on webhook-id">
     Deduplicate on `webhook-id`: deliveries arrive at least once and out of order.
   </Accordion>
-  <Accordion title="Answer 2xx within 10 seconds">
-    Answer `2xx` within 10 seconds, then work. Read `statusUrl` for the current state.
+  <Accordion title="Store, then answer 2xx within 10 seconds">
+    Verify and durably store the event, then answer `2xx` within 10 seconds; work afterwards. Read `statusUrl` for the current state.
   </Accordion>
   <Accordion title="Watch for a paused endpoint">
-    Resume a paused endpoint and redeliver what it missed. The delivery log does not survive a TetraFi restart ([Webhooks](/trade/webhooks#retries-pauses-and-missed-events)).
+    Resume a paused endpoint and redeliver the failures it still holds, then reconcile affected orders through the API: not every missed event can be redelivered, since how many receipts are kept is the endpoint's `deliveryRetention` ([Webhooks](/trade/webhooks#retries-pauses-and-missed-events)).
   </Accordion>
 </AccordionGroup>
 

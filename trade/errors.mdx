@@ -15,7 +15,7 @@ Every refusal, `413` and `415` included, is the same JSON object, so one parser 
 | `409` conflict | It conflicts with the current state. | On an order, `QUOTE_ALREADY_ORDERED` or an `IDEMPOTENCY_*` code means an order may exist: [recover it by its quote](/trade/orders#retries-and-recovery). Otherwise retry only where the code says so, such as `ORDER_IN_PROGRESS`; else the state has to change first. |
 | `429` | A request limit is used up, or TetraFi is briefly at capacity. | Retry after `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
 | `503` | It could not be served just now. | Recover an order by its quote first. Otherwise retry after `Retry-After`, or after a second or two with backoff when it is not set. A signed write signs again with a new `X-Timestamp` and `X-Nonce`. |
-| `408`, `500`, `502`, `504` or a timeout | It did not complete, or its outcome is unknown. | Recover an order by its quote first. Otherwise retry with backoff only when the code's `retryable` is `true`. |
+| `408`, `500`, `502`, `504` or a timeout | It did not complete, or its outcome is unknown. | Recover an order by its quote first. Otherwise retry with backoff when the answer's `retryable` is `true`. With no answer at all, a read may retry with backoff; a write follows its own recovery rules. |
 | Any other `4xx` | Refused. On an order this usually means nothing was placed, but not always: a replay refused with `IDEMPOTENCY_AUTHORITY_REQUIRED`, or a code whose entry says a source transaction may already be confirmed, says nothing about the first attempt. | Do not retry. On an order, [recover it by its quote](/trade/orders#retries-and-recovery) before you order again; otherwise fix the request, or act on [`next`](#what-next-tells-you). |
 
 On an order, retry only with the same `Idempotency-Key` and body. When you do not know whether it was placed, never send it with a new key.
@@ -85,7 +85,7 @@ use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 | `requote` | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`. `next.needs` lists what the new quote needs, such as a wallet; empty means requote as it is ([Requotes and expiry](/search/firmness-and-lifetime#requote-a-quote)). |
 | `fund` | The paying account holds too little. Fund it, then get a new price. |
 | `order` | Order the quote as it is. |
-| `preflight`, `sign`, `transact` | Steps of Advanced execution through TetraFi's router and escrow, not open yet. Order a Basic quote. |
+| `preflight` | Advanced execution through TetraFi's router and escrow, not open yet. Order a Basic quote. |
 
 A `kind` you do not recognise is a step you cannot take automatically: show `message` and stop.
 
@@ -134,7 +134,7 @@ An API key is bound to one workspace. It may leave `X-Workspace-Id` out, and a h
 | 413 `REQUEST_BODY_TOO_LARGE`, 415 `UNSUPPORTED_CONTENT_TYPE` | The body is too large, or not `application/json`. | Fix the body or header. |
 | 429 `RATE_LIMITED` | A limit is used up, or TetraFi is briefly at capacity. | Wait `Retry-After` seconds. |
 | 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked. | Sign again with a new timestamp and nonce, then retry. |
-| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It did not complete. | Retry with backoff; quote `requestId` if it persists. |
+| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It may not have completed. | A read: retry with backoff. A write: read the resource back first; for an order, [recover it by its quote](/trade/orders#recover-an-order-by-its-quote) and never resend with a new key. Quote `requestId` if it persists. |
 | 409 `IDEMPOTENT_SECRET_ALREADY_SHOWN` | A retry with the same `Idempotency-Key` of a call that created a secret: the resource exists (`details.resourceId`), and its secret was shown once and is not stored. | Use the secret from the first answer, or rotate or reissue that resource. |
 | 500 `IDEMPOTENT_ANSWER_UNAVAILABLE` | The request ran, but its answer could not be read. | Read the resource before you retry; never send it again with a new `Idempotency-Key`. |
 | 409 `IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this `Idempotency-Key` may or may not have taken effect, and retrying the key can never tell. No `Retry-After`. | Stop sending this key. Read the resource back (`details.readTarget` names the read; for an order, [recover it by its quote](/trade/orders#recover-an-order-by-its-quote)), and use a new key only once that read shows nothing happened. |

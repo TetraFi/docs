@@ -214,7 +214,7 @@ An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND
 
 <Steps>
   <Step title="Replay">
-    Send the saved body with the saved key.
+    Send the saved body with the saved key. If the key answers `IDEMPOTENCY_OUTCOME_UNKNOWN`, stop replaying it and go to the next step.
   </Step>
   <Step title="Read by quote">
     Read `GET /api/v1/orders/by-quote/{quoteId}`, even if the replay failed.
@@ -229,7 +229,7 @@ An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND
 </Steps>
 
 <Warning>
-Never retry with a new key, change the body, or treat `unknown` or a failed read as "not ordered". Only `notOrdered`, or a final status that did not fill, makes it safe to order again, on a new quote.
+While the outcome is unknown, never change the key or the body, and never read `unknown`, a `404` or a failed read as "not ordered". Only `notOrdered` lets you submit again: on the same quote while `expired` is `false` (a new key only if the old one answered `IDEMPOTENCY_OUTCOME_UNKNOWN`), otherwise on a new quote. After a final status that did not fill, order on a new quote.
 </Warning>
 
 ## Cancel an order

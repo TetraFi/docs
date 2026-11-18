@@ -155,8 +155,10 @@ This recipe moves funds out of your wallet once it is live.
     ```
   </Step>
 
-  <Step title="Sign and submit the deposit">
-    When `next.kind` is `sign`, sign `next.step` the same way, then send it to `POST /api/v1/orders/{orderId}/steps/{stepId}` with a new `Idempotency-Key`. The answer is the order again.
+  <Step title="Sign and submit each step the order asks for">
+    When `next.kind` is `sign`, sign `next.step` the same way, then send it to `POST /api/v1/orders/{orderId}/steps/{stepId}` with a new `Idempotency-Key`. The answer is the order again. Here the next step is the deposit; if the chain moved since the quote it is a fresh step 1 with a new `stepId` instead. Sign whatever `next.step` holds, and never resend a transaction you signed for an earlier step.
+
+    The step endpoint takes the submission itself, without `quoteId` or `firstStep`:
 
     ```json Request
     {"kind":"signedTransaction","raw":"0x02f9…"}
@@ -164,7 +166,7 @@ This recipe moves funds out of your wallet once it is live.
   </Step>
 
   <Step title="Follow it until it ends">
-    Read `GET /api/v1/orders/{orderId}` after each `retryAfter`, or wait for the `order.updated` [webhook](/trade/webhooks), which fires whenever `next` changes. Stop when `terminal` is `true` ([Order status](/trade/order-status)).
+    Read `GET /api/v1/orders/{orderId}` after each `retryAfter` while `terminal` is `false`. An `order.updated` [webhook](/trade/webhooks) can prompt an earlier read, but do not wait for one to find a signing step: when `next.kind` is `sign`, act before `next.step.signBy`. Stop when `terminal` is `true` ([Order status](/trade/order-status)).
 
     ```json Output shape when it ends (shortened) expandable
     {"orderId":"9410e38e-…","status":"settled","terminal":true,
@@ -191,9 +193,13 @@ This recipe moves funds out of your wallet once it is live.
     Submit `{"kind":"declined"}` on the step endpoint: the order ends `unfilled` and the deposit is never sent. An approval already mined stays.
   </Accordion>
   <Accordion title="A refusal">
-    Nothing was relayed: `SIGNING_STEP_MISMATCH` (422, `details.field` names what differs), `SIGNING_STEP_EXPIRED` (410), `SIGNING_STEP_NOT_OPEN` (409) or `SIGNING_WALLET_REFUSED` (403). The full list is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
+    TetraFi relayed nothing for that submission (earlier steps may already be on-chain): `SIGNING_STEP_MISMATCH` (422, `details.field` names what differs), `SIGNING_STEP_EXPIRED` (410), `SIGNING_STEP_NOT_OPEN` (409) or `SIGNING_WALLET_REFUSED` (403). The full list is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
   </Accordion>
 </AccordionGroup>
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/recipe-own-wallet.sh">
+  Runs every step above with `cast`: quote, sign, order, each later step and the follow loop. It signs and orders only with `TETRAFI_PLACE_ORDER=1`.
+</Card>
 
 ## Next
 

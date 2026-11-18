@@ -4,6 +4,8 @@ description: "Register an endpoint, verify each Standard Webhooks delivery, and 
 ---
 
 import WebhookVerify from '/snippets/samples/webhook-verify.mdx';
+import WebhookCreate from '/snippets/samples/webhook-create.mdx';
+import WebhookTest from '/snippets/samples/webhook-test.mdx';
 
 Register an HTTPS endpoint and TetraFi posts an `order.updated` event each time one of your orders changes status, signed to the [Standard Webhooks](https://www.standardwebhooks.com) spec.
 
@@ -41,6 +43,12 @@ flowchart LR
   <Step title="Create it">
     `POST /api/v1/workspaces/{workspaceId}/webhooks` with an `Idempotency-Key` and `{"url": "https://…", "events": ["order.updated"]}`. Store the `whsec_` secret at once: a replay within 24 hours returns `201` with `secret: null`.
 
+    <Accordion title="Create it from a script">
+      `tetrafi` is the signed request helper from the [Quickstart](/quickstart).
+
+      <WebhookCreate />
+    </Accordion>
+
     <Accordion title="Lost the secret?">
       [Rotate it](#manage-an-endpoint). It is not your request-signing secret.
     </Accordion>
@@ -76,6 +84,13 @@ flowchart LR
       Anything but a `2xx` is [retried](#retries-pauses-and-missed-events).
     </Accordion>
   </Step>
+  <Step title="Send a test delivery">
+    `POST …/webhooks/{webhookId}/deliveries` with `{"kind":"test"}` and a new `Idempotency-Key`. The delivery reads `success: true` with your status code once your receiver acknowledged it.
+
+    <Accordion title="From a script">
+      <WebhookTest />
+    </Accordion>
+  </Step>
 </Steps>
 
 ## What a delivery looks like
@@ -97,9 +112,11 @@ A `POST` with a JSON body and the `webhook-id`, `webhook-timestamp` and `webhook
   "type": "order.updated",
   "apiVersion": "2026-11-17",
   "createdAt": "2026-10-30T09:12:44.000Z",
-  "data": { "orderId": "…", "status": "…", "statusUrl": "/api/v1/orders/…" }
+  "data": { "orderId": "…", "kind": "basicTrade", "status": "working", "terminal": false, "statusUrl": "/api/v1/orders/…" }
 }
 ```
+
+`data.kind` is `basicTrade` or `advancedTrade`. If `terminal` is absent, read `statusUrl`: absent is not `false`.
 
 Answer unknown fields and event types with a `2xx` and ignore them. `apiVersion` is the version the endpoint recorded when it was created; a breaking change ships only under a new version, which an endpoint reaches when you create it again ([Versioning](/reference/conventions#versioning)).
 
@@ -153,7 +170,10 @@ An unacknowledged delivery is retried after 5 seconds, 30 seconds, 10 minutes, 1
   </Accordion>
 </AccordionGroup>
 
-<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-verify.sh">Verifies a delivery, and refuses a changed body and a stale timestamp.</Card>
+<CardGroup cols={2}>
+  <Card title="Set up an endpoint" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-setup.sh">Creates it, keeps the secret in a 0600 file and sends a test delivery.</Card>
+  <Card title="Verify deliveries" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-verify.sh">Verifies a delivery, and refuses a changed body and a stale timestamp.</Card>
+</CardGroup>
 
 ## Next
 
