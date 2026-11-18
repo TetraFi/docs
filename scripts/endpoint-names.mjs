@@ -55,7 +55,7 @@ const NAMES = {
   'GET /api/v1/workspaces/{workspaceId}/fee-schedule': 'Get fee schedule',
 
   'GET /api/v1/workspaces/{workspaceId}/wallets': 'List wallet creations',
-  'POST /api/v1/workspaces/{workspaceId}/wallets': 'Create organisation wallet',
+  'POST /api/v1/workspaces/{workspaceId}/wallets': 'Create a wallet',
   'GET /api/v1/workspaces/{workspaceId}/wallets/{walletId}': 'Get wallet creation',
   'POST /api/v1/workspaces/{workspaceId}/wallets/{walletId}/cancel': 'Cancel wallet creation',
 
