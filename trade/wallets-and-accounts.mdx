@@ -1,6 +1,7 @@
 ---
 title: "Choose wallets and accounts"
 description: "See what each quote trades from and how it is funded, and name a trading wallet, venue account or destination with source and deliverTo."
+keywords: ["wallet", "venue account", "trading source", "sourceOptions", "signing grant"]
 ---
 
 import TradingSourceOptions from '/snippets/samples/trading-source-options.mdx';
@@ -9,7 +10,7 @@ import TradingSourceRefusal from '/snippets/samples/trading-source-refusal.mdx';
 import TradingSourceFunding from '/snippets/samples/trading-source-funding.mdx';
 import WalletsDeliverTo from '/snippets/samples/wallets-deliver-to.mdx';
 
-Every quote says where it trades from, how it is funded and settles, and where the output goes; to change your defaults, send `source` and `deliverTo` with `financialAccountId` values from `sourceOptions`.
+Every quote says where it trades from, how it is funded and settles, and where the output goes; to change your defaults, send `source` and `deliverTo`.
 
 ## At a glance
 
@@ -20,9 +21,9 @@ Every quote says where it trades from, how it is funded and settles, and where t
 | Trade from a wallet or account | `source` on `POST /api/v1/quotes` |
 | Send the output elsewhere | `deliverTo` on `POST /api/v1/quotes` |
 | Change a held quote | A [requote](/search/firmness-and-lifetime#requote-a-quote) with only those parts |
-| [Create a wallet](/trade/create-wallet) | `POST /api/v1/workspaces/{workspaceId}/wallets` |
+| [Create a wallet](/trade/create-wallet) | `POST …/wallets` |
 
-A quote needs nothing extra: venues price with your defaults. A key trades from your venue accounts, which need no wallet signature, and from organisation wallets [granted to it](/before-you-trade#give-a-key-organisation-wallets), which TetraFi [signs for](/trade/how-a-trade-runs) within the grant's limits. It cannot trade from a custody account, a personal wallet or an external wallet you sign yourself ([rolling out](/trade/sign-with-your-own-wallet)).
+A quote needs nothing extra: venues price with your defaults. A key trades from your venue accounts, which need no wallet signature, and from organisation wallets [granted to it](/before-you-trade#give-a-key-organisation-wallets), which TetraFi [signs for](/trade/how-a-trade-runs) within the grant's limits. It cannot trade from a custody account, a personal wallet or your own wallet that you sign for yourself ([rolling out](/trade/sign-with-your-own-wallet)).
 
 ## What a quote trades from
 
@@ -31,15 +32,13 @@ Two quotes from one venue can trade from different sources, so read each quote's
 <AccordionGroup>
   <Accordion title="Quote fields: tradingSource, fundingModel, settlement and more">
 
-| Field | What it says |
-| --- | --- |
-| `tradingSource` | Where it executes from: `{"kind": "wallet", "financialAccountId", "network", "venueEnablementId"}` for an on-chain venue, or `{"kind": "venueAccount", "financialAccountId", "venueEnablementId"}` for an exchange or OTC account. |
-| `fundingModel` | `prefunded` (spends money in the trading source), `credit` (the trade goes negative on a credit account; [Trade on a credit account](/trade/settlement-and-credit#trade-on-a-credit-account)) or `payIn` (you pay in after ordering, on the `payIn` terms). |
-| `fundingAccount` | The account backing execution; `kind` is `wallet`, `venueAccount` or `bankAccount`. `linkId` only when money moves through that link. |
-| `settlement` | `method` (`venueLedger`, `dvp` or `fop`) and `timing` (`immediate`, `byDeadline` or `delayed`). |
-| `deliverTo` | Where the output goes, resolved, with a `displayName`. |
-| `walletSelection` | Per chain, why the wallet was chosen: `accountDefault`, `preference` or `explicit`. A record, never authority. |
-| `sourceRefusal` | Present when no source you may use can execute the quote, and says why: `code` (why), `venueId` and `fix` (the next step). |
+<ResponseField name="tradingSource" type="object">Where it executes from: `{"kind": "wallet", "financialAccountId", "network", "venueEnablementId"}` for an on-chain venue, or `{"kind": "venueAccount", "financialAccountId", "venueEnablementId"}` for an exchange or OTC account.</ResponseField>
+<ResponseField name="fundingModel" type="string">`prefunded` (spends money in the trading source), `credit` (the trade goes negative on a credit account; [Trade on a credit account](/trade/settlement-and-credit#trade-on-a-credit-account)) or `payIn` (you pay in after ordering, on the `payIn` terms).</ResponseField>
+<ResponseField name="fundingAccount" type="object">The account backing execution; `kind` is `wallet`, `venueAccount` or `bankAccount`. `linkId` only when money moves through that link.</ResponseField>
+<ResponseField name="settlement" type="object">`method` (`venueLedger`, `dvp` or `fop`) and `timing` (`immediate`, `byDeadline` or `delayed`).</ResponseField>
+<ResponseField name="deliverTo" type="object">Where the output goes, resolved, with a `displayName`.</ResponseField>
+<ResponseField name="walletSelection" type="object">Per chain, why the wallet was chosen: `accountDefault`, `preference` or `explicit`. A record, never authority.</ResponseField>
+<ResponseField name="sourceRefusal" type="object">Present when no source you may use can execute the quote, and says why: `code` (why), `venueId` and `fix` (the next step).</ResponseField>
 
   </Accordion>
   <Accordion title="Your defaults">
@@ -55,7 +54,7 @@ Two quotes from one venue can trade from different sources, so read each quote's
   <Accordion title="Example: read the source and funding of a quote">
     <TradingSourceFunding />
 
-    ```json Output shape with a granted wallet (ids shortened)
+    ```json Output shape with a wallet granted to the key (ids shortened)
     {"quoteId":"q_01M5…","venue":"across","location":"crossChain","tradingSource":{"kind":"wallet","financialAccountId":"4d46…","network":"eip155:84532"},"fundingModel":"prefunded","fundingAccount":{"kind":"wallet","financialAccountId":"4d46…"},"buy":"9.98","next":"order"}
     ```
   </Accordion>
@@ -63,10 +62,11 @@ Two quotes from one venue can trade from different sources, so read each quote's
 
 ## Read sourceOptions
 
-`sourceOptions`, on every quote set and quote, lists what you may name. Each candidate has `financialAccountId`, `kind`, `displayName` and `isDefault`; an empty list means nothing else to choose.
+`sourceOptions`, on every quote set and quote, lists the `financialAccountId` values you may name; an empty list means nothing else to choose.
 
 <AccordionGroup>
   <Accordion title="Kinds and candidate fields">
+    Each candidate has `financialAccountId`, `kind`, `displayName` and `isDefault`.
 
 | `kind` | Lists |
 | --- | --- |
@@ -82,7 +82,7 @@ Two quotes from one venue can trade from different sources, so read each quote's
   <Accordion title="Example: read sourceOptions">
     <TradingSourceOptions />
 
-    ```json Output shape with a granted wallet (ids shortened)
+    ```json Output shape with a wallet granted to the key (ids shortened)
     {"sourceOptions":[{"kind":"wallet","network":"eip155:84532","candidates":[{"financialAccountId":"4d46…","kind":"wallet","displayName":"Treasury (Base Sepolia)","isDefault":true},{"financialAccountId":"61c3…","kind":"wallet","displayName":"Payments (Base Sepolia)","isDefault":false}]}]}
     ```
   </Accordion>
@@ -126,25 +126,30 @@ Each part is optional; a part you leave out takes your default.
 | `source.venueAccountId` | The venue account the quote trades on. |
 | `source.fundingAccountId` | The funding account, such as a pay-in's bank account. |
 
-The parts of `source` combine: name a venue account, a funding account and trading wallets together when you need to. With an API key, a venue quote's output stays on the venue account ([Where the output goes](#where-the-output-goes)).
+<Accordion title="Combine the parts of source">
+  The parts of `source` combine: name a venue account, a funding account and trading wallets together when you need to. With an API key, a venue quote's output stays on the venue account ([Where the output goes](#where-the-output-goes)).
+</Accordion>
 
   </Tab>
 </Tabs>
 
 ### When a source is refused
 
-A wallet or account you may not use is refused before any venue is asked. A wallet a venue account has not linked is not a refusal: that venue reads `unavailable` with `tradingSourceNotLinked`, and the others still quote.
+A wallet or account you may not use is refused before any venue is asked.
 
 <AccordionGroup>
+  <Accordion title="A wallet the venue account has not linked">
+    A wallet a venue account has not linked is not a refusal: that venue reads `unavailable` with `tradingSourceNotLinked`, and the others still quote.
+  </Accordion>
   <Accordion title="Source refusal codes">
 
-| Status and code | Meaning | What to do |
-| --- | --- | --- |
-| `403 SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist or is not yours to use (both read the same). | Choose from `sourceOptions`, or have the wallet granted to the key. |
-| `400 WALLET_NOT_ON_CHAIN` | The wallet is registered on another chain. | Choose a candidate listed for that chain. |
-| `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. | Use an organisation wallet. |
-| `403 ACCOUNT_NOT_AVAILABLE` | This quote cannot trade on that venue account. | Leave `venueAccountId` out. |
-| `409 REQUOTE_NEEDS_WALLET` | The venue quotes only once a wallet is chosen; `details.reason` names the family. | Requote with a wallet of that family. |
+| Status and code | Meaning and what to do |
+| --- | --- |
+| `403 SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist or is not yours to use (both read the same). Choose from `sourceOptions`, or have the wallet granted to the key. |
+| `400 WALLET_NOT_ON_CHAIN` | The wallet is registered on another chain. Choose a candidate listed for that chain. |
+| `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. Use an organisation wallet. |
+| `403 ACCOUNT_NOT_AVAILABLE` | This quote cannot trade on that venue account. Leave `venueAccountId` out. |
+| `409 REQUOTE_NEEDS_WALLET` | The venue quotes only once a wallet is chosen; `details.reason` names the family. Requote with a wallet of that family. |
 
   </Accordion>
   <Accordion title="Example: a refused source">
@@ -158,14 +163,17 @@ A wallet or account you may not use is refused before any venue is asked. A wall
 
 ## Where the output goes
 
-`deliverTo` is a top-level request field:
-
-| `kind` | Fields | Meaning |
-| --- | --- | --- |
-| `financialAccount` | `financialAccountId` | Your wallet, venue account or bank account. |
-| `address` | `network`, `address`, `destinationTag` (optional), `calldata` (optional) | This address on this network. `destinationTag` is its tag or memo; none is sent without it. |
+`deliverTo` is a top-level request field: one of your accounts, or an address on a network.
 
 <AccordionGroup>
+  <Accordion title="deliverTo kinds and fields">
+
+| `kind` and its fields | Meaning |
+| --- | --- |
+| `financialAccount`: `financialAccountId` | Your wallet, venue account or bank account. |
+| `address`: `network`, `address`, `destinationTag` (optional), `calldata` (optional) | This address on this network. `destinationTag` is its tag or memo; none is sent without it. |
+
+  </Accordion>
   <Accordion title="Limits with an API key">
     - An address outside the workspace's organisation wallets is refused with `403 API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED`; a key cannot allowlist one, so manage destinations in the app.
     - A venue quote's output stays on the venue account: a requote naming another destination is refused with reason `deliverToNotPermitted`. Only a signed-in member who can view wallets delivers a venue trade to a wallet.

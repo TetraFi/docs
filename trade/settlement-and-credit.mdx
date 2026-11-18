@@ -1,6 +1,7 @@
 ---
 title: "Credit and settlement"
 description: "Monitor your venue accounts' credit, trade on credit, follow each trade into its settlement window, and react to settlement and credit webhooks."
+keywords: ["netting", "credit line", "settlement window", "net settlement", "ledger"]
 ---
 
 import CreditMonitor from '/snippets/samples/credit-monitor.mdx';
@@ -22,12 +23,12 @@ Read the credit and settlement behind each venue account. On a credit account yo
 
 Paths are under `/api/v1/workspaces/{workspaceId}`.
 
-| Endpoint | Permission | Result |
-| --- | --- | --- |
-| `GET …/trades`, `GET …/trades/{tradeId}` | Read trades | [Trade history](/trade/trade-history). |
-| `GET …/settlement/plan`, `GET …/trades/{tradeId}/settlement`, `GET …/venue-accounts/{venueAccountId}/settlement/…` | Read settlements | What is due, and how it settles. |
-| `GET …/venue-account-credit`, `…/venue-accounts/{venueAccountId}/credit`, `…/ledger` | Treasury read | Credit lines and positions. |
-| `settlement.*`, `credit.updated` [webhooks](#webhooks) | Read settlements, Treasury read | Told instead of polling. |
+| Read | Permission |
+| --- | --- |
+| Every trade: [Trade history](/trade/trade-history) | Read trades |
+| What is due, and how it settles: `GET …/settlement/plan`, `GET …/trades/{tradeId}/settlement`, `GET …/venue-accounts/{venueAccountId}/settlement/…` | Read settlements |
+| Credit lines and positions: `GET …/venue-account-credit`, `…/venue-accounts/{venueAccountId}/credit`, `…/ledger` | Treasury read |
+| Told instead of polling: `settlement.*`, `credit.updated` [webhooks](#webhooks) | Read settlements, Treasury read |
 
 ```mermaid
 flowchart LR
@@ -40,11 +41,11 @@ flowchart LR
   <Accordion title="What each read needs">
     Your `workspaceId` comes from `GET /api/v1/me`; another answers `404 WORKSPACE_NOT_FOUND`. Take a `venueAccountId` from [`GET …/venue-enablements`](/trade/balances#list-your-exchange-accounts). Permissions are in [Permissions](/authentication#permissions) and [Before your first trade](/before-you-trade).
 
-| Reads | Key permission | Key owner's workspace permission |
-| --- | --- | --- |
-| Settlement plan, trades, windows, obligations, movements, schedules | Read settlements (`settlements_read`) | View settlements |
-| `…/credit` | Treasury read | View wallets and View credit |
-| `…/ledger` | Treasury read | View wallets |
+| Reads | Key permission; key owner's workspace permission |
+| --- | --- |
+| Settlement plan, trades, windows, obligations, movements, schedules | Read settlements (`settlements_read`); View settlements |
+| `…/credit` | Treasury read; View wallets and View credit |
+| `…/ledger` | Treasury read; View wallets |
 
   </Accordion>
 </AccordionGroup>
@@ -56,17 +57,17 @@ No settlement read creates a transfer, reservation, approval or instruction to t
 <AccordionGroup>
   <Accordion title="Every settlement read">
 
-| You want to know | Read |
+| Read | You want to know |
 | --- | --- |
-| What is due across your venue accounts | `GET …/workspaces/{workspaceId}/settlement/plan` |
-| How one trade settled | `GET …/trades/{tradeId}/settlement` and `…/trades/{tradeId}/settlement/obligations` |
-| An account's settlement windows and statements | `GET …/venue-accounts/{venueAccountId}/settlement/windows`, `…/windows/{windowId}` and `…/windows/{windowId}/matches` |
-| What each side owes, and by when | `GET …/venue-accounts/{venueAccountId}/settlement/obligations` and `…/obligations/{obligationId}` |
-| The deposits and withdrawals that settled them | `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/movements/{movementId}` |
-| The LP's published settlement schedules | `GET …/venue-accounts/{venueAccountId}/settlement/schedules` (paged with `limit` and `cursor`) |
-| The schedule in effect, a pending change and the next window | `GET …/venue-accounts/{venueAccountId}/settlement/schedule-selection` |
-| Every venue account's credit, in one call | `GET …/venue-account-credit` |
-| The account's credit line and positions | `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` |
+| `GET …/workspaces/{workspaceId}/settlement/plan` | What is due across your venue accounts |
+| `GET …/trades/{tradeId}/settlement` and `…/trades/{tradeId}/settlement/obligations` | How one trade settled |
+| `GET …/venue-accounts/{venueAccountId}/settlement/windows`, `…/windows/{windowId}` and `…/windows/{windowId}/matches` | An account's settlement windows and statements |
+| `GET …/venue-accounts/{venueAccountId}/settlement/obligations` and `…/obligations/{obligationId}` | What each side owes, and by when |
+| `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/movements/{movementId}` | The deposits and withdrawals that settled them |
+| `GET …/venue-accounts/{venueAccountId}/settlement/schedules` (paged with `limit` and `cursor`) | The LP's published settlement schedules |
+| `GET …/venue-accounts/{venueAccountId}/settlement/schedule-selection` | The schedule in effect, a pending change and the next window |
+| `GET …/venue-account-credit` | Every venue account's credit, in one call |
+| `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | The account's credit line and positions |
 
   </Accordion>
   <Accordion title="The settlement plan">
@@ -89,12 +90,12 @@ No settlement read creates a transfer, reservation, approval or instruction to t
   </Accordion>
   <Accordion title="Windows, obligations, movements and schedules">
 
-| Object | What it is | How to read it |
-| --- | --- | --- |
-| Window | One settlement period. Once its snapshot is ready, it carries an indicative statement: positions, snapshot prices (an unavailable one names its stage and reason) and the minimum-settlement decision. An LP-issued window adds the LP's statement. | Newest first; filter by `status`, page with `cursor`. `…/windows/{windowId}/matches`: movements matched to its obligations, oldest first. |
-| Obligation | What you and the LP owe each other, with status, deadline and origin. | Filter by `windowId` or `tradeId`. The detail lists its matched movements. |
-| Movement | A deposit or withdrawal that settles obligations, with its finality and how it matched. | As recorded by TetraFi; `include=observation` says how current (`lastSuccessfulReadAt`, `observationState`), and an unread LP history is an `unreachable` entry. A key never starts a read from the LP. |
-| Schedule | The LP's published schedules. | The one in effect, with its minimum settlement, and the next window. |
+| Object | What it is, and how to read it |
+| --- | --- |
+| Window | One settlement period. Once its snapshot is ready, it carries an indicative statement: positions, snapshot prices (an unavailable one names its stage and reason) and the minimum-settlement decision. An LP-issued window adds the LP's statement. Read newest first; filter by `status`, page with `cursor`. `…/windows/{windowId}/matches`: movements matched to its obligations, oldest first. |
+| Obligation | What you and the LP owe each other, with status, deadline and origin. Filter by `windowId` or `tradeId`. The detail lists its matched movements. |
+| Movement | A deposit or withdrawal that settles obligations, with its finality and how it matched, as recorded by TetraFi. `include=observation` says how current (`lastSuccessfulReadAt`, `observationState`), and an unread LP history is an `unreachable` entry. A key never starts a read from the LP. |
+| Schedule | The LP's published schedules: the one in effect, with its minimum settlement, and the next window. |
 
   </Accordion>
 </AccordionGroup>
@@ -145,11 +146,11 @@ A refused read answers with its code, never an empty page.
 <AccordionGroup>
   <Accordion title="What each read answers">
 
-| Read | Answers | How current |
-| --- | --- | --- |
-| `GET …/venue-account-credit` | The same as the credit read, for every venue account (or those named in `venueAccountId`), with the ones that could not be read in `unreachable`. | As the credit read. |
-| `GET …/venue-accounts/{venueAccountId}/credit` | The provider's reported line (limit, used, available and overrun), the agreed facility, TetraFi's open credit commitments and the signed positions, each with its observation time. | The last recorded ledger observation; no provider call. |
-| `GET …/venue-accounts/{venueAccountId}/ledger` | The signed positions and credit line. | For a key, the last recorded observation (`source: "recorded"`), dated `observedAt`, `stale: true` past an hour. A key never starts a venue read. |
+| Read | Answers, and how current |
+| --- | --- |
+| `GET …/venue-account-credit` | The same as the credit read, for every venue account (or those named in `venueAccountId`), with the ones that could not be read in `unreachable`. As current as the credit read. |
+| `GET …/venue-accounts/{venueAccountId}/credit` | The provider's reported line (limit, used, available and overrun), the agreed facility, TetraFi's open credit commitments and the signed positions, each with its observation time. From the last recorded ledger observation; no provider call. |
+| `GET …/venue-accounts/{venueAccountId}/ledger` | The signed positions and credit line. For a key, the last recorded observation (`source: "recorded"`), dated `observedAt`, `stale: true` past an hour. A key never starts a venue read. |
 
 Readable positions still return when credit does not. A position with `prefundedOnly: true` is one the venue lets the account hold only long: selling more than its positive balance is refused whatever credit the account has, so deposit first. Without the field, the venue states no such rule.
 
@@ -158,7 +159,7 @@ Readable positions still return when credit does not. A position with `prefunded
 
 ### Monitor credit per account
 
-`GET …/venue-account-credit` lists every venue account's credit, or those named in `venueAccountId`; [`credit.updated`](#webhooks) tells you when it changes.
+`GET …/venue-account-credit` lists every venue account's credit; [`credit.updated`](#webhooks) tells you when it changes.
 
 <CreditMonitor />
 
@@ -176,10 +177,9 @@ Readable positions still return when credit does not. A position with `prefunded
 
 <CreditLedger />
 
-`409 LEDGER_NOT_OBSERVED`: no ledger read is recorded yet. A member opens the account in the app, which records one; then read again.
-
 <AccordionGroup>
-  <Accordion title="Example output">
+  <Accordion title="Not observed yet, and example output">
+    `409 LEDGER_NOT_OBSERVED`: no ledger read is recorded yet. A member opens the account in the app, which records one; then read again.
 
 ```json Example output
 {"venueAccountId":"d3050000-…-a1","line":{"limit":"50000","used":"12000","available":"38000","overrun":"0","asset":"USD","observedAt":"2026-11-10T17:28:38.983588Z"},"facility":"observed","positions":[{"asset":"BTC","netPosition":"0.5"},{"asset":"USD","netPosition":"-12000"}],"readAt":"2026-11-12T12:32:19.066Z"}
@@ -204,13 +204,11 @@ The account's positions and credit decide, not you; each quote's `fundingModel` 
 <AccordionGroup>
   <Accordion title="Funding fields on the quote">
 
-| Field | Meaning |
-| --- | --- |
-| `fundingModel` | `prefunded`: paid from what the account holds. `credit`: the trade creates or increases a negative position. Treat an unknown value as other. |
-| `creditPortion` | On a `credit` trade, the part of the debit that goes negative, with its `amount` and `asset`. When it is less than the debit, the rest is spent from positive positions: the trade is mixed. Absent otherwise. |
-| `creditCheck` | The credit decision the funding came from: `decision`, `available`, `effectiveLimit`, `used`, and how fresh it is (`checkedAt`, `observationAgeMs` against `maxAgeMs`). Present exactly when `creditPortion` is. It is evidence, not a reservation. |
-| `creditReservation` | On a firm ask, the cash and credit held for this quote until `expiresAt` or until your order takes it. |
-| `settlement.window` | On a delayed trade, the window it settles in: `windowId`, `paymentDeadlineAt` and, on a clock window, `settlesBy`. |
+<ResponseField name="fundingModel" type="string">`prefunded`: paid from what the account holds. `credit`: the trade creates or increases a negative position. Treat a value you do not know as other ([Conventions](/reference/conventions#values)).</ResponseField>
+<ResponseField name="creditPortion" type="object">On a `credit` trade, the part of the debit that goes negative, with its `amount` and `asset`. When it is less than the debit, the rest is spent from positive positions: the trade is mixed. Absent otherwise.</ResponseField>
+<ResponseField name="creditCheck" type="object">The credit decision the funding came from: `decision`, `available`, `effectiveLimit`, `used`, and how fresh it is (`checkedAt`, `observationAgeMs` against `maxAgeMs`). Present exactly when `creditPortion` is. It is evidence, not a reservation.</ResponseField>
+<ResponseField name="creditReservation" type="object">On a firm ask, the cash and credit held for this quote until `expiresAt` or until your order takes it.</ResponseField>
+<ResponseField name="settlement.window" type="object">On a delayed trade, the window it settles in: `windowId`, `paymentDeadlineAt` and, on a clock window, `settlesBy`.</ResponseField>
 
   </Accordion>
   <Accordion title="A quote refused for credit: fix.kind">
@@ -232,23 +230,24 @@ The account's positions and credit decide, not you; each quote's `fundingModel` 
 
 Your order consents to the quote's `settlement.window`: send its `windowId` as `settlementWindowId`, or leave it out to consent to the quote's own window.
 
-If the window changes first, such as at a cut-off, the order is refused with `409 SETTLEMENT_WINDOW_CHANGED` and nothing is sent. Show `details.currentWindow` (the window now; `details.consentedWindow` is yours) to whoever decides, then send the same quote with `settlementWindowId` set to `details.currentWindow.windowId`.
-
 <CreditOrderWindow />
 
 <AccordionGroup>
+  <Accordion title="The window changed first: 409 SETTLEMENT_WINDOW_CHANGED">
+    If the window changes first, such as at a cut-off, the order is refused with `409 SETTLEMENT_WINDOW_CHANGED` and nothing is sent. Show `details.currentWindow` (the window now; `details.consentedWindow` is yours) to whoever decides, then send the same quote with `settlementWindowId` set to `details.currentWindow.windowId`.
+  </Accordion>
   <Accordion title="Order refusals on a credit or prefunded account">
     Nothing was sent on any of these.
 
-| Code | Status | What to do |
-| --- | --- | --- |
-| `CREDIT_LIMIT_BREACH` | 409 | The order needs more credit than is left. `details.creditRefusal.fix` says what passes (`reduceAmount` or `reduceExposure`). Request a new quote within it. |
-| `CREDIT_READ_UNAVAILABLE` | 503 | Credit could not be read fresh enough to check the order. Retry shortly, with backoff. |
-| `VENUE_PREFUNDED_BALANCE_INSUFFICIENT` | 409 | The account's free cash does not cover a prefunded trade. `details.maxAmount` is the largest debit that fits now, in `details.maxAmountAsset`. Request a new quote for at most that. |
-| `LP_CREDIT_EXHAUSTED` | 422 | The liquidity provider has no credit left for this order. Lower the amount, or choose another quote. |
-| `SETTLEMENT_WINDOW_CHANGED` | 409 | See above: consent to `details.currentWindow.windowId` and send again. |
-| `SETTLEMENT_WINDOW_NOT_APPLICABLE` | 422 | You sent `settlementWindowId` on a quote that settles at once. Send the order without it. |
-| `SETTLEMENT_WINDOW_NOT_CONSENTED` | 422 | The trade needed credit at the send, but its quote settled at once and carried no window to consent to. Request a new quote. |
+| Status and code | What to do |
+| --- | --- |
+| `409 CREDIT_LIMIT_BREACH` | The order needs more credit than is left. `details.creditRefusal.fix` says what passes (`reduceAmount` or `reduceExposure`). Request a new quote within it. |
+| `503 CREDIT_READ_UNAVAILABLE` | Credit could not be read fresh enough to check the order. Retry shortly, with backoff. |
+| `409 VENUE_PREFUNDED_BALANCE_INSUFFICIENT` | The account's free cash does not cover a prefunded trade. `details.maxAmount` is the largest debit that fits now, in `details.maxAmountAsset`. Request a new quote for at most that. |
+| `422 LP_CREDIT_EXHAUSTED` | The liquidity provider has no credit left for this order. Lower the amount, or choose another quote. |
+| `409 SETTLEMENT_WINDOW_CHANGED` | See above: consent to `details.currentWindow.windowId` and send again. |
+| `422 SETTLEMENT_WINDOW_NOT_APPLICABLE` | You sent `settlementWindowId` on a quote that settles at once. Send the order without it. |
+| `422 SETTLEMENT_WINDOW_NOT_CONSENTED` | The trade needed credit at the send, but its quote settled at once and carried no window to consent to. Request a new quote. |
 
 The SDK reads the details for you: `creditRefusalOf(error)` returns `details.creditRefusal` on `CREDIT_LIMIT_BREACH` and `CREDIT_READ_UNAVAILABLE`, and `prefundedHeadroomOf(error)` returns `{ maxAmount, asset }` on `VENUE_PREFUNDED_BALANCE_INSUFFICIENT`. Both return `null` on any other code.
 
@@ -274,15 +273,15 @@ Payloads carry ids, not statements: read the detail above. Delivery rules: [Webh
 <Accordion title="Events, payloads and permissions">
   A key subscribing to a `settlement.*` event needs Read settlements, and to `credit.updated` needs Treasury read; otherwise it gets `403 INSUFFICIENT_SCOPE`.
 
-| Event | `data.status` | Then read |
-| --- | --- | --- |
-| [`settlement.window.ready`](/reference/webhook-events#settlement.window.ready) | `ready` | The window, with its statement (`statementVersion`). |
-| [`settlement.obligation.due`](/reference/webhook-events#settlement.obligation.due) | `dueSoon` or `payableNow` | The obligation (`obligationId`). |
-| [`settlement.obligation.overdue`](/reference/webhook-events#settlement.obligation.overdue) | `overdue` | The obligation, then tell the member who pays. |
-| [`settlement.payment.matched`](/reference/webhook-events#settlement.payment.matched) | `paymentReceived`, `deliveryReceived` or `reversed` | The movement (`movementId`) and the window's matches. |
-| [`credit.updated`](/reference/webhook-events#credit.updated) | `agreedTermsChanged` or `lpReportedLimitChanged` | The account's credit (`termsVersion` is the new terms version). |
+| Event and `data.status` | Then read |
+| --- | --- |
+| [`settlement.window.ready`](/reference/webhook-events#settlement.window.ready): `ready` | The window, with its statement (`statementVersion`). |
+| [`settlement.obligation.due`](/reference/webhook-events#settlement.obligation.due): `dueSoon` or `payableNow` | The obligation (`obligationId`). |
+| [`settlement.obligation.overdue`](/reference/webhook-events#settlement.obligation.overdue): `overdue` | The obligation, then tell the member who pays. |
+| [`settlement.payment.matched`](/reference/webhook-events#settlement.payment.matched): `paymentReceived`, `deliveryReceived` or `reversed` | The movement (`movementId`) and the window's matches. |
+| [`credit.updated`](/reference/webhook-events#credit.updated): `agreedTermsChanged` or `lpReportedLimitChanged` | The account's credit (`termsVersion` is the new terms version). |
 
-  Every settlement event's `data` carries `workspaceId`, `venueAccountId`, `windowId` and `status`, plus the ids above when they apply. `credit.updated` carries `workspaceId`, `venueAccountId`, `termsVersion` and `status`. New `status` values may appear, so keep a default branch.
+  Every settlement event's `data` carries `workspaceId`, `venueAccountId`, `windowId` and `status`, plus the ids above when they apply. `credit.updated` carries `workspaceId`, `venueAccountId`, `termsVersion` and `status`. New `status` values may appear: treat a value you do not know as other ([Conventions](/reference/conventions#values)).
 </Accordion>
 
 ## Refusals
@@ -290,19 +289,19 @@ Payloads carry ids, not statements: read the detail above. Delivery rules: [Webh
 <AccordionGroup>
   <Accordion title="Settlement and credit">
 
-| Code | Status | What to do |
-| --- | --- | --- |
-| `INSUFFICIENT_SCOPE` | 403 | The key lacks the scope the message names: `settlements_read` (Read settlements) or `treasury_read` (Treasury read). Use a key that holds it. |
-| `JWT_REQUIRED` | 403 | A settlement action was called with a key. A [signed-in member](#settlement-actions-are-for-members) does it in the app. |
-| `INSUFFICIENT_WORKSPACE_PERMISSION` | 403 | The key's owner lacks the [workspace permission](#at-a-glance). Ask a workspace admin. |
-| `LEDGER_ACCOUNT_FORBIDDEN` | 403 | The same, on `…/ledger`. |
-| `VENUE_ACCOUNT_NOT_FOUND` | 404 | No venue account with that id. |
-| `WORKSPACE_NOT_FOUND` | 404 | The path's workspace is not your key's. |
-| `LEDGER_NOT_OBSERVED` | 409 | No ledger observation yet. Read later, or open the account in the app, which reads the venue live. |
-| `LEDGER_UNSUPPORTED` | 409 | The venue does not report a ledger. |
-| `LEDGER_SETUP_MISSING` | 409 | No current key, or the connection needs setup. A member with Manage credentials adds or verifies the key; read again. |
-| `VENUE_ACCOUNT_LEDGER_PENDING` | 409 | Setup unfinished. A member with Manage credentials finishes it (the `finishVenueAccountSetup` fix); read again. |
-| `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | 409 | A wallet-based venue keeps funds in linked wallets: read `GET …/balances`. |
+| Status and code | What to do |
+| --- | --- |
+| `403 INSUFFICIENT_SCOPE` | The key lacks the scope the message names: `settlements_read` (Read settlements) or `treasury_read` (Treasury read). Use a key that holds it. |
+| `403 JWT_REQUIRED` | A settlement action was called with a key. A [signed-in member](#settlement-actions-are-for-members) does it in the app. |
+| `403 INSUFFICIENT_WORKSPACE_PERMISSION` | The key's owner lacks the [workspace permission](#at-a-glance). Ask a workspace admin. |
+| `403 LEDGER_ACCOUNT_FORBIDDEN` | The same, on `…/ledger`. |
+| `404 VENUE_ACCOUNT_NOT_FOUND` | No venue account with that id. |
+| `404 WORKSPACE_NOT_FOUND` | The path's workspace is not your key's. |
+| `409 LEDGER_NOT_OBSERVED` | No ledger observation yet. Read later, or open the account in the app, which reads the venue live. |
+| `409 LEDGER_UNSUPPORTED` | The venue does not report a ledger. |
+| `409 LEDGER_SETUP_MISSING` | No current key, or the connection needs setup. A member with Manage credentials adds or verifies the key; read again. |
+| `409 VENUE_ACCOUNT_LEDGER_PENDING` | Setup unfinished. A member with Manage credentials finishes it (the `finishVenueAccountSetup` fix); read again. |
+| `409 VENUE_ACCOUNT_FUNDS_IN_WALLETS` | A wallet-based venue keeps funds in linked wallets: read `GET …/balances`. |
 
   </Accordion>
 </AccordionGroup>

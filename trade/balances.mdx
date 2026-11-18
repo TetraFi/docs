@@ -1,6 +1,7 @@
 ---
 title: "Balances and fees"
 description: "Read every balance your workspace holds across wallets and exchange accounts, one exchange account's balances and deposits, and the fees you pay."
+keywords: ["balance", "holdings", "positions", "fees", "fee schedule"]
 ---
 
 import BalancesList from '/snippets/samples/balances-list.mdx';
@@ -17,14 +18,14 @@ Read what each wallet and exchange account holds and the TetraFi fees you pay; t
 
 Paths are under `/api/v1/workspaces/{workspaceId}`.
 
-| Endpoint | Permission | Result |
-| --- | --- | --- |
-| `GET …/balances` | Treasury read | Every wallet and exchange-account balance, one row per account, asset and chain. |
-| `GET …/venue-enablements` | Treasury read | Your exchange accounts and their `venueAccountId`. |
-| `GET …/venue-accounts/{venueAccountId}/balances` | Treasury read | What the venue last reported for one account. |
-| `GET …/venue-accounts/{venueAccountId}/deposit-instructions` and `…/deposit-history` | Treasury read | Where to deposit, and what was credited. |
-| `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read | Credit and positions: [Credit and settlement](/trade/settlement-and-credit#credit-and-the-ledger). |
-| `GET …/fee-schedule` | Read fee schedule | The fees in force now and every scheduled change. |
+| Read | Permission |
+| --- | --- |
+| Every wallet and exchange-account balance, one row per account, asset and chain: `GET …/balances` | Treasury read |
+| Your exchange accounts and their `venueAccountId`: `GET …/venue-enablements` | Treasury read |
+| What the venue last reported for one account: `GET …/venue-accounts/{venueAccountId}/balances` | Treasury read |
+| Where to deposit, and what was credited: `GET …/venue-accounts/{venueAccountId}/deposit-instructions` and `…/deposit-history` | Treasury read |
+| [Credit and positions](/trade/settlement-and-credit#credit-and-the-ledger): `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read |
+| The fees in force now and every scheduled change: `GET …/fee-schedule` | Read fee schedule |
 
 Your workspace id is the `workspaceId` from `GET /api/v1/me` ([Permissions](/authentication#permissions)).
 
@@ -36,15 +37,13 @@ Your workspace id is the `workspaceId` from `GET /api/v1/me` ([Permissions](/aut
   <Accordion title="Fields and paging">
     Personal wallets are never listed; bank account balances cannot be observed.
 
-| Field | Meaning |
-| --- | --- |
-| `id` | Opaque: never parse or build one. |
-| `accountKind` | `wallet`, `venueAccount` or `bankAccount`; show an unknown kind as it is. |
-| `accountId` | A wallet's `walletId`, or the exchange account's `venueAccountId`. |
-| `asset`, `network`, `networkRef` | The asset; `network` is the CAIP-2 network, `null` off-chain (such as at an exchange) or when the source does not name exactly one; `networkRef` is the source's own network spelling. |
-| `nativeAssetId` | The asset's id at its source, such as a token contract, if known. |
-| `amount` | Everything held, a decimal string in whole units. |
-| `asOf`, `freshness` | When observed, and `fresh`, `stale` or `partial` (treat an unknown value as `stale`). |
+<ResponseField name="id" type="string">Opaque: never parse or build one.</ResponseField>
+<ResponseField name="accountKind" type="string">`wallet`, `venueAccount` or `bankAccount`; show an unknown kind as it is.</ResponseField>
+<ResponseField name="accountId" type="string">A wallet's `walletId`, or the exchange account's `venueAccountId`.</ResponseField>
+<ResponseField name="asset, network, networkRef" type="string">The asset; `network` is the CAIP-2 network, `null` off-chain (such as at an exchange) or when the source does not name exactly one; `networkRef` is the source's own network spelling.</ResponseField>
+<ResponseField name="nativeAssetId" type="string">The asset's id at its source, such as a token contract, if known.</ResponseField>
+<ResponseField name="amount" type="string">Everything held, a decimal string in whole units.</ResponseField>
+<ResponseField name="asOf, freshness" type="string">When observed, and `fresh`, `stale` or `partial` (treat an unknown value as `stale`).</ResponseField>
 
 Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accounts change mid-paging, restart without a cursor.
 
@@ -96,14 +95,12 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
   <Accordion title="Fields and paging">
     Page with `limit` (20 by default, at most 100) and `cursor`.
 
-| Field | Meaning |
-| --- | --- |
-| `accountId` | The `venueAccountId` the reads below take. Absent for a wallet-based venue. |
-| `venueKind` | `accountBased` (the venue holds your money) or `walletBased` (it trades from your wallets). |
-| `fundingTarget` | Where the money lives: `{kind: "venueAccount", accountId}` or `{kind: "tradingWallets", walletIds}`. Treat another kind as "other". |
-| `venueId`, `label` | The venue, such as `binance` (`null` if unknown), and the account's app name. |
-| `lifecycle` | `pending`, `configured`, `funding_only`, `disabled` or `revoked`. Treat all but `configured` as unusable. |
-| `tradingStatus`, `withdrawalStatus` | `active`, or `paused` by your workspace's control. Treat another value as not active. |
+<ResponseField name="accountId" type="string">The `venueAccountId` the reads below take. Absent for a wallet-based venue.</ResponseField>
+<ResponseField name="venueKind" type="string">`accountBased` (the venue holds your money) or `walletBased` (it trades from your wallets).</ResponseField>
+<ResponseField name="fundingTarget" type="object">Where the money lives: `{kind: "venueAccount", accountId}` or `{kind: "tradingWallets", walletIds}`. Treat a value you do not know as other ([Conventions](/reference/conventions#values)).</ResponseField>
+<ResponseField name="venueId, label" type="string">The venue, such as `binance` (`null` if unknown), and the account's app name.</ResponseField>
+<ResponseField name="lifecycle" type="string">`pending`, `configured`, `funding_only`, `disabled` or `revoked`. Treat all but `configured` as unusable.</ResponseField>
+<ResponseField name="tradingStatus, withdrawalStatus" type="string">`active`, or `paused` by your workspace's control. Treat another value as not active.</ResponseField>
 
   </Accordion>
   <Accordion title="Request and output">
@@ -126,15 +123,13 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 <AccordionGroup>
   <Accordion title="Fields">
 
-| Field | Meaning |
-| --- | --- |
-| `status` | `supported` when readable; otherwise `reason` and `reasonCode` say why. |
-| `observedAt`, `expiresAt` | When reported, and when the reading stops being current. |
-| `balances` | One line per asset. `null` means no reading; `[]` means the account holds nothing. |
-| `balances[].total` | Everything held, locked included. Negative on a credit account: what it owes. |
-| `balances[].free` | Free to trade or withdraw, per the venue. |
-| `balances[].available` | `free` less TetraFi's commitments to open trades and withdrawals; `null` if unknown. |
-| `balances[].usdValue` | US dollar value; `null` without a reference price, never `0`. |
+<ResponseField name="status" type="string">`supported` when readable; otherwise `reason` and `reasonCode` say why.</ResponseField>
+<ResponseField name="observedAt, expiresAt" type="string">When reported, and when the reading stops being current.</ResponseField>
+<ResponseField name="balances" type="array">One line per asset. `null` means no reading; `[]` means the account holds nothing.</ResponseField>
+<ResponseField name="balances[].total" type="string">Everything held, locked included. Negative on a credit account: what it owes.</ResponseField>
+<ResponseField name="balances[].free" type="string">Free to trade or withdraw, per the venue.</ResponseField>
+<ResponseField name="balances[].available" type="string">`free` less TetraFi's commitments to open trades and withdrawals; `null` if unknown.</ResponseField>
+<ResponseField name="balances[].usdValue" type="string">US dollar value; `null` without a reference price, never `0`.</ResponseField>
 
   </Accordion>
   <Accordion title="Request and output">
@@ -229,26 +224,26 @@ Each rate has `ratePpm` and `effectiveFrom`:
 <AccordionGroup>
   <Accordion title="Balances and exchange accounts">
 
-| `error` | Status | What to do |
-| --- | --- | --- |
-| `INVALID_BALANCE_LIST_QUERY` | 400 | Use only `cursor`, `limit`, `asset`, `accountKind` (`wallet`, `venueAccount` or `bankAccount`) and `accountId`. |
-| `INVALID_LIMIT`, `INVALID_CURSOR` | 400 | Send a valid `limit`, or start again without a cursor. |
-| `OBSERVATION_AUTHORITY_REQUIRED`, `VENUE_READ_AUTHORITY_REFUSED` | 403 | The key has no current authority to read the account, or lost it mid-read. Restore its Treasury read access. |
-| `WALLET_ACCESS_CHANGED` | 403 | The key's access changed mid-read. Read again. |
-| `WORKSPACE_ACCESS_REQUIRED` | 403 | The key's owner left the workspace. Use a current member's key. |
-| `VENUE_ACCOUNT_NOT_FOUND` | 404 | No exchange account with that id in the workspace. |
-| `VENUE_ACCOUNT_ELIGIBILITY_CHANGED` | 409 | An account was disconnected mid-read. Read again. |
-| `VENUE_ACCOUNT_REVERIFY_REQUIRED`, `VENUE_ACCOUNT_REVOKED` | 409 | No current venue key reads the account, or it was disconnected. Reconnect it in the app. |
-| `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | 409 | The money is in your own wallets: read those. |
-| `INVENTORY_UNAVAILABLE`, `VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE` | 503 | Retry shortly. |
+| Status and `error` | What to do |
+| --- | --- |
+| `400 INVALID_BALANCE_LIST_QUERY` | Use only `cursor`, `limit`, `asset`, `accountKind` (`wallet`, `venueAccount` or `bankAccount`) and `accountId`. |
+| `400 INVALID_LIMIT`, `400 INVALID_CURSOR` | Send a valid `limit`, or start again without a cursor. |
+| `403 OBSERVATION_AUTHORITY_REQUIRED`, `403 VENUE_READ_AUTHORITY_REFUSED` | The key has no current authority to read the account, or lost it mid-read. Restore its Treasury read access. |
+| `403 WALLET_ACCESS_CHANGED` | The key's access changed mid-read. Read again. |
+| `403 WORKSPACE_ACCESS_REQUIRED` | The key's owner left the workspace. Use a current member's key. |
+| `404 VENUE_ACCOUNT_NOT_FOUND` | No exchange account with that id in the workspace. |
+| `409 VENUE_ACCOUNT_ELIGIBILITY_CHANGED` | An account was disconnected mid-read. Read again. |
+| `409 VENUE_ACCOUNT_REVERIFY_REQUIRED`, `409 VENUE_ACCOUNT_REVOKED` | No current venue key reads the account, or it was disconnected. Reconnect it in the app. |
+| `409 VENUE_ACCOUNT_FUNDS_IN_WALLETS` | The money is in your own wallets: read those. |
+| `503 INVENTORY_UNAVAILABLE`, `503 VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE` | Retry shortly. |
 
   </Accordion>
   <Accordion title="Fee schedule">
 
-| `error` | Status | What to do |
-| --- | --- | --- |
-| `INVALID_REQUEST` | 400 | The path's workspace id is malformed. |
-| `FEE_SCHEDULE_UNAVAILABLE` | 503 | Unreadable; no partial or zero schedule is sent. Retry shortly. |
+| Status and `error` | What to do |
+| --- | --- |
+| `400 INVALID_REQUEST` | The path's workspace id is malformed. |
+| `503 FEE_SCHEDULE_UNAVAILABLE` | Unreadable; no partial or zero schedule is sent. Retry shortly. |
 
 A key without Read fee schedule is refused with `403 INSUFFICIENT_SCOPE`.
 
