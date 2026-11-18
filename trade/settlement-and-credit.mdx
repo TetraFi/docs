@@ -3,8 +3,6 @@ title: "Credit and settlement"
 description: "Monitor your venue accounts' credit, trade on credit, follow each trade into its settlement window, and react to settlement and credit webhooks."
 ---
 
-import TradesList from '/snippets/samples/trades-list.mdx';
-import TradeDetail from '/snippets/samples/trade-detail.mdx';
 import CreditMonitor from '/snippets/samples/credit-monitor.mdx';
 import CreditLedger from '/snippets/samples/credit-ledger.mdx';
 import SettlementPlan from '/snippets/samples/settlement-plan.mdx';
@@ -18,7 +16,7 @@ import CreditOrderWindow from '/snippets/samples/credit-order-window.mdx';
 import CreditOrderRefusals from '/snippets/samples/credit-order-refusals.mdx';
 import CreditTradeReadback from '/snippets/samples/credit-trade-readback.mdx';
 
-Read every trade your workspace made, and the credit and settlement behind each venue account. On a credit account you trade first; what you and the liquidity provider (LP) owe is netted over a settlement window, then paid.
+Read the credit and settlement behind each venue account. On a credit account you trade first; what you and the liquidity provider (LP) owe is netted over a settlement window, then paid.
 
 ## At a glance
 
@@ -26,7 +24,7 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 
 | Endpoint | Permission | Result |
 | --- | --- | --- |
-| `GET …/trades`, `GET …/trades/{tradeId}` | Read trades | Every trade, or one with how it ended. |
+| `GET …/trades`, `GET …/trades/{tradeId}` | Read trades | [Trade history](/trade/trade-history). |
 | `GET …/settlement/plan`, `GET …/trades/{tradeId}/settlement`, `GET …/venue-accounts/{venueAccountId}/settlement/…` | Read settlements | What is due, and how it settles. |
 | `GET …/venue-account-credit`, `…/venue-accounts/{venueAccountId}/credit`, `…/ledger` | Treasury read | Credit lines and positions. |
 | `settlement.*`, `credit.updated` [webhooks](#webhooks) | Read settlements, Treasury read | Told instead of polling. |
@@ -44,85 +42,9 @@ flowchart LR
 
 | Reads | Key permission | Key owner's workspace permission |
 | --- | --- | --- |
-| Trade history | Read trades | None; without View compliance records, only its own trades |
 | Settlement plan, trades, windows, obligations, movements, schedules | Read settlements (`settlements_read`) | View settlements |
 | `…/credit` | Treasury read | View wallets and View credit |
 | `…/ledger` | Treasury read | View wallets |
-
-  </Accordion>
-</AccordionGroup>
-
-## Trade history
-
-`GET /api/v1/workspaces/{workspaceId}/trades` lists orders and exchange-account trades, newest first. To follow one order, read its `statusUrl` ([Order status](/trade/order-status)).
-
-### Read a page
-
-Filter by `kind`, `status`, `from` and `to`; page with `cursor` until `nextCursor` is `null`.
-
-<AccordionGroup>
-  <Accordion title="Fields and parameters">
-
-| Field | Meaning |
-| --- | --- |
-| `tradeId` | The trade's id. |
-| `kind` | `order` (placed through TetraFi) or `venueTrade` (on your exchange account). Show an unknown kind generically. |
-| `projection` | The view read through: `workspace` for an API key. |
-| `createdAt` | When the trade was placed. |
-
-The page also carries `totalCount` (rows matching your filters), `nextCursor`, and `unreachable` for any source that could not be read.
-
-| Parameter | Use |
-| --- | --- |
-| `kind` | `all`, `order` or `venueTrade`. |
-| `status` | Rows in this status. |
-| `from`, `to` | RFC 3339 times: placed at or after, at or before. |
-| `limit` | The page size, 25 by default. |
-| `cursor` | The last `nextCursor`, same filters, until `null`. |
-| `format=csv` | The same rows as CSV, for a signed-in member only; an API key pages through the JSON. |
-
-  </Accordion>
-  <Accordion title="Request and output">
-
-<TradesList />
-
-```json Example output
-{"totalCount":628,"nextCursor":true,"unreachable":[]}
-{"tradeId":"9410e38e-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-02T01:36:46.856947Z"}
-{"tradeId":"3ba8fe03…","kind":"order","projection":"workspace","createdAt":"2026-11-01T23:51:28Z"}
-{"tradeId":"de0a1b4b-…","kind":"venueTrade","projection":"workspace","createdAt":"2026-11-01T22:55:48.448012Z"}
-{"page":2,"rows":5}
-```
-
-  </Accordion>
-  <Accordion title="The page is partial">
-    `unreachable` lists what the page could not hold, one entry per `source` (a trade kind such as `order` or `venueTrade`, or `workspaceTrades`):
-
-    - reason `unavailable`: that kind's rows could not be read. The page is partial, not shorter: read again later; the missing rows are not absent.
-    - reason `filterNotApplicable`: a filter or sort left that kind out; `filter` names it. Drop that filter to see it.
-    - reason `permissionRequired` (source `workspaceTrades`): you were served only your own trades.
-
-    New sources and reasons can appear: treat one you do not know as "the page is partial".
-  </Accordion>
-</AccordionGroup>
-
-### Read one trade
-
-`GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}` reads one trade; an order's `settlement.status` says how it ended.
-
-<AccordionGroup>
-  <Accordion title="Settlement fields, request and output">
-
-| Field | Meaning |
-| --- | --- |
-| `settlement.status` | `pending`, `settled`, `failed`, `refunded` or `unknown`. Treat an unknown value as `unknown`. |
-| `settlement.failureReason` | Why, when `status` is `failed` or `refunded`; else `null`. Show it to people; branch on `status`, never this text. |
-
-<TradeDetail />
-
-```json Example output
-{"tradeId":"673828c6…","kind":"order","settlement":{"status":"failed","failureReason":"…"}}
-```
 
   </Accordion>
 </AccordionGroup>
@@ -163,7 +85,7 @@ No settlement read creates a transfer, reservation, approval or instruction to t
     - `GET …/trades/{tradeId}/settlement`: your side of the trade, with its lifecycle stages, transactions and the LP's response.
     - `…/settlement/obligations`: the obligations referencing it, each with venue account, window and state.
 
-    Take `tradeId` from the [trade history](#trade-history). The LP's view is a signed-in member read in the app.
+    Take `tradeId` from the [trade history](/trade/trade-history). The LP's view is a signed-in member read in the app.
   </Accordion>
   <Accordion title="Windows, obligations, movements and schedules">
 
@@ -366,17 +288,6 @@ Payloads carry ids, not statements: read the detail above. Delivery rules: [Webh
 ## Refusals
 
 <AccordionGroup>
-  <Accordion title="Trade history">
-
-| Code | Status | What to do |
-| --- | --- | --- |
-| `INVALID_REQUEST` | 400 | An unknown parameter or value, or an unappliable filter. The answer names the parameter. |
-| `WORKSPACE_NOT_FOUND` | 404 | The path's workspace is not your key's. |
-| `TRADE_PROJECTION_UNAVAILABLE` | 503 | Trade history is unreadable on this deployment right now. Retry later. |
-
-A `404` on one trade means the `tradeId` is unknown, or belongs to another workspace.
-
-  </Accordion>
   <Accordion title="Settlement and credit">
 
 | Code | Status | What to do |
@@ -398,7 +309,7 @@ A `404` on one trade means the `tradeId` is unknown, or belongs to another works
 
 Every other code is in [Error codes](/reference/error-codes).
 
-Full scripts: [trades](https://github.com/TetraFi/docs/blob/main/samples/http/trades.sh) and [credit and settlement](https://github.com/TetraFi/docs/blob/main/samples/http/credit-settlement.sh).
+Full script: [credit and settlement](https://github.com/TetraFi/docs/blob/main/samples/http/credit-settlement.sh).
 
 ## Next
 

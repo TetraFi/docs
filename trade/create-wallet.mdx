@@ -1,0 +1,66 @@
+---
+title: "Create a wallet"
+description: "Start an organisation wallet, or a member's own personal wallet, with the owners who approve it, follow its creation and withdraw it."
+keywords: ["create wallet", "organisation wallet", "owners", "threshold", "Turnkey", "Privy"]
+---
+
+A member's own API key can start an organisation wallet (with `treasury_write`) or the member's own personal wallet (with `orders_write`, where Advanced is enabled). Each owner chooses their own sign-in methods and approves it on their own signing page, so no wallet exists at the provider until they have.
+
+## At a glance
+
+Paths are under `/api/v1/workspaces/{workspaceId}`.
+
+| You want to | Call |
+| --- | --- |
+| Start a wallet | `POST …/wallets` |
+| Follow one creation | `GET …/wallets/{walletId}` |
+| List pending creations | `GET …/wallets?status=pending` |
+| Withdraw a creation | `POST …/wallets/{walletId}/cancel` |
+
+<Steps>
+  <Step title="Start it">
+    `POST /api/v1/workspaces/{workspaceId}/wallets` with `scope` (`organisation`, or `personal` for the key's own member), a `connectionId` (a workspace wallet connection, or `platform-turnkey`), `family`, `networks`, `displayName` and an `ownerGroup`: the people who approve, each with an empty `factors` list and no `walletId`, and the `threshold`. A personal wallet's group is the key's member alone, threshold 1. Send an `Idempotency-Key`. The answer is `202` with the pending wallet and `signingRequest.approvalUrl`.
+
+```json Request body
+{
+  "scope": "organisation",
+  "connectionId": "platform-turnkey",
+  "family": "evm",
+  "networks": ["eip155:84532"],
+  "displayName": "Treasury",
+  "ownerGroup": {
+    "members": [
+      { "person": "<workspace user id>", "factors": [], "needed": 1 },
+      { "person": "<workspace user id>", "factors": [], "needed": 1 }
+    ],
+    "threshold": 2
+  }
+}
+```
+  </Step>
+  <Step title="Send the owners to approve">
+    Each owner, the key's member included, opens `approvalUrl`, signs in, chooses their sign-in methods and proves them. For an organisation wallet the key's member first confirms it was them with an authenticator app or security key. With `returnUrl`, on one of the workspace's registered wallet callback origins, the page sends them back with `signingRequestId` and `outcome`.
+  </Step>
+  <Step title="Follow it">
+    `GET …/wallets/{walletId}` until `status` is `active`, or `failed`, `cancelled` or `declined`. `missing` names who has not approved yet. `GET …/wallets?status=pending` lists the pending ones.
+  </Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title="What a key may not do">
+    A key never names how a person approves: an owner sent with factors or a `walletId` is `403 API_KEY_WALLET_FACTORS_REFUSED`, and nothing is recorded. Each person picks their own sign-in methods or wallet on the approval page. A key needs the scope its body needs: `orders_write` for a personal wallet, `treasury_write` for an organisation wallet (`403 INSUFFICIENT_SCOPE` otherwise, with `details.requiredScope`). A key holding neither is refused before its body is read, and that refusal's `details.requiredScope` names `orders_write`. A personal wallet where Advanced is not enabled is `403 ADVANCED_MODE_DISABLED`, and a service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`. A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`): set access and grants in the app. An API key never approves.
+  </Accordion>
+  <Accordion title="Withdraw a creation">
+    `POST …/wallets/{walletId}/cancel` with an `Idempotency-Key`, and the scope the creation needed. A `pending` creation is withdrawn at once and reads `cancelled`. An `uncertain` one is checked at the provider first and refused by name when the wallet may exist there. Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`.
+  </Accordion>
+  <Accordion title="Status values">
+    `pending`, `creating`, `uncertain`, `created`, `active`, `readbackMismatch`, `failed`, `expired`, `cancelled`, `declined`. The list can grow: read a value you do not know as not usable yet.
+  </Accordion>
+</AccordionGroup>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Give a key organisation wallets" icon="key" href="/before-you-trade#give-a-key-organisation-wallets">Let a key trade from the new wallet.</Card>
+  <Card title="Choose wallets and accounts" icon="wallet" href="/trade/wallets-and-accounts">Name the wallet a quote trades from.</Card>
+</CardGroup>
