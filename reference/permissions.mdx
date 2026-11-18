@@ -32,7 +32,12 @@ Each API operation below lists the API-key scopes it needs and the matching chec
 | `treasury_write` | Treasury write |
 | `webhooks_manage` | Manage webhooks |
 
-## Auth
+## Operations
+
+Open an area to see what each of its operations needs.
+
+<AccordionGroup>
+<Accordion title="Auth">
 
 Exchange service-account credentials for a token, and read the credential you are calling with: its identity, scopes and rate limits.
 
@@ -41,7 +46,8 @@ Exchange service-account credentials for a token, and read the credential you ar
 | Get current credential<br />GET `/api/v1/me` | None | None |
 | Create access token<br />POST `/api/v1/oauth/token` | No API key required | Not applicable |
 
-## Trading
+</Accordion>
+<Accordion title="Trading">
 
 Discover the assets, chains and venues you can trade, and read or stream their indicative prices.
 
@@ -51,7 +57,8 @@ Discover the assets, chains and venues you can trade, and read or stream their i
 | Get prices<br />GET `/api/v1/prices` | `prices_read` | Read quotes |
 | Stream prices<br />GET `/api/v1/prices/stream` | `prices_read` | Read quotes |
 
-## Quotes
+</Accordion>
+<Accordion title="Quotes">
 
 Request firm or indicative quotes for an asset pair from every eligible venue, requote one, and read a quote request again.
 
@@ -60,7 +67,8 @@ Request firm or indicative quotes for an asset pair from every eligible venue, r
 | Request quotes<br />POST `/api/v1/quotes` | `quotes_request` | Read quotes + Submit orders |
 | Get quote request<br />GET `/api/v1/quotes/requests/{quoteRequestId}` | `quotes_read` | Read quotes |
 
-## Orders
+</Accordion>
+<Accordion title="Orders">
 
 Place an order from a quote you hold, follow its status, and cancel it before it is sent to a venue.
 
@@ -72,7 +80,8 @@ Place an order from a quote you hold, follow its status, and cancel it before it
 | Get order<br />GET `/api/v1/orders/{orderId}` | `orders_read` | Read orders |
 | Cancel order<br />POST `/api/v1/orders/{orderId}/cancel` | `orders_write` | Submit orders |
 
-## Trades
+</Accordion>
+<Accordion title="Trades">
 
 Your trade history: every order and venue trade, with its settlement and settlement obligations.
 
@@ -83,7 +92,8 @@ Your trade history: every order and venue trade, with its settlement and settlem
 | Get trade settlement<br />GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement` | `settlements_read` | Read settlements |
 | List trade obligations<br />GET `/api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations` | `settlements_read` | Read settlements |
 
-## Settlements
+</Accordion>
+<Accordion title="Settlements">
 
 Your venue accounts' settlement windows, obligations, movements and schedules, and the plan of what is due across them.
 
@@ -100,7 +110,8 @@ Your venue accounts' settlement windows, obligations, movements and schedules, a
 | Get account window<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}` | `settlements_read` | Read settlements |
 | List account window matches<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches` | `settlements_read` | Read settlements |
 
-## Treasury
+</Accordion>
+<Accordion title="Treasury">
 
 Balances across the workspace's wallets and venue accounts.
 
@@ -108,7 +119,8 @@ Balances across the workspace's wallets and venue accounts.
 | :--- | :--- | :--- |
 | List workspace balances<br />GET `/api/v1/workspaces/{workspaceId}/balances` | `treasury_read` | Treasury read |
 
-## Wallets
+</Accordion>
+<Accordion title="Wallets">
 
 Start an organisation wallet with the owners you choose, send each owner to TetraFi's approval page, and follow the wallet until it is active.
 
@@ -119,7 +131,8 @@ Start an organisation wallet with the owners you choose, send each owner to Tetr
 | Get wallet creation<br />GET `/api/v1/workspaces/{workspaceId}/wallets/{walletId}` | `treasury_read` | Treasury read |
 | Cancel wallet creation<br />POST `/api/v1/workspaces/{workspaceId}/wallets/{walletId}/cancel` | `treasury_write` | Treasury write |
 
-## Venue accounts
+</Accordion>
+<Accordion title="Venue accounts">
 
 One venue account's balances, deposit instructions and history, credit and ledger.
 
@@ -132,7 +145,8 @@ One venue account's balances, deposit instructions and history, credit and ledge
 | Get deposit instructions<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` | `treasury_read` | Treasury read |
 | Get account ledger<br />GET `/api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/ledger` | `treasury_read` | Treasury read |
 
-## Venue enablements
+</Accordion>
+<Accordion title="Venue enablements">
 
 The workspace's venue accounts, with where their funds are held and each venue's key state.
 
@@ -140,7 +154,8 @@ The workspace's venue accounts, with where their funds are held and each venue's
 | :--- | :--- | :--- |
 | List venue accounts<br />GET `/api/v1/workspaces/{workspaceId}/venue-enablements` | `treasury_read` | Treasury read |
 
-## Webhooks
+</Accordion>
+<Accordion title="Webhooks">
 
 Register endpoints for signed event deliveries, rotate their secrets, send test deliveries and read the delivery log.
 
@@ -157,7 +172,8 @@ Register endpoints for signed event deliveries, rotate their secrets, send test 
 | Resume webhook<br />POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/resume` | `webhooks_manage` | Manage webhooks |
 | Rotate webhook secret<br />POST `/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}/rotate` | `webhooks_manage` | Manage webhooks |
 
-## Workspaces
+</Accordion>
+<Accordion title="Workspaces">
 
 The workspace's verification state, the capabilities it allows, and its fee schedule.
 
@@ -166,10 +182,14 @@ The workspace's verification state, the capabilities it allows, and its fee sche
 | Get capabilities<br />GET `/api/v1/workspaces/{workspaceId}/capabilities` | `compliance_read` | Read compliance |
 | Get fee schedule<br />GET `/api/v1/workspaces/{workspaceId}/fee-schedule` | `fee_schedule_read` | Read fee schedule |
 
-## Batch
+</Accordion>
+<Accordion title="Batch">
 
 Read up to 20 resources in one request, each answered exactly as its own GET.
 
 | Operation | API-key scopes | Permission in the app |
 | :--- | :--- | :--- |
 | Batch reads<br />POST `/api/v1/batch` | None | None |
+
+</Accordion>
+</AccordionGroup>

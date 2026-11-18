@@ -1,5 +1,6 @@
 ---
 title: "Compatibility policy"
+keywords: ["versioning", "breaking changes", "deprecation", "stability", "backwards compatibility"]
 description: "What can change in the API after launch, what never changes without notice, and how your client stays compatible."
 ---
 
@@ -29,6 +30,8 @@ It covers:
 The API is versioned by date. A version is named `YYYY-MM-DD`; the one supported version today is
 `2026-11-17`.
 
+<Accordion title="More on versioning">
+
 - **Your key's pin.** Every API key records the version that was current when it was created.
   Requests from that key are answered in its pinned version. Rotating a key keeps its pin.
 - **The header.** Send `TetraFi-Version: YYYY-MM-DD` to choose the version of one request. A value
@@ -44,6 +47,8 @@ The API is versioned by date. A version is named `YYYY-MM-DD`; the one supported
   newest version) and retire the old one; recreate a webhook endpoint to move its bodies.
 - **After launch,** an [additive](#what-we-promise) change reaches every version. A breaking change
   ships only as a new dated version, so a pinned key never sees it until you move.
+
+</Accordion>
 
 ## Reference exposure and launch availability
 
@@ -125,6 +130,8 @@ your last upgrade before you update a client.
 A quote source's `fix` (`QuoteSourceFix`) and a refusal's `refusalFix` (`RefusalFix`) of kind
 `requestPermission` name a `target`, a tagged union on `kind`. Since 2026-11-10 it has three values:
 
+<Accordion title="More on permission request targets">
+
 | `target.kind` | Fields |
 |---|---|
 | `walletRight` | `walletId`, `right` |
@@ -135,9 +142,13 @@ The addition is additive: `target.kind` and the rights are open enums. Treat an 
 permission a member asks for in the app; its `approvers` and `existingRequest` still read as
 documented.
 
+</Accordion>
+
 ## Order identity and minimum receive
 
 Order identity:
+
+<Accordion title="More on order identity and minimum receive">
 
 - Both order kinds carry one top-level `orderId`, accepted by `GET /api/v1/orders/{id}`.
 - An Advanced order retains `order.orderId`; a Basic order retains `operation.operationId`. These
@@ -153,9 +164,13 @@ Minimum receive:
 - A false flag does not grant permission to order: readiness, expiry and the card's `next` still
   apply.
 
+</Accordion>
+
 ## The error body
 
 Every refusal of an integrator operation, at every status, is one JSON object:
+
+<Accordion title="More on the error body">
 
 ```json
 {
@@ -208,10 +223,14 @@ and a matching retry duration and header. They describe no quota or window, so t
 This pre-launch change of status from timeout/unavailable to 429 is recorded in the 2026-11-06
 [changelog](/changelog) entry. The pre-launch `X-RateLimit-*` scheme is retired.
 
+</Accordion>
+
 ## Retries and idempotency
 
 These promises hold within a version; how to retry and recover is in
 [Retries and recovery](/trade/orders#retries-and-recovery):
+
+<Accordion title="More on retries and idempotency">
 
 - `POST /api/v1/orders` takes an `Idempotency-Key` header, and API keys must send one.
   `POST /api/v1/quotes` takes an optional one.
@@ -221,6 +240,8 @@ These promises hold within a version; how to retry and recover is in
 - Refusals are not stored, and a streamed quote answer (`Accept: text/event-stream`) is never
   replayed.
 - The OpenAPI description of the header has the full rules.
+
+</Accordion>
 
 ## Cancellation
 
@@ -236,6 +257,8 @@ be cancelled: [Cancel an order](/trade/orders#cancel-an-order).
 
 `POST /api/v1/orders` and `GET /api/v1/orders/{id}` return the same envelope:
 `{kind, status, terminal, statusUrl, quoteId?, requestId?, order|operation}`.
+
+<Accordion title="More on order lifecycle">
 
 - `kind` is `advancedTrade` (nested `order`) or `basicTrade` (nested `operation`). For Basic
   trades, `{id}` is the operation id.
@@ -273,11 +296,15 @@ Terminality comes from the order's durable product facts:
 - Basic orders require final execution and final settlement/delivery, or no such legs.
 - Review and unknown outcomes never mean terminal.
 
+</Accordion>
+
 ## Webhooks
 
 A workspace webhook receives a signed `POST` for each event it subscribes to. `order.updated` is
 sent on every status change of an order placed in that workspace. How to verify, acknowledge and
 deduplicate deliveries: [Receive order updates by webhook](/trade/webhooks).
+
+<Accordion title="More on webhooks">
 
 - The body is `{id, type, apiVersion, createdAt, data}`. For `order.updated`, `data` is
   `{orderId, kind, status, terminal, statusUrl}`; for `treasury.balance.low` and
@@ -296,12 +323,16 @@ deduplicate deliveries: [Receive order updates by webhook](/trade/webhooks).
 - Delivery is at least once, retried after 5 s, 30 s, 10 min, 1 h, 6 h and 24 h without a `2xx`;
   the body's `id` stays the same across retries and redeliveries.
 
+</Accordion>
+
 ## Deprecation
 
 After launch, nothing is removed or changed incompatibly inside a version. A removal or breaking
 change reaches only callers on a newer dated version (see [Versioning](#versioning)); a key pinned to
 an older version keeps its shape until that version is retired. Retiring a whole version is the only
 thing announced this way:
+
+<Accordion title="More on deprecation">
 
 1. **Notice.** The changelog announces the version's retirement, with a sunset date at least 6
    months away. A security fix may need a shorter window, and the notice says why.
@@ -313,6 +344,8 @@ thing announced this way:
    window: test it with `TetraFi-Version`, then create a key pinned to it.
 4. **Retirement.** On the sunset date, the retired version is no longer served. Move keys and
    webhook endpoints pinned to it to a supported version before then.
+
+</Accordion>
 
 ## How we check ourselves
 
