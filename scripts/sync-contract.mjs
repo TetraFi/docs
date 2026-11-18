@@ -142,11 +142,12 @@ function errorCodesPage() {
     ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
       'ACROSS', 'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BUDGET', 'CCTP', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'DELIVER',
       'DESK', 'EXACT', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'RELAY_FEE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
-      'UNKNOWN', 'USABLE']],
+      'UNKNOWN', 'USABLE', 'VENUE_QUOTE_RATE_LIMITED']],
     ['Orders', 'Placing, following and cancelling an order: minimum receive, slippage, caps, the source it trades from and its execution.', [
       'ADVANCED', 'BROWSER', 'CLIENT', 'DIRECT', 'EXECUTION', 'FIRM', 'HELD', 'HIGH', 'INSUFFICIENT_BALANCE', 'INSUFFICIENT_LIQUIDITY',
       'INSUFFICIENT_LP_BALANCE', 'LEGACY', 'MIN', 'OPERATION', 'ORDER', 'PERIOD', 'PILOT', 'PREFLIGHT', 'PRICE', 'RECORDED', 'RELAY',
-      'REPRICING', 'ROUTE', 'SELF', 'SOURCE', 'SUBMIT', 'TRADING', 'TRANSPORT', 'WORKSPACE_ORDER_PLACING', 'WORKSPACE_SLIPPAGE']],
+      'REPRICING', 'ROUTE', 'SELF', 'SOURCE', 'SUBMIT', 'TRADING', 'TRANSPORT', 'VENUE_QUOTE', 'WORKSPACE_ORDER_PLACING',
+      'WORKSPACE_SLIPPAGE']],
     ['Signing and grants', 'Signing grants, wallet signatures, signed steps and owner authorizations.', [
       'EIP712', 'EXPIRED', 'FUNDER', 'GRANT', 'NATIVE', 'OWNER', 'PERMIT', 'RELEASE', 'SIGNATURE', 'SIGNED', 'SIGNER', 'SIGNING',
       'STABLEFX', 'STEP', 'TRADER']],

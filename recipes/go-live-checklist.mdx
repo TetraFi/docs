@@ -18,13 +18,13 @@ Check each item, then place your first production order at the [smallest amount 
 | Deduplicate webhooks on the body's `id` | Delivery is at least once and out of order; a redelivery gets a new `webhook-id`. | [Webhooks](/trade/webhooks) |
 | Send a test delivery | `POST …/deliveries` with `{"kind":"test"}`. | [Set up an endpoint](/trade/webhooks#set-up-an-endpoint) |
 | Watch for a paused endpoint | Resume, redeliver, then reconcile orders: receipts kept are capped by `deliveryRetention`. | [Missed events](/trade/webhooks#retries-pauses-and-missed-events) |
-| Sync your clock with NTP; use fresh nonces | `X-Timestamp` within 300 seconds; a random `X-Nonce` and new signature on every send, retries included. | [Sign requests](/authentication#sign-requests) |
+| Sync your clock with NTP; use fresh nonces on writes | `X-Timestamp` within 300 seconds; every write, retries included, gets a new random `X-Nonce` and signature. A read has no nonce. | [Sign requests](/authentication#sign-requests) |
 | Keep secrets in a secret manager | Never in code or a tracked file. | |
 | Pick up a rotated key within one hour | After **Rotate key**, the old key works for one hour. | [Rotate and revoke](/authentication#rotate-and-revoke) |
 | Grant only the permissions a key uses; know how to revoke a leaked key at once | A leaked key does less, for less time. | [Rotate and revoke](/authentication#rotate-and-revoke) |
 | Use a service account for software | It outlives one person's access. | [Service account tokens](/authentication#service-account-tokens) |
 | Watch markets with prices, never by polling quotes | One live quote request per key every 3 seconds. | [Prices](/search/prices) |
-| On any `429`, wait `Retry-After` and retry once | An order keeps its `Idempotency-Key`. | [Rate limits](/reference/rate-limits) |
+| On a `429`, wait `Retry-After` and retry once, unless the code says otherwise | `PRICES_STREAM_LIMIT` needs a stream closed first; an order retry keeps its `Idempotency-Key` and body. | [Rate limits](/reference/rate-limits) |
 | Requote a held quote | Instead of searching again. | [Requote a quote](/search/firmness-and-lifetime#requote-a-quote) |
 | Tolerate what you do not know | Ignore unknown fields; treat an unknown enum value (a status, source reason, `next.kind`) as other, show `detail` or `message`, and keep following `terminal`. | [Codes you do not know](/trade/errors#codes-you-do-not-know) |
 | Never sign an unknown step `type` | `signing.mode`, step `type` and `next.kind` gain values; keep reading the order until `terminal` is `true`. | [What comes next](/trade/sign-with-your-own-wallet#what-comes-next) |

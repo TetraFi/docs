@@ -141,10 +141,16 @@ order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --arg raw "$raw" 
   firstStep: {stepId: .signing.firstStep.stepId, kind: "signedTransaction", raw: $raw}}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * 1000000 | floor | . / 1000000 | tostring)} else {} end)' <<<"$quote")
-# One Idempotency-Key per order, stored before you send it: a retry returns the first answer and
-# never relays twice.
+# One Idempotency-Key per order, saved with the exact body before you send it (0600, never
+# overwritten): a retry with both returns the first answer and never relays twice. If the answer is
+# lost, keep the file and read GET /api/v1/orders/by-quote/<quoteId>; never rerun the script.
 idempotency_key=$(openssl rand -hex 16)
-order=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
+record=./tetrafi-order-$quote_id.json
+jq -n --arg q "$quote_id" --arg k "$idempotency_key" --arg b "$order_body" \
+  '{quoteId: $q, idempotencyKey: $k, exactBody: $b}' | (umask 077; set -o noclobber; cat > "$record") \
+  || { echo "Could not save $record; no order was sent." >&2; exit 1; }
+order=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key") \
+  || { echo "Refused or no answer: keep $record and read GET /api/v1/orders/by-quote/$quote_id first." >&2; exit 1; }
 order_id=$(jq -r '.orderId' <<<"$order")
 jq -c '{orderId, status, terminal, next: .next.kind}' <<<"$order" >&2
 # endregion
@@ -160,9 +166,14 @@ for _ in $(seq 1 90); do
     step=$(jq -c '.next.step' <<<"$state")
     raw=$(sign_step "$step")
     step_id=$(jq -r '.stepId' <<<"$step")
-    state=$(tetrafi POST "/api/v1/orders/$order_id/steps/$step_id" \
-      "$(jq -nc --arg raw "$raw" '{kind: "signedTransaction", raw: $raw}')" \
-      "Idempotency-Key: $(openssl rand -hex 16)")
+    step_body=$(jq -nc --arg raw "$raw" '{kind: "signedTransaction", raw: $raw}')
+    step_key=$(openssl rand -hex 16)
+    # Saved like the order: on a lost answer, resend this body with this key, or read the order.
+    jq -n --arg k "$step_key" --arg b "$step_body" '{idempotencyKey: $k, exactBody: $b}' \
+      | (umask 077; set -o noclobber; cat > "./tetrafi-step-$step_id.json") \
+      || { echo "Could not save the step record; the step was not sent." >&2; exit 1; }
+    state=$(tetrafi POST "/api/v1/orders/$order_id/steps/$step_id" "$step_body" "Idempotency-Key: $step_key") \
+      || { echo "Refused or no answer: keep ./tetrafi-step-$step_id.json and read GET /api/v1/orders/$order_id first." >&2; exit 1; }
   else
     wait=$(jq -r '.next | select(.kind == "wait") | .retryAfter | capture("^PT(?<s>[0-9]+)S$").s' <<<"$state" 2>/dev/null || true)
     sleep "${wait:-10}"

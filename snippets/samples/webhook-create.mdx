@@ -3,14 +3,27 @@
 <CodeGroup>
 
 ```bash cURL
-# Create the endpoint with an Idempotency-Key you keep: a replay within 24 hours returns the same
-# endpoint with secret null, so write the secret down the first time. It is shown once.
-created=$(tetrafi POST "$base" \
-  "$(jq -nc --arg url "$TETRAFI_WEBHOOK_URL" '{url: $url, events: ["order.updated"]}')" \
-  "Idempotency-Key: $(openssl rand -hex 16)")
+# Create the endpoint with an Idempotency-Key saved with its body before you send (0600): a lost
+# answer is replayed with both, and a replay within 24 hours returns the same endpoint with secret
+# null. The secret is shown once: it is checked, then written to a new file only you can read.
+request_file=$secret_file.request
+if [[ -f $request_file ]]; then
+  saved=$(jq -cn '[inputs] | if length == 1 then .[0] else error("REQUEST_RECORD_INVALID") end' "$request_file")
+  create_key=$(jq -er '.idempotencyKey' <<<"$saved"); create_body=$(jq -er '.exactBody' <<<"$saved")
+else
+  create_key=$(openssl rand -hex 16)
+  create_body=$(jq -nc --arg url "$TETRAFI_WEBHOOK_URL" '{url: $url, events: ["order.updated"]}')
+  jq -n --arg k "$create_key" --arg b "$create_body" '{idempotencyKey: $k, exactBody: $b}' \
+    | (umask 077; set -o noclobber; cat > "$request_file") || { echo "Could not save $request_file" >&2; exit 1; }
+fi
+created=$(tetrafi POST "$base" "$create_body" "Idempotency-Key: $create_key")
 webhook_id=$(jq -r '.webhook.id' <<<"$created")
-(umask 077 && jq -r '.secret // empty' <<<"$created" > "$secret_file")
-[[ -s $secret_file ]] || { echo '{"error":"no secret returned: rotate it to get a new one"}' >&2; exit 1; }
+secret=$(jq -r '.secret // empty' <<<"$created")
+[[ -n $secret ]] || { echo '{"error":"no secret returned (a replay): rotate it to get a new one"}' >&2; exit 1; }
+# noclobber refuses an existing file, so the secret never lands in a file someone else can read.
+(umask 077; set -o noclobber; printf '%s\n' "$secret" > "$secret_file") \
+  || { echo "{\"error\":\"$secret_file exists: choose a new TETRAFI_WEBHOOK_SECRET_FILE\"}" >&2; exit 1; }
+unset secret
 ```
 
 </CodeGroup>

@@ -66,7 +66,7 @@ You need a quote whose `next.kind` is `order`, and an account or wallet holding 
 
 ## Minimum receive
 
-Send `minReceive` when the quote reads `minReceiveRequired: true`; otherwise it is your own optional floor.
+Send `minReceive` when the quote reads `minReceiveRequired: true`. Other venue quotes may accept it as your own floor; a quote that executes at the price shown refuses it (`400 MIN_RECEIVE_NOT_ACCEPTED`).
 
 ### Venues that execute within your limit
 
@@ -87,7 +87,8 @@ Send `minReceive` when the quote reads `minReceiveRequired: true`; otherwise it 
 | Quote | `minReceive` | If it is not met |
 | --- | --- | --- |
 | `minReceiveRequired: true` | Required. The trade happens only if the venue delivers at least that. | Missing: `400 MIN_RECEIVE_REQUIRED`, and nothing is sent. |
-| Any other Basic quote | Optional: your own floor. | The venue's held firm price already delivers less: `409 VENUE_QUOTE_OUTSIDE_BOUNDS`. |
+| Another venue quote that accepts it | Optional: your own floor. | The venue's held firm price already delivers less: `409 VENUE_QUOTE_OUTSIDE_BOUNDS`. |
+| A quote that executes at the price shown | Leave it out. | Sent anyway: `400 MIN_RECEIVE_NOT_ACCEPTED`. |
 
   </Accordion>
 </AccordionGroup>

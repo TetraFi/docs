@@ -13,9 +13,14 @@ for _ in $(seq 1 90); do
     step=$(jq -c '.next.step' <<<"$state")
     raw=$(sign_step "$step")
     step_id=$(jq -r '.stepId' <<<"$step")
-    state=$(tetrafi POST "/api/v1/orders/$order_id/steps/$step_id" \
-      "$(jq -nc --arg raw "$raw" '{kind: "signedTransaction", raw: $raw}')" \
-      "Idempotency-Key: $(openssl rand -hex 16)")
+    step_body=$(jq -nc --arg raw "$raw" '{kind: "signedTransaction", raw: $raw}')
+    step_key=$(openssl rand -hex 16)
+    # Saved like the order: on a lost answer, resend this body with this key, or read the order.
+    jq -n --arg k "$step_key" --arg b "$step_body" '{idempotencyKey: $k, exactBody: $b}' \
+      | (umask 077; set -o noclobber; cat > "./tetrafi-step-$step_id.json") \
+      || { echo "Could not save the step record; the step was not sent." >&2; exit 1; }
+    state=$(tetrafi POST "/api/v1/orders/$order_id/steps/$step_id" "$step_body" "Idempotency-Key: $step_key") \
+      || { echo "Refused or no answer: keep ./tetrafi-step-$step_id.json and read GET /api/v1/orders/$order_id first." >&2; exit 1; }
   else
     wait=$(jq -r '.next | select(.kind == "wait") | .retryAfter | capture("^PT(?<s>[0-9]+)S$").s' <<<"$state" 2>/dev/null || true)
     sleep "${wait:-10}"
