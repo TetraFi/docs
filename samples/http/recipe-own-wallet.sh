@@ -11,7 +11,9 @@
 #   SIGNER_PRIVATE_KEY      the wallet's private key, used only by cast on this machine
 #   SIGNER_RPC_URL          an RPC endpoint of the chain you sell on, for gas and fees
 # Optional:
-#   TETRAFI_ASSET           the asset to move (default USDC)
+#   TETRAFI_ASSET           the asset you sell (default USDC)
+#   TETRAFI_BUY_ASSET       the asset you buy (default: the asset you sell)
+#   TETRAFI_VENUE           quote only this venue id (for example uniswap-v3); default: every venue
 #   TETRAFI_FROM_CHAIN      CAIP-2 chain you sell on (default eip155:8453, Base)
 #   TETRAFI_TO_CHAIN        CAIP-2 chain you receive on (default eip155:1, Ethereum)
 #   TETRAFI_AMOUNT          the amount you sell (default 10)
@@ -67,6 +69,7 @@ tetrafi() {
 }
 
 asset=${TETRAFI_ASSET:-USDC}
+buy_asset=${TETRAFI_BUY_ASSET:-$asset}
 amount=${TETRAFI_AMOUNT:-10}
 from_chain=${TETRAFI_FROM_CHAIN:-eip155:8453}
 to_chain=${TETRAFI_TO_CHAIN:-eip155:1}
@@ -75,15 +78,17 @@ address=$(cast wallet address --private-key "$SIGNER_PRIVATE_KEY")
 # region recipe-own-wallet-quote
 # Name the wallet's address for the chain you sell on. Each on-chain quote is then firm for that
 # address, and signing.mode "you" means you sign: signing.firstStep is the first thing to sign.
-request=$(jq -nc --arg asset "$asset" --arg amount "$amount" --arg from "$from_chain" \
-  --arg to "$to_chain" --arg address "$address" '{
+# A move between chains asks only cross-chain venues; TETRAFI_VENUE keeps one venue.
+request=$(jq -nc --arg asset "$asset" --arg buy "$buy_asset" --arg amount "$amount" --arg from "$from_chain" \
+  --arg to "$to_chain" --arg address "$address" --arg venue "${TETRAFI_VENUE:-}" '{
   kind: "pair",
   sell: {asset: $asset, network: $from},
-  buy: {asset: $asset, network: $to},
+  buy: {asset: $buy, network: $to},
   sellAmount: $amount,
-  filters: {locations: ["crossChain"]},
   source: {tradingWallets: {($from): $address}}
-}')
+} + {filters: ((if $from != $to then {locations: ["crossChain"]} else {} end)
+  + (if $venue != "" then {venues: {include: [$venue]}} else {} end))}
+  | if .filters == {} then del(.filters) else . end')
 quotes=$(tetrafi POST /api/v1/quotes "$request")
 jq -c '.sources[] | select(.status != "filteredOut") | {venue: .venue.id, status, reason}' <<<"$quotes" >&2
 quote=$(jq -c 'first(.quotes[] | select(.next.kind == "order" and .signing.mode == "you"
