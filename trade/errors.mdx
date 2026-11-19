@@ -13,19 +13,19 @@ Every refusal, `413` and `415` included, is one JSON shape: match on `error`, an
 
 | Answer | What to do |
 | --- | --- |
-| An order fails or times out | It may have been placed: [recover it by its quote](/trade/orders#retries-and-recovery); never resend with a new key. |
-| `409` conflict | It conflicts with the current state. Retry only where the code says so, such as `ORDER_IN_PROGRESS`; else change the state first. |
-| `429` | A limit is used up, or TetraFi is briefly at capacity. Wait `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
-| `503` | It could not be served just now. Retry after `Retry-After`, else after a second or two with backoff, signing again. |
-| `408`, `500`, `502`, `504` or a timeout | Its outcome is unknown. Read a write back first. Retry with backoff when `retryable` is `true`. |
-| Any other `4xx` | Refused. Do not retry: fix the request, or act on [`next`](#what-next-tells-you). |
+| An order fails or times out | It may be placed: [recover it by its quote](/trade/orders#retries-and-recovery); never resend with a new key. |
+| `409` conflict | Change the state first. Retry only where the code says, such as `ORDER_IN_PROGRESS`. |
+| `429` | Wait `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
+| `503` | Retry after `Retry-After`, else after a second or two with backoff, signing again. |
+| `408`, `500`, `502`, `504` or a timeout | Outcome unknown: read a write back first. Retry with backoff when `retryable` is `true`. |
+| Any other `4xx` | Do not retry: fix the request, or act on [`next`](#what-next-tells-you). |
 
 ## Read a refusal
 
 Every refusal carries `error`, `message`, `retryable`, `requestId`, `timestamp`, `docUrl` and, when there is one, `next`. Look up codes in the [error-code reference](/reference/error-codes).
 
 <AccordionGroup>
-  <Accordion title="The body, field by field">
+  <Accordion title="Every field">
 
 ```json
 {
@@ -96,7 +96,7 @@ One refusal of each class. `details` keys are the ones each code's [reference en
 </CodeGroup>
 
   </Accordion>
-  <Accordion title="Example: act on a refused asset">
+  <Accordion title="Example">
 
 Act on the code of a quote for an asset TetraFi does not list:
 
@@ -112,7 +112,7 @@ use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 
 ## What next tells you
 
-`next.kind` names the way forward; a `kind` you do not recognise is a step you cannot take automatically: show `message` and stop.
+`next.kind` names the way forward. On a `kind` you do not recognise, show `message` and stop.
 
 <AccordionGroup>
   <Accordion title="Every next.kind">
@@ -136,7 +136,7 @@ Codes can be added at any time: handle an unknown one by its status class ([abov
 ## Refusals on any request
 
 <AccordionGroup>
-  <Accordion title="Authentication, workspace, limits and availability">
+  <Accordion title="Every code">
 
 | Status and code | When, and what to do |
 | --- | --- |
@@ -159,7 +159,7 @@ Codes can be added at any time: handle an unknown one by its status class ([abov
 | 409 `IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this `Idempotency-Key` may or may not have taken effect, and retrying the key can never tell. No `Retry-After`. Stop sending this key. Read the resource back (`details.readTarget` names the read), and use a new key only once that read shows nothing happened. |
 
   </Accordion>
-  <Accordion title="Example: a workspace that is not your key's">
+  <Accordion title="Example">
 
 <ErrorsWrongWorkspace />
 
@@ -168,23 +168,12 @@ Codes can be added at any time: handle an unknown one by its status class ([abov
 
 ## Refusals by task
 
-| Task | Refusals |
-| --- | --- |
-| Requesting quotes | [Request quotes](/search/how-it-works#refusals) |
-| Reading prices | [Prices](/search/prices#refusals) |
-| Requoting | [Requotes and expiry](/search/firmness-and-lifetime#refusals) |
-| Placing or cancelling an order | [Place an order](/trade/orders#refusals), [same key, different body](/trade/orders#conflict-same-key-different-body) |
-| Choosing a wallet or account | [When a source is refused](/trade/wallets-and-accounts#when-a-source-is-refused) |
-| Reading balances, settlement or fees | [Balances and fees](/trade/balances#refusals), [Credit and settlement](/trade/settlement-and-credit#refusals) |
-| Managing webhooks | [Webhooks](/trade/webhooks#refusals) |
+Each guide lists its own: [quotes](/search/how-it-works#refusals), [prices](/search/prices#refusals), [requotes](/search/firmness-and-lifetime#refusals), [orders](/trade/orders#refusals) ([same key, different body](/trade/orders#conflict-same-key-different-body)), [sources](/trade/wallets-and-accounts#when-a-source-is-refused), [balances and fees](/trade/balances#refusals), [settlement](/trade/settlement-and-credit#refusals), [webhooks](/trade/webhooks#refusals).
 
-A venue left out of a successful quote request is not a refusal: [its line in `sources`](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote) says why ([source reasons](/reference/error-codes#source-reasons)).
+A venue left out of a successful quote request is not a refusal: [its `sources` line](/search/how-it-works#sources-why-a-venue-did-or-did-not-quote) says why ([source reasons](/reference/error-codes#source-reasons)).
 
-<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/errors.sh">Provokes three refusals and places no order.</Card>
+<Accordion title="Example script">
+  The [full script](https://github.com/TetraFi/docs/blob/main/samples/http/errors.sh) provokes three refusals and places no order.
+</Accordion>
 
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Retries and recovery" icon="rotate" href="/trade/orders#retries-and-recovery">Retry or recover an order.</Card>
-  <Card title="Error codes" icon="list" href="/reference/error-codes">Every code.</Card>
-</CardGroup>
+Next: [error codes](/reference/error-codes).
