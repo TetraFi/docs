@@ -7,7 +7,7 @@ During the pilot the API can still change, and every change a client can see is 
 
 <Update label="2026-11-19" description="Signing with your own wallet and ordering a price row (both rolling out)">
   - Rolling out, not live yet: `POST /api/v1/orders` also takes `{kind: "stream", priceId, minReceive | slippageBps}` to order a [Live prices](/search/prices) row. TetraFi checks the `priceId` (`PRICE_ID_INVALID`, `PRICE_EXPIRED`), asks the venue for that exact size, and runs the order like a quote order of that venue. A price outside your limit is refused with `details.remediation` `widenLimit`.
-  - Rolling out, not live yet; the full contract is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
+  - Signing with your own wallet is rolling out, not live yet; the full contract is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
   - Signed-in members use the same three routes as API keys; the step route takes a session bearer token as well as a key. An External wallet named in `source.preferredWallets` makes the quote `signing.mode` `you`.
   - Without `firstStep`, the order opens with `next.kind` `sign` for step 1. Without `minReceive`, the order is bound by the minimum the quote's own step was drafted with.
   - New refusals `SCREENING_UNAVAILABLE` (503; a screening provider failure is never a refusal), `DELIVER_TO_NOT_SIGNING_WALLET` and `DELIVER_TO_NOT_REGISTERED` (422), and `SIGNING_WALLET_UNSUPPORTED`. Every 503 on this path carries `details.cause`. `SOURCE_NOT_OWNED`, `PERSONAL_TARGET_NOT_ALLOWED`, `SIGNING_WALLET_UNSUPPORTED` and `ADVANCED_SOURCE_ACCOUNT_UNAVAILABLE` are now `definitelyNotSent: true`.
