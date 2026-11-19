@@ -625,7 +625,8 @@ function assetKindsSnippet() {
   const schemas = JSON.parse(reference.spec).components?.schemas ?? {};
   // A spec without the assets entry schema publishes no asset list to describe.
   if (!schemas.AssetEntry) return null;
-  const kinds = schemas.AssetKind?.enum;
+  // An open enum is published as anyOf [{enum}, {type: string}]; read the listed values either way.
+  const kinds = schemas.AssetKind?.enum ?? schemas.AssetKind?.anyOf?.find((part) => Array.isArray(part.enum))?.enum;
   if (!Array.isArray(kinds) || !kinds.length || kinds.some((kind) => typeof kind !== 'string')) throw new Error('ASSET_KIND_ENUM_MISSING');
   const kindRef = schemas.AssetEntry?.properties?.kind;
   const refs = [kindRef?.$ref, ...(kindRef?.allOf ?? []).map((part) => part.$ref)];
