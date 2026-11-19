@@ -8,7 +8,7 @@
 <Accordion title="Fields to read">
 | Field | What it tells you |
 | --- | --- |
-| `kind` | `basicTrade` for a venue trade (`advancedTrade` is not open yet). |
+| `kind` | `basicTrade` for a venue trade (`advancedTrade` is not open yet). New kinds carry the same `orderId`, `status`, `terminal`, `statusUrl` and `next`. |
 | `status`, `terminal` | `working` until the order ends. Read it until `terminal` is `true` ([Order status](/trade/order-status)). |
 | `statusUrl` | Where to read it: `GET /api/v1/orders/{orderId}`. Or subscribe to `order.updated`. |
 | `operation.dispatch.outcomeCode` | `not_sent` when nothing reached the venue; `notSentReason` says why. |
@@ -20,6 +20,10 @@ A Basic trade on an on-chain venue (for example Uniswap v3, paid from an organis
 It ends `settled`, or `unfilled` with `operation.dispatch.outcomeCode: not_sent` and `notSentReason: ON_CHAIN_UNSENT` when no swap was sent. An approval may already have been mined, spending its network fee.
 
 A refusal found after the order is claimed but before its wallet is asked (the LP relationship, the venue registry, the audit record or your authority changed) also answers here with its own code; that order reads `unfilled` with `outcomeCode: not_sent`.
+</Accordion>
+
+<Accordion title="For a broker's client (coming)">
+Broker trading is coming. Send `onBehalfOf`, the principal you trade for (a user or client workspace id), exactly as on the quote request; any other value is refused with 403 `DIRECT_USER_MISMATCH`.
 </Accordion>
 
 <Accordion title="Order a Live price (rolling out)">
@@ -39,6 +43,7 @@ A refusal before the order exists (limits, compliance, funds or authority) answe
 | 400 `SIGNATURE_NOT_ACCEPTED` | A `signature` was sent on a quote that takes none. Leave it out. |
 | 400 `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | `minReceive` is missing on a quote that needs it, or is not a positive amount. |
 | 403 `ADVANCED_MODE_DISABLED` | The quote is Advanced, which is not open yet. Order a Basic quote. |
+| 403 `DIRECT_USER_MISMATCH` | `onBehalfOf` differs from the quote's. Send the `onBehalfOf` the quote was requested with. |
 | 403 `WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | `minReceive` is further below the quote than your workspace allows ([Slippage limits](/trade/orders#slippage-limits)). |
 | 422 `HIGH_SLIPPAGE_ACK_REQUIRED` | `minReceive` is more than 10% below the quote: raise it, or send `acknowledgeHighSlippage: true`. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. |

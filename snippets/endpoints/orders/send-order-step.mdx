@@ -6,13 +6,13 @@
 | **Wait** | A request holds at most 15 s, then answers `next: wait`. |
 
 <Accordion title="Submission kinds">
-Answer the step in the order's `next` with `kind: sign`, using its `stepId`. The body is tagged by `kind` ([Submit a step](/trade/sign-with-your-own-wallet#submit-a-step)). A signed-in member answers the steps of their own orders; an API key answers those of its own, with `orders_write`.
+Answer the step in the order's `next` with `kind: sign`, using its `stepId`. Answer only a step whose `signer` is `you`, and never sign a step `type` you do not know. The body is tagged by `kind` ([Submit a step](/trade/sign-with-your-own-wallet#submit-a-step)). A signed-in member answers the steps of their own orders; an API key answers those of its own, with `orders_write`.
 
 | `kind`, and what you send | Rule |
 | --- | --- |
-| `signedTransaction`, with `raw` | TetraFi broadcasts it. Legacy (EIP-155), EIP-2930 or EIP-1559 only. It must match the step's `chainId`, `from`, `to`, `data`, `value` and `nonce`. |
+| `signedTransaction`, with `raw` | The signed transaction in its network's native encoding; on EVM, an EIP-2718 envelope. TetraFi broadcasts it. On EVM, legacy (EIP-155), EIP-2930 or EIP-1559 only. It must match the step's `chainId`, `from`, `to`, `data`, `value` and `nonce`. |
 | `transactionHash`, with `txHash` | The step's transaction, which you broadcast yourself. It is checked like any other. |
-| `signature`, with `signature` | Answers a `typedData` step. |
+| `signature`, with `signature` | Answers a message step, such as `typedData` (EIP-712). |
 | `declined`, with nothing | Ends the order `unfilled`; no further step is sent. |
 </Accordion>
 
