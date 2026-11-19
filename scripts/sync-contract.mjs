@@ -408,7 +408,7 @@ function permissionsPage() {
   // Code spans are literal in MDX: only a pipe, which would split the table cell, is escaped.
   const code = (value) => `\`${value.replace(/\|/g, '\\|')}\``;
   const permission = (scope) => {
-    const label = labels && Object.hasOwn(labels, scope) ? labels[scope]?.permission : undefined;
+    const label = labels && Object.hasOwn(labels, scope) ? labels[scope]?.label : undefined;
     if (typeof label === 'string' && label.trim()) return cell(label);
     missingLabels.add(scope);
     return `SCOPE_LABEL_MISSING (${cell(scope)})`;
@@ -440,9 +440,15 @@ function permissionsPage() {
   const tags = [...new Set(operations.map((op) => op.tag))]
     .sort((a, b) => (tagOrder.includes(a) ? tagOrder.indexOf(a) : 1e3) - (tagOrder.includes(b) ? tagOrder.indexOf(b) : 1e3) || (a < b ? -1 : 1));
   const usedScopes = [...new Set(operations.flatMap(({ security }) => security.flatMap((r) => r.api_key ?? [])))].sort();
+  // Every published scope, in the spec's order, then any used scope it does not describe.
+  const listedScopes = [...new Set([...(labels && typeof labels === 'object' ? Object.keys(labels) : []), ...usedScopes])];
+  const described = (scope) => {
+    const text = labels && Object.hasOwn(labels, scope) ? labels[scope]?.description : undefined;
+    return typeof text === 'string' && text.trim() ? cell(text) : '';
+  };
   return { page: [
     ...heading,
-    'Each API operation below lists the API-key scopes it needs and the matching checkbox under **Permissions** when you create a key ([Authentication](/authentication#permissions)).',
+    'Each API operation below lists the API-key scopes it needs. A key names its scopes when you create it ([Authentication](/authentication#permissions)); each scope is `<resource>_read` or `<resource>_write`.',
     '',
     '| Entry | Meaning |',
     '| :--- | :--- |',
@@ -452,12 +458,12 @@ function permissionsPage() {
     '| **Session only** | Signed-in app users only; an API key is refused. |',
     '| **No API key required** | Called without an API key; the request carries its own credentials. |',
     '',
-    ...(missingLabels.size ? ['<Warning>', 'Some scopes have no exported app permission label. Entries marked `SCOPE_LABEL_MISSING` are incomplete; do not infer a checkbox from the scope name.', '</Warning>', ''] : []),
+    ...(missingLabels.size ? ['<Warning>', 'Some scopes have no exported label. Entries marked `SCOPE_LABEL_MISSING` are incomplete; do not infer what a scope allows from its name.', '</Warning>', ''] : []),
     '## Scopes',
     '',
-    '| Scope | Permission in the app |',
-    '| :--- | :--- |',
-    ...usedScopes.map((scope) => `| ${code(scope)} | ${permission(scope)} |`),
+    '| Scope | Label | What it allows |',
+    '| :--- | :--- | :--- |',
+    ...listedScopes.map((scope) => `| ${code(scope)} | ${permission(scope)} | ${described(scope)} |`),
     '',
     '## Operations',
     '',
@@ -468,7 +474,7 @@ function permissionsPage() {
       `<Accordion title="${cell(tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, " "))}">`,
       '',
       ...(tagDescription.get(tag) ? [cell(tagDescription.get(tag)), ''] : []),
-      '| Operation | API-key scopes | Permission in the app |',
+      '| Operation | API-key scopes | Scope label |',
       '| :--- | :--- | :--- |',
       ...operations.filter((op) => op.tag === tag).sort(byRoute).map(row),
       '',

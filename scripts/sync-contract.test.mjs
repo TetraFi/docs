@@ -89,8 +89,8 @@ const scopedSpec = () => ({
   },
   components: { securitySchemes: { api_key: { type: 'apiKey', in: 'header', name: 'X-API-Key',
     'x-tetrafi-scopes': {
-      'quotes:read': { permission: 'Read quotes', description: 'Read assets and prices.' },
-      'orders:write': { permission: 'Submit orders', description: 'Place orders.' },
+      'quotes:read': { label: 'Read quotes', description: 'Read assets and prices.' },
+      'orders:write': { label: 'Submit orders', description: 'Place orders.' },
     },
   } },
   schemas: {
@@ -113,6 +113,9 @@ test('scopes and app labels generate a row for every integrator operation', () =
     '| Get session<br />GET `/api/v1/session` | Session only | Not applicable |',
   ]) assert.ok(text.includes(row), `Missing row: ${row}`);
   assert.ok(text.indexOf('`/api/v1/assets`') < text.indexOf('`/api/v1/quotes`'));
+  // Every published scope is listed with its label and one-line description.
+  assert.ok(text.includes('| `quotes:read` | Read quotes | Read assets and prices. |'));
+  assert.ok(text.includes('| `orders:write` | Submit orders | Place orders. |'));
   assert.equal(run('--check').status, 0);
 });
 
@@ -134,8 +137,8 @@ test('no scopes anywhere generates only an unavailable placeholder and an inform
 
 // Catches a used scope being published as if its app permission were known.
 test('a missing scope label stays visible, is reported, and fails check even without drift', () => {
-  for (const labels of [undefined, { 'quotes:read': { permission: 'Read quotes' } }, {
-    'quotes:read': { permission: 'Read quotes' }, 'orders:write': { permission: ' ' },
+  for (const labels of [undefined, { 'quotes:read': { label: 'Read quotes' } }, {
+    'quotes:read': { label: 'Read quotes' }, 'orders:write': { label: ' ' },
   }]) {
     const spec = scopedSpec();
     spec.components.securitySchemes.api_key['x-tetrafi-scopes'] = labels;

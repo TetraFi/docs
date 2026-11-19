@@ -17,8 +17,8 @@ The answer is a `PairQuoteSet`.
 </Accordion>
 
 <Accordion title="API keys and firm prices">
-- A key needs `quotes_request` and `orders_write`.
-- A firm quote from your venue accounts also needs `workspace_venue_trade` ([venue trading](/authentication#trade-on-your-venue-accounts)), the venue enabled on the key and request signing. Otherwise the quote is indicative, with `sourceRefusal: venueTradeScopeRequired`.
+- A key needs `quotes_write` and `orders_write`.
+- A firm quote from your venue accounts also needs `venue_trades_write` ([venue trading](/authentication#trade-on-your-venue-accounts)), the venue enabled on the key and request signing. Otherwise the quote is indicative, with `sourceRefusal: venueTradeScopeRequired`.
 - A key has no default wallet: `source.tradingWallets` maps CAIP-2 networks to workspace custody or granted organisation financial-account ids. A personal wallet is refused (409 `PERSONAL_TARGET_NOT_ALLOWED`).
 - A key's `deliverTo` must be an organisation wallet the key may use (otherwise 403 `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED`). Delivering a venue-account quote to a wallet needs a member session that can view wallets: a key's venue card reads `deliverToNotPermitted`, and its requote answers 409 `REQUOTE_REFUSED` with `details.reason: deliverToNotPermitted`.
 - A requote in `auto` mode can ask a production desk for a firm price ([Requote a quote](/search/firmness-and-lifetime#requote-a-quote)).
