@@ -115,7 +115,7 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   # region order-place
   # Generate one Idempotency-Key per order and store it with the order before you send it.
   idempotency_key=$(openssl rand -hex 16)
-  order_body="{\"quoteId\":\"$order_quote\"}"
+  order_body="{\"kind\":\"quote\",\"quoteId\":\"$order_quote\"}"
   placed=$(tetrafi POST /api/v1/orders "$order_body" "Idempotency-Key: $idempotency_key")
   # Common progress fields work for every kind; inspect operation only for a known basicTrade.
   jq -c '{kind, orderId, quoteId, status, terminal, statusUrl}

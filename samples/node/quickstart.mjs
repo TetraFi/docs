@@ -43,7 +43,7 @@ function minimumReceive(amount, bps, decimals) {
 }
 
 function orderBody(quote, assets) {
-  const body = { quoteId: quote.id };
+  const body = { kind: 'quote', quoteId: quote.id };
   if (quote.minReceiveRequired === true) {
     const decimals = assets.items.filter(({ asset }) => asset === quote.buy.asset)
       .flatMap(({ variants }) => variants.filter(({ kind }) => kind === 'native'))

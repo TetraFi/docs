@@ -8,7 +8,7 @@
 # asset's decimals.
 decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.items[] | select(.asset == $a) | .variants[]
   | select(.kind == "native") | .deployments[] | select(.network == $c) | .decimals][0]' <<<"$assets")
-order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{quoteId: .id}
+order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{kind: "quote", quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)} else {} end)' <<<"$quote")
 # One Idempotency-Key per order, stored before you send it: a retry with the same key and body

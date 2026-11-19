@@ -27,11 +27,12 @@ Permissions and every refusal: [Place an order](/api-reference/orders/place-orde
     A new random `Idempotency-Key` per order, stored with the exact body before you send ([Retries](#retries-and-recovery)).
   </Step>
   <Step title="Send the order">
-    `POST /api/v1/orders` with that key and the quote's id. Each quote orders once.
+    `POST /api/v1/orders` with that key, `kind: "quote"` and the quote's id. Each quote orders once.
 
     <Accordion title="Order fields">
       TetraFi kept the quote's terms; send only what you alone can supply. Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them.
 
+      <ParamField body="kind" type="string" required>`quote`. (`stream` orders a Live prices row by its `priceId` instead; see [Prices](/search/prices).)</ParamField>
       <ParamField body="quoteId" type="string" required>The quote id (`q_…`).</ParamField>
       <ParamField body="minReceive" type="string">The least you accept to receive, in units of the asset you buy, such as `"4.99"`. Required when the quote's `minReceiveRequired` is `true` ([Minimum receive](#minimum-receive)).</ParamField>
       <ParamField body="acknowledgeHighSlippage" type="boolean">`true`, to confirm you accept that much slippage. Required when your `minReceive` is more than 10% below the quote's receive amount ([Slippage limits](#slippage-limits)).</ParamField>

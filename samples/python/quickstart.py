@@ -70,7 +70,7 @@ def minimum_receive(amount, bps, decimals):
 
 
 def order_body(quote, assets):
-    body = {"quoteId": quote["id"]}
+    body = {"kind": "quote", "quoteId": quote["id"]}
     if quote.get("minReceiveRequired") is True:
         buy = quote["buy"]
         decimals = [deployment["decimals"]
