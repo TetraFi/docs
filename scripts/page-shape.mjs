@@ -46,8 +46,8 @@ const BUDGET_EXCEPTIONS = {
 const PENDING_TRIM = {
   'search/how-it-works': 448, 'authentication': 447, 'trade/orders': 450,
   'search/firmness-and-lifetime': 362, 'trade/balances': 362, 'trade/wallets-and-accounts': 445,
-  'trade/errors': 432, 'quickstart': 447, 'trade/how-a-trade-runs': 424,
-  'recipes/cross-chain-stablecoins': 359, 'recipes/go-live-checklist': 450, 'overview': 435,
+  'trade/errors': 432, 'quickstart': 447,
+ 
 };
 const REFERENCE_PAGES = ['reference/introduction', 'reference/conventions', 'reference/rate-limits'];
 const factsFile = path.join(root, 'scripts', 'page-facts.json');
