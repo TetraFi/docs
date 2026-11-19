@@ -1,0 +1,56 @@
+| | |
+| --- | --- |
+| **Once per quote** | A second order on it answers `QUOTE_ALREADY_ORDERED`. |
+| **Idempotency-Key** | Required: the same key and body return the first answer. |
+| **minReceive** | Required when `minReceiveRequired` is `true` ([more](/trade/orders#minimum-receive)). |
+| **No answer?** | Never order again: [recover it by its quote](/trade/orders#retries-and-recovery). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `kind` | `basicTrade` for a venue trade (`advancedTrade` is not open yet). |
+| `status`, `terminal` | `working` until the order ends. Read it until `terminal` is `true` ([Order status](/trade/order-status)). |
+| `statusUrl` | Where to read it: `GET /api/v1/orders/{orderId}`. Or subscribe to `order.updated`. |
+| `operation.dispatch.outcomeCode` | `not_sent` when nothing reached the venue; `notSentReason` says why. |
+</Accordion>
+
+<Accordion title="On-chain orders">
+A Basic trade on an on-chain venue (for example Uniswap v3, paid from an organisation wallet) answers `200` with `status: working` as soon as the order is recorded. Signing and broadcast run after the answer.
+
+It ends `settled`, or `unfilled` with `operation.dispatch.outcomeCode: not_sent` and `notSentReason: ON_CHAIN_UNSENT` when no swap was sent. An approval may already have been mined, spending its network fee.
+
+A refusal found after the order is claimed but before its wallet is asked (the LP relationship, the venue registry, the audit record or your authority changed) also answers here with its own code; that order reads `unfilled` with `outcomeCode: not_sent`.
+</Accordion>
+
+<Accordion title="Order a Live price (rolling out)">
+Send `{kind: "stream", priceId, minReceive | slippageBps}` to order a row of `GET /api/v1/prices`.
+
+1. The `priceId` is checked for your workspace and its `validFor` before anything is sent (`PRICE_ID_INVALID`, `PRICE_EXPIRED`).
+2. The venue is asked for that exact size; the order then runs like a quote order of that venue, with the same permission, order and outcome fields.
+3. Your limit is `minReceive`, or `slippageBps` below the price's receive amount (rounded up to the asset's precision). A price outside it is refused with `details.remediation` `widenLimit`, `details.currentReceive` and `details.requiredSlippageBps`.
+</Accordion>
+
+<Accordion title="Refusals">
+A refusal before the order exists (limits, compliance, funds or authority) answers with its code. Unless the row says otherwise, nothing was sent. [Error codes](/reference/error-codes) lists every code.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | A field is unknown or malformed, or `priceProtectionBps` was sent on a Basic quote. Fix the field `message` names. |
+| 400 `SIGNATURE_NOT_ACCEPTED` | A `signature` was sent on a quote that takes none. Leave it out. |
+| 400 `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | `minReceive` is missing on a quote that needs it, or is not a positive amount. |
+| 403 `ADVANCED_MODE_DISABLED` | The quote is Advanced, which is not open yet. Order a Basic quote. |
+| 403 `WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | `minReceive` is further below the quote than your workspace allows ([Slippage limits](/trade/orders#slippage-limits)). |
+| 422 `HIGH_SLIPPAGE_ACK_REQUIRED` | `minReceive` is more than 10% below the quote: raise it, or send `acknowledgeHighSlippage: true`. |
+| 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. |
+| 409 `QUOTE_NOT_EXECUTABLE`, `QUOTE_NOT_HELD` | A price for comparison, or no longer held. `next` is `requote`. |
+| 409 `VENUE_QUOTE_SEND_WINDOW_CLOSED`, `QUOTE_RECONFIRMATION_REQUIRED` | The venue's firm price could not be sent in time. Request a new quote. |
+| 409 `QUOTE_ALREADY_ORDERED` | Another order used this quote: [find it by its quote](/trade/orders#recover-an-order-by-its-quote). |
+| 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. |
+| 409 `FUNDING_SHORTFALL` | The account holds less than the trade needs. `next` is `fund`. |
+| 409 `PILOT_TRADE_CAP_EXCEEDED` | Above the venue's Pilot per-trade cap. Quote a smaller amount. |
+| 400, 409, 503 `IDEMPOTENCY_*`, `ORDER_IN_PROGRESS` | The key is missing, malformed or reused, or its order is still being placed ([Retries and recovery](/trade/orders#retries-and-recovery)). |
+| 410 `QUOTE_EXPIRED` | Past `expiresAt`. `next` is `requote`. |
+| 410 `REQUOTE_WINDOW_CLOSED` | Past `retainUntil`. `next` is `search`. |
+| 503 `QUOTE_STORE_UNAVAILABLE`, `VENUE_TEMPORARILY_REFUSED` | Try the same request with the same key shortly. |
+| 400 `PRICE_ID_INVALID`, 409 `PRICE_EXPIRED` | Stream orders only: the `priceId` was not issued to your workspace, or is past its `validFor`. |
+</Accordion>
