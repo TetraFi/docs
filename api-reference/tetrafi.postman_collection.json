@@ -110,7 +110,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List tradable assets\n\nThe Assets, variants and deployments the workspace can trade.",
+        "description": "List tradable assets\n\nLists the assets your workspace can trade, with their variants and networks. Call it first, and take the asset ids and networks for prices and quotes from it.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/assets",
           "host": [
@@ -141,8 +141,8 @@
               "description": "`registry`: the registry snapshot the listing was built from, in `included.registry`."
             },
             {
-              "key": "venue",
-              "value": "<venue>",
+              "key": "venueId",
+              "value": "<venueId>",
               "disabled": true,
               "description": "Only assets a venue offers this workspace, on-chain venues included: its venue id (`valr`,\nevery entry of it) or one venue entry (`valr-orderbook`, that entry only). With `venueCode`,\nonly the asset that venue's code is (`USC` at `b2c2` is USDC), and only when the instance the\ncode names, its variant included, is offered at that same venue or entry (`USDT0` is USDT\nvariant USDT0 at `valr-orderbook`, nothing at `valr-rfq`). Every filter narrows the listing;\nan empty value answers 400 `INVALID_REQUEST` with `details.reason` `ASSET_FILTER_BLANK`."
             },
@@ -150,7 +150,7 @@
               "key": "venueCode",
               "value": "<venueCode>",
               "disabled": true,
-              "description": "A venue's own code for an asset; needs `venue` (otherwise 400 `INVALID_REQUEST` with\n`details.reason` `ASSET_FILTER_INCOMPLETE`)."
+              "description": "A venue's own code for an asset; needs `venueId` (otherwise 400 `INVALID_REQUEST` with\n`details.reason` `ASSET_FILTER_INCOMPLETE`)."
             },
             {
               "key": "network",
@@ -189,7 +189,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Read up to 20 resources in one request\n\nRun up to 20 published JSON GETs under one authentication, with each read's own permissions. Signed requests cannot be batched. Guide: [reference/conventions#read-several-resources-at-once](https://tetrafi.mintlify.app/reference/conventions#read-several-resources-at-once). The answer is `Cache-Control: private, no-store`. If an operation's declared related-read allowance cannot fit, or it exceeds that allowance, its item answers `429 BATCH_RELATED_READ_BUDGET_EXCEEDED`, not partial values. An item that cannot dispatch to its named operation answers `BATCH_UNKNOWN_ROUTE`.",
+        "description": "Read up to 20 resources in one request\n\nRuns up to 20 published JSON GET reads in one request, each with its own permissions and answer. Use it to cut round trips; a signed request cannot be batched.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/batch",
           "host": [
@@ -229,7 +229,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Get the current credential",
+        "description": "Get the current credential\n\nShows what the credential you call with can do right now: its identity, workspace, live scopes, permissions and rate limits. Call it to check a key or token before you trade; it has no side effects.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/me",
           "host": [
@@ -264,7 +264,7 @@
             "value": "application/x-www-form-urlencoded"
           }
         ],
-        "description": "Exchange client credentials for a token\n\nRFC 6749 client-credentials grant for active service accounts. Supply grant_type=client_credentials, `client_id=<service-account UUID>`, and `client_secret=<full tfk_live_... or tfk_test_... service-account API key>`. Client credentials may instead be sent with HTTP Basic authentication. Tokens use the configured auth.jwtExpirySeconds capped at 900 seconds and carry the service account's current workspace role, effective permissions, and effective API scopes.",
+        "description": "Exchange client credentials for a token\n\nExchange a service account's client id and secret for a bearer token of at most 900 seconds (the RFC 6749 client-credentials grant).",
         "url": {
           "raw": "{{baseUrl}}/api/v1/oauth/token",
           "host": [
@@ -303,7 +303,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List orders\n\nLists Basic orders using the same envelope as `GET /orders/{orderId}`. Required API-key scope: `orders_read`; a member session needs permission to view or place orders. Newest first by created time and id. A status filter is applied to stored order facts first and then to each order's canonical public status; a filtered page keeps reading until it holds limit items or the orders end, within a bounded scan. A bounded scan that stops before the orders end always answers a nextCursor, even on a page shorter than limit (or an empty one): follow nextCursor until it is null. A cursor is bound to the caller, workspace and exact filters; a malformed, foreign or deleted anchor is INVALID_CURSOR.",
+        "description": "List orders\n\nLists your workspace's orders, newest first, each in the same envelope as one order read. Filter by status, kind, assets, created time or your own order reference.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -331,7 +331,7 @@
               "key": "status",
               "value": "pending",
               "disabled": true,
-              "description": "Public lifecycle status, shared by Basic and Advanced orders."
+              "description": "Public lifecycle status, shared by Basic and Advanced orders. A comma list matches any of\nthem (`status=working,filled`); an unknown value is refused."
             },
             {
               "key": "kind",
@@ -352,16 +352,16 @@
               "description": "Created at or before this RFC 3339 instant, inclusive."
             },
             {
-              "key": "sellAsset",
-              "value": "<sellAsset>",
+              "key": "sell",
+              "value": "<sell>",
               "disabled": true,
-              "description": ""
+              "description": "The registry asset id sold (`USDC`), as `GET /prices` names it."
             },
             {
-              "key": "buyAsset",
-              "value": "<buyAsset>",
+              "key": "buy",
+              "value": "<buy>",
               "disabled": true,
-              "description": ""
+              "description": "The registry asset id bought (`USDT`), as `GET /prices` names it."
             },
             {
               "key": "clientOrderId",
@@ -406,7 +406,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Place an order\n\nPlace an order by the id of a quote you hold (`{quoteId}` from POST /quotes). A Basic venue quote becomes a venue trade (`basicTrade`). Each quote is ordered once: the same quote again answers QUOTE_ALREADY_ORDERED, and a replay with the same Idempotency-Key and body returns the first answer. Read what a quote produced with `GET /orders/by-quote/{quoteId}`. A Live prices row is ordered directly with `{kind: \"stream\", priceId, minReceive | slippageBps}`: the priceId from GET /prices is checked for this workspace and its validFor before anything is sent (PRICE_ID_INVALID, PRICE_EXPIRED), then the venue is asked for that exact size and the order runs exactly as a quote order of that venue, with the same permission, order resource and outcome fields. Its limit is `minReceive`, or `slippageBps` below the price's receive amount (rounded up to the Asset's precision); a price outside it is refused with details.remediation `widenLimit`, details.currentReceive and details.requiredSlippageBps.",
+        "description": "Place an order\n\nOrder a quote you hold by its `id`, on its terms. Read it at its `statusUrl` until `terminal` is `true`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
@@ -420,7 +420,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"quoteId\": \"q_01JAY5EXW3MBMS1QSQJS0ZWPNQ\"\n}",
+          "raw": "{\n  \"kind\": \"quote\",\n  \"quoteId\": \"q_01JAY5EXW3MBMS1QSQJS0ZWPNQ\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -446,7 +446,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Get an order\n\nReturns the latest stored order after a provider refresh. For REST polling, wait 10–15 seconds between reads and honor `Retry-After` on 429; do not poll in a tight loop. After a webhook delivery, perform this GET to obtain the complete current projection. Never put an API key in a URL. Terminality is order-kind dependent: route and atomic venue orders normally complete at `settled`, while claim-based or deferred products may advance to `finalized`.",
+        "description": "Get an order\n\nReads one order: its latest status, what to do next and what it did. Read it until it is terminal.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/:orderId",
           "host": [
@@ -491,7 +491,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Cancel an order\n\nCancels an undispatched Basic order or a pay-in still awaiting funds. Returns the same order envelope as GET, with status cancelled and terminal true. Repeating cancellation leaves the order unchanged. A durable dispatch claim, a progressed funding leg, or a terminal outcome refuses with ORDER_NOT_CANCELLABLE and details.status. Required API-key scope: `orders_write`, with an Idempotency-Key; a member session needs permission to place orders. No venue cancellation is attempted.",
+        "description": "Cancel an order\n\nCancels an order before it is sent, or a pay-in still waiting for funds. The answer is the order; read its `status` and `terminal`. A `basicTrade` already sent to its venue is never cancelled at the venue: that is a 409.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/:orderId/cancel",
           "host": [
@@ -541,7 +541,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Submit a step of an order\n\nAnswers a step of an order that trades from a wallet the client signs for itself: the order's `next` with `kind: sign`. The body is tagged by `kind`: `signedTransaction` (`raw`, for TetraFi to broadcast), `transactionHash` (`txHash` of the step's transaction the client broadcast), `signature` (a `typedData` step) or `declined`. Past the step's `signBy`, only `transactionHash` is still taken (a transaction the client broadcast itself, checked like any other); the other kinds refuse SIGNING_STEP_EXPIRED. A signed transaction must be legacy (EIP-155), EIP-2930 or EIP-1559 (else SIGNING_TRANSACTION_TYPE_UNSUPPORTED) and is checked against the step (`chainId`, `from`, `to`, `data`, `value`, `nonce`) before anything is sent; a difference refuses SIGNING_STEP_MISMATCH with details.field. Nothing is sent until the wallet's screening passed, and while the wallet no longer holds the token the trade spends or, for a signed transaction, its value and gas at the signed fee (SIGNING_WALLET_FUNDS_SHORT, details.field balance or gas). Answers the order envelope, the same as GET, once the order moved past the step (its next step to sign, or a terminal outcome); a request holds at most 15 s, after which the order answers `next: wait`. Every 503 names its cause in details.cause (screening, chainRead, relay or stepStore). A signed-in member answers the steps of their own orders (Place orders permission); an API key those of its own orders (scope `orders_write`). An Idempotency-Key is required; a replay answers the first answer and sends nothing again.",
+        "description": "Submit a step of an order\n\nAnswers a step of an order you sign from your own wallet, while its `next` asks you to sign. The answer is the order once it has moved past the step.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/:orderId/steps/:stepId",
           "host": [
@@ -596,7 +596,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Recover the order produced by a held quote\n\nRead-only recovery, independent of quote-stream completion and quote expiry. Required API-key scope: `orders_read`; the caller must be allowed to view orders in the selected workspace. ordered names the Basic venue trade address; read that resource for current state. notOrdered is returned only after native order and consumption reads succeed. An unresolved claim returns unknown, never permission to submit again. Foreign and unknown quote ids share 404.",
+        "description": "Recover the order produced by a held quote\n\nTells you what a quote produced. Call it when you lost an order's answer or key; it places nothing and works after the quote expires.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders/by-quote/:quoteId",
           "host": [
@@ -636,7 +636,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Get indicative prices\n\nIndicative per-venue prices for one pair, from the latest observed prices; no venue is called.",
+        "description": "Get indicative prices\n\nReturns each venue's indicative price for one pair, from prices already observed; no venue is asked. Use it to show prices or size a trade, then request quotes to trade.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/prices",
           "host": [
@@ -747,7 +747,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Stream indicative prices\n\nServer-sent `snapshot` events for each pair whenever its prices change.",
+        "description": "Stream indicative prices\n\nStreams indicative prices for up to 25 pairs as server-sent events. You get a `snapshot` event, shaped like a Get prices answer for one pair, whenever that pair's prices change.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/prices/stream",
           "host": [
@@ -863,7 +863,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Request quotes\n\nRequest a `PairQuoteSet` from eligible venues, or requote one held quote. Members need Request quotes; keys need `quotes_request` and `orders_write`. A venue ask is limited to one every three seconds per caller (`429 QUOTE_RATE_LIMITED` with `Retry-After`). Guide: [search/how-it-works](https://tetrafi.mintlify.app/search/how-it-works).\n\nA requote can ask a production desk for a firm price in `auto` mode. Firm venue-account quotes also require `workspace_venue_trade`, the venue enabled on the key and request signing; otherwise the card is indicative with `sourceRefusal: venueTradeScopeRequired`. A key has no default wallet: `source.tradingWallets` maps CAIP-2 networks to workspace custody or granted organisation financial-account IDs. Personal wallets refuse with `409 PERSONAL_TARGET_NOT_ALLOWED`. `deliverTo` is for member sessions; on a key requote it is `409 REQUOTE_REFUSED` (`details.reason: deliverToNotPermitted`). Refusals use `ApiError`.",
+        "description": "Request quotes\n\nOne request covers every venue your workspace can use, and filters narrow it. You get `quotes`, best first, and each venue's outcome in `sources`; `venueAsked` says whether any venue was contacted. Order a quote by its `id`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes",
           "host": [
@@ -903,7 +903,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read a quote request's recorded answer\n\nThe quotes, sources and orders of one asset-pair POST /quotes answer. Required API-key scope: `quotes_read`. Immediate reads use the same held request handed to the asynchronous evidence writer; later reads recover its durable record. Readable by the principal that asked, by a member session allowed to view the workspace's orders, and by an API key with the additional orders_read scope when an order was placed on one of its quotes in that workspace. Unknown and foreign ids are the same 404. A request lost in a crash before persistence returns 404 QUOTE_REQUEST_NOT_FOUND; its unpersisted quotes are also lost, so request fresh quotes. Genuine store or read failures return retryable 503 QUOTE_REQUEST_UNAVAILABLE with details.retryAfter and Retry-After. requestedByYou says whether the caller asked; only then can it order these quotes.",
+        "description": "Read a quote request's recorded answer\n\nReads back one quote request's recorded answer: its quotes, sources and any orders placed on them. Use it to recover a search whose answer you lost, by its `quoteRequestId`. Required API-key scope: `quotes_read`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes/requests/:quoteRequestId",
           "host": [
@@ -943,7 +943,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read balances across workspace accounts\n\nRead cache-only balances across readable workspace wallets and venue accounts; no provider refresh starts. Keys and OAuth clients need `treasury_read`. Wallet policy must allow `read_balances`; venue accounts require View wallets in a company or broker workspace or as an admitted LP taker, as on the account balance read. Guide: [trade/balances](https://tetrafi.mintlify.app/trade/balances).\n\n`network` is the CAIP-2 chain and an exact filter; unknown parameters are refused. `valueUsd` uses the market-data display price (up to eight decimals); `valuedAt` dates that price. Without a price both are null, never zero. `GET …/balances:aggregate` gives totals rounded to cents and daily history.\n\nSort with `field` or `-field`: `id` (default), `accountId`, `asset`, `network`, `valueUsd` (unvalued last) or `asOf`. `fields` restricts row fields but keeps `id`, `accountId` and `asset`; `include=account` adds the account by `accountId` as its resource answers it, or null with its refusal. Hidden accounts affect neither rows nor cursors. Cursors bind the workspace, caller, filters, sort and ordered visible row identities.",
+        "description": "Read balances across workspace accounts\n\nRead every balance your workspace can see, one row per account, asset and network, across wallets and venue accounts. It reads recorded balances and never asks a chain or venue.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/balances",
           "host": [
@@ -1027,7 +1027,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the workspace's verification state and the capabilities it allows\n\nThe workspace's KYB state (`workspace.kybStatus`) and, for each capability, whether it is\nallowed now or blocked, with each blocker's code and the step that clears it. The quote and\norder routes enforce the same decision. An API key needs the `compliance_read` scope and reads\nonly the workspace it is bound to.",
+        "description": "Read the workspace's verification state and the capabilities it allows\n\nRead whether your workspace can use each capability now, such as requesting quotes or placing orders, and what blocks it. Call it before trading to see what to fix.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/capabilities",
           "host": [
@@ -1067,7 +1067,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the workspace's effective fee schedule\n\nCurrent and upcoming effective fees for this workspace, readable by any current member. Required API-key scope: `fee_schedule_read`; an OAuth client needs the same scope. Rates are decimal strings in parts per million. A schedule that cannot be read answers 503 FEE_SCHEDULE_UNAVAILABLE, never a partial or zero schedule.",
+        "description": "Read the workspace's effective fee schedule\n\nRead the fees in force for your workspace now and every change already scheduled.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/fee-schedule",
           "host": [
@@ -1107,7 +1107,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the cross-venue settlement plan\n\nA read-only snapshot of what is due across the workspace's venue accounts. Unknown deadlines remain unknown. Per-source read failures are explicit and make the plan incomplete. Reading creates no transfer, reservation, approval request or LP instruction. perspective=maker requires a human session in an LP workspace (otherwise 403 LP_WORKSPACE_REQUIRED) and lists only client windows covered by the current client-sharing grant. Turns are relative to that LP; clocks and SLA facts use the same native window projection. Client funding sources and executable proposals are never exposed. The plan is not paged: it returns every window of the horizon, and a horizon holding more than 512 windows is refused whole with 422 SETTLEMENT_PLAN_TOO_LARGE, never truncated (horizonDays is 1 to 90; send a shorter one). Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "Read the cross-venue settlement plan\n\nReads what is due across your venue accounts, as one snapshot of the coming days. Reading it creates no transfer, reservation, approval or instruction to the LP.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/settlement/plan",
           "host": [
@@ -1168,7 +1168,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List trades\n\nThe one trade history. Projections: scope=workspace (default) reads the workspace's taker orders and venue trades; a caller not allowed to view the workspace's compliance records reads only their own, whatever the scope. scope=mine reads the caller's own (a member session only). scope=umbrella reads a broker's clients' orders with each client category's field visibility (a member session allowed to view client compliance records). perspective=maker reads an LP workspace's fills with pseudonymised counterparties (a member session allowed to view settlements); a member allowed to view orders or bilateral documents but not settlements reads order summaries instead (maker.summary, without tradeId: the LP's protocol orders, their status, route and recorded USD value); with settlementStage or minAgeSeconds, its unsettled orders by stage (a member session allowed to view bilateral documents). The default perspective is taker in every workspace. Every row except an order summary carries tradeId, kind (order or venueTrade) and projection. Page with limit and cursor; format=csv returns the same filtered rows. Required API-key scope: `trades_read`; CSV is a member session only.",
+        "description": "List trades\n\nLists your workspace's trades, newest first: orders placed through TetraFi and trades on your venue accounts. Filter by kind, order status, settlement status and time, and page with the cursor.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades",
           "host": [
@@ -1202,9 +1202,15 @@
             },
             {
               "key": "status",
-              "value": "<status>",
+              "value": "pending",
               "disabled": true,
-              "description": "Settlement status filter, as the projection names it."
+              "description": "The trade's order status, matched against a row's `status` (`PublicOrderStatus`, the value\nits order read answers). Taker projections (mine, workspace) only; a venue trade has none,\nso `kind=all` leaves venue trades out by name."
+            },
+            {
+              "key": "settlementStatus",
+              "value": "<settlementStatus>",
+              "disabled": true,
+              "description": "Recorded settlement, matched against a row's `settlementStatus`. Taker: pending, settled,\nfailed, refunded or unknown (none recorded); maker: the fill's settlement; umbrella: the\nrecord's settlementStatus."
             },
             {
               "key": "counterpartyId",
@@ -1294,7 +1300,7 @@
               "key": "asset",
               "value": "<asset>",
               "disabled": true,
-              "description": "Taker: either side's display asset symbol (case-insensitive)"
+              "description": "Taker: a registry asset id (`USDC`) either side resolves to; an unlisted id is 400"
             },
             {
               "key": "corridor",
@@ -1321,22 +1327,22 @@
               "description": "The row's routingPath type: direct or via_broker"
             },
             {
-              "key": "amountMin",
-              "value": "0",
+              "key": "valueUsdMin",
+              "value": "<valueUsdMin>",
               "disabled": true,
-              "description": "Minimum USD notional"
+              "description": "Lowest USD value (`valueUsd`), a decimal string; a trade with no recorded USD value is not listed"
             },
             {
-              "key": "amountMax",
-              "value": "0",
+              "key": "valueUsdMax",
+              "value": "<valueUsdMax>",
               "disabled": true,
-              "description": "Maximum USD notional"
+              "description": "Highest USD value (`valueUsd`), a decimal string; a trade with no recorded USD value is not listed"
             },
             {
               "key": "sort",
               "value": "<sort>",
               "disabled": true,
-              "description": "field (ascending) or -field (descending). Every projection: createdAt. Taker: amountUsd, status, corridor, counterparty, member (workspace scope), orderId, settlementSpeedMs. Umbrella: amountUsd. Maker: status, orderId. A cursor pages only the order it was returned for"
+              "description": "field (ascending) or -field (descending). Every projection: createdAt. Taker: valueUsd, settlementStatus, corridor, counterparty, member (workspace scope), orderId, settlementSpeedSeconds. Umbrella: valueUsd. Maker: settlementStatus, orderId. A cursor pages only the order it was returned for"
             },
             {
               "key": "fields",
@@ -1384,7 +1390,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Get a trade\n\nOne trade through the same projection as the list: the workspace's or the caller's own taker order or venue trade, a broker umbrella record with the client category's field visibility, or an LP's fill with pseudonymised counterparties. Taker orders keep their detail fields at the top level. Accepts a member session or an API key with trades_read.",
+        "description": "Get a trade\n\nReads one trade through the same view as the list. For an order, its settlement status says how it ended.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId",
           "host": [
@@ -1456,7 +1462,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Get trade settlement\n\nOne trade's settlement state. The taker perspective is the order's settlement detail (required API-key scope: `settlements_read`; the caller must be allowed to view settlements). The maker perspective is the LP's settlement pipeline for the order, a member-session read for a member allowed to view bilateral documents. The settlement milestones flow analytics records are its `milestones` sub-resource. Each perspective answers exactly what its own route answers.",
+        "description": "Get trade settlement\n\nReads one trade's settlement: its lifecycle stages, transactions and the LP's response. Read it after an order fills to follow how it settles.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement",
           "host": [
@@ -1517,7 +1523,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List a trade's settlement obligations\n\nThe Basic settlement obligations that reference one trade, with their venue account, window and state. Required API-key scope: `settlements_read`; the caller must be allowed to view settlements.",
+        "description": "List a trade's settlement obligations\n\nLists the settlement obligations that reference one venue trade, each with its venue account, window and state.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement/obligations",
           "host": [
@@ -1579,7 +1585,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List venue-account credit\n\nList recorded credit for accounts that settle through a venue account. Requires View wallets and View credit, plus `treasury_read` for keys and OAuth. Accounts are admitted by stored row and venue kind and read concurrently. Guide: [trade/settlement-and-credit#monitor-credit-per-account](https://tetrafi.mintlify.app/trade/settlement-and-credit#monitor-credit-per-account).\n\nAn item's `unreachable` reason can be `VENUE_ACCOUNT_NOT_FOUND` for an unowned account, `VENUE_ACCOUNT_FUNDS_IN_WALLETS` for a wallet-based venue, or a 503 of the item read. Each readable item's components name a missing key or `VENUE_ACCOUNT_KEY_STATE_UNAVAILABLE` if key state could not be read. `400 INVALID_REQUEST`, `INVALID_LIMIT` or `INVALID_CURSOR` names bad input; missing credit permission is `403 INSUFFICIENT_WORKSPACE_PERMISSION`. An unreadable account list refuses with 503.",
+        "description": "List venue-account credit\n\nList the recorded credit of every venue account, or those you name, with the accounts that could not be read in `unreachable`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-account-credit",
           "host": [
@@ -1609,7 +1615,7 @@
               "key": "limit",
               "value": "0",
               "disabled": true,
-              "description": "Page size, 1 to 100 (default 20); any other value is 400 INVALID_LIMIT."
+              "description": "Page size, 1 to 100 (default 20); any other value is 400 LIMIT_INVALID."
             },
             {
               "key": "cursor",
@@ -1645,7 +1651,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the venue account's balances at its venue\n\nThe caller must be allowed to view wallets in a company or broker workspace (or be an admitted LP taker). API keys and OAuth clients additionally require treasury_read; this read never authorizes a payment. Read through the connection holding the account's balance credential, a configured one first (its `connectionId` and execution type are in the body); the observation, staleness and display-value rules are those of the venue-connection balance read, so a balance key held only by a disabled venue returns its last-known balance. 409 VENUE_ACCOUNT_FUNDS_IN_WALLETS for an account whose money is in the company's own wallets, VENUE_ACCOUNT_REVERIFY_REQUIRED when no current key holds its balance, VENUE_ACCOUNT_REVOKED for a disconnected account, VENUE_ACCOUNT_VENUE_UNKNOWN when its venue is not recognised; 404 VENUE_ACCOUNT_NOT_FOUND. 403 VENUE_READ_AUTHORITY_REFUSED whenever the caller's read authority has ended, whether the check before the read or a recheck during it sees it (reason `authority_ended`: the credential is revoked or expired, or no longer carries treasury_read; reason `permission_withdrawn`: its owner lost permission to view wallets, its membership or taker admission); a session that has itself ended answers 401.",
+        "description": "Read the venue account's balances at its venue\n\nRead what the venue last reported for one venue account, one line per asset.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/balances",
           "host": [
@@ -1692,7 +1698,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read one venue account's credit\n\nRead the Treasury credit card for one account without calling the provider. Requires View wallets and View credit, plus `treasury_read` for keys and OAuth. A signed-in member can use the account ledger for a live read. Guide: [trade/settlement-and-credit#credit-and-the-ledger](https://tetrafi.mintlify.app/trade/settlement-and-credit#credit-and-the-ledger).\n\n`warning` is the workspace threshold as a percent of reported limit, or null if unset. `warningReached` requires a readable line; `revision` is the PATCH ETag. Usage comes from the credit admission owner, including holds, freshness and terms provenance. `include=consumers` expands `included.consumers[venueAccountId].value`: `unsettledLeg`/`windowId`, `openTrade`/`tradeId`, or `openQuote`/`quoteId`, each with asset, exact decimal amount and `since`. It shares the commitments' snapshot and sums to them per asset. Unreadable expansion is null with a named reason. Failed terms reads refuse with 503, never an invented version. Foreign accounts share `404 VENUE_ACCOUNT_NOT_FOUND`; unreadable account access is `503 VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE`.",
+        "description": "Read one venue account's credit\n\nRead one venue account's recorded credit: the venue's reported line, your credit standing and its warning threshold. It never calls the venue.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/credit",
           "host": [
@@ -1747,7 +1753,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the venue account's deposit history\n\nRead credits through the configured balance-key connection, using its deposit-history rules. Requires View wallets in a company or broker workspace or as an admitted LP taker, plus `treasury_read` for keys and OAuth. Unread history is named in `unreachable`, not an empty history. Guide: [trade/balances](https://tetrafi.mintlify.app/trade/balances).\n\nCredits sort by venue record time then venue deposit id. A cursor overrides `from` and binds the workspace, account, asset, network and full credit fingerprint; a changed observation refuses it rather than skipping or repeating credits. An unread history's source is `depositHistory`; `reason` and `readAt` come from the observation's `reasonCode` and `observedAt` (when read). The included observation also names connection, reason code, asset, `chainRef`, `networkCode`, `networkConfirmed`, `observedAt` and `expiresAt`. With no venue network declaration, `networkConfirmed` is false, `networkCode` empty and matching is by asset only.\n\n`400 INVALID_REQUEST` names an unknown parameter or out-of-range `from`. The balance read's 409s apply, plus `VENUE_ACCOUNT_FUNDING_VENUE_DISABLED` if only a disabled venue holds the balance key. `403 VENUE_READ_AUTHORITY_REFUSED` covers authority lost before or during the read: `authority_ended` for revoked, expired or rescoped credentials, `permission_withdrawn` for lost View wallets, membership or taker admission. An ended session answers 401.",
+        "description": "Read the venue account's deposit history\n\nRead the deposits a venue credited to the account for one asset on one network, over a window of up to 30 days.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-history",
           "host": [
@@ -1832,7 +1838,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read how to deposit into the venue account\n\nRead deposit instructions through the configured balance-key connection. Requires View wallets in a company or broker workspace or as an admitted LP taker, plus `treasury_read` for keys. This does not authorize a payment. Guide: [trade/balances](https://tetrafi.mintlify.app/trade/balances).\n\nSelect `currency` for bank details. `bankDeposit` names `available`, `referenceOnly`, `notOffered` or `unread` with reason and code. `bankInstructions` carries the available coordinates or reference. Only a declared venue offering determines `notOffered`; failed reads are `unread`. Responses are `no-store`; receiving-account and full-reference disclosures are audited. Connection selection and fee rules apply.\n\nSend a summary pay-in window's `payInLegId` alone (`400 PAY_IN_LEG_SELECTION_EXCLUSIVE`) for that open leg's currency and the linked paying bank recorded on its deposit declaration at a dedicated fiat venue. Wrong account or leg: `404 PAY_IN_LEG_NOT_FOUND`; no longer awaiting funds: `409 PAY_IN_LEG_NOT_OPEN`; digital asset: `409 PAY_IN_LEG_NOT_BANK_CURRENCY` (read its address with `asset` and `chainRef`). The balance read's 409s apply, plus `VENUE_ACCOUNT_FUNDING_VENUE_DISABLED` if only a disabled venue holds the key, before leg lookup.\n\n`403 VENUE_READ_AUTHORITY_REFUSED` covers authority lost before or during the read: `authority_ended` for revoked, expired or rescoped credentials, `permission_withdrawn` for lost View wallets, membership or taker admission. An ended session answers 401.",
+        "description": "Read how to deposit into the venue account\n\nRead where to deposit into a venue account: an address for an asset and network, or bank details for a fiat asset sent without a network.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-instructions",
           "host": [
@@ -1852,31 +1858,25 @@
               "key": "asset",
               "value": "<asset>",
               "disabled": true,
-              "description": ""
+              "description": "The asset to deposit. With `network`, a digital asset whose deposit address is read;\nalone, an ISO 4217 fiat asset (`USD`) whose bank-deposit instructions are read."
             },
             {
               "key": "network",
               "value": "<network>",
               "disabled": true,
-              "description": "The CAIP-2 network to deposit `asset` on."
-            },
-            {
-              "key": "currency",
-              "value": "<currency>",
-              "disabled": true,
-              "description": "ISO fiat currency for the bank-deposit read; never with `asset` or `network`."
+              "description": "The CAIP-2 network to deposit a digital `asset` on."
             },
             {
               "key": "providerBankId",
               "value": "<providerBankId>",
               "disabled": true,
-              "description": "The dedicated fiat venue's linked bank id for the sending bank. Required with currency for a dedicated fiat venue and refused for other venues."
+              "description": "The dedicated fiat venue's linked bank id for the sending bank. Required with a fiat asset for a dedicated fiat venue and refused for other venues."
             },
             {
               "key": "payInLegId",
               "value": "<payInLegId>",
               "disabled": true,
-              "description": "One of the venue account's open pay-in legs (a summary pay-in window's `legId`):\nthe read selects that leg's currency and, for a dedicated fiat venue, the paying\nbank its deposit declaration recorded. Only on the venue-account read, and never\nwith `asset`, `network`, `currency` or `providerBankId`."
+              "description": "One of the venue account's open pay-in legs (a summary pay-in window's `legId`):\nthe read selects that leg's asset and, for a dedicated fiat venue, the paying\nbank its deposit declaration recorded. Only on the venue-account read, and never\nwith `asset`, `network` or `providerBankId`."
             }
           ],
           "variable": [
@@ -1911,7 +1911,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the venue account's signed positions and credit line\n\nRead the account ledger with View wallets. Members read live (`source: live`); keys and OAuth clients need `treasury_read` and read recorded data only. Foreign accounts answer `404 VENUE_ACCOUNT_NOT_FOUND` before provider I/O. Positions and credit keep separate observation and provider times. No background polling. `502 LEDGER_DATA_INVALID` means amounts were unreadable; `503 LEDGER_READ_UNAVAILABLE` or `LEDGER_JOURNAL_UNAVAILABLE` names a failed read, with the last good read time when known. Guide: [trade/settlement-and-credit#credit-and-the-ledger](https://tetrafi.mintlify.app/trade/settlement-and-credit#credit-and-the-ledger).",
+        "description": "Read the venue account's signed positions and credit line\n\nRead a venue account's signed positions and credit line. A signed-in member reads the venue live; a key reads the last recorded observation.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/ledger",
           "host": [
@@ -1958,7 +1958,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List a venue account's settlement movements\n\nDeposits to and withdrawals from the venue account that settle obligations, newest first, optionally for one window; page with cursor. An LP history this read could not reach is one `unreachable` entry (source `lpHistory`); the recorded movements are still listed. `include=observation` returns how current they are in `included.observation[venueAccountId]` (lastSuccessfulReadAt, observationState, reasonCode, observationRequestedAt). The read lists the recorded movements and never reads the LP or the chain itself: TetraFi reads every active account in the background on its own schedule, and a member asks for a fresh read with a create on `settlement/observations`. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "List a venue account's settlement movements\n\nLists the deposits to and withdrawals from a venue account that settle its obligations, newest first, optionally for one window.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements",
           "host": [
@@ -2032,7 +2032,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read a settlement movement\n\nOne recorded movement with its finality and how it matched. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "Read a settlement movement\n\nReads one recorded movement with its finality and how it was matched.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements/:movementId",
           "host": [
@@ -2086,7 +2086,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List a venue account's settlement obligations\n\nWhat the workspace and the LP owe each other on this account, with status and deadline, optionally for one window or one trade; page with cursor. Each row carries its own readAt; the envelope readAt is deprecated. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "List a venue account's settlement obligations\n\nLists what you and the LP owe each other on one venue account, with status and deadline. Filter by window or trade, and page with the cursor.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/obligations",
           "host": [
@@ -2160,7 +2160,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read a settlement obligation\n\nOne obligation with its status, deadline, origin and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "Read a settlement obligation\n\nReads one obligation with its status, deadline, origin and the movements matched to it.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/obligations/:obligationId",
           "host": [
@@ -2214,7 +2214,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read a venue account's settlement schedule selection\n\nThe schedule in effect on this account (`activeSelection`, `effectiveSchedule` with its minimum settlement, and `termSources`), a change waiting on the LP (`pendingSelection`), the next window (`nextWindow`, and `nextWindowRolledFrom` when the calendar moved it), the selection's `revision` that a schedule request is sent against, and whether the caller may change it (`permissions`). Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "Read a venue account's settlement schedule selection\n\nReads the settlement schedule in effect on a venue account, a change waiting on the LP, and the next window.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/schedule-selection",
           "host": [
@@ -2262,7 +2262,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List a venue account's settlement schedules\n\nThe LP's published settlement schedules for this account, ordered by schedule id then version; the version the account has selected stays listed after a newer one is published. `limit` (1 to 100, default 20) and `cursor` page it; `nextCursor` is null on the last page. The schedule in effect, its terms, a pending change and the next window are the account's schedule selection (`GET …/settlement/schedule-selection`). Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "List a venue account's settlement schedules\n\nLists the LP's published settlement schedules for a venue account, by schedule id then version. The version the account selected stays listed after a newer one is published.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/schedules",
           "host": [
@@ -2283,7 +2283,7 @@
               "key": "limit",
               "value": "0",
               "disabled": true,
-              "description": "Page size from 1 to 100, default 20; anything else is 400 `INVALID_LIMIT`."
+              "description": "Page size from 1 to 100, default 20; anything else is 400 `LIMIT_INVALID`."
             },
             {
               "key": "cursor",
@@ -2324,7 +2324,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List a venue account's settlement windows\n\nThe account's settlement windows, newest snapshot first, each with its indicative statement once the snapshot is ready: positions, snapshot prices (an unavailable price names its stage and reason) and the minimum-settlement decision. Filter by state; page with cursor. Each window carries its own readAt; the envelope readAt is deprecated. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "List a venue account's settlement windows\n\nLists a venue account's settlement windows, newest first, each with its indicative statement once its snapshot is ready. Filter by status and page with the cursor.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows",
           "host": [
@@ -2392,7 +2392,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read a settlement window\n\nOne window with its indicative statement (positions, snapshot prices and the minimum-settlement decision), its obligations, the LP's own statement on an LP-issued window, and the movements matched to it. Required API-key scope: `settlements_read`; an OAuth client needs the same scope. The key's owner must also be allowed to view the workspace's settlements.",
+        "description": "Read a settlement window\n\nReads one settlement window: its statement, its obligations and the movements matched to them.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows/:windowId",
           "host": [
@@ -2454,7 +2454,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List a settlement window's matches\n\nThe movements matched to this window's obligations, oldest first, one page at a time. Required API-key scope: `settlements_read`; an OAuth client needs the same scope.",
+        "description": "List a settlement window's matches\n\nLists the movements matched to a window's obligations, oldest first, one page at a time.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/windows/:windowId/matches",
           "host": [
@@ -2523,7 +2523,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List the workspace's venue accounts\n\nList venue accounts for a current company or broker session, or a key or service account with `treasury_read` and View wallets authority. Guide: [trade/wallets-and-accounts](https://tetrafi.mintlify.app/trade/wallets-and-accounts).\n\nItems carry the venue, funds location, wallets, linked accounts, execution types, key state and whether disabling the venue retires its key. An account-based item's `accountId` is the `venueAccountId` for balances, deposit history and instructions; a `walletBased` item has no account or `accountId`, and `fundingTarget` names its organisation trading wallets. Key by `venueEnablementId`. Oldest first; `limit` defaults to 20, max 100. Pass the opaque `nextCursor` as `cursor` until null.\n\nAn unknown or foreign workspace is `404 WORKSPACE_NOT_FOUND`, without reading that workspace. A cursor this list did not issue is `400 INVALID_CURSOR`. `403 VENUE_READ_AUTHORITY_REFUSED` names `authority_ended` for revoked, expired or rescoped credentials or `permission_withdrawn` for lost View wallets, membership or taker admission. An ended session answers 401.",
+        "description": "List the workspace's venue accounts\n\nList your workspace's venue accounts, oldest first. Each account-based item's `accountId` is the venue account id you pass to its balance, deposit and credit reads.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-enablements",
           "host": [
@@ -2547,7 +2547,7 @@
               "key": "limit",
               "value": "0",
               "disabled": true,
-              "description": "Page size from 1 to 100, default 20. A value outside that range is\nrefused with 400 `INVALID_LIMIT`, never clamped."
+              "description": "Page size from 1 to 100, default 20. A value outside that range is\nrefused with 400 `LIMIT_INVALID`, never clamped."
             }
           ],
           "variable": [
@@ -2577,7 +2577,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List the workspace's wallets being created\n\nThe wallets created on a wallet connection, newest first, each with its status and the people who have not proven their factors yet (`missing`). `status=pending` lists the pending wallets; a pending wallet past its expiry reads as `expired`. `assignee=me` lists only the wallets waiting for you: your factors to prove while pending, or the created wallet's owners to confirm from your own signing page while `created` or `active` (each with its `signingRequestId`); never one you confirmed or that does not name you. It also lists a registered organisation wallet you created whose Trade grant, chosen at creation, is not written yet (`creatorTradeGrant`): `POST …/wallets/{walletId}/reconcile` in your own session writes it. A personal wallet is listed to its creator only; an organisation wallet to its people and to members with ManageWallets. Workspace membership is enough to read the wallets that name you (an invitation to prove your factors); `createdBy` names who started each. Registered custody wallets are read from wallet-directory. A member's API key with `treasury_read` reads the wallets its member would, as that member's permissions stand now.",
+        "description": "List the workspace's wallets being created\n\nLists the wallets being created on your workspace's wallet connections, newest first, each with its status and the people who have not approved yet. Use it to find the creations waiting for you.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets",
           "host": [
@@ -2659,7 +2659,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Create a wallet\n\nStart an organisation wallet with `treasury_write` and Manage wallets, or the key member's personal wallet with `orders_write` and View wallets. The member's current permissions and standing apply. The key never approves. Guide: [trade/create-wallet](https://tetrafi.mintlify.app/trade/create-wallet).\n\nConnection capabilities, threshold and each owner's current membership are checked before recording anything. `202` includes the signing request's `id`; the approval link is also `wallet.approvalUrl`. A key receives no approval capability. Another owner on a personal creation is `409 WALLET_CREATION_PERSONAL_OWNER`. `startedWithApiKey` names the initiating key. The same `Idempotency-Key` and body make one creation; a different body with the same key is `409 IDEMPOTENCY_CONFLICT`.\n\n`returnUrl` must be HTTPS on a registered exact origin (scheme, host and port), excluding TetraFi's app and signing origins; otherwise `400 RETURN_URL_NOT_REGISTERED`. `returnTo` echoes it. The query outcome is `approved` or `pending` immediately after recording the owner's part (`pending` while waiting for others), or `refused` only after they see why and choose to return.",
+        "description": "Create a wallet\n\nStarts an organisation wallet, or your own personal wallet, and returns its approval link. Each owner then approves it on their own signing page; nothing exists at the provider until they do.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets",
           "host": [
@@ -2708,7 +2708,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read one wallet being created\n\nOne wallet created on a wallet connection (its id is the `walletId` the creation answered), as the list shows it: its status, the people who have not proven their factors yet (`missing`) and, for the caller's own open request, its `signingRequestId`. Listed to the same people as the list: a personal wallet to its creator, an organisation wallet to its people and to members with ManageWallets; any other id is 404 `WALLET_NOT_FOUND`. A signed-in member, or a member's API key with `treasury_read` (read as that member's permissions stand now). Nothing is read from the provider here; `POST …/wallets/{walletId}/reconcile` does that.",
+        "description": "Read one wallet being created\n\nReads one wallet being created, by the `walletId` its creation answered, as the list shows it: its status and who still has to approve. Read it until the wallet is active or has ended.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets/:walletId",
           "host": [
@@ -2760,7 +2760,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Withdraw a wallet being created\n\nWithdraws a wallet being created, saying what is known at its provider. A `pending` creation (nothing sent yet) is withdrawn at once and reads `cancelled` with `failureCode` `WALLET_CREATION_CANCELLED`. An `uncertain` one is read again first: one the provider holds, or one still inside its settle window, is refused by name (`WALLET_CREATION_EXISTS_AT_PROVIDER`, `WALLET_CREATION_ACTIVITY_EXISTS`, `WALLET_CREATION_ABSENCE_UNPROVEN`); a failed read withdraws nothing (`503 WALLET_CREATION_CANCEL_UNAVAILABLE`). Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`. A member's own API key may withdraw what its member could, with the scope its creation needed: `orders_write` for a personal wallet, `treasury_write` for an organisation wallet (`403 INSUFFICIENT_SCOPE` otherwise, `details.requiredScope` naming the one it needs). A key holding neither scope is refused before its body is read, and that refusal's `details.requiredScope` names `orders_write`, the first of the two. `Idempotency-Key` is required: the same key replays the withdrawal.",
+        "description": "Withdraw a wallet being created\n\nWithdraws a wallet that is still being created, and says what its provider holds. You can withdraw one that is pending or uncertain.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/wallets/:walletId/cancel",
           "host": [
@@ -2807,7 +2807,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List webhooks",
+        "description": "List webhooks\n\nList your workspace's webhook endpoints, a page at a time.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
           "host": [
@@ -2871,7 +2871,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Create a webhook\n\nCreate a webhook with a shown-once `whsec_<base64>` secret. Standard Webhooks sends webhook-id, webhook-timestamp (Unix seconds), and webhook-signature: `v1,<base64 HMAC-SHA256>`, signing id.timestamp.rawBody with the base64-decoded key. Verify the exact raw body and enforce five-minute timestamp tolerance. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
+        "description": "Create a webhook\n\nRegister an HTTPS endpoint for the events you choose. The answer carries its signing secret once: store it before anything else.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks",
           "host": [
@@ -2920,7 +2920,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Get a webhook",
+        "description": "Get a webhook\n\nRead one webhook endpoint: its URL, events, state and delivery settings, with the `ETag` you need to change it.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -2976,7 +2976,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Update a webhook\n\nUpdate any of url, events or active without recreating the endpoint. URLs use the same HTTPS and SSRF validation as creation; events must be current subscription names. Changing url or events makes the caller the endpoint's accountable principal, whose read rights then govern protected event delivery; changing only active keeps the existing principal. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
+        "description": "Update a webhook\n\nChange an endpoint's URL, events, active setting or API version pin without creating it again. The answer is the endpoint as `GET` reads it. When its delivery history can't be read once the change is saved, the change still stands: the answer leaves `lastDelivery` out and `unreachable` names it.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -3031,7 +3031,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Delete a webhook\n\nDelete a webhook. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
+        "description": "Delete a webhook\n\nDelete a webhook endpoint you no longer use.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId",
           "host": [
@@ -3077,7 +3077,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List a webhook's deliveries",
+        "description": "List a webhook's deliveries\n\nRead an endpoint's recent deliveries to see what your receiver answered and which ones you can send again.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
           "host": [
@@ -3148,7 +3148,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Send a test delivery\n\nTrigger a webhook.test delivery signed with the same Standard Webhooks headers (webhook-id, webhook-timestamp, webhook-signature) as live events. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
+        "description": "Send a test delivery\n\nSend a test event to an endpoint, signed like a live one, to check that your receiver verifies and acknowledges it.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries",
           "host": [
@@ -3201,7 +3201,7 @@
             "key": "Idempotency-Key",
             "value": "<Idempotency-Key>",
             "disabled": true,
-            "description": "Required for API-key and OAuth writes. Replaying the same key and body returns the retained result; a different body under the same key is 409 IDEMPOTENCY_CONFLICT."
+            "description": "Optional retry key, 1-255 bytes. The same key replays the stored delivery for 24 hours without a second send."
           },
           {
             "key": "TetraFi-Version",
@@ -3210,7 +3210,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Retry a delivery\n\nSend one retained payload again with current URL and signing secret.",
+        "description": "Retry a delivery\n\nSend one retained delivery again, for example after you fixed your receiver or resumed the endpoint.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/deliveries/:deliveryId/retry",
           "host": [
@@ -3270,7 +3270,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Resume a paused webhook\n\nReactivate an auto-paused webhook, resetting its failure count and pause time. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
+        "description": "Resume a paused webhook\n\nTurn a paused endpoint back on once your receiver works again.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/resume",
           "host": [
@@ -3323,7 +3323,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Rotate a webhook secret\n\nRotate a webhook's Standard Webhooks secret. Returns a shown-once `whsec_<base64>` secret. For 24 hours, webhook-signature carries space-separated `v1,<base64>` signatures from current and previous decoded keys; either verifies id.timestamp.rawBody. Required API-key scope: `webhooks_manage`; the key's owner must still be allowed to manage webhooks. A member session needs permission to manage webhooks or credentials.",
+        "description": "Rotate a webhook secret\n\nReplace an endpoint's signing secret, for example when the old one was lost or exposed. Both secrets verify for 24 hours while you deploy the new one.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/webhooks/:webhookId/rotate",
           "host": [

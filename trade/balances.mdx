@@ -123,7 +123,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 <ResponseField name="balances[].total" type="string">Everything held, locked included. Negative on a credit account: what it owes.</ResponseField>
 <ResponseField name="balances[].free" type="string">Free to trade or withdraw, per the venue.</ResponseField>
 <ResponseField name="balances[].available" type="string">`free` less TetraFi's commitments to open trades and withdrawals; `null` if unknown.</ResponseField>
-<ResponseField name="balances[].usdValue" type="string">US dollar value; `null` without a reference price, never `0`.</ResponseField>
+<ResponseField name="balances[].valueUsd" type="string">US dollar value; `null` without a reference price, never `0`.</ResponseField>
 
   </Accordion>
   <Accordion title="Request and output">
@@ -131,7 +131,7 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 <VenueBalances />
 
 ```json Example output
-{"status":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","usdValue":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","usdValue":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","usdValue":null}]}
+{"status":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","valueUsd":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","valueUsd":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","valueUsd":null}]}
 ```
 
   </Accordion>
@@ -220,7 +220,7 @@ Each rate has `ratePpm` and `effectiveFrom`:
 
 | Status and `error` | What to do |
 | --- | --- |
-| `400 INVALID_BALANCE_LIST_QUERY` | Use only `cursor`, `limit`, `asset`, `accountKind` (`wallet`, `venueAccount` or `bankAccount`) and `accountId`. |
+| `400 BALANCE_LIST_QUERY_INVALID` | Use only `cursor`, `limit`, `asset`, `accountKind` (`wallet`, `venueAccount` or `bankAccount`) and `accountId`. |
 | `400 LIMIT_INVALID`, `400 CURSOR_INVALID` | Send a valid `limit`, or start again without a cursor. |
 | `403 OBSERVATION_AUTHORITY_REQUIRED`, `403 VENUE_READ_AUTHORITY_REFUSED` | The key has no current authority to read the account, or lost it mid-read. Restore its Treasury read access. |
 | `403 WALLET_ACCESS_CHANGED` | The key's access changed mid-read. Read again. |

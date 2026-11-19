@@ -113,7 +113,7 @@ outcome() {
     request: $name,
     quotes: (.quotes | length),
     locations: ([.quotes[].location.kind] | unique),
-    commitments: ([.quotes[] | if .firm then "firm" elif .expiresAt != null then "executable" else "indicative" end] | unique),
+    commitments: ([.quotes[].quality] | unique),
     sources: (.sources | length),
     outcomes: (reduce .sources[] as $s ({}; .[$s.status] += 1))
   }' <<<"$2")
@@ -149,7 +149,8 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
 }')
 sell_exact=$(quote_request "$request")
 jq -c '.quotes[] | {venue: .legs[0].venue.id, location: .location.kind,
-  firm, sell: .sell.amount, buy: .buy.amount, expiresAt}' <<<"$sell_exact" >&2
+  quality, sell: .sell.amount, buy: .buy.amount, expiresAt}' \
+  <<<"$sell_exact" >&2
 # endregion
 outcome sellExact "$sell_exact"
 
@@ -223,7 +224,7 @@ request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   filters: {locations: ["offChain"]}
 }')
 off_chain=$(quote_request "$request")
-jq -c '[.quotes[] | {venue: .legs[0].venue.id, firm, buy: .buy.amount}]' <<<"$off_chain" >&2
+jq -c '[.quotes[] | {venue: .legs[0].venue.id, quality, buy: .buy.amount}]' <<<"$off_chain" >&2
 jq -c '[.sources[] | select(.status == "filteredOut") | .venue.id]' <<<"$off_chain" >&2
 # endregion
 outcome offChain "$off_chain"

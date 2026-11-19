@@ -16,13 +16,13 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 
 | Call | Needs | Result |
 | --- | --- | --- |
-| `POST …/webhooks` | Manage webhooks (`webhooks_manage`) | `201` with `webhook`, `secret` and `secretShownOnce` |
+| `POST …/webhooks` | Manage webhooks (`webhooks_write`) | `201` with `webhook`, `secret` and `secretShownOnce` |
 | `…/webhooks/{webhookId}` and below | Manage webhooks | [Manage the endpoint](#manage-an-endpoint) |
 | An event's `statusUrl` | Read orders | The order's current state |
 
 <AccordionGroup>
   <Accordion title="What the key needs">
-    - Manage webhooks (`webhooks_manage`) on the key, and the owner's workspace permission to manage webhooks ([Permissions](/authentication#permissions)).
+    - Manage webhooks (`webhooks_write`) on the key, and the owner's workspace permission to manage webhooks ([Permissions](/authentication#permissions)).
     - For `order.updated`, an endpoint owner who can read the orders: events it cannot read are withheld.
     - Read orders, to follow an event's `statusUrl`.
 
@@ -91,7 +91,7 @@ A `POST` with a JSON body and three `webhook-` headers. It only says an order ch
   "id": "…",
   "type": "order.updated",
   "apiVersion": "2026-11-17",
-  "createdAt": "2026-10-30T09:12:44.000Z",
+  "occurredAt": "2026-10-30T09:12:44.000Z",
   "data": {
     "orderId": "…", "kind": "basicTrade", "status": "working", "terminal": false, "statusUrl": "/api/v1/orders/…",
     "next": { "kind": "sign", "stepId": "7a41d0e5-…", "sequence": 2 }
@@ -122,7 +122,7 @@ Every call has its [API reference page](/api-reference/intros/webhooks), with it
 
 | Operation | Answer |
 | --- | --- |
-| Test | `201` with a delivery record; your endpoint receives `webhook.test`. The `201` is not your receiver's acknowledgement: check `success`, `statusCode` and `errorMessage`. |
+| Test | `201` with a delivery record; your endpoint receives `webhook.test`. The `201` is not your receiver's acknowledgement: check `success`, `httpStatus` and `errorMessage`. |
 | Rotate the secret | `200` with the new `secret`; a replay of the same key returns `secret: null`. For 24 hours, deliveries carry both secrets' signatures, so either verifies while you deploy. |
 | List deliveries | `items`, `totalCount` and `nextCursor`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. How many receipts are kept is the endpoint's own `deliveryRetention` (`GET …/webhooks/{webhookId}`). |
 | Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Your receiver gets the event again; it keeps its body `id`, so [deduplicate](#set-up-an-endpoint) as for any delivery. A retry with the same `Idempotency-Key` and body returns the first redelivery instead of sending another. |
@@ -149,8 +149,7 @@ An unacknowledged delivery is retried after 5 seconds, 30 seconds, 10 minutes, 1
 
 | Status and code | Why, and what to do |
 | --- | --- |
-| `400 WEBHOOK_EVENT_UNKNOWN` | An `events` entry is not a webhook event; `details.acceptedKeys` lists the ones you can subscribe to. Subscribe only to listed events. |
-| `400 WEBHOOK_EVENT_RETIRED` | An `events` entry names a retired event; `message` names its replacement. Subscribe to the replacement. |
+| `400 WEBHOOK_EVENT_UNKNOWN` | An `events` entry is not an event TetraFi sends; `details.acceptedKeys` lists the ones you can subscribe to. Subscribe only to listed events. |
 | `403 WEBHOOK_PRINCIPAL_UNRESOLVED` | The credential cannot be recorded as the endpoint's accountable principal. Use a member session, a member's API key or a service account of this workspace. |
 | `403 WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` | Creating or updating with automation events, the credential may not see the amounts of every automation in the workspace; nothing is saved. Use a member or service account that can read every account the automations use, or leave the automation events out. |
 | `404 WEBHOOK_NOT_FOUND` | No endpoint with that id in this workspace. Use an id from the webhook list. |

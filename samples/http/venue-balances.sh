@@ -79,11 +79,11 @@ fi
 # region venue-balances
 # GET …/venue-accounts/{venueAccountId}/balances reads the account's balances as the venue last
 # reported them. balances null means no observation; [] is a real empty account. available is the
-# venue's free balance less TetraFi's open trades and withdrawals, null when unknown; usdValue is
+# venue's free balance less TetraFi's open trades and withdrawals, null when unknown; valueUsd is
 # null without a reference price, never 0. A balance never authorizes a payment.
 balances=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/balances")
 jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then null else
-  [.[] | {asset, total, free, available, usdValue}] end)}' <<<"$balances" >&2
+  [.[] | {asset, total, free, available, valueUsd}] end)}' <<<"$balances" >&2
 # endregion
 
 # region venue-deposit-history

@@ -220,10 +220,11 @@ function errorCodesPage() {
   };
   const AREAS = [
     ['Requests, keys and access', 'Malformed requests, credentials, request signing, permissions, workspaces, idempotency, paging and batch reads.', [
-      'ACCESS', 'ACCOUNT_KEY', 'API_KEY_UNAVAILABLE', 'API_VERSION', 'AUTH', 'AUTHORIZATION', 'BATCH', 'CREDENTIAL', 'CSV', 'CURSOR',
+      'ACCESS', 'ACCOUNT_KEY', 'API_KEY_ID', 'API_KEY_UNAVAILABLE', 'API_VERSION', 'AUTH', 'AUTHORIZATION', 'BATCH', 'CATEGORY', 'CHANNEL',
+      'CREDENTIAL', 'CSV', 'CURSOR',
       'EMAIL', 'EXPORT', 'FORBIDDEN', 'IDEMPOTENCY', 'IDEMPOTENT', 'INCLUDE', 'INSUFFICIENT_PERMISSION', 'INSUFFICIENT_SCOPE',
       'INSUFFICIENT_WORKSPACE_PERMISSION', 'INTEGRATION', 'INVALID', 'IP', 'JWT', 'KEY', 'METADATA', 'METHOD', 'MFA', 'MISSING',
-      'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
+      'LIMIT', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
       'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
     ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
       'ACROSS', 'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BUDGET', 'CCTP', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'DELIVER',
@@ -232,7 +233,7 @@ function errorCodesPage() {
     ['Orders', 'Placing, following and cancelling an order: minimum receive, slippage, caps, the source it trades from and its execution.', [
       'ADVANCED', 'BROWSER', 'CLIENT', 'DIRECT', 'EXECUTION', 'FIRM', 'HELD', 'HIGH', 'INSUFFICIENT_BALANCE', 'INSUFFICIENT_LIQUIDITY',
       'INSUFFICIENT_LP_BALANCE', 'LEGACY', 'MIN', 'OPERATION', 'ORDER', 'PERIOD', 'PILOT', 'PREFLIGHT', 'PRICE', 'RECORDED', 'RELAY',
-      'REPRICING', 'ROUTE', 'SELF', 'SOURCE', 'SUBMIT', 'TRADING', 'TRANSPORT', 'VENUE_QUOTE', 'WORKSPACE_ORDER_PLACING',
+      'RECOVERY', 'REFIRM', 'REPRICING', 'ROUTE', 'SELF', 'SOURCE', 'SUBMIT', 'TRADING', 'TRANSPORT', 'VENUE_QUOTE', 'WORKSPACE_ORDER_PLACING',
       'WORKSPACE_SLIPPAGE']],
     ['Signing and grants', 'Signing grants, wallet signatures, signed steps and owner authorizations.', [
       'EIP712', 'EXPIRED', 'FUNDER', 'GRANT', 'NATIVE', 'OWNER', 'PERMIT', 'RELEASE', 'SIGNATURE', 'SIGNED', 'SIGNER', 'SIGNING',
@@ -244,7 +245,7 @@ function errorCodesPage() {
       'API_KEY_ORGANISATION_WALLET', 'API_KEY_WALLET', 'AUTO', 'CUSTODY', 'DELEGATION', 'DESTINATION', 'ONCHAIN', 'PERSONAL', 'TARGET',
       'WALLET']],
     ['Funding, balances and treasury', 'Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees.', [
-      'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'PAY', 'TREASURY', 'WITHDRAWAL']],
+      'BALANCE', 'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'PAY', 'TREASURY', 'WITHDRAWAL']],
     ['Settlement, credit and trades', 'Settlement windows and obligations, credit, the ledger and trade records.', [
       'CREDIT', 'DEFERRED', 'LEDGER', 'RECORDS', 'RUN', 'SETTLEMENT', 'TRADE']],
     ['Webhooks', 'Creating, testing and redelivering webhook endpoints.', ['MAX_WEBHOOKS', 'WEBHOOK']],
@@ -255,7 +256,7 @@ function errorCodesPage() {
       'CLOCK', 'DATABASE', 'INTEGRITY', 'INTERNAL', 'PLATFORM_PROVIDER', 'REQUEST_TIMEOUT', 'RESPONSE', 'SERIALIZATION', 'SERVER',
       'SERVICE_UNAVAILABLE', 'STORAGE', 'UPSTREAM']],
     ['Other execution', 'Route continuations, server-side source execution and escrow settlement, mostly Advanced, which is not open yet.', [
-      'CONTINUATION', 'COUNTERPARTY_ROUTER', 'DELEGATED', 'ROUTER', 'SOLANA']],
+      'CONTINUATION', 'COUNTERPARTY_ROUTER', 'DELEGATED', 'DEPLOYMENT', 'ROUTER', 'SOLANA']],
   ];
   const owner = new Map();
   for (const [index, [, , prefixes]] of AREAS.entries()) for (const prefix of prefixes) {

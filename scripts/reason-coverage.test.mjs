@@ -32,6 +32,18 @@ test('outcomes are read from the spec, and a spec without them is refused', () =
   assert.throws(() => outcomesFrom({ components: { schemas: {} } }), /REASON_OUTCOMES_UNREADABLE/);
 });
 
+// The export names each union variant as its own schema; the outcomes are behind the `$ref`s.
+test('outcomes behind referenced variant schemas are read, and a dangling reference is refused', () => {
+  const spec = { components: { schemas: {
+    PriceRowStatus: { oneOf: [{ $ref: '#/components/schemas/PriceRowStatusPriced' }, { $ref: '#/components/schemas/PriceRowStatusStale' }] },
+    PriceRowStatusPriced: { properties: { status: { enum: ['priced'] } } },
+    PriceRowStatusStale: { properties: { status: { enum: ['stale'] } } },
+  } } };
+  assert.deepEqual([...outcomesFrom(spec)].sort(), ['priced', 'stale']);
+  const dangling = { components: { schemas: { QuoteSourceEntry: { oneOf: [{ $ref: '#/components/schemas/Missing' }] } } } };
+  assert.throws(() => outcomesFrom(dangling), /REASON_OUTCOMES_UNREADABLE/);
+});
+
 // Catches a reason from another declared enum (a balances page's incomplete reason) read as undeclared.
 test('reason enums the public spec declares count, and only schemas named for a reason', () => {
   const spec = { components: { schemas: {

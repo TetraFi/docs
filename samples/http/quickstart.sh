@@ -289,10 +289,10 @@ jq -c --arg k "$idempotency_key" '{kind, status, terminal, next, idempotencyKey:
 # region quickstart-trade
 # Read the order back from your trade history (Read trades). A Basic order
 # is a venue trade, filed under its orderId in your key's workspace.
-# executionStatus: how it ended at the venue. settlementState: its settlement.
+# executionStatus: how it ended at the venue. settlementStatus: its settlement.
 workspace=$(tetrafi GET /api/v1/me | jq -r '.workspaceId')
 order_id=$(jq -r '.orderId' <<<"$placed")
 trade=$(tetrafi GET "/api/v1/workspaces/$workspace/trades/$order_id")
-jq -c '{tradeId, kind, executionStatus, outputReceived, settlementState}' \
+jq -c '{tradeId, kind, executionStatus, outputReceived, settlementStatus}' \
   <<<"$trade" >&2
 # endregion
