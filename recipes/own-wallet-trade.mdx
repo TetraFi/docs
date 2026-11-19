@@ -164,7 +164,7 @@ This recipe moves funds out of your wallet once it is live.
   </Step>
 
   <Step title="Follow it until it ends">
-    Read `GET /api/v1/orders/{orderId}` until `terminal` is `true` ([Order status](/trade/order-status)). Do not wait for an `order.updated` webhook to find a signing step: act before `next.step.signBy`.
+    Read `GET /api/v1/orders/{orderId}` until `terminal` is `true` ([Order status](/trade/order-status)). An `order.updated` webhook fires whenever `next` changes; sign before `next.step.signBy`.
 
     ```json Output shape when it ends (shortened) expandable
     {"orderId":"9410e38e-…","status":"settled","terminal":true,
@@ -188,7 +188,7 @@ This recipe moves funds out of your wallet once it is live.
     Submit `{"kind":"declined"}` on the step endpoint: the order ends `unfilled` and the deposit is never sent. An approval already mined stays.
   </Accordion>
   <Accordion title="A refusal">
-    TetraFi relayed nothing for that submission; earlier steps may already be on-chain. Every code: [Step refusals](/trade/sign-with-your-own-wallet#step-refusals).
+    TetraFi relayed nothing for that submission; earlier steps may already be on-chain. Every code: [Refusals](/trade/sign-with-your-own-wallet#refusals).
   </Accordion>
 </AccordionGroup>
 

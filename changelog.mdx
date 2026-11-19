@@ -5,6 +5,15 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-19" description="Signing with your own wallet (rolling out): members, External wallets, new refusals and the step history">
+  - Rolling out, not live yet; the full contract is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
+  - Signed-in members use the same three routes as API keys; the step route takes a session bearer token as well as a key. An External wallet named in `source.preferredWallets` makes the quote `signing.mode` `you`.
+  - Without `firstStep`, the order opens with `next.kind` `sign` for step 1. Without `minReceive`, the order is bound by the minimum the quote's own step was drafted with.
+  - New refusals `SCREENING_UNAVAILABLE` (503; a screening provider failure is never a refusal), `DELIVER_TO_NOT_SIGNING_WALLET` and `DELIVER_TO_NOT_REGISTERED` (422), and `SIGNING_WALLET_UNSUPPORTED`. Every 503 on this path carries `details.cause`. `SOURCE_NOT_OWNED`, `PERSONAL_TARGET_NOT_ALLOWED`, `SIGNING_WALLET_UNSUPPORTED` and `ADVANCED_SOURCE_ACCOUNT_UNAVAILABLE` are now `definitelyNotSent: true`.
+  - The order reads `clientSigned` and its step history in `operation.steps`; `order.updated` fires whenever `next` changes; a new outcome `nonce_used_elsewhere` means a different transaction was mined at the pinned nonce.
+  - The next step opens at 1 confirmation; a terminal outcome is never delayed for finality or rewritten. Steps by venue, as measured live, including Bebop's and Circle StableFX's order ([Steps by venue](/trade/sign-with-your-own-wallet#the-step-object)).
+</Update>
+
 <Update label="2026-11-18" description="Create wallets with an API key, find assets by venue or address, and signing with your own wallet (rolling out)">
   - Rolling out, not live yet: trade on on-chain venues from a wallet you sign for yourself ([Sign with your own wallet](/trade/sign-with-your-own-wallet)).
   - The same flow, as it will open: `firstStep` on the order is optional (the order then asks for step 1 in `next`); `transactionHash` is taken on the step endpoint only; a wallet trades one order at a time per network (`SIGNING_WALLET_BUSY`); Bebop and Circle StableFX join the venues, StableFX with `typedData` steps; new refusals `SIGNING_WALLET_FUNDS_SHORT`, `SIGNING_TRANSACTION_TYPE_UNSUPPORTED`, `SIGNING_TRANSACTION_REJECTED` and `SIGNING_WALLET_LIMIT_REACHED`.
