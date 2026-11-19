@@ -68,9 +68,9 @@ function compatibilityPage() {
   ].join('\n');
 }
 
-// The policy's promises stay open; every other section keeps its heading (so its anchor and the
-// table of contents survive) and its first paragraph, and folds the rest into one accordion.
-const COMPATIBILITY_OPEN = new Set(['What we promise', 'What your client should do']);
+// The policy's rules table (in its intro) stays open; every section keeps its heading (so its anchor
+// and the table of contents survive) and its first paragraph, and folds the rest into one accordion.
+const COMPATIBILITY_OPEN = new Set();
 
 export function foldSections(body, open = COMPATIBILITY_OPEN) {
   const [intro, ...sections] = body.split(/^(?=## )/m);

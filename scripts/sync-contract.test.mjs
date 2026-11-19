@@ -72,7 +72,7 @@ function fixture(spec, names = NAMES, codes = AUTH_CODES, { journeys = null, fil
     assert.ifError(result.error);
     return { status: result.status, output: result.stdout + result.stderr };
   };
-  return { run, site, page: path.join(site, 'reference/permissions.mdx'), endpoints: path.join(site, 'reference/endpoints.mdx'),
+  return { run, site, source, page: path.join(site, 'reference/permissions.mdx'), endpoints: path.join(site, 'reference/endpoints.mdx'),
     errorCodes: path.join(site, 'reference/error-codes.mdx') };
 }
 
@@ -270,6 +270,26 @@ test('--only writes and checks just the named output and leaves every other gene
   assert.match(unknown.output, /SYNC_ONLY_UNKNOWN_OUTPUT reference\/error-code\.mdx/);
   assert.match(run('--only').output, /SYNC_ONLY_VALUE_MISSING/);
   assert.equal(readFileSync(path.join(site, 'compatibility.mdx'), 'utf8'), 'hand edit\n');
+});
+
+test('compatibility keeps its intro rules table open and folds every section under its heading', () => {
+  const { run, site, source } = fixture(scopedSpec());
+  const detail = Array.from({ length: 45 }, (_, i) => `word${i}`).join(' ');
+  writeFileSync(path.join(source, 'COMPATIBILITY.md'), [
+    '# Policy', '', 'Lead sentence.', '', '| | |', '|---|---|', '| **Rule** | One line ([Versioning](#versioning)). |', '',
+    '## Versioning', '', 'Versions are dated.', '', `- ${detail}`, '',
+    '## What we promise', '', 'Changes are additive.', '', detail, '',
+    '## Short', '', 'One line only.', '',
+  ].join('\n'));
+  const synced = run('--only', 'compatibility.mdx');
+  assert.equal(synced.status, 0, synced.output);
+  const text = readFileSync(path.join(site, 'compatibility.mdx'), 'utf8');
+  // The rules table is never folded; each long section keeps heading and lead outside its accordion.
+  assert.ok(text.indexOf('| **Rule** |') < text.indexOf('## Versioning') && !text.slice(0, text.indexOf('## Versioning')).includes('<Accordion'));
+  assert.ok(text.includes('## Versioning\n\nVersions are dated.\n\n<Accordion title="More on versioning">'));
+  assert.ok(text.includes('## What we promise\n\nChanges are additive.\n\n<Accordion title="More on what we promise">'));
+  // A section with nothing to fold stays as it is.
+  assert.ok(text.includes('## Short\n\nOne line only.') && (text.match(/<Accordion /g) ?? []).length === 2);
 });
 
 test('a code no area claims refuses the page', () => {
