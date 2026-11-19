@@ -31,7 +31,7 @@ Send `{kind: "stream", priceId, minReceive | slippageBps}` to order a row of `GE
 </Accordion>
 
 <Accordion title="Refusals">
-A refusal before the order exists (limits, compliance, funds or authority) answers with its code. Unless the row says otherwise, nothing was sent. [Error codes](/reference/error-codes) lists every code.
+A refusal before the order exists (limits, compliance, funds or authority) answers with its code. Unless the row says otherwise, nothing was sent. [Error codes](/reference/error-codes) lists every code. A signed-in member who turned on a step-up check for orders also gets `STEP_UP_REQUIRED` or `SECOND_PROOF_REQUIRED` without its proof; API keys never do.
 
 | Status and code | Why, and what to do |
 | --- | --- |
@@ -46,7 +46,7 @@ A refusal before the order exists (limits, compliance, funds or authority) answe
 | 409 `VENUE_QUOTE_SEND_WINDOW_CLOSED`, `QUOTE_RECONFIRMATION_REQUIRED` | The venue's firm price could not be sent in time. Request a new quote. |
 | 409 `QUOTE_ALREADY_ORDERED` | Another order used this quote: [find it by its quote](/trade/orders#recover-an-order-by-its-quote). |
 | 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. |
-| 409 `FUNDING_SHORTFALL` | The account holds less than the trade needs. `next` is `fund`. |
+| 409 `FUNDING_SHORTFALL` | The account holds less than the trade needs (`next: fund`). |
 | 409 `PILOT_TRADE_CAP_EXCEEDED` | Above the venue's Pilot per-trade cap. Quote a smaller amount. |
 | 400, 409, 503 `IDEMPOTENCY_*`, `ORDER_IN_PROGRESS` | The key is missing, malformed or reused, or its order is still being placed ([Retries and recovery](/trade/orders#retries-and-recovery)). |
 | 410 `QUOTE_EXPIRED` | Past `expiresAt`. `next` is `requote`. |

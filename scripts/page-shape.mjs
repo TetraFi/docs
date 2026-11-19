@@ -156,6 +156,9 @@ function main() {
       .map((file) => read(String(file))),
     shownSpec ? JSON.stringify(shownSpec, null, 2) : '',
   ].join('\n');
+  // Backticks are formatting: "409 `CODE`" still states the fact "409 CODE".
+  const siteText = site.replace(/`/g, '');
+  const onSite = (fact) => site.includes(fact) || siteText.includes(fact.replace(/`/g, ''));
 
   if (process.argv.includes('--freeze-spec-facts')) {
     if (existsSync(specFactsFile)) { console.log('SPEC_FACTS_EXIST scripts/spec-facts.json is frozen; edit it by hand'); process.exit(1); }
@@ -194,7 +197,7 @@ function main() {
   // Facts of the original spec descriptions stay on the site.
   const specFacts = existsSync(specFactsFile) ? JSON.parse(readFileSync(specFactsFile, 'utf8')) : null;
   for (const [fact, owner] of Object.entries(specFacts?.facts ?? {})) {
-    if (!Object.hasOwn(specFacts.removed ?? {}, fact) && !site.includes(fact)) problems.push(`SPEC_FACT_LOST ${JSON.stringify(fact)} (${owner})`);
+    if (!Object.hasOwn(specFacts.removed ?? {}, fact) && !onSite(fact)) problems.push(`SPEC_FACT_LOST ${JSON.stringify(fact)} (${owner})`);
   }
   const current = new Map();
   for (const page of pages) for (const fact of facts(read(`${page}.mdx`))) if (!current.has(fact)) current.set(fact, page);
@@ -212,7 +215,7 @@ function main() {
 
   const recorded = existsSync(factsFile) ? JSON.parse(readFileSync(factsFile, 'utf8')).facts : null;
   if (!recorded) problems.push('PAGE_FACTS_MISSING scripts/page-facts.json (run --update)');
-  for (const [fact, page] of Object.entries(recorded ?? {})) if (!site.includes(fact)) problems.push(`FACT_LOST ${JSON.stringify(fact)} (last on ${page})`);
+  for (const [fact, page] of Object.entries(recorded ?? {})) if (!onSite(fact)) problems.push(`FACT_LOST ${JSON.stringify(fact)} (last on ${page})`);
   const allowed = existsSync(wideFile) ? JSON.parse(readFileSync(wideFile, 'utf8')).snippets : null;
   if (!allowed) problems.push('WIDE_LINES_MISSING samples/wide-lines.json (run --update)');
   for (const [snippet, count] of Object.entries(wide)) {
