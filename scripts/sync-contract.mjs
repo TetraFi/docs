@@ -295,6 +295,8 @@ function errorCodesPage() {
   // Each area's table sits in a closed accordion titled with the area. A docUrl (#<CODE>) still lands
   // on its row: the browser opens the <details> that holds a fragment target, and the row's anchor
   // keeps clear of the sticky header. The accordion's own id is its title's slug, so #<area> opens it.
+  // One cell keeps the table to four columns, so it fits the page without a sideways scroll.
+  const meansAndDo = (row) => [cell(row.meaning), row.remedy ? `**Do:** ${cell(row.remedy)}` : ''].filter(Boolean).join('<br />');
   const rowAnchor = (name) => anchor(name).replace('></span>', ' style={{ scrollMarginTop: \'10rem\' }}></span>');
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   return { page: [
@@ -320,16 +322,16 @@ function errorCodesPage() {
     ] : []),
     '## Refusal codes',
     '',
-    'Act on each code\'s own **What to do** and **Retryable**, not on its status alone: codes with one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/orders#retries-and-recovery).',
+    'Act on each code\'s own **Do** line and **Retry** column, not on its status alone: codes with one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/orders#retries-and-recovery).',
     '',
     ...order.flatMap((area) => [
       `<Accordion title="${AREAS[area][0]}">`,
       '',
       `${AREAS[area][1]} ${plural(groups.get(area).length, 'code')}.`,
       '',
-      '| Code | Status | Meaning | What to do | Retryable |',
-      '| :--- | :--- | :--- | :--- | :--- |',
-      ...groups.get(area).map((row) => `| ${rowAnchor(row.code)}\`${cell(row.code)}\` | ${statusCell(row)} | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+      '| Code | Status | What it means, and what to do | Retry |',
+      '| :--- | :--- | :--- | :--- |',
+      ...groups.get(area).map((row) => `| ${rowAnchor(row.code)}\`${cell(row.code)}\` | ${statusCell(row)} | ${meansAndDo(row)} | ${row.retryable ? 'Yes' : 'No'} |`),
       '',
       '</Accordion>',
       '',
@@ -340,9 +342,9 @@ function errorCodesPage() {
     '',
     '<Accordion title="Every source reason">',
     '',
-    '| Reason | Meaning | What to do | Retryable |',
-    '| :--- | :--- | :--- | :--- |',
-    ...sorted(contract.sourceReasons.filter(keep('reason')), 'reason').map((row) => `| ${rowAnchor(row.reason)}\`${cell(row.reason)}\` | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+    '| Reason | What it means, and what to do | Retry |',
+    '| :--- | :--- | :--- |',
+    ...sorted(contract.sourceReasons.filter(keep('reason')), 'reason').map((row) => `| ${rowAnchor(row.reason)}\`${cell(row.reason)}\` | ${meansAndDo(row)} | ${row.retryable ? 'Yes' : 'No'} |`),
     '',
     '</Accordion>',
     '',
