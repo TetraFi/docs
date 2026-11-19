@@ -12,6 +12,8 @@ During the pilot the API can still change, and every change a client can see is 
   - New refusals `SCREENING_UNAVAILABLE` (503; a screening provider failure is never a refusal), `DELIVER_TO_NOT_SIGNING_WALLET` and `DELIVER_TO_NOT_REGISTERED` (422), and `SIGNING_WALLET_UNSUPPORTED`. Every 503 on this path carries `details.cause`. `SOURCE_NOT_OWNED`, `PERSONAL_TARGET_NOT_ALLOWED`, `SIGNING_WALLET_UNSUPPORTED` and `ADVANCED_SOURCE_ACCOUNT_UNAVAILABLE` are now `definitelyNotSent: true`.
   - The order reads `clientSigned` and its step history in `operation.steps`; `order.updated` fires whenever `next` changes; a new outcome `nonce_used_elsewhere` means a different transaction was mined at the pinned nonce.
   - The next step opens at 1 confirmation; a terminal outcome is never delayed for finality or rewritten. Steps by venue, as measured live, including Bebop's and Circle StableFX's order ([Steps by venue](/trade/sign-with-your-own-wallet#the-step-object)).
+  - **Breaking.** The error code `BROWSER_STEP_CONTINUATION_REFUSED` is gone: only the app's own wallet-step route returned it, and that route is retired. A member's External-wallet step is answered on `POST /api/v1/orders/{orderId}/steps/{stepId}`, like every other step.
+  - At an on-chain Basic venue that needs no key and is still being set up, the first quote you sign records your wallet as the venue's activation wallet; if nothing else is missing, the venue is ready on that same quote.
 </Update>
 
 <Update label="2026-11-18" description="Create wallets with an API key, find assets by venue or address, and signing with your own wallet (rolling out)">
