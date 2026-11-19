@@ -4,7 +4,7 @@
 
 ```bash cURL
 # One live quote request every 3 seconds. Send two at once: one is answered, the other
-# answers 429 QUOTE_RATE_LIMITED with details.retryAfter (ISO 8601, such as PT3S) and the
+# answers 429 RATE_LIMITED with details.retryAfter (ISO 8601, such as PT3S) and the
 # same wait in whole seconds in the Retry-After header. Wait that long, then retry once.
 # Each signature is accepted once, so the two requests differ in amount.
 quote_body() {
@@ -18,7 +18,7 @@ wait "$second" && second_ok=true || second_ok=false
 
 if [[ $first_ok == true ]]; then limited=$(<"$tmp/second") amount=11; else limited=$(<"$tmp/first") amount=10; fi
 jq -c '{error, requestId, retryAfter: .details.retryAfter}' <<<"$limited" >&2
-if [[ $(jq -r '.error' <<<"$limited") == QUOTE_RATE_LIMITED ]]; then
+if [[ $(jq -r '.error' <<<"$limited") == RATE_LIMITED ]]; then
   # PT3S is 3 seconds; a fraction such as PT1.5S rounds up.
   wait_seconds=$(jq -r '.details.retryAfter | capture("^PT(?<s>[0-9.]+)S$").s | tonumber | ceil' <<<"$limited")
   sleep "$wait_seconds"

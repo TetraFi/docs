@@ -150,7 +150,7 @@ A wallet or account you may not use is refused before any venue is asked.
 | Status and code | Meaning and what to do |
 | --- | --- |
 | `403 SOURCE_NOT_OWNED` | A wallet or account in `source` or `deliverTo` does not exist or is not yours to use (both read the same). Choose from `sourceOptions`, or have the wallet granted to the key. |
-| `400 WALLET_NOT_ON_CHAIN` | The wallet is registered on another chain. Choose a candidate listed for that chain. |
+| `400 WALLET_NOT_ON_NETWORK` | The wallet is registered on another chain. Choose a candidate listed for that chain. |
 | `409 PERSONAL_TARGET_NOT_ALLOWED` | An API key named a personal wallet. Use an organisation wallet. |
 | `403 ACCOUNT_NOT_AVAILABLE` | This quote cannot trade on that venue account. Leave `venueAccountId` out. |
 | `409 REQUOTE_NEEDS_WALLET` | The venue quotes only once a wallet is chosen; `details.reason` names the family. Requote with a wallet of that family. |
@@ -179,13 +179,13 @@ A wallet or account you may not use is refused before any venue is asked.
 
   </Accordion>
   <Accordion title="Limits with an API key">
-    - An address outside the workspace's organisation wallets is refused with `403 API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED`; a key cannot allowlist one, so manage destinations in the app.
+    - An address outside the workspace's organisation wallets is refused with `403 API_KEY_ORGANISATION_WALLET_NOT_GRANTED`; a key cannot allowlist one, so manage destinations in the app.
     - A venue quote's output stays on the venue account: a requote naming another destination is refused with reason `deliverToNotPermitted`. Only a signed-in member who can view wallets delivers a venue trade to a wallet.
   </Accordion>
   <Accordion title="Delivering to a wallet">
     When a member does, TetraFi withdraws the output once the order fills. The wallet must be an approved withdrawal destination of that account for the bought asset, with the same tag, and the quote carries the venue's withdrawal fee as a network fee line.
 
-    A venue that cannot deliver there reads `unavailable` with the reason; a requote is refused with `409 REQUOTE_REFUSED` and `details.reason`: `DESTINATION_NOT_APPROVED`, `DELIVER_TO_NOT_A_WORKSPACE_WALLET`, `WITHDRAWAL_CHAIN_UNSUPPORTED`, `DELIVER_TO_AMBIGUOUS`, `WITHDRAWAL_FEE_EXCEEDS_AMOUNT`, `deliverToCalldataUnsupported` or `deliverToNotPermitted`.
+    A venue that cannot deliver there reads `unavailable` with the reason; a requote is refused with `409 REQUOTE_REFUSED` and `details.reason`: `DESTINATION_NOT_APPROVED`, `DELIVER_TO_NOT_A_WORKSPACE_WALLET`, `WITHDRAWAL_NETWORK_UNSUPPORTED`, `DELIVER_TO_AMBIGUOUS`, `WITHDRAWAL_FEE_EXCEEDS_AMOUNT`, `deliverToCalldataUnsupported` or `deliverToNotPermitted`.
   </Accordion>
   <Accordion title="Example">
     Requote an off-chain quote to a trading wallet you read:

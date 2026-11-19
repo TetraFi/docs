@@ -10,11 +10,11 @@ On a `429`, wait `Retry-After` seconds, then retry once unless the code says oth
 
 | Limit | What it counts |
 | --- | --- |
-| Quotes | One live `POST /api/v1/quotes` every 3 seconds per key. A requote counts; a request answered entirely from cached prices does not. Over it: `429 QUOTE_RATE_LIMITED`. |
-| Requests per key | Every request, up to the key's `rateLimits` in `GET /api/v1/me` (`requestsPerMinute`, `burstSize`). Costlier operations spend more. Over it: `429 RATE_LIMITED`. |
-| Requests per address | Requests from one network address, before the key is checked. Over it: `429 RATE_LIMITED`. |
-| Price reads | Price reads per caller, separate from quotes. Over it: `429 PRICES_RATE_LIMIT`. |
-| Price streams | At most 4 open price streams per caller. Over it: `429 PRICES_STREAM_LIMIT`; close one first. |
+| Quotes | One live `POST /api/v1/quotes` every 3 seconds per key. A requote counts; a request answered entirely from cached prices does not. Over it: `429 RATE_LIMITED`, `details.limit` `quotes`. |
+| Requests per key | Every request, up to the key's `rateLimits` in `GET /api/v1/me` (`requestsPerMinute`, `burstSize`). Costlier operations spend more. Over it: `429 RATE_LIMITED`, `details.limit` `requests`. |
+| Requests per address | Requests from one network address, before the key is checked. Over it: `429 RATE_LIMITED`, `details.limit` `requests`. |
+| Price reads | Price reads per caller, separate from quotes. Over it: `429 RATE_LIMITED`, `details.limit` `prices`. |
+| Price streams | At most 4 open price streams per caller. Over it: `429 RATE_LIMITED`, `details.limit` `priceStreams`; close one first. |
 | TetraFi briefly at capacity | Refused before anything is sent, with `429 RATE_LIMITED`; no quota counted. |
 
 ## Why quotes are limited

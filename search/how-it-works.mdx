@@ -351,10 +351,10 @@ The venue stays in `sources` with a reason:
 | Reason | What to do |
 | --- | --- |
 | `belowVenueMinimum`, `amountBelowMinimum` | Raise the amount. `detail` names the venue's minimum when it is verified. |
-| `amountAboveMaximum`, `pilotTradeCapExceeded` | Lower the amount. |
-| `pilotMinimumAboveTradeCap` | The venue's minimum is above its Pilot cap, so no amount fits: choose another venue. |
+| `amountAboveMaximum`, `venueTradeCapExceeded` | Lower the amount. |
+| `venueMinimumAboveTradeCap` | The venue's minimum is above its Pilot cap, so no amount fits: choose another venue. |
 
-Order admission checks the caps again: `PILOT_TRADE_CAP_EXCEEDED` means nothing was sent.
+Order admission checks the caps again: `VENUE_TRADE_CAP_EXCEEDED` means nothing was sent.
 
   </Accordion>
   <Accordion title="Rate limit" id="rate-limit">
@@ -427,10 +427,10 @@ The ones you meet while searching ([error body](/trade/errors#read-a-refusal)); 
 | Code | Why, and what to do |
 | --- | --- |
 | `INVALID_REQUEST` | A field is unknown (at any depth of the body), missing or of the wrong type; `message` names it. Remove or fix that field. |
-| `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | The value is not in the catalogue. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
+| `UNKNOWN_ASSET`, `NETWORK_UNKNOWN`, `UNKNOWN_VENUE` | The value is not in the catalogue. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
 | `INVALID_AMOUNT` | The amount is not a positive decimal string. Send it as a string, such as `"10"`. |
-| `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
-| `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. Wait `Retry-After` seconds. |
+| `API_KEY_ORGANISATION_WALLET_NOT_GRANTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
+| `RATE_LIMITED` | More than one live quote request in 3 seconds. Wait `Retry-After` seconds. |
 | `IDEMPOTENCY_CONFLICT` | An `Idempotency-Key` already used with a different body. Use a new key for a new request. |
 | `IDEMPOTENCY_KEY_INVALID` | The key is empty, longer than 255 bytes, or sent with a stream. Send 1 to 255 bytes, on a JSON request only. |
 
@@ -439,10 +439,10 @@ The ones you meet while searching ([error body](/trade/errors#read-a-refusal)); 
 
 | Code | Why, and what to do |
 | --- | --- |
-| `SAME_ASSET_NEEDS_CHAIN` | The same asset on both sides with nothing to tell them apart: no chain pinned, or the same chain with `nativeOnly` on both sides. Pin a chain on at least one side, or two different chains. |
-| `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. Remove the pin, or allow `singleChain` or `crossChain`. |
-| `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that asset; `details.value` is the chain. Pin a chain the asset is deployed on. |
-| `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A chain or venue id TetraFi does not know; `details.value` names it. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
+| `SAME_ASSET_NEEDS_NETWORK` | The same asset on both sides with nothing to tell them apart: no chain pinned, or the same chain with `nativeOnly` on both sides. Pin a chain on at least one side, or two different chains. |
+| `NETWORK_PIN_NEEDS_ONCHAIN_ASSET` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. Remove the pin, or allow `singleChain` or `crossChain`. |
+| `ASSET_NOT_ON_NETWORK` | The pinned chain has no deployment of that asset; `details.value` is the chain. Pin a chain the asset is deployed on. |
+| `NETWORK_UNKNOWN`, `UNKNOWN_VENUE` | A chain or venue id TetraFi does not know; `details.value` names it. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
 | `INVALID_REQUEST` | A filter value is not one listed above, `filters.locations` includes `mixed`, `firmOnly` is not a boolean, `sort` is unknown, or `priceProtectionBps` is outside 0 to 1000. `message` names the field: fix it. |
 
   </Accordion>
