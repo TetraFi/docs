@@ -49,36 +49,30 @@ The TypeScript SDK marks a kind it does not know with `unknownKind: true` and ke
 ## Statuses
 
 ```mermaid
-stateDiagram-v2
-    [*] --> pending
-    pending --> working
-    pending --> refused
-    pending --> cancelled
-    pending --> unfilled
-    pending --> reviewRequired
-    working --> filled
-    working --> unfilled
-    working --> failed
-    working --> refunded
-    working --> outcomeUnknown
-    working --> reviewRequired
-    filled --> settled
-    filled --> failed
-    filled --> reviewRequired
-    reviewRequired --> working
-    outcomeUnknown --> working: reconciled
-    outcomeUnknown --> filled: fill confirmed
-    outcomeUnknown --> unfilled: confirmed unfilled
-    outcomeUnknown --> failed
-    outcomeUnknown --> refunded
-    outcomeUnknown --> reviewRequired
+flowchart LR
+  P[pending] --> W[working] --> F[filled] --> S[settled]
+  P --> R[refused]
+  W --> U[unfilled]
+  W --> O[outcomeUnknown] -->|reconciled| T[its real outcome]
 ```
 
-The diagram shows common paths; an order can skip statuses. Treat a value you do not know as other ([Conventions](/reference/conventions#values)); keep following `terminal`.
+Most orders take the top path; an order can skip statuses. Treat a value you do not know as other ([Conventions](/reference/conventions#values)); keep following `terminal`.
 
 | Not final | Final |
 | --- | --- |
 | `pending`, `working`, `filled`, `reviewRequired`, `outcomeUnknown` | `settled`, `unfilled`, `cancelled`, `failed`, `refunded`, `refused` |
+
+<Accordion title="Every other transition">
+
+| From | Can also go to |
+| --- | --- |
+| `pending` | `cancelled`, `unfilled`, `reviewRequired` |
+| `working` | `failed`, `refunded`, `reviewRequired` |
+| `filled` | `failed`, `reviewRequired` |
+| `reviewRequired` | `working` |
+| `outcomeUnknown` | Once reconciled: `working`, `filled`, `unfilled`, `failed`, `refunded` or `reviewRequired` |
+
+</Accordion>
 
 <Warning>
 `outcomeUnknown` is not a failure. Never place a new order for it: keep reading its status.
