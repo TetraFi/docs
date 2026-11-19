@@ -80,7 +80,7 @@ fi
 # GET …/trades/{tradeId} reads one trade through the same view. An order's settlement says how it
 # ended: status pending, settled, failed, refunded or unknown, and failureReason, a sentence
 # saying why, when it failed or was refunded.
-failed=$(tetrafi GET "/api/v1/workspaces/$workspace/trades?kind=order&status=failed&limit=1")
+failed=$(tetrafi GET "/api/v1/workspaces/$workspace/trades?kind=order&settlementStatus=failed&limit=1")
 trade_id=$(jq -r '.items[0].tradeId // empty' <<<"$failed")
 if [[ -z $trade_id ]]; then
   trade_id=$(tetrafi GET "/api/v1/workspaces/$workspace/trades?kind=order&limit=1" | jq -r '.items[0].tradeId // empty')
