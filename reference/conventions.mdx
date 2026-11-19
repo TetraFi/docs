@@ -136,10 +136,28 @@ The API is versioned by date. The one supported version today is `2026-11-17`. E
 | Your key's pin | Every API key records the version current when it was created, and its requests are answered in that version. |
 | One request | Send `TetraFi-Version: YYYY-MM-DD` to choose the version of that request. A value that is not exactly one supported date answers `400 API_VERSION_UNSUPPORTED` before anything runs. |
 | The answer | Every response names its version in a `TetraFi-Version` header. |
-| Webhooks | Each endpoint records the version current when it was created; every body carries it as `apiVersion`. |
-| Upgrading | Test a newer version by sending its date in `TetraFi-Version`, then create a new key, which pins the newest version, and retire the old one. |
+| Read your pin | `GET /api/v1/me` answers your key's pinned version in `apiVersion`. |
+| Webhooks | Each endpoint records the version current when it was created, readable as `apiVersion` on the endpoint; every body carries it as `apiVersion`. Move an endpoint's pin with `PATCH …/webhooks/{webhookId}` and `{"apiVersion": "YYYY-MM-DD"}`, without recreating it. |
+| Upgrading | Test a newer version by sending its date in `TetraFi-Version`, then create a new key, which pins the newest version, and retire the old one. Move each webhook's pin when your receiver is ready. |
 </Accordion>
 
 <Accordion title="What can change within a version">
-  Within a version, changes are additive: new operations, optional fields, headers, enumeration values, variants and error codes. A breaking change ships only as a new dated version. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something in place; each one is listed in the [Changelog](/changelog) with what to change.
+  Within a version, changes are additive: new operations, optional fields, headers, enumeration values, variants and error codes ([Designed to grow](#designed-to-grow)). A breaking change ships only as a new dated version. Until the launch date in the [Compatibility](/compatibility) policy, a change can still rename or remove something in place; each one is listed in the [Changelog](/changelog) with what to change.
+</Accordion>
+
+## Designed to grow
+
+Routes over several venues, mixed signers, non-EVM signing and broker trading are coming. **They arrive as additions to today's shapes**: new values, variants, list items and optional fields, never a changed meaning. Build your client to tolerate them now.
+
+<Accordion title="What your client tolerates">
+| What can grow | What your client does |
+| --- | --- |
+| Order kinds | `basicTrade` today; routed trades and others come as new `kind` values. Every kind carries `orderId`, `kind`, `status`, `terminal`, `statusUrl` and `next`: follow those on a kind you do not know, and never resubmit it. |
+| Union variants and step `type`s | Branch on the tag (`kind`, `type`), keep a default branch, and ignore a variant you do not know. Never sign a step whose `type` you do not know. |
+| Signers, legs and networks | `legs`, `signing.signers`, `operation.steps` and `fills` hold one item today and can hold several. They point at each other by `legId` and `stepId`, never by position. A step's `signer` (`you`, `tetrafi` or `venue`) says who signs it: sign only `you`. A field that names one venue or signer keeps its meaning: the single-venue summary, or the first paying leg's. |
+| `details` keys | Per code, and can grow. Read the keys you know, such as `legId`, `stepId` and `venueId`; ignore the rest. |
+| `venue` on a leg | Can be `null`, on a leg no venue runs. Read `legs[].venue` as optional. |
+| Generating a client | Open enumerations are published as `anyOf` an `enum` and a plain `string`, marked `x-extensible-enum`. Generate them as the known values or any string, never as a closed enum that fails to parse a new value. |
+| Your version | Read your key's pin at `GET /api/v1/me` (`apiVersion`); move a webhook's pin with `PATCH` and `apiVersion` ([Versioning](#versioning)). |
+| After launch | A breaking change ships only in a new dated version, which you reach when you choose. Until launch, changes land in place and are listed in the [Changelog](/changelog). |
 </Accordion>

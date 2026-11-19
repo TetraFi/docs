@@ -55,11 +55,17 @@ Each on-chain quote is firm for your address and carries the first step to sign 
 "signing": {
   "mode": "you",
   "address": "0xAbc…",
+  "signers": [
+    {"signer": "you", "address": "0xAbc…", "network": "eip155:8453", "legIds": ["leg_0"]}
+  ],
   "firstStep": {
     "stepId": "3f2b9c1e-8d4a-4c7e-9b1f-…",
     "sequence": 1,
     "purpose": "approval",
     "type": "transaction",
+    "signer": "you",
+    "legId": "leg_0",
+    "covers": ["leg_0"],
     "network": "eip155:8453",
     "from": "0xAbc…",
     "signBy": "2026-11-18T12:00:45Z",
@@ -68,14 +74,21 @@ Each on-chain quote is firm for your address and carries the first step to sign 
 }
 ```
 
-Sign `transaction` on the chain of the step's `network` (`eip155:8453` is chain 8453), keeping its `nonce`; gas and fees are yours to set. A `typedData` step carries an EIP-712 message: sign it and answer with `signature`. It costs no gas; the venue settles it on-chain.
+The step's `type` says what to sign. On EVM networks today: a `transaction` step, signed on the chain of its `network` (`eip155:8453` is chain 8453) with its `nonce`, gas and fees yours to set; or a `typedData` step, an EIP-712 message you answer with `signature`, which costs no gas.
 
 <AccordionGroup>
   <Accordion title="What a step can be">
-    `type` is `transaction` or `typedData`; `purpose` is `approval`, `trade`, `revoke`, `acceptance` or `funding`. Both lists can grow: do not sign a `type` you do not know, and keep following the order.
+    A step is one variant, named by `type`: `transaction` (an EVM transaction) or `typedData` (an EIP-712 message), each with its own fields. `purpose` is `approval`, `trade`, `revoke`, `acceptance` or `funding`. Both lists can grow: Solana, Tron and Bitcoin (PSBT) steps, smart-account user operations and batches come as new `type` values (coming). Do not sign a `type` you do not know, and keep following the order.
+
+    Every step also names:
+    - `signer`: who signs it, `you`, `tetrafi` or `venue`. Sign only a step whose `signer` is `you`.
+    - `legId`: the quote leg it belongs to (`leg_0` on a one-leg quote).
+    - `covers`: on a step you sign, the legs this one signature authorises. One leg today; one signature over several legs is coming.
   </Accordion>
   <Accordion title="Who signs">
     `signing.mode` is `you` for an address TetraFi cannot sign for, and `tetrafi` for an organisation wallet granted to your key. The wallet that pays decides who signs, whichever field named it: an External wallet named in `source.preferredWallets` makes the quote `you`, as it does in `source.tradingWallets`. `source.signer: "you"`, to sign yourself for a wallet TetraFi could sign, is not available yet: it is refused `SIGNING_WALLET_UNSUPPORTED`. The list of modes can grow.
+
+    `signing.signers` lists every party that signs the quote, each `{signer, address, network, legIds}`. It holds one entry today; quotes signed by several parties are coming. `signing.address` is the first paying signer's address.
   </Accordion>
   <Accordion title="Your wallet in TetraFi">
     The address is screened before anything is relayed. Your first checked signature proves the wallet is yours: it then appears in Treasury as an external wallet, and an Owner can remove it. The output goes back to the signing wallet: a `deliverTo` naming anything else is refused ([Refusals](#refusals)). Delivery to another wallet of your workspace comes later. At an on-chain Basic venue that needs no key and is still being set up, your first quote signed this way records the wallet as the venue's activation wallet; if nothing else is missing, the venue is ready on that same quote. A wallet trades one order at a time per network: while it has an open step, another order from it is refused `SIGNING_WALLET_BUSY`, and its quotes read `walletBusy`.
@@ -95,13 +108,13 @@ Sign `transaction` on the chain of the step's `network` (`eip155:8453` is chain 
 
 ## Submit a step
 
-Step 1 can go in the order body as `firstStep`, with its `stepId`, as `signedTransaction` or `signature`. A later step goes to `POST /api/v1/orders/{orderId}/steps/{stepId}` with a new `Idempotency-Key`; the body is the submission itself, without `quoteId` or `firstStep`: `{"kind":"signedTransaction","raw":"0x02f9…"}`. The answer is the order once its `next` has moved past the step, or after at most 15 seconds with `next.kind: wait`.
+Step 1 can go in the order body as `firstStep`, with its `stepId`, as `signedTransaction` or `signature`. Answer only steps whose `signer` is `you`. A later step goes to `POST /api/v1/orders/{orderId}/steps/{stepId}` with a new `Idempotency-Key`; the body is the submission itself, without `quoteId` or `firstStep`: `{"kind":"signedTransaction","raw":"0x02f9…"}`. The answer is the order once its `next` has moved past the step, or after at most 15 seconds with `next.kind: wait`.
 
 ```json Order request with step 1
 {"quoteId":"q_01M5…","minReceive":"99.45","firstStep":{"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","kind":"signedTransaction","raw":"0x02f8…"}}
 ```
 
-Sign transactions as legacy, EIP-2930 or EIP-1559, from a wallet that signs with its own key (not a contract wallet). Relayed transactions go to the public mempool.
+On EVM networks, sign transactions as legacy, EIP-2930 or EIP-1559, from a wallet that signs with its own key (not a contract wallet). Relayed transactions go to the public mempool.
 
 <Accordion title="Signing in a browser wallet">
   A browser extension sends a transaction, it does not hand back signed bytes. Order without `firstStep`, send each `next.step` from the wallet with its `nonce`, and submit `{"kind":"transactionHash","txHash":"0x…"}` on the step endpoint.
@@ -113,9 +126,9 @@ Sign transactions as legacy, EIP-2930 or EIP-1559, from a wallet that signs with
 
 | `kind`, and what you send | What TetraFi does |
 | --- | --- |
-| `signedTransaction`, with `raw` | Checks it against the step it issued, then relays it and follows it on-chain. While it is unmined you may submit the same transaction again with a higher fee. |
+| `signedTransaction`, with `raw` | `raw` is the signed transaction in its network's native encoding; on EVM, an EIP-2718 envelope. TetraFi checks it against the step it issued, then relays it and follows it on-chain. While it is unmined you may submit the same transaction again with a higher fee. |
 | `transactionHash`, with `txHash` | On the step endpoint only, once the wallet's screening passed: you broadcast it yourself; TetraFi checks it on-chain. |
-| `signature`, with `signature` | For a `typedData` step: checks it recovers to the step's `from`, then passes it to the venue. |
+| `signature`, with `signature` | For a message step such as `typedData`: checks it recovers to the step's `from`, then passes it to the venue. |
 | `declined`, with nothing | On the step endpoint only: ends the order `unfilled` and sends no further step. It does not undo a transaction already on-chain. |
 
 </Accordion>
@@ -141,7 +154,7 @@ If your wallet's nonce or allowance changed between the quote and the order, or 
 </Accordion>
 
 <Accordion title="Step history and confirmations">
-  - The order reads `clientSigned` and lists every step in `operation.steps`: `stepId`, `sequence`, `purpose`, `type`, `status` (`pending`, `sent`, `mined`, `reverted`, `refused` or `lapsed`), `txHash` and `signBy`. `order.updated` fires whenever `next` changes ([Webhooks](/trade/webhooks)).
+  - The order reads `clientSigned` and lists every step of the order in `operation.steps`, whoever signs it: `stepId`, `sequence`, `purpose`, `type`, `signer`, `legId`, `network`, `status` (`pending`, `sent`, `mined`, `reverted`, `refused` or `lapsed`), `txHash` (always with `network` beside it) and `signBy`. `order.updated` fires whenever `next` changes ([Webhooks](/trade/webhooks)).
   - The next step opens once the previous one has 1 confirmation with a status-1 receipt.
   - A terminal outcome is never delayed for finality and never rewritten. If a later finality re-read finds a step's receipt changed or gone, TetraFi raises a review item instead.
   - After `signBy`, a matching transaction mined at the pinned nonce is adopted as the step, and a late `transactionHash` that matches the step exactly is accepted. A step counts as not sent only once finality proves it.
@@ -188,10 +201,11 @@ A `503` names its cause in `details.cause` (`screening`, `chainRead`, `relay` or
   Planned, and not available yet:
 
   - People approve one trade: `signing.mode` `owners` (your wallet's owners approve the trade) and `custodian` (your custodian's own approvers do). The order's `next.kind` is then `approve`, with an `approvalUrl` where they approve it: the same pattern [wallet creation](/trade/create-wallet) uses.
-  - Solana and Tron, as new step `type` values.
+  - Solana, Tron and Bitcoin (PSBT) steps, smart-account user operations and batches, as new step `type` values.
   - Custody wallets that TetraFi signs for, as `signing.mode` `tetrafi`.
+  - Routes over several legs, with steps signed by different parties (`signer` `you`, `tetrafi` or `venue`) and one signature covering several legs (`covers`).
 
-  Build for them now: ignore a `signing.mode`, step `type`, `purpose`, submission `kind` or `next.kind` you do not know, never sign a step `type` you do not know, and keep following the order until `terminal` is `true`.
+  Build for them now: ignore a `signing.mode`, step `type`, `signer`, `purpose`, submission `kind` or `next.kind` you do not know, sign only steps whose `signer` is `you` and whose `type` you know, expect several entries in `signing.signers` and `operation.steps`, and keep following the order until `terminal` is `true` ([Designed to grow](/reference/conventions#designed-to-grow)).
 </Accordion>
 
 ## Next

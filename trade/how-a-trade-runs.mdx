@@ -50,6 +50,14 @@ Every trade runs quote, order, follow. **Each quote states where the money comes
   All five are **Basic**: execution at the venue, through its API or its own smart contracts. On-chain does not mean Advanced; Advanced (TetraFi's router and escrow) is not open yet.
 </Accordion>
 
+<Accordion title="Legs, steps and signers">
+  A quote's `legs` hold one leg today. Each leg has a `legId` (`leg_0`), its own `sell` and `buy` (`{asset, amount}`), its `venue`, and optionally the `source` that pays for it. `venue` can be `null`, on a leg no venue runs.
+
+  Every step, fill and refusal names its leg by `legId`. Each on-chain step names who signs it in `signer`: `you`, `tetrafi` or `venue`. A signing step's `covers` lists the legs its one signature authorises, and the quote's `signing.signers` lists every signer.
+
+  Coming, not live yet: routes over several legs and venues, steps signed by different parties, and one signature covering several legs. They add legs, steps and signers to these lists, never new fields to replace them ([Designed to grow](/reference/conventions#designed-to-grow)).
+</Accordion>
+
 <AccordionGroup>
   <Accordion title="Exchange account, prefunded">
     Deposit first: `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` says where. The trade spends the account's balance at the venue and settles on the venue's own ledger (`venueLedger`, `immediate`). A quote whose `next.kind` is `fund` has an account short by `readiness.amount` ([Before your first trade](/before-you-trade#fund-it)). The order sends `quoteId`.
@@ -74,7 +82,7 @@ Every trade runs quote, order, follow. **Each quote states where the money comes
     `settlement.timing` is `immediate`, `byDeadline` (a pay-in, by its deadline) or `delayed` (in a settlement window, or whenever either side asks). Both lists can grow. Treat a value you do not know as other ([Conventions](/reference/conventions#values)).
   </Accordion>
   <Accordion title="Planned, not available yet">
-    People approving one trade elsewhere (`signing.mode` `owners` or `custodian`, with an order `next.kind` of `approve` and an `approvalUrl`), Solana and Tron steps, more venues for your own wallet, and custody wallets that TetraFi signs for ([Sign with your own wallet](/trade/sign-with-your-own-wallet), under What comes next). Keep following the order on any value you do not know.
+    People approving one trade elsewhere (`signing.mode` `owners` or `custodian`, with an order `next.kind` of `approve` and an `approvalUrl`), Solana, Tron and Bitcoin steps, more venues for your own wallet, and custody wallets that TetraFi signs for ([Sign with your own wallet](/trade/sign-with-your-own-wallet), under What comes next). Multi-leg routes as a new order `kind`, and broker trading for a client, named by `onBehalfOf` on the quote and the order. Keep following the order on any value you do not know.
   </Accordion>
 </AccordionGroup>
 
