@@ -14,7 +14,7 @@ Move 100 USDC from Base to Ethereum through a bridge, from a wallet you sign for
 | | |
 | --- | --- |
 | You trade | 100 USDC on Base (`eip155:8453`) for USDC on Ethereum (`eip155:1`). |
-| Endpoints | `POST /api/v1/quotes`, `POST /api/v1/orders`, `POST /api/v1/orders/{orderId}/steps/{stepId}`, `GET /api/v1/orders/{orderId}`. |
+| Endpoints | [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes), [`POST /api/v1/orders`](/api-reference/orders/place-order), [`POST /api/v1/orders/{orderId}/steps/{stepId}`](/api-reference/orders/send-order-step), [`GET /api/v1/orders/{orderId}`](/api-reference/orders/get-order). |
 | You sign | Step 1, the token approval; step 2, the bridge deposit. Each is one EVM transaction. |
 | Result | A finished order, with both transaction hashes under `operation.steps`. |
 
@@ -52,14 +52,20 @@ This recipe moves funds out of your wallet once it is live.
       "id": "q_01M5…",
       "next": {"kind": "order"},
       "minReceiveRequired": true,
+      "legs": [{"legId": "leg_0", "venue": {"id": "across"},
+                "sell": {"asset": "USDC", "amount": "100"}, "buy": {"asset": "USDC", "amount": "99.95"}}],
       "signing": {
         "mode": "you",
         "address": "0xAbc…",
+        "signers": [{"signer": "you", "address": "0xAbc…", "network": "eip155:8453", "legIds": ["leg_0"]}],
         "firstStep": {
           "stepId": "3f2b9c1e-8d4a-4c7e-9b1f-…",
           "sequence": 1,
           "purpose": "approval",
           "type": "transaction",
+          "signer": "you",
+          "legId": "leg_0",
+          "covers": ["leg_0"],
           "network": "eip155:8453",
           "from": "0xAbc…",
           "signBy": "2026-11-18T12:00:45Z",
@@ -75,7 +81,7 @@ This recipe moves funds out of your wallet once it is live.
   </Step>
 
   <Step title="Sign the approval">
-    Check that `type` is `transaction` and `from` is your address, then sign `firstStep.transaction` exactly as given, with its `nonce` ([the step object](/trade/sign-with-your-own-wallet#the-step-object)).
+    Check that `type` is `transaction`, `signer` is `you` and `from` is your address, then sign `firstStep.transaction` exactly as given, with its `nonce` ([the step object](/trade/sign-with-your-own-wallet#the-step-object)).
 
     <Tabs>
       <Tab title="cast">
@@ -101,6 +107,8 @@ This recipe moves funds out of your wallet once it is live.
         type TransactionStep = {
           stepId: string;
           type: string;
+          signer: string; // you, tetrafi or venue
+          legId: string;
           network: string; // CAIP-2, e.g. eip155:8453
           from: Address;
           transaction: { to: Address; data: Hex; value: string; nonce: number };
@@ -111,6 +119,7 @@ This recipe moves funds out of your wallet once it is live.
 
         export async function signStep(step: TransactionStep): Promise<Hex> {
           if (step.type !== 'transaction') throw new Error(`Unknown step type ${step.type}: do not sign it`);
+          if (step.signer !== 'you') throw new Error(`Step is for ${step.signer} to sign`);
           if (step.from.toLowerCase() !== account.address.toLowerCase()) throw new Error('Step is for another wallet');
           const tx = step.transaction;
           const fees = await client.estimateFeesPerGas(); // gas and fees are your choice
@@ -141,7 +150,8 @@ This recipe moves funds out of your wallet once it is live.
     ```json Output shape while the approval confirms, then when the deposit is ready (shortened) expandable
     {"orderId":"9410e38e-…","status":"working","terminal":false,"next":{"kind":"wait","retryAfter":"PT5S"}}
     {"orderId":"9410e38e-…","status":"working","terminal":false,
-     "next":{"kind":"sign","step":{"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","sequence":2,"purpose":"trade","type":"transaction","network":"eip155:8453","from":"0xAbc…","signBy":"2026-11-18T12:02:10Z",
+     "next":{"kind":"sign","step":{"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","sequence":2,"purpose":"trade","type":"transaction","signer":"you","legId":"leg_0","covers":["leg_0"],
+       "network":"eip155:8453","from":"0xAbc…","signBy":"2026-11-18T12:02:10Z",
        "transaction":{"to":"0x…","data":"0x…","value":"0","nonce":18}}}}
     ```
   </Step>
@@ -160,8 +170,8 @@ This recipe moves funds out of your wallet once it is live.
     ```json Output shape when it ends (shortened) expandable
     {"orderId":"9410e38e-…","status":"settled","terminal":true,
      "operation":{"steps":[
-       {"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","purpose":"approval","status":"mined","txHash":"0x5e1…"},
-       {"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","purpose":"trade","status":"mined","txHash":"0x9c4…"}]}}
+       {"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","purpose":"approval","signer":"you","legId":"leg_0","status":"mined","network":"eip155:8453","txHash":"0x5e1…"},
+       {"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","purpose":"trade","signer":"you","legId":"leg_0","status":"mined","network":"eip155:8453","txHash":"0x9c4…"}]}}
     ```
   </Step>
 </Steps>

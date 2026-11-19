@@ -4,15 +4,6 @@
 | **Own trades** | Without View compliance records, you read only your own trades. |
 | **Partial page** | `unreachable` names a source not read: the page is partial, not shorter ([more](/trade/trade-history#read-a-page)). |
 
-<Accordion title="Fields to read">
-| Field | What it tells you |
-| --- | --- |
-| `tradeId`, `kind`, `projection` | On every row except an order summary. `kind` is `order` or `venueTrade`. |
-| `totalCount` | Rows matching your filters. |
-| `nextCursor` | The next page's `cursor`; it pages only the `sort` it was returned for. |
-| `unreachable` | Sources this page could not read. |
-</Accordion>
-
 <Accordion title="Each trade's settlement in one call">
 `include=settlement` adds each listed trade's settlement to `included`, by `tradeId`, as `GET …/trades/{tradeId}/settlement` answers you in the row's perspective, or null with that read's refusal. Not on a signed API-key request, and not with `format=csv`.
 </Accordion>
@@ -25,11 +16,72 @@
 - With an API key, the umbrella and maker views answer 403 `JWT_REQUIRED`.
 </Accordion>
 
+<Accordion title="Example response">
+```json From the spec expandable
+{
+  "items": [
+    {
+      "buy": {
+        "amount": "24975",
+        "asset": "USDC"
+      },
+      "connectionId": "44444444-4444-4444-8444-444444444444",
+      "createdAt": "2026-11-18T14:00:00Z",
+      "executionMethod": "RFQ",
+      "executionStatus": "filled",
+      "executionTypeId": "b2c2-rfq",
+      "kind": "venueTrade",
+      "lifecycleStatus": {
+        "bucket": "inProgress",
+        "flowKind": "venueAccount",
+        "isTerminal": false,
+        "primary": {
+          "key": "settlementPending",
+          "label": "Settlement pending",
+          "tone": "neutral"
+        },
+        "rank": 40,
+        "rawStatus": "filled"
+      },
+      "operationId": "abababab-abab-4bab-8bab-abababababab",
+      "projection": "workspace",
+      "providerSite": "uat",
+      "sell": {
+        "amount": "25000",
+        "asset": "USD"
+      },
+      "settlementFacts": {
+        "dueAt": "2026-11-18T17:00:00Z",
+        "status": "pending"
+      },
+      "submittedByYou": true,
+      "tradeId": "abababab-abab-4bab-8bab-abababababab",
+      "venueAccountName": "B2C2 account",
+      "venueId": "b2c2",
+      "venueName": "B2C2 OTC"
+    }
+  ],
+  "nextCursor": null,
+  "totalCount": 1,
+  "unreachable": []
+}
+```
+
+| Field | What it tells you |
+| --- | --- |
+| `tradeId`, `kind`, `projection` | On every row except an order summary. `kind` is `order` or `venueTrade`. |
+| `totalCount` | Rows matching your filters. |
+| `nextCursor` | The next page's `cursor`; it pages only the `sort` it was returned for. |
+| `unreachable` | Sources this page could not read. |
+| `executionStatus` | What the venue did, separate from settlement. |
+| `settlementFacts` | Where the trade's settlement stands: `status`, and `dueAt`, its deadline, while `pending` or `overdue`. |
+</Accordion>
+
 <Accordion title="Refusals">
 | Status and code | Why, and what to do |
 | --- | --- |
 | 400 `INVALID_REQUEST` | `field` names the parameter: unknown, a filter this view cannot apply, a cursor from another list, or two names for one filter. |
-| 400 `VALIDATION_ERROR` | A malformed filter. |
+| 400 `INVALID_REQUEST` | A malformed filter. |
 | 400 `INCLUDE_UNKNOWN`, `INCLUDE_INVALID` | `include` names an unknown relation, or is malformed or repeated. |
 | 403 `INSUFFICIENT_SCOPE` | The key lacks `trades_read`. |
 | 403 `JWT_REQUIRED` | `scope=mine`, the umbrella or the maker view with an API key. Use a member session. |

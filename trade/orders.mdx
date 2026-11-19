@@ -27,7 +27,7 @@ Permissions and every refusal: [Place an order](/api-reference/orders/place-orde
     A new random `Idempotency-Key` per order, stored with the exact body before you send ([Retries](#retries-and-recovery)).
   </Step>
   <Step title="Send the order">
-    `POST /api/v1/orders` with that key, `kind: "quote"` and the quote's id. Each quote orders once.
+    [`POST /api/v1/orders`](/api-reference/orders/place-order) with that key, `kind: "quote"` and the quote's id. Each quote orders once.
 
     <Accordion title="Order fields">
       TetraFi kept the quote's terms; send only what you alone can supply. Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them.
@@ -35,6 +35,7 @@ Permissions and every refusal: [Place an order](/api-reference/orders/place-orde
       <ParamField body="kind" type="string" required>`quote`. (`stream` orders a Live prices row by its `priceId` instead; see [Prices](/search/prices).)</ParamField>
       <ParamField body="quoteId" type="string" required>The quote id (`q_…`).</ParamField>
       <ParamField body="minReceive" type="string">The least you accept to receive, in units of the asset you buy, such as `"4.99"`. Required when the quote's `minReceiveRequired` is `true` ([Minimum receive](#minimum-receive)).</ParamField>
+      <ParamField body="onBehalfOf" type="string">For a broker (coming): the principal you trade for, a user or client workspace id. It must be the `onBehalfOf` the quote was requested with, or the order is refused with `403 DIRECT_USER_MISMATCH`.</ParamField>
       <ParamField body="acknowledgeHighSlippage" type="boolean">`true`, to confirm you accept that much slippage. Required when your `minReceive` is more than 10% below the quote's receive amount ([Slippage limits](#slippage-limits)).</ParamField>
     </Accordion>
 
@@ -166,7 +167,7 @@ Refused with `409 IDEMPOTENCY_CONFLICT`; nothing is placed.
 
 ### Recover an order by its quote
 
-Lost the answer or the key? Read `GET /api/v1/orders/by-quote/{quoteId}`; it places nothing.
+Lost the answer or the key? Read [`GET /api/v1/orders/by-quote/{quoteId}`](/api-reference/orders/get-order-by-quote); it places nothing.
 
 <AccordionGroup>
   <Accordion title="States">
@@ -218,11 +219,11 @@ In practice you can cancel only an order waiting for a pay-in; later it is `409 
 
 <AccordionGroup>
   <Accordion title="Rules">
-    `POST /api/v1/orders/{orderId}/cancel`, with its own `Idempotency-Key`, stops an order until TetraFi claims it for dispatch, or a pay-in still waiting for funds. It needs Submit orders, and answers the order with `status` `cancelled`; cancelling again changes nothing.
+    [`POST /api/v1/orders/{orderId}/cancel`](/api-reference/orders/cancel-order), with its own `Idempotency-Key`, stops an order until TetraFi claims it for dispatch, or a pay-in still waiting for funds. It needs Submit orders. The answer is the order: read its `status` and `terminal`, as for any read. Cancelling again changes nothing.
 
     - A Basic venue trade is sent as soon as it is placed, so in practice you can cancel only while it waits for a pay-in.
     - After it is sent, its funding or delivery moved, or it ended, the cancel is refused with `409 ORDER_NOT_CANCELLABLE` and the status in `details.status`.
-    - TetraFi never cancels at the venue and never refunds.
+    - On a `basicTrade` today, TetraFi never cancels at the venue and never refunds.
   </Accordion>
   <Accordion title="Example">
     <OrderCancel />
@@ -247,6 +248,7 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 | 400 `SIGNATURE_NOT_ACCEPTED` | A `signature` was sent on a quote that takes none. Leave it out. |
 | 400 `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | `minReceive` is missing on a quote that needs it, or is not a positive amount. Send it as a positive decimal string. |
 | 403 `ADVANCED_MODE_DISABLED` | The quote is Advanced, which is not open yet. Order a Basic quote. |
+| 403 `DIRECT_USER_MISMATCH` | `onBehalfOf` differs from the one the quote was requested with. Send the quote's own `onBehalfOf`. |
 | 403 `WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | `minReceive` is further below the quote than your workspace's maximum slippage. Raise `minReceive` ([Slippage limits](#slippage-limits)). |
 | 422 `HIGH_SLIPPAGE_ACK_REQUIRED` | `minReceive` is more than 10% below the quote, without `acknowledgeHighSlippage`. Raise `minReceive`, or send `acknowledgeHighSlippage` as `true` ([Slippage limits](#slippage-limits)). |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. Check the id. |

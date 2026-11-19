@@ -16,8 +16,8 @@ Both need Read orders. One order, and each item in the list's `items` page, come
 
 | Endpoint | Result |
 | --- | --- |
-| `GET /api/v1/orders/{orderId}` | One order. |
-| `GET /api/v1/orders` | Your workspace's orders, newest first. |
+| [`GET /api/v1/orders/{orderId}`](/api-reference/orders/get-order) | One order. |
+| [`GET /api/v1/orders`](/api-reference/orders/list-orders) | Your workspace's orders, newest first. |
 
 Any member or key of the workspace with Read orders can read an order; one that does not exist, or belongs to another workspace, answers `404 ORDER_NOT_FOUND`. Lost the order answer? [Recover it by its quote](/trade/orders#recover-an-order-by-its-quote).
 
@@ -34,7 +34,7 @@ Stop on `terminal`, never on a particular `status`; `next` says what to do meanw
 <Accordion title="Envelope fields">
 
 <ResponseField name="orderId" type="string">The order's id.</ResponseField>
-<ResponseField name="kind" type="string">`basicTrade` today. New kinds may be added: for a kind you do not recognise, keep following `status` and `terminal`, and never resubmit it.</ResponseField>
+<ResponseField name="kind" type="string">`basicTrade` today: one venue trade. New kinds may be added, such as routes over several venues (coming); every kind carries `orderId`, `kind`, `status`, `terminal`, `statusUrl` and `next`. For a kind you do not recognise, keep following `status` and `terminal`, and never resubmit it ([Designed to grow](/reference/conventions#designed-to-grow)).</ResponseField>
 <ResponseField name="status" type="string">Where the order is (below).</ResponseField>
 <ResponseField name="terminal" type="boolean">`true` when the order can no longer change. Stop on this, never on a particular `status`.</ResponseField>
 <ResponseField name="next" type="object">Present only while there is something to do meanwhile (below).</ResponseField>
@@ -106,6 +106,7 @@ For a `failed` or `refunded` order, the trade history's `settlement.failureReaso
 | --- | --- |
 | `wait` | `next.kind: "wait"`: read it again after `retryAfter`, an ISO 8601 duration such as `PT15S`. |
 | `contact` | `next.kind: "contact"`: contact support with `reference`; a person has to look at the order. |
+| `sign` | Rolling out, for your own wallet: sign `next.step`, which names its `stepId`, `legId` and `signer` ([Sign with your own wallet](/trade/sign-with-your-own-wallet#submit-a-step)). |
 
 Without `next`, poll every 10 to 15 seconds.
 
@@ -119,12 +120,14 @@ A `basicTrade` order records what it actually did, not the quote: its `fills`, `
 <AccordionGroup>
   <Accordion title="Execution fields">
 
-<ResponseField name="fills" type="object[]">Each confirmed fill in execution order: `fillId` (stable: deduplicate repeated reads by it), `amount` delivered, `sellAmount`, `price`, `at`, `venue`, and `txHash` with `network` for an on-chain fill. Empty until a fill is confirmed; a field not recorded is `null`.</ResponseField>
+<ResponseField name="fills" type="object[]">Each confirmed fill in execution order: `fillId` (stable: deduplicate repeated reads by it), `legId` (the quote leg it fills), `amount` delivered, `sellAmount`, `price`, `at`, `venue`, `network`, and `txHash` for an on-chain fill. Empty until a fill is confirmed; a field not recorded is `null`.</ResponseField>
 <ResponseField name="quotedBuyAmount" type="string">What the executed quote said would land. `null` when not known.</ResponseField>
 <ResponseField name="settledBuyAmount" type="string">What actually landed. `null` until measured.</ResponseField>
 <ResponseField name="fees" type="object[]">Each fee charged: `kind`, `amount`, `asset`, `network` (CAIP-2) for an on-chain charge, and `includedInPrice` (`true`: the venue took it inside its price, so it is not charged on top).</ResponseField>
 <ResponseField name="unrecordedFees" type="string[]">Fee kinds the order incurred whose amount is not recorded. Show these as "not recorded", never 0.</ResponseField>
 <ResponseField name="settlesBy" type="string">The latest time the order settles or can no longer execute under its recorded terms (below).</ResponseField>
+
+The order's own `venueId` and `venueName` summarise a single-venue order; each fill names its own `venue`, so read the fills when an order runs over several venues (coming).
 
 A fee's `kind` is `trading`, `relayer`, `forwarding`, `transfer`, `network` (gas the order's wallet paid) or `platform` (the TetraFi fee). Show a kind you do not recognise generically.
 
@@ -159,12 +162,12 @@ A quote's `expiresAt` is its ordering deadline and `eta` an expected delivery ti
 
 <ParamField query="status" type="string">One status from the list above.</ParamField>
 <ParamField query="kind" type="string">`basicTrade` or `advancedTrade`.</ParamField>
-<ParamField query="sellAsset, buyAsset" type="string">The asset sold or bought, such as `USDC`.</ParamField>
+<ParamField query="sell, buy" type="string">The asset sold or bought, such as `USDC`, as the quote request names them.</ParamField>
 <ParamField query="from, to" type="string">Created at or after, and at or before, an RFC 3339 time.</ParamField>
 <ParamField query="limit, cursor" type="integer, string">Up to 20 orders a page (the default); the previous page's `nextCursor`.</ParamField>
 
 - A filtered page can hold fewer than `limit` orders, even none, with a `nextCursor` while more remain. Keep following `nextCursor` until it is `null`.
-- A cursor belongs to the key and its filters; any other answers `400 INVALID_CURSOR` ([Conventions](/reference/conventions)).
+- A cursor belongs to the key and its filters; any other answers `400 CURSOR_INVALID` ([Conventions](/reference/conventions)).
 
 </Accordion>
   <Accordion title="Example: list the last 30 days">

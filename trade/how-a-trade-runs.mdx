@@ -33,7 +33,7 @@ Every trade runs quote, order, follow. **Each quote states where the money comes
 </Steps>
 
 <Accordion title="The calls">
-  `POST /api/v1/quotes`, then `POST /api/v1/orders` with `quoteId` and an `Idempotency-Key`; recover a lost answer by quote, never with a new key. Follow with `GET /api/v1/orders/{orderId}`. Each call's page lists its refusals: [Place an order](/api-reference/orders/place-order), [Get an order](/api-reference/orders/get-order).
+  [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes), then [`POST /api/v1/orders`](/api-reference/orders/place-order) with `quoteId` and an `Idempotency-Key`; recover a lost answer by quote, never with a new key. Follow with [`GET /api/v1/orders/{orderId}`](/api-reference/orders/get-order). Each call's page lists its refusals: [Place an order](/api-reference/orders/place-order), [Get an order](/api-reference/orders/get-order).
 </Accordion>
 
 ## The five ways a trade runs
@@ -50,9 +50,17 @@ Every trade runs quote, order, follow. **Each quote states where the money comes
   All five are **Basic**: execution at the venue, through its API or its own smart contracts. On-chain does not mean Advanced; Advanced (TetraFi's router and escrow) is not open yet.
 </Accordion>
 
+<Accordion title="Legs, steps and signers">
+  A quote's `legs` hold one leg today. Each leg has a `legId` (`leg_0`), its own `sell` and `buy` (`{asset, amount}`), its `venue`, and optionally the `source` that pays for it. `venue` can be `null`, on a leg no venue runs.
+
+  Every step, fill and refusal names its leg by `legId`. Each on-chain step names who signs it in `signer`: `you`, `tetrafi` or `venue`. A signing step's `covers` lists the legs its one signature authorises, and the quote's `signing.signers` lists every signer.
+
+  Coming, not live yet: routes over several legs and venues, steps signed by different parties, and one signature covering several legs. They add legs, steps and signers to these lists, never new fields to replace them ([Designed to grow](/reference/conventions#designed-to-grow)).
+</Accordion>
+
 <AccordionGroup>
   <Accordion title="Exchange account, prefunded">
-    Deposit first: `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` says where. The trade spends the account's balance at the venue and settles on the venue's own ledger (`venueLedger`, `immediate`). A quote whose `next.kind` is `fund` has an account short by `readiness.amount` ([Before your first trade](/before-you-trade#fund-it)). The order sends `quoteId`.
+    Deposit first: [`GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions`](/api-reference/venue-accounts/get-deposit-instructions) says where. The trade spends the account's balance at the venue and settles on the venue's own ledger (`venueLedger`, `immediate`). A quote whose `next.kind` is `fund` has an account short by `readiness.amount` ([Before your first trade](/before-you-trade#fund-it)). The order sends `quoteId`.
   </Accordion>
   <Accordion title="OTC or credit account">
     Before you order, the account needs credit. The trade goes on the account's credit and is netted with your other trades in a settlement window. The quote carries `creditPortion`, `creditCheck` and `settlement.window`; your order consents to that window with `settlementWindowId`. A trade that spends only what the account already holds settles at once instead. A key only reads settlement actions ([they are for members](/trade/settlement-and-credit#settlement-actions-are-for-members)).
@@ -61,7 +69,7 @@ Every trade runs quote, order, follow. **Each quote states where the money comes
     The trade runs from an organisation wallet on Turnkey or Privy. Its owners approve, once per venue, a signing grant with per-trade and per-day caps that the provider itself enforces, and the wallet is granted to your key ([Give a key organisation wallets](/before-you-trade#give-a-key-organisation-wallets)). TetraFi then signs each trade inside those caps, with no approval per trade. The wallet holds the funds and pays the gas. The order sends `quoteId`.
   </Accordion>
   <Accordion title="On-chain venue, you sign">
-    Nothing to register: name your wallet's address in `source.tradingWallets`. Each on-chain quote carries `signing.firstStep`: send it signed with the order (optional), or order without it and answer step 1, like any later step, on `POST /api/v1/orders/{orderId}/steps/{stepId}`. You pay your own gas ([Sign with your own wallet](/trade/sign-with-your-own-wallet), [the recipe](/recipes/own-wallet-trade)).
+    Nothing to register: name your wallet's address in `source.tradingWallets`. Each on-chain quote carries `signing.firstStep`: send it signed with the order (optional), or order without it and answer step 1, like any later step, on [`POST /api/v1/orders/{orderId}/steps/{stepId}`](/api-reference/orders/send-order-step). You pay your own gas ([Sign with your own wallet](/trade/sign-with-your-own-wallet), [the recipe](/recipes/own-wallet-trade)).
   </Accordion>
   <Accordion title="Settlement method and timing">
 
@@ -74,7 +82,7 @@ Every trade runs quote, order, follow. **Each quote states where the money comes
     `settlement.timing` is `immediate`, `byDeadline` (a pay-in, by its deadline) or `delayed` (in a settlement window, or whenever either side asks). Both lists can grow. Treat a value you do not know as other ([Conventions](/reference/conventions#values)).
   </Accordion>
   <Accordion title="Planned, not available yet">
-    People approving one trade elsewhere (`signing.mode` `owners` or `custodian`, with an order `next.kind` of `approve` and an `approvalUrl`), Solana and Tron steps, more venues for your own wallet, and custody wallets that TetraFi signs for ([Sign with your own wallet](/trade/sign-with-your-own-wallet), under What comes next). Keep following the order on any value you do not know.
+    People approving one trade elsewhere (`signing.mode` `owners` or `custodian`, with an order `next.kind` of `approve` and an `approvalUrl`), Solana, Tron and Bitcoin steps, more venues for your own wallet, and custody wallets that TetraFi signs for ([Sign with your own wallet](/trade/sign-with-your-own-wallet), under What comes next). Multi-leg routes as a new order `kind`, and broker trading for a client, named by `onBehalfOf` on the quote and the order. Keep following the order on any value you do not know.
   </Accordion>
 </AccordionGroup>
 
@@ -94,7 +102,7 @@ On a `payIn` quote you order first, then pay over the venue's own rail, such as 
     With a deadline, `settlement.timing` is `byDeadline`. Every value list can grow. Treat a value you do not know as other ([Conventions](/reference/conventions#values)).
   </Accordion>
   <Accordion title="Follow the payment">
-    The trade's leg, in `legs[].tradeLeg` of `GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}`, carries `fundingDeadlineAt` (the trade's own deadline, never later than the quote's terms), `status` (`awaiting_funds`, then `funds_received`, or `expired_unfunded` or `late_funds`), and `fundsReceivedAt` with `creditedAmount` once the venue credits it.
+    The trade's leg, in `legs[].tradeLeg` of [`GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}`](/api-reference/trades/get-trade), carries `fundingDeadlineAt` (the trade's own deadline, never later than the quote's terms), `status` (`awaiting_funds`, then `funds_received`, or `expired_unfunded` or `late_funds`), and `fundsReceivedAt` with `creditedAmount` once the venue credits it.
   </Accordion>
 </AccordionGroup>
 

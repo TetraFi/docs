@@ -108,7 +108,7 @@ jq -c '{status, complete, accounts: (.accountSummaries | length), windows: (.win
 # window's statement says its provenance, whether each price was available, and whether the minimum
 # settlement makes it due.
 windows=$(tetrafi GET "$base/settlement/windows?limit=20")
-jq -c '.items[:3][] | {windowId, status, snapshotAt, paymentDeadlineAt, dueState}' <<<"$windows" >&2
+jq -c '.items[:3][] | {windowId, status, snapshotAt, paymentDeadlineAt, dueStatus}' <<<"$windows" >&2
 window_id=$(jq -r '.items[0].windowId // empty' <<<"$windows")
 if [[ -n $window_id ]]; then
   window=$(tetrafi GET "$base/settlement/windows/$window_id")
@@ -121,7 +121,7 @@ fi
 # What each side owes and by when. Filter with windowId or tradeId; the detail adds its events and the
 # movements matched to it.
 obligations=$(tetrafi GET "$base/settlement/obligations${window_id:+?windowId=$window_id}")
-jq -c '.items[] | {obligationId, payer, asset, remainingAmount, dueAt, status, dueState}' <<<"$obligations" >&2
+jq -c '.items[] | {obligationId, payer, asset, remainingAmount, dueAt, status, dueStatus}' <<<"$obligations" >&2
 obligation_id=$(jq -r '.items[0].obligationId // empty' <<<"$obligations")
 if [[ -n $obligation_id ]]; then
   tetrafi GET "$base/settlement/obligations/$obligation_id" | jq -c '{obligationId, events: [.events[].kind]}' >&2

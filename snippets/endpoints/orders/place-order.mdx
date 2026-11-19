@@ -5,15 +5,6 @@
 | **minReceive** | Required when `minReceiveRequired` is `true` ([more](/trade/orders#minimum-receive)). |
 | **No answer?** | Never order again: [recover it by its quote](/trade/orders#retries-and-recovery). |
 
-<Accordion title="Fields to read">
-| Field | What it tells you |
-| --- | --- |
-| `kind` | `basicTrade` for a venue trade (`advancedTrade` is not open yet). |
-| `status`, `terminal` | `working` until the order ends. Read it until `terminal` is `true` ([Order status](/trade/order-status)). |
-| `statusUrl` | Where to read it: `GET /api/v1/orders/{orderId}`. Or subscribe to `order.updated`. |
-| `operation.dispatch.outcomeCode` | `not_sent` when nothing reached the venue; `notSentReason` says why. |
-</Accordion>
-
 <Accordion title="On-chain orders">
 A Basic trade on an on-chain venue (for example Uniswap v3, paid from an organisation wallet) answers `200` with `status: working` as soon as the order is recorded. Signing and broadcast run after the answer.
 
@@ -22,12 +13,71 @@ It ends `settled`, or `unfilled` with `operation.dispatch.outcomeCode: not_sent`
 A refusal found after the order is claimed but before its wallet is asked (the LP relationship, the venue registry, the audit record or your authority changed) also answers here with its own code; that order reads `unfilled` with `outcomeCode: not_sent`.
 </Accordion>
 
+<Accordion title="For a broker's client (coming)">
+Broker trading is coming. Send `onBehalfOf`, the principal you trade for (a user or client workspace id), exactly as on the quote request; any other value is refused with 403 `DIRECT_USER_MISMATCH`.
+</Accordion>
+
 <Accordion title="Order a Live price (rolling out)">
 Send `{kind: "stream", priceId, minReceive | slippageBps}` to order a row of `GET /api/v1/prices`.
 
 1. The `priceId` is checked for your workspace and its `validFor` before anything is sent (`PRICE_ID_INVALID`, `PRICE_EXPIRED`).
 2. The venue is asked for that exact size; the order then runs like a quote order of that venue, with the same permission, order and outcome fields.
 3. Your limit is `minReceive`, or `slippageBps` below the price's receive amount (rounded up to the asset's precision). A price outside it is refused with `details.remediation` `widenLimit`, `details.currentReceive` and `details.requiredSlippageBps`.
+</Accordion>
+
+<Accordion title="Example response">
+```json From the spec expandable
+{
+  "executionMethod": "RFQ",
+  "fees": [],
+  "fills": [],
+  "kind": "basicTrade",
+  "operation": {
+    "bounds": {
+      "buy": {
+        "amount": "24975",
+        "asset": "USDC"
+      },
+      "maximumFees": [],
+      "sell": {
+        "amount": "25000",
+        "asset": "USD"
+      },
+      "sellAmount": "25000"
+    },
+    "connectionId": "44444444-4444-4444-8444-444444444444",
+    "createdAt": "2026-11-18T14:00:00Z",
+    "executionStatus": "dispatching",
+    "executionTypeId": "b2c2-rfq",
+    "initialReviewDisposition": "review_not_required",
+    "label": "Sell USD for USDC",
+    "operationId": "abababab-abab-4bab-8bab-abababababab",
+    "providerSite": "uat",
+    "requestKey": "33333333-3333-4333-8333-333333333333",
+    "settlementStatus": null,
+    "workspaceId": "11111111-1111-4111-8111-111111111111"
+  },
+  "orderId": "abababab-abab-4bab-8bab-abababababab",
+  "quoteId": "q_01JAY5EXW3MBMS1QSQJS0ZWPNQ",
+  "quotedBuyAmount": null,
+  "settledBuyAmount": null,
+  "settlesBy": null,
+  "status": "working",
+  "statusUrl": "/api/v1/orders/abababab-abab-4bab-8bab-abababababab",
+  "terminal": false,
+  "unrecordedFees": [],
+  "venueId": "b2c2",
+  "venueName": "B2C2 OTC"
+}
+```
+
+| Field | What it tells you |
+| --- | --- |
+| `kind` | `basicTrade` for a venue trade (`advancedTrade` is not open yet). New kinds carry the same `orderId`, `status`, `terminal`, `statusUrl` and `next`. |
+| `status`, `terminal` | `working` until the order ends. Read it until `terminal` is `true` ([Order status](/trade/order-status)). |
+| `statusUrl` | Where to read it: `GET /api/v1/orders/{orderId}`. Or subscribe to `order.updated`. |
+| `operation.dispatch.outcomeCode` | `not_sent` when nothing reached the venue; `notSentReason` says why. |
+| `orderId` | Keep it: every later read names the order by it, and your trade history lists it as `tradeId`. |
 </Accordion>
 
 <Accordion title="Refusals">
@@ -39,6 +89,7 @@ A refusal before the order exists (limits, compliance, funds or authority) answe
 | 400 `SIGNATURE_NOT_ACCEPTED` | A `signature` was sent on a quote that takes none. Leave it out. |
 | 400 `MIN_RECEIVE_REQUIRED`, `MIN_RECEIVE_INVALID` | `minReceive` is missing on a quote that needs it, or is not a positive amount. |
 | 403 `ADVANCED_MODE_DISABLED` | The quote is Advanced, which is not open yet. Order a Basic quote. |
+| 403 `DIRECT_USER_MISMATCH` | `onBehalfOf` differs from the quote's. Send the `onBehalfOf` the quote was requested with. |
 | 403 `WORKSPACE_SLIPPAGE_LIMIT_EXCEEDED` | `minReceive` is further below the quote than your workspace allows ([Slippage limits](/trade/orders#slippage-limits)). |
 | 422 `HIGH_SLIPPAGE_ACK_REQUIRED` | `minReceive` is more than 10% below the quote: raise it, or send `acknowledgeHighSlippage: true`. |
 | 404 `QUOTE_NOT_FOUND` | No quote with this id is available to you. |

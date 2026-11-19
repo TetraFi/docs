@@ -3,7 +3,13 @@ title: "Treasury & Custody"
 description: "The workspace's money desk - wallets, custody accounts, vaults, transfers, and the policy that governs them."
 ---
 
-Wallets, custody accounts and their vaults, transfers, and the written policy every transfer must clear. You run it in the app. With an API key you read balances, exchange accounts, credit and settlement; moving funds stays in the app.
+Treasury is your workspace's money desk: wallets, custody accounts and their vaults, transfers, and the written policy every transfer must clear. You run it in the app. **With an API key you read; moving funds stays in the app.**
+
+| You want to | Where |
+| --- | --- |
+| See wallets and accounts | **Accounts** in the app |
+| Move funds | A transfer in the app, under your policy |
+| Read balances, credit and settlement | The API, with **Treasury read** |
 
 ## What It Holds
 
@@ -11,8 +17,10 @@ Connections to the providers your hosted wallets run on and to the custodians th
 
 ## How wallets appear
 
-**Accounts** has two tabs, **Company** and **Personal & shared**. Both show the same sections, one per [category](/core-concepts/wallets-and-signing#category-who-can-move-the-funds); the tab only filters by scope.
+**Accounts** has two tabs, **Company** and **Personal & shared**, with one section per [category](/core-concepts/wallets-and-signing#category-who-can-move-the-funds); the tab only filters by scope.
 
+<AccordionGroup>
+  <Accordion title="Sections and labels">
 | Section | What it lists |
 | --- | --- |
 | **Hosted wallets** | Wallets a provider runs the key for; only your owners can move funds. |
@@ -24,21 +32,37 @@ Connections to the providers your hosted wallets run on and to the custodians th
 **Company** also lists your venue accounts and bank accounts, in their own sections. **Personal & shared** lists your own wallets. Sharing a personal wallet with other members is not yet available; when it is, its owner will decide who may view it and request from it, and nothing more.
 
 Each row shows its wallet type and provider, such as "Secure enclave · Turnkey". A row also shows **Not linked** until its ownership proof, and **Control changed** when a TetraFi key could sign without your approvers. Neither can send.
+  </Accordion>
 
-**Add account**, then **Add a wallet**, asks the wallet's category, then its type, then the provider. Providers that are not yet available are greyed out. A hosted wallet is created with its owners: every proposed owner accepts before the provider sets it up.
+  <Accordion title="Add a wallet">
+    **Add account**, then **Add a wallet**, asks the wallet's category, then its type, then the provider. Providers that are not yet available are greyed out. A hosted wallet is created with its owners: every proposed owner accepts before the provider sets it up.
+  </Accordion>
+</AccordionGroup>
 
 ## Moving Funds
 
-One transfer resource. Source: a vault account or one of your company's wallets. Destination: a one-time address, one of your company's or linked wallets, a custodian-whitelisted wallet, or an OTC desk's deposit address. Send an idempotency key.
+One transfer resource, with an idempotency key, cleared by a written, versioned policy (policy and statements rolling out).
 
-The policy is written, versioned, and can run in **shadow** before it enforces: a whitelist board, an approval quorum with an inbox, a velocity budget per principal, an approval window, every failure as data with retry or replace. The custodian's own approval is separate from the workspace's; both are shown. (Policy and statements rolling out.)
+<Accordion title="Sources, destinations and policy">
+  Source: a vault account or one of your company's wallets. Destination: a one-time address, one of your company's or linked wallets, a custodian-whitelisted wallet, or an OTC desk's deposit address. Send an idempotency key.
+
+  The policy can run in **shadow** before it enforces: a whitelist board, an approval quorum with an inbox, a velocity budget per principal, an approval window, every failure as data with retry or replace. The custodian's own approval is separate from the workspace's; both are shown.
+</Accordion>
 
 ## Programmatic Access
 
-A key with **Treasury read** reads every [balance](/trade/balances) across wallets and exchange accounts, each exchange account's balances, deposit instructions, deposits and credit, and, with **Read settlements**, its [settlement and ledger](/trade/settlement-and-credit). Every read is checked against both the key's permission and its owner's live workspace permission. Transfers, Destinations, approvals and policy are done in the app; their API operations will join the [API reference](/reference/introduction) later.
+A key with **Treasury read** reads every [balance](/trade/balances) across wallets and exchange accounts; with **Read settlements**, it also reads [settlement and ledger](/trade/settlement-and-credit).
+
+<Accordion title="What a key reads">
+  Each exchange account's balances, deposit instructions, deposits and credit. Every read is checked against both the key's permission and its owner's live workspace permission. Transfers, Destinations, approvals and policy are done in the app; their API operations will join the [API reference](/reference/introduction) later.
+</Accordion>
 
 ## Desks and Corridors
 
-Exchange and OTC desks are settlement lanes: deposit intents, T+1 balances, credit utilisation, an exception queue. Fiat corridors run through bank accounts per ramp provider (rolling out). A custodian ledger reconciles each statement window against your records within a fee tolerance you set.
+<Accordion title="Exchange, OTC, fiat and custodians">
+  Exchange and OTC desks are settlement lanes: deposit intents, T+1 balances, credit utilisation, an exception queue. Fiat corridors run through bank accounts per ramp provider (rolling out). A custodian ledger reconciles each statement window against your records within a fee tolerance you set.
 
-Who may sign from which wallet is on [Wallets & Signing](/core-concepts/wallets-and-signing); delegating transfers inside a bounded envelope is on [Agents](/core-concepts/agents).
+  Who may sign from which wallet is on [Wallets & Signing](/core-concepts/wallets-and-signing); delegating transfers inside a bounded envelope is on [Agents](/core-concepts/agents).
+</Accordion>
+
+Build it: [Balances and fees](/trade/balances) · [API reference](/api-reference/intros/balances-and-accounts)

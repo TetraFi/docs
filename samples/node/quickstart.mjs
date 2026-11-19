@@ -203,6 +203,19 @@ async function main() {
   const { kind, status, terminal, next = null } = order;
   console.log(json({ kind, status, terminal, next, idempotencyKey }));
   // #endregion
+
+  // #region quickstart-trade
+  // The order in your trade history (Read trades): a Basic order is a venue
+  // trade, filed under its orderId. executionStatus: how it ended at the
+  // venue. settlementState: its settlement.
+  const { workspaceId } = await tetrafi('GET', '/api/v1/me');
+  const trade = await tetrafi('GET',
+    `/api/v1/workspaces/${workspaceId}/trades/${placed.orderId}`);
+  const shown = ['tradeId', 'kind', 'executionStatus', 'outputReceived',
+    'settlementState'];
+  console.error(json(Object.fromEntries(
+    shown.map((key) => [key, trade[key] ?? null]))));
+  // #endregion
 }
 
 function selfTest() {

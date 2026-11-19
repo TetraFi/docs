@@ -59,11 +59,11 @@ tetrafi() {
 }
 
 # quote BODY: POST /api/v1/quotes. You may send one live quote request every 3 seconds;
-# on 429 QUOTE_RATE_LIMITED it waits details.retryAfter (an ISO 8601 duration) and sends once more.
+# on 429 RATE_LIMITED it waits details.retryAfter (an ISO 8601 duration) and sends once more.
 quote() {
   local answer wait
   if answer=$(tetrafi POST /api/v1/quotes "$1" 2>/dev/null); then printf '%s\n' "$answer"; return 0; fi
-  if [[ $(jq -r '.error // empty' <<<"$answer" 2>/dev/null) != QUOTE_RATE_LIMITED ]]; then
+  if [[ $(jq -r '.error // empty' <<<"$answer" 2>/dev/null) != RATE_LIMITED ]]; then
     printf '%s\n' "$answer" >&2
     return 1
   fi

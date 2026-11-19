@@ -3,11 +3,13 @@
 | **If-Match** | Required: the strong `ETag` from `GET`. |
 | **Owner** | Changing `url` or `events` makes you its accountable principal; `active` alone does not. |
 | **Validation** | As at creation: HTTPS URLs, current event names. |
+| **apiVersion** | Moves the endpoint's version without recreating it; later bodies use it. |
 
 <Accordion title="Refusals">
 | Status and code | Why, and what to do |
 | --- | --- |
 | 400 `WEBHOOK_EVENT_UNKNOWN`, `WEBHOOK_EVENT_RETIRED` | An `events` entry is not a current event. An invalid URL or empty update is also 400. |
+| 400 `API_VERSION_UNSUPPORTED` | `apiVersion` is not a supported version. Send one from [Versioning](/reference/conventions#versioning). |
 | 403 `WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` | You would receive `treasury.automation.*` without seeing every Automation's amounts. |
 | 404 `WEBHOOK_NOT_FOUND` | Use an id from this workspace's webhook list. |
 | 409 `WEBHOOK_EXISTS` | Another endpoint already has that URL. |

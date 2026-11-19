@@ -1,102 +1,91 @@
 ---
 title: "Shared Collateral Network"
 sidebarTitle: "Overview"
-description: "Programmable collateral - the credit primitive underwriting instant redemption, instant settlement, PSP prefunding, venue prefunding, and solver credit from one enforceable capital base. Coming soon."
+description: "Planned: programmable collateral - the credit primitive designed to underwrite instant redemption, instant settlement, PSP prefunding, venue prefunding, and solver credit from one enforceable capital base. Coming soon."
+tag: "Coming soon"
 ---
 
-<Note>
-  **Coming soon.** The Shared Collateral Network is in design, not yet live. These pages describe the planned system so depositors, issuers, desks, and solvers can evaluate it early - parameters and contract addresses publish at launch.
-</Note>
+import ComingSoon from '/snippets/coming-soon.mdx';
 
-## The Most Expensive Line in Settlement Is Idle Capital
+<ComingSoon />
 
-Every institutional flow carries its own buffer today. A PSP prefunds every venue it might trade on. An issuer parks reserves against redemption promises. A desk holds credit lines against T+1 cycles. A solver warehouses inventory on every chain it fills. Each buffer is sized for its own worst day, fungible with nothing, earning nothing while it waits - dead capital on a working balance sheet.
+Every institutional flow carries its own idle buffer today: PSP floats, redemption reserves, credit lines, solver inventory. The Shared Collateral Network is designed to replace them with **programmable collateral**: capital committed once into permissioned [vaults](/collateral/vaults), and drawn only against a verified obligation whose repayment is checked in the same transaction.
 
-The Shared Collateral Network replaces all of it with a new financial primitive: **programmable collateral**. Capital is committed once, into permissioned [programmable collateral vaults](/collateral/vaults) with identifiable counterparties, and becomes the balance sheet the whole network settles against - every use case reaches it through an adapter, never through another buffer. Its founding product is **programmable credit**: financing the gap between when value is promised and when it settles, with the assumption of liquidity - and most of the over-collateral - replaced by **enforceable commitments**. Capital moves only against a verified obligation, and the proof of how it comes back is checked in the very transaction that draws it: credit made capital-efficient by constraining what the money may do, not by over-securing its size.
+| Planned product | What it will do |
+| --- | --- |
+| [Instant Redemption](/collateral/instant-redemption) | Issuers run fully invested; holders exit T+0. |
+| [Instant Settlement](/collateral/instant-settlement) | A T+N leg is paid today from shared capital. |
+| [PSP Prefunding](/collateral/psp-prefunding) | Payouts funded against the customer's verified inbound transfer. |
+| [Venue Prefunding](/collateral/venue-prefunding) | One credit layer across every CEX and OTC venue. |
+| [Solver Credit](/collateral/solver-credit) | Fill on any chain with inventory on none. |
 
-Restaking proved that collateral can be programmatically committed to back obligations - a validator bond and a credit guarantee are the same instrument. The Shared Collateral Network generalises that primitive from consensus to finance, and points it at the settlement gaps institutions pay for every day.
+Five products, one capital base, one integration shape. Every new use case, [Multilateral Netting](/netting) included, is designed to join as an adapter over the same vaults.
 
-## The Capital-Efficiency Case
+<AccordionGroup>
+  <Accordion title="Idle capital today">
+    Every institutional flow carries its own buffer today. A PSP prefunds every venue it might trade on. An issuer parks reserves against redemption promises. A desk holds credit lines against T+1 cycles. A solver warehouses inventory on every chain it fills. Each buffer is sized for its own worst day, fungible with nothing, earning nothing while it waits - dead capital on a working balance sheet.
 
-* **One unit of collateral, many uses at once.** What restaking proved for security, applied to settlement and credit: the same committed dollar is cross-collateralised across redemptions, settlement fronting, venue credit, and cross-chain fills - encumbered only while a draw is live, and only to that one obligation. A buffer is one client, one use; shared collateral is as many uses as the network has products.
-* **Fund the net, not the gross.** Buffers are sized per product, each for its own worst day. One shared pool is sized for real, offsetting demand across all of them - the portfolio's worst day is strictly smaller than the sum of everyone's.
-* **Deeper at every point of demand.** A silo caps its response at the silo's slice; pooled collateral puts the whole network's balance behind any single surge - a redemption spike, a corridor peak, a cross-chain fill.
-* **Fungible where buffers are frozen.** A buffer is locked to its venue and its use. Pooled collateral flows to wherever demand prices it best, and positions in it are transferable - gated and compliance-checked, never bearer - so capital enters and exits without dismantling anything.
-* **Nothing idles, and yield stacks.** Between draws the capital stays deployed and earning; during a draw it earns the commitment spread, priced by duration and secured by the settlement object it funds. Two income lines on one balance, where a buffer earns zero.
-* **No impermanent loss.** Draws are priced exchanges, not AMM curve exposure: capital goes out as cash and comes back as cash plus spread, with no curve rebalancing against the market in between.
-* **Depth compounds.** Every product added brings new demand to the same pool and gives the same capital one more reason to stay. Stickiness is opportunity density, not lock-up.
+    The network is designed to replace all of it with a new financial primitive: **programmable collateral**. Capital will be committed once, into permissioned programmable collateral vaults with identifiable counterparties, and become the balance sheet the whole network settles against - every use case reaches it through an adapter, never through another buffer. Its founding product is **programmable credit**: financing the gap between when value is promised and when it settles, with the assumption of liquidity - and most of the over-collateral - replaced by **enforceable commitments**. Capital will move only against a verified obligation, and the proof of how it comes back is checked in the very transaction that draws it: credit made capital-efficient by constraining what the money may do, not by over-securing its size.
 
-## The Five Products
+    Restaking proved that collateral can be programmatically committed to back obligations - a validator bond and a credit guarantee are the same instrument. The network generalises that primitive from consensus to finance, and points it at the settlement gaps institutions pay for every day.
+  </Accordion>
 
-<CardGroup cols={2}>
-  <Card title="Instant Redemption" icon="bolt" href="/collateral/instant-redemption">
-    Issuers run fully invested - no redemption buffer, no incentive spend - while the network's standing bid gives holders T+0 exits.
-  </Card>
+  <Accordion title="Capital-efficiency case">
+    - **One unit of collateral, many uses at once.** What restaking proved for security, applied to settlement and credit: the same committed dollar is cross-collateralised across redemptions, settlement fronting, venue credit, and cross-chain fills - encumbered only while a draw is live, and only to that one obligation. A buffer is one client, one use; shared collateral is as many uses as the network has products.
+    - **Fund the net, not the gross.** Buffers are sized per product, each for its own worst day. One shared pool is sized for real, offsetting demand across all of them - the portfolio's worst day is strictly smaller than the sum of everyone's.
+    - **Deeper at every point of demand.** A silo caps its response at the silo's slice; pooled collateral puts the whole network's balance behind any single surge - a redemption spike, a corridor peak, a cross-chain fill.
+    - **Fungible where buffers are frozen.** A buffer is locked to its venue and its use. Pooled collateral flows to wherever demand prices it best, and positions in it are transferable - gated and compliance-checked, never bearer - so capital enters and exits without dismantling anything.
+    - **Nothing idles, and yield stacks.** Between draws the capital stays deployed and earning; during a draw it earns the commitment spread, priced by duration and secured by the settlement object it funds. Two income lines on one balance, where a buffer earns zero.
+    - **No impermanent loss.** Draws are priced exchanges, not AMM curve exposure: capital goes out as cash and comes back as cash plus spread, with no curve rebalancing against the market in between.
+    - **Depth compounds.** Every product added brings new demand to the same pool and gives the same capital one more reason to stay. Stickiness is opportunity density, not lock-up.
+  </Accordion>
 
-  <Card title="Instant Settlement" icon="clock" href="/collateral/instant-settlement">
-    Paid today on a T+N leg - receivables fronted from shared capital instead of broker and LP credit lines.
-  </Card>
+  <Accordion title="The five products">
+    - **Instant Redemption:** issuers run fully invested - no redemption buffer, no incentive spend - while the network's standing bid gives holders T+0 exits.
+    - **Instant Settlement:** paid today on a T+N leg - receivables fronted from shared capital instead of broker and LP credit lines.
+    - **PSP Prefunding:** fund payouts now against the customer's inbound transfer - advances tied to verified payments, not corridor floats.
+    - **Venue Prefunding:** execute across every CEX and OTC venue from one credit layer - capital scales with flow, not with venue count.
+    - **Solver Credit:** fill on any chain with inventory on none - working capital drawn into the fill itself, repaid by its own settlement.
 
-  <Card title="PSP Prefunding" icon="money-bill-transfer" href="/collateral/psp-prefunding">
-    Fund payouts now against the customer's inbound transfer - advances tied to verified payments, not corridor floats.
-  </Card>
+    A credit framework, not a product line. Every new use case joins as an adapter over the same vaults, bringing its demand to the standing pool - which is also how Multilateral Netting plugs in: vault liquidity backstops residuals and prices early exits from a netting position.
+  </Accordion>
 
-  <Card title="Venue Prefunding" icon="building-columns" href="/collateral/venue-prefunding">
-    Execute across every CEX and OTC venue from one credit layer - capital scales with flow, not with venue count.
-  </Card>
+  <Accordion title="Infrastructure to build on">
+    The five products are TetraFi's own - and they are the wedge, not the boundary. The network is designed as open infrastructure: anyone with a programmable credit use case will be able to build on the same capital base.
 
-  <Card title="Solver Credit" icon="route" href="/collateral/solver-credit">
-    Fill on any chain with inventory on none - working capital drawn into the fill itself, repaid by its own settlement.
-  </Card>
-</CardGroup>
+    - **Applications join as adapters.** A guarantee product, a credit facility, an insurance line - each ships as one adapter over the standing pool: no new pool to bootstrap, no liquidity to rent, and depositors who have already underwritten the framework.
+    - **Tokenized strategies plug in on both sides.** A tokenized strategy - delta-neutral basis, market-neutral yield - can take allocation from the network's standing capital as a curated venue, and its own tokens re-enter as assets the network can hold, price, and redeem.
+    - **Curators bring their own risk books.** Independent [curators](/collateral/vaults) deploy vaults, choose products and parameters, and compete on underwriting - one primitive, many envelopes, opening beyond TetraFi after launch.
 
-Five products, one capital base, one integration shape - a credit framework, not a product line. Every new use case joins as an adapter over the same vaults, bringing its demand to the standing pool - which is also how [Multilateral Netting](/netting) plugs in: vault liquidity backstops residuals and prices early exits from a netting position.
+    Programmable credit is a category without dedicated rails today: settlement credit, redemption liquidity, receivables, guarantees, and cover all run on private balance sheets, bilateral facilities, and one-off builds no allocator can score. This network is designed to be those rails: one standard framework that makes every new use case cheap to launch and cheap to underwrite.
+  </Accordion>
 
-## Infrastructure to Build On
+  <Accordion title="From payment flow to yield">
+    Yield from the real economy stays scarce on-chain for a practical reason: before a depositor earns a cent of it, someone has to find lenders worth funding, judge them, wrap the exposure in a vehicle, satisfy regulators, move the money and find the buyers - and every new strategy repeats the exercise from zero. The network is designed to do that work once, as shared rails:
 
-The five products are TetraFi's own - and they are the wedge, not the boundary. The Shared Collateral Network is built as open infrastructure: anyone with a programmable credit use case can build on the same capital base.
+    - **Originators bid for capital** - PSPs, payroll and wage-access providers, invoice financiers and RWA issuers connect as facilities on the standing pool, and capital is put to them through the same RFQ engine that prices TetraFi's trading flow: funding liquidity auctioned the way trading liquidity already is.
+    - **Every draw proves its claim** - originators are assessed once; each individual draw is then checked against evidence of the cash flow behind it - an inbound transfer, a payroll deduction, an invoice, a redemption in progress - in the same transaction that releases the money.
+    - **One capital base** - capital is committed once and reused across every product, with a share held liquid for withdrawals.
+    - **Policy enforced in code** - KYB'd counterparties and machine-checked rules on every draw, the same enforcement that already gates trading on TetraFi.
+    - **TetraFi's rails, end to end** - draws, repayments and withdrawals settle on the platform's own settlement stack, and the vault moves the money itself.
+    - **Liquid by design** - vault shares are composable receipt tokens, and built-in instant liquidity lets holders exit before the underlying matures - the property lending markets and exchanges look for before they list a yield product.
+  </Accordion>
 
-* **Applications join as adapters.** A guarantee product, a credit facility, an insurance line - each ships as one adapter over the standing pool: no new pool to bootstrap, no liquidity to rent, and depositors who have already underwritten the framework.
-* **Tokenized strategies plug in on both sides.** A tokenized strategy - delta-neutral basis, market-neutral yield - can take allocation from the network's standing capital as a curated venue, and its own tokens re-enter as assets the network can hold, price, and redeem.
-* **Curators bring their own risk books.** Independent [curators](/collateral/vaults) deploy vaults, choose products and parameters, and compete on underwriting - one primitive, many envelopes, opening beyond TetraFi after launch.
+  <Accordion title="Embed it, keep customers">
+    A wallet, exchange, fintech or wealth app will be able to put real-economy yield in front of its customers through one integration, while the credit, settlement and liquidity run underneath. The interface, the brand, the pricing and the customer relationship all stay with the app.
+  </Accordion>
 
-Programmable credit is a category without dedicated rails today: settlement credit, redemption liquidity, receivables, guarantees, and cover all run on private balance sheets, bilateral facilities, and one-off builds no allocator can score. This network is built to be those rails: one standard framework that makes every new use case cheap to launch and cheap to underwrite.
+  <Accordion title="Why this doesn't exist">
+    On-chain money markets made lending modular - but the collateral inside them is single-use: locked to one position, over-secured, and idle until something goes wrong. Restaking made collateral reusable - but for securing infrastructure, not for financing settlement. Traditional finance has sold the concept for decades as prime-brokerage cross-margining - one collateral pool across offsetting positions - bilateral, opaque, and reserved for the largest counterparties. The Shared Collateral Network is designed as the general form: shared, programmable collateral, reusable across settlement and credit, compliance-native, and cross-chain - capital efficiency as public infrastructure rather than a prime-broker privilege.
+  </Accordion>
 
-## From Payment Flow to Portfolio Yield
+  <Accordion title="Built to be underwritten">
+    Capital this efficient only holds if allocators can trust it, so the network is designed to be scored:
 
-Yield from the real economy stays scarce on-chain for a practical reason: before a depositor earns a cent of it, someone has to find lenders worth funding, judge them, wrap the exposure in a vehicle, satisfy regulators, move the money and find the buyers - and every new strategy repeats the exercise from zero. The Shared Collateral Network does that work once, as shared rails:
+    - **Underwrite once, reuse everywhere.** A homemade pool has to be analysed from scratch every time. Here the vault is analysed once, every product added inherits that analysis, and deviation - not everything - is what stands out.
+    - **Compliance is native.** KYB'd counterparties, jurisdiction filters, and machine-checkable policy on every draw - the same enforcement that gates trading on TetraFi, not a bolt-on.
+    - **TetraFi is infrastructure.** Every vault names its own regulated operator facing depositors and drawers. TetraFi runs the rails, originates the first obligations, and is the network's first customer.
+  </Accordion>
+</AccordionGroup>
 
-* **Originators bid for capital** - PSPs, payroll and wage-access providers, invoice financiers and RWA issuers connect as facilities on the standing pool, and capital is put to them through the same RFQ engine that prices TetraFi's trading flow: funding liquidity auctioned the way trading liquidity already is.
-* **Every draw proves its claim** - originators are assessed once; each individual draw is then checked against evidence of the cash flow behind it - an inbound transfer, a payroll deduction, an invoice, a redemption in progress - in the same transaction that releases the money.
-* **One capital base** - capital is committed once and reused across every product, with a share held liquid for withdrawals.
-* **Policy enforced in code** - KYB'd counterparties and machine-checked rules on every draw, the same enforcement that already gates trading on TetraFi.
-* **TetraFi's rails, end to end** - draws, repayments and withdrawals settle on the platform's own settlement stack, and the vault moves the money itself.
-* **Liquid by design** - vault shares are composable receipt tokens, and built-in instant liquidity lets holders exit before the underlying matures - the property lending markets and exchanges look for before they list a yield product.
-
-## Embed It, Keep Your Customers
-
-A wallet, exchange, fintech or wealth app can put real-economy yield in front of its customers through one integration, while the credit, settlement and liquidity run underneath. The interface, the brand, the pricing and the customer relationship all stay with the app.
-
-## Why This Doesn't Exist Yet
-
-On-chain money markets made lending modular - but the collateral inside them is single-use: locked to one position, over-secured, and idle until something goes wrong. Restaking made collateral reusable - but for securing infrastructure, not for financing settlement. Traditional finance has sold the concept for decades as prime-brokerage cross-margining - one collateral pool across offsetting positions - bilateral, opaque, and reserved for the largest counterparties. The Shared Collateral Network is the general form: shared, programmable collateral, reusable across settlement and credit, compliance-native, and cross-chain - capital efficiency as public infrastructure rather than a prime-broker privilege.
-
-## Built to Be Underwritten
-
-Capital this efficient only holds if allocators can trust it, so the network is built to be scored:
-
-* **Underwrite once, reuse everywhere.** A homemade pool has to be analysed from scratch every time. Here the vault is analysed once, every product added inherits that analysis, and deviation - not everything - is what stands out.
-* **Compliance is native.** KYB'd counterparties, jurisdiction filters, and machine-checkable policy on every draw - the same enforcement that gates trading on TetraFi, not a bolt-on.
-* **TetraFi is infrastructure.** Every vault names its own regulated operator facing depositors and drawers. TetraFi runs the rails, originates the first obligations, and is the network's first customer.
-
-## Go Deeper
-
-<CardGroup cols={2}>
-  <Card title="Programmable Collateral Vaults" icon="vault" href="/collateral/vaults">
-    The shared primitive: curators, depositors, and the compliance gate on every draw.
-  </Card>
-
-  <Card title="Register Interest" icon="sparkles" href="/support">
-    Depositing, issuing, curating, or drawing? Get on the early list.
-  </Card>
-</CardGroup>
+Next: [Vaults](/collateral/vaults) · [register interest](/support). Use today: [Quickstart](/quickstart) · [Basic execution](/overview) · [status](/platform).

@@ -64,7 +64,7 @@ tetrafi() {
 
 # quote_request BODY
 # POST /api/v1/quotes through tetrafi. You may send one live quote request every 3 seconds;
-# a faster one answers 429 QUOTE_RATE_LIMITED with a Retry-After header, and the same wait in
+# a faster one answers 429 RATE_LIMITED with a Retry-After header, and the same wait in
 # details.retryAfter (for example PT1S). This waits that long and tries once more.
 quote_request() {
   local response wait
@@ -72,7 +72,7 @@ quote_request() {
     printf '%s\n' "$response"
     return 0
   fi
-  wait=$(jq -r 'select(.error == "QUOTE_RATE_LIMITED") | .details.retryAfter
+  wait=$(jq -r 'select(.error == "RATE_LIMITED") | .details.retryAfter
     | capture("^PT(?<s>[0-9]+)S$").s' <<<"$response" 2>/dev/null || true)
   if [[ -z $wait ]]; then
     printf '%s\n' "$response" >&2
@@ -192,7 +192,7 @@ outcome singleChain "$single_chain"
 
 # region search-cross-chain
 # Move the sell asset from one chain to another. The same asset on both sides needs a chain pin,
-# or the request is refused with SAME_ASSET_NEEDS_CHAIN.
+# or the request is refused with SAME_ASSET_NEEDS_NETWORK.
 from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$sell_chains")}
 to_chain=${TETRAFI_TO_CHAIN:-$(jq -r '.[1] // empty' <<<"$sell_chains")}
 if [[ -z $to_chain ]]; then
@@ -214,7 +214,7 @@ outcome crossChain "$cross_chain"
 
 # region search-off-chain
 # Keep only quotes that execute on a venue account (an exchange or desk). No chain pins:
-# a pinned chain with only offChain allowed is refused with CHAIN_PIN_NEEDS_ON_CHAIN.
+# a pinned chain with only offChain allowed is refused with NETWORK_PIN_NEEDS_ONCHAIN_ASSET.
 request=$(jq -nc --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" '{
   kind: "pair",
   sell: {asset: $sell},

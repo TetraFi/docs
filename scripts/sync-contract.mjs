@@ -9,6 +9,7 @@
 //
 //   node scripts/sync-contract.mjs           write
 //   node scripts/sync-contract.mjs --check   exit 1 on drift (CONTRACT_DRIFT <file>)
+//   add --only <output file> (repeatable) to write or check just that file, e.g. --only reference/error-codes.mdx
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -67,9 +68,9 @@ function compatibilityPage() {
   ].join('\n');
 }
 
-// The policy's promises stay open; every other section keeps its heading (so its anchor and the
-// table of contents survive) and its first paragraph, and folds the rest into one accordion.
-const COMPATIBILITY_OPEN = new Set(['What we promise', 'What your client should do']);
+// The policy's rules table (in its intro) stays open; every section keeps its heading (so its anchor
+// and the table of contents survive) and its first paragraph, and folds the rest into one accordion.
+const COMPATIBILITY_OPEN = new Set();
 
 export function foldSections(body, open = COMPATIBILITY_OPEN) {
   const [intro, ...sections] = body.split(/^(?=## )/m);
@@ -135,6 +136,33 @@ function mdxHazards(spec) {
   return found;
 }
 const reference = referenceSpec();
+
+// The codes a client meets in a first integration, in the order it meets them, each with the one
+// line it acts on. Chosen from the hand guides' refusal tables (Errors and refusals, the Quickstart,
+// Place an order) and the endpoint refusal tables; every line restates that guide's own advice.
+const FIRST_CODES = [
+  ['AUTH_REQUIRED', 'Not authenticated. Act on `details.reason`: send a valid key, or fix the signature it names ([Authentication](/authentication)).'],
+  ['WORKSPACE_REQUIRED', 'A session, or a key bound to no workspace, sent no `X-Workspace-Id`. Send it.'],
+  ['INSUFFICIENT_SCOPE', 'Use a key that holds `details.requiredScope` ([Permissions](/authentication#permissions)).'],
+  ['INSUFFICIENT_PERMISSION', 'The key\'s owner no longer holds the permission `details.permission` names. Ask a workspace admin.'],
+  ['IP_NOT_ALLOWED', 'Call from an address on the key\'s IP allowlist, or update the allowlist.'],
+  ['STEP_UP_REQUIRED', 'Signed-in members only; API keys never get it. Complete the step-up `details.stepUpSubject` names, then retry with `stepUpProof`.'],
+  ['INVALID_REQUEST', 'Correct the request as `message` and `details` say, then send it again.'],
+  ['RATE_LIMITED', 'Wait `Retry-After` seconds, then retry ([Rate limits](/reference/rate-limits)).'],
+  ['QUOTE_NOT_FOUND', 'No quote with this id is available to you. Check the id, or request a new quote.'],
+  ['QUOTE_EXPIRED', 'Past `expiresAt`; `next` is `requote`: [requote it](/search/firmness-and-lifetime#refresh-an-expired-quote).'],
+  ['QUOTE_NOT_HELD', 'The quote is no longer held, so nothing was sent: [requote it](/search/firmness-and-lifetime#requote-a-quote).'],
+  ['MIN_RECEIVE_REQUIRED', 'The quote card\'s `minReceiveRequired` is true: set `minReceive` on the order.'],
+  ['INSUFFICIENT_BALANCE', 'Add funds or lower the amount, then place the order again.'],
+  ['IDEMPOTENCY_KEY_REQUIRED', 'Send an `Idempotency-Key` header with every `POST /api/v1/orders`.'],
+  ['IDEMPOTENCY_CONFLICT', 'The key was used for a different body. Fix your code, then [recover by quote](/trade/orders#recover-an-order-by-its-quote).'],
+  ['IDEMPOTENCY_OUTCOME_UNKNOWN', 'The first request may or may not have taken effect. Stop sending this key and read the resource back (`details.readTarget`).'],
+  ['ORDER_IN_PROGRESS', 'An order with this key is still being placed. Wait `Retry-After`, then read the order.'],
+  ['QUOTE_ALREADY_ORDERED', 'Another order already used this quote. It is not a failure: [recover it by its quote](/trade/orders#recover-an-order-by-its-quote).'],
+  ['ORDER_NOT_FOUND', 'Check the order id and the workspace.'],
+  ['SERVICE_UNAVAILABLE', 'It may not have completed. Retry a read with backoff; read a write back first ([Retries and recovery](/trade/orders#retries-and-recovery)).'],
+];
+const FIRST_CODE_TODO = new Map(FIRST_CODES);
 
 function errorCodesPage() {
   const from = path.join(source, 'integrator', 'error-codes.json');
@@ -251,8 +279,24 @@ function errorCodesPage() {
     groups.get(area).push(row);
   }
   const order = [...groups.keys()].sort((a, b) => a - b);
-  const slug = (title) => title.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().replace(/\s+/g, '-');
   const statusCell = (row) => row.status.length ? row.status.join(', ') : 'Stream event';
+  const byCode = new Map(codes.map((row) => [row.code, row]));
+  // The first table names the refusals a first integration meets (keys, quotes, orders, idempotency,
+  // rate limits, step-up). Its status comes from the contract; a listed code the contract no longer
+  // publishes refuses the page (ERROR_CODE_FIRST_UNKNOWN), so the table never names a dead code.
+  const firstCodes = (process.env.TETRAFI_FIRST_CODES ?? FIRST_CODES.map(([code]) => code).join(','))
+    .split(',').map((code) => code.trim()).filter(Boolean).map((code) => {
+      const todo = FIRST_CODE_TODO.get(code);
+      if (!todo) throw new Error(`ERROR_CODE_FIRST_UNNAMED ${code}: give it a What to do line in sync-contract.mjs FIRST_CODES`);
+      const row = byCode.get(code);
+      if (!row) throw new Error(`ERROR_CODE_FIRST_UNKNOWN ${code}: the contract does not publish it; replace it in sync-contract.mjs FIRST_CODES`);
+      return [row, todo];
+    });
+  // Each area's table sits in a closed accordion titled with the area. A docUrl (#<CODE>) still lands
+  // on its row: the browser opens the <details> that holds a fragment target, and the row's anchor
+  // keeps clear of the sticky header. The accordion's own id is its title's slug, so #<area> opens it.
+  const rowAnchor = (name) => anchor(name).replace('></span>', ' style={{ scrollMarginTop: \'10rem\' }}></span>');
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   return { page: [
     '---',
     'title: "Error codes"',
@@ -262,33 +306,45 @@ function errorCodesPage() {
     '{/* Generated by scripts/sync-contract.mjs from tetrafi-rfq docs/api/integrator/error-codes.json. Edit the source, then run npm run sync. */}',
     ...(withheldRows.length ? [`{/* Withheld by the leak rules until the API changes its text: ${withheldRows.join(', ')} */}`] : []),
     '',
-    'Find the code from the `error` field of the response (its `docUrl` links straight to the row), or open its area below. To parse the error body and retry safely, read [Errors and refusals](/trade/errors).',
+    'Find the code from the `error` field of the response: its `docUrl` links straight to its row and opens its area below. To parse the error body and retry safely, read [Errors and refusals](/trade/errors).',
     '',
     '<Note>New codes and reasons can appear at any time. Handle one you do not recognise by its HTTP status ([Codes you do not know](/trade/errors#codes-you-do-not-know)).</Note>',
     '',
+    ...(firstCodes.length ? [
+      '## Codes you will meet first',
+      '',
+      '| Code | Status | What to do |',
+      '| :--- | :--- | :--- |',
+      ...firstCodes.map(([row, todo]) => `| [\`${cell(row.code)}\`](#${row.code}) | ${statusCell(row)} | ${todo} |`),
+      '',
+    ] : []),
     '## Refusal codes',
-    '',
-    '| Area | Codes | Covers |',
-    '| :--- | :--- | :--- |',
-    ...order.map((area) => `| [${AREAS[area][0]}](#${slug(AREAS[area][0])}) | ${groups.get(area).length} | ${AREAS[area][1]} |`),
     '',
     'Act on each code\'s own **What to do** and **Retryable**, not on its status alone: codes with one status can need different steps. On an order, a timeout or `5xx` leaves the outcome unknown until you [recover the order by its quote](/trade/orders#retries-and-recovery).',
     '',
     ...order.flatMap((area) => [
-      `### ${AREAS[area][0]}`,
+      `<Accordion title="${AREAS[area][0]}">`,
+      '',
+      `${AREAS[area][1]} ${plural(groups.get(area).length, 'code')}.`,
       '',
       '| Code | Status | Meaning | What to do | Retryable |',
       '| :--- | :--- | :--- | :--- | :--- |',
-      ...groups.get(area).map((row) => `| ${anchor(row.code)}\`${cell(row.code)}\` | ${statusCell(row)} | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+      ...groups.get(area).map((row) => `| ${rowAnchor(row.code)}\`${cell(row.code)}\` | ${statusCell(row)} | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+      '',
+      '</Accordion>',
       '',
     ]),
     '## Source reasons',
     '',
     'A source reason says why one venue did not quote; the request as a whole still succeeded. Read the remedy before retrying.',
     '',
+    '<Accordion title="Every source reason">',
+    '',
     '| Reason | Meaning | What to do | Retryable |',
     '| :--- | :--- | :--- | :--- |',
-    ...sorted(contract.sourceReasons.filter(keep('reason')), 'reason').map((row) => `| ${anchor(row.reason)}\`${cell(row.reason)}\` | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+    ...sorted(contract.sourceReasons.filter(keep('reason')), 'reason').map((row) => `| ${rowAnchor(row.reason)}\`${cell(row.reason)}\` | ${cell(row.meaning)} | ${cell(row.remedy)} | ${row.retryable ? 'Yes' : 'No'} |`),
+    '',
+    '</Accordion>',
     '',
   ].join('\n'), withheld: null, hits, unexplained };
 }
@@ -577,16 +633,18 @@ function endpointMap() {
     '',
     '{/* Generated by scripts/sync-contract.mjs from tetrafi-rfq docs/api/integrator/openapi.json. Edit the source, then run npm run sync. */}',
     '',
-    `Paths are relative to the [base URL](/reference/conventions#requests); \`…\` stands for \`${WORKSPACE_PREFIX}\`. Click an endpoint for its parameters, responses and a request you can try; [Permissions](/reference/permissions) explains the scopes.`,
+    // A skimmable index: one jump row per group (its purpose said once), then one row per call. Each group
+    // heading links its intro (how the calls fit together) and the guide that walks through them.
+    `Every call, one row each, grouped like the sidebar. Paths are relative to the [base URL](/reference/conventions#requests); \`…\` stands for \`${WORKSPACE_PREFIX}\`. A call's page has its parameters, responses and a request you can try; [Permissions](/reference/permissions) explains the scopes. First trade? Start with the [Quickstart](/quickstart).`,
     '',
-    '<CardGroup cols={2}>',
-    ...groups.map(({ group, purpose, ops: list }) => `  <Card title="${group}" href="#${pageSlug(group)}">${list.length} ${list.length === 1 ? 'endpoint' : 'endpoints'}. ${purpose}</Card>`),
-    '</CardGroup>',
+    '| Group | Calls | What for |',
+    '| :--- | :--- | :--- |',
+    ...groups.map(({ group, purpose, ops: list }) => `| [${group}](#${pageSlug(group)}) | ${list.length} | ${purpose} |`),
     '',
-    ...groups.flatMap(({ group, purpose, guide, ops: list }) => [
+    ...groups.flatMap(({ group, guide, ops: list }) => [
       `## ${group}`,
       '',
-      `${purpose} Guide: [${group}](${guide}).`,
+      [...(existsSync(path.join(root, `${intro(group)}.mdx`)) ? [`[How these calls fit](/${intro(group)})`] : []), `Walkthrough: [${guideTitle(guide)}](${guide})`].join(' · '),
       '',
       '| Endpoint | Method and path | API-key scopes |',
       '| :--- | :--- | :--- |',
@@ -625,7 +683,8 @@ function assetKindsSnippet() {
   const schemas = JSON.parse(reference.spec).components?.schemas ?? {};
   // A spec without the assets entry schema publishes no asset list to describe.
   if (!schemas.AssetEntry) return null;
-  const kinds = schemas.AssetKind?.enum;
+  // An open enum is published as anyOf [{enum}, {type: string}]; read the listed values either way.
+  const kinds = schemas.AssetKind?.enum ?? schemas.AssetKind?.anyOf?.find((part) => Array.isArray(part.enum))?.enum;
   if (!Array.isArray(kinds) || !kinds.length || kinds.some((kind) => typeof kind !== 'string')) throw new Error('ASSET_KIND_ENUM_MISSING');
   const kindRef = schemas.AssetEntry?.properties?.kind;
   const refs = [kindRef?.$ref, ...(kindRef?.allOf ?? []).map((part) => part.$ref)];
@@ -669,7 +728,41 @@ function reportWithheld() {
   if (permissions.scopesNotExported) console.log('SCOPES_NOT_EXPORTED permission matrix is not yet available');
   for (const scope of permissions.missingLabels) console.log(`SCOPE_LABEL_MISSING ${scope}`);
 }
+// --only <file> (repeatable) writes or checks just the named outputs and leaves every other generated
+// file alone, so one page can be regenerated while the rest wait for a newer contract export. A name
+// that is not an output of this run (a typo, or a page withheld) refuses the run rather than doing nothing.
+export function onlyOutputs(argv, files) {
+  const named = argv.flatMap((arg, i) => (arg === '--only' ? [argv[i + 1]] : arg.startsWith('--only=') ? [arg.slice(7)] : []));
+  if (!named.length) return null;
+  const known = new Set(files);
+  const wanted = new Set();
+  for (const name of named) {
+    if (!name || name.startsWith('--')) throw new Error('SYNC_ONLY_VALUE_MISSING --only needs an output file, e.g. --only reference/error-codes.mdx');
+    const file = path.normalize(name).replace(/^\.\//, '');
+    if (!known.has(file)) throw new Error(`SYNC_ONLY_UNKNOWN_OUTPUT ${name} is not an output of this run (outputs include ${[...known].filter((f) => !f.startsWith('api-reference/')).join(', ')})`);
+    wanted.add(file);
+  }
+  return wanted;
+}
+const only = onlyOutputs(process.argv.slice(2), outputs.map(([file]) => file));
 const drift = outputs.filter(([file, content]) => !existsSync(path.join(root, file)) || readFileSync(path.join(root, file), 'utf8') !== content);
+if (only) {
+  const selected = outputs.filter(([file]) => only.has(file));
+  const unexplained = only.has(path.join('reference', 'error-codes.mdx')) ? errorCodes.unexplained ?? [] : [];
+  for (const row of unexplained) console.log(`ERROR_CODE_ROW_UNEXPLAINED ${row} (record why in samples/withheld-rows.json, or fix the API text)`);
+  if (check) {
+    const drifted = drift.filter(([file]) => only.has(file));
+    for (const [file] of drifted) console.log(`CONTRACT_DRIFT ${file}`);
+    console.log(`sync-contract --check --only: ${selected.length} files, ${drifted.length} drifted`);
+    process.exit(drifted.length || unexplained.length ? 1 : 0);
+  }
+  for (const [file, content] of selected) {
+    mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    writeFileSync(path.join(root, file), content);
+  }
+  console.log(`sync-contract --only: wrote ${selected.length} files`);
+  process.exit(unexplained.length ? 1 : 0);
+}
 if (check) {
   for (const [file] of drift) console.log(`CONTRACT_DRIFT ${file}`);
   if (staleReference) console.log('CONTRACT_DRIFT api-reference/openapi.json (present while the reference is withheld)');

@@ -16,7 +16,7 @@ Every quote says where it trades from, how it is funded and settles, and where t
 | --- | --- |
 | See what a quote trades from | `tradingSource`, `fundingModel`, `deliverTo` |
 | See what you may name | `sourceOptions` |
-| Trade from a wallet or account | `source` on `POST /api/v1/quotes` |
+| Trade from a wallet or account | `source` on [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) |
 | Send the output elsewhere | `deliverTo` on the same call |
 | Change a held quote | A [requote](/search/firmness-and-lifetime#requote-a-quote) with only those parts |
 | <span id="create-a-wallet" />[Create a wallet](/trade/create-wallet) | [`POST …/wallets`](/api-reference/wallets/create-a-wallet) |
@@ -34,7 +34,7 @@ Two quotes from one venue can trade from different sources, so read each quote's
 <AccordionGroup>
   <Accordion title="Quote fields">
 
-<ResponseField name="tradingSource" type="object">Where it executes from: `{"kind": "wallet", "financialAccountId", "network", "venueEnablementId"}` for an on-chain venue, or `{"kind": "venueAccount", "financialAccountId", "venueEnablementId"}` for an exchange or OTC account.</ResponseField>
+<ResponseField name="tradingSource" type="object">Where it executes from: `{"kind": "wallet", "financialAccountId", "network", "venueEnablementId"}` for an on-chain venue, or `{"kind": "venueAccount", "financialAccountId", "venueEnablementId"}` for an exchange or OTC account. Optional `owner`, `{kind, id}`, says whose it is: `kind` is `workspace`, `member` or `principal` (a broker's client, coming). On a quote with several legs (coming), this is the first paying leg's source; each leg names its own in `legs[].source`.</ResponseField>
 <ResponseField name="fundingModel" type="string">`prefunded` (spends money in the trading source), `credit` (the trade goes negative on a credit account; [Trade on a credit account](/trade/settlement-and-credit#trade-on-a-credit-account)) or `payIn` (you pay in after ordering, on the `payIn` terms).</ResponseField>
 <ResponseField name="fundingAccount" type="object">The account backing execution; `kind` is `wallet`, `venueAccount` or `bankAccount`. `linkId` only when money moves through that link.</ResponseField>
 <ResponseField name="settlement" type="object">`method` (`venueLedger`, `dvp` or `fop`) and `timing` (`immediate`, `byDeadline` or `delayed`).</ResponseField>
@@ -68,11 +68,11 @@ Two quotes from one venue can trade from different sources, so read each quote's
 
 <AccordionGroup>
   <Accordion title="Kinds and candidate fields">
-    Each candidate has `financialAccountId`, `kind`, `displayName` and `isDefault`.
+    Each candidate has `financialAccountId`, `kind`, `displayName`, `isDefault` and, when known, `owner` (as on `tradingSource`).
 
 | `kind` | Lists |
 | --- | --- |
-| `wallet` | Trading wallets of one `family` (`evm`, `solana` or `tron`) for `network`. |
+| `wallet` | Trading wallets of one `family` (`evm`, `solana`, `tron`, or `bitcoin`, which nothing trades yet) for `network`. The list of families can grow. |
 | `venueAccount` | The venue's account; a workspace has one per venue. |
 | `fundingAccount` | Accounts that can fund it, such as a bank account for a pay-in. |
 | `deliverTo` | Where the output can go. |
@@ -209,7 +209,7 @@ A wallet or account you may not use is refused before any venue is asked.
 
 <AccordionGroup>
   <Accordion title="next is requote with needs">
-    `next` is `{"kind": "requote", "needs": [...]}`. Each entry is a slot to fill: `wallet:evm`, `wallet:solana`, `wallet:tron`, `account`, `bankAccount` or `deliverTo`. Requote with `source` or `deliverTo` filling them, from `sourceOptions`; an empty list means requote as it is.
+    `next` is `{"kind": "requote", "needs": [...]}`. Each entry is a slot to fill: a `wallet:<family>` slot (`wallet:evm`, `wallet:solana`, `wallet:tron`), `account`, `bankAccount` or `deliverTo`; the list can grow. Requote with `source` or `deliverTo` filling them, from `sourceOptions`; an empty list means requote as it is.
   </Accordion>
   <Accordion title="A source reads needsWallet">
     No wallet of that `family` was available. Name one in `source.tradingWallets`, or set a default for the family.

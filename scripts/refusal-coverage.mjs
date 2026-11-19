@@ -5,7 +5,7 @@
 //   - tetrafi-rfq/docs/api/integrator/error-codes.json   (TETRAFI_RFQ_API_DOCS overrides docs/api)
 // A row is a table row under a "## Refusals…" or "### Refusals…" heading of any guide page (every
 // published .mdx except the generated reference pages); its codes are the backticked SCREAMING_SNAKE
-// tokens in its first cell (`400 UNKNOWN_ASSET` or 400 `UNKNOWN_ASSET`). Source reason tokens are an
+// tokens in its first cell (`400 ASSET_UNKNOWN` or 400 `ASSET_UNKNOWN`). Source reason tokens are an
 // open list on that page and are not checked here.
 //
 //   node scripts/refusal-coverage.mjs   exit 1 on REFUSAL_UNDOCUMENTED <code> or REFUSAL_UNKNOWN <code>

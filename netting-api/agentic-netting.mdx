@@ -1,21 +1,27 @@
 ---
 title: "Agentic Netting"
 description: "What an agent platform adds to the standard integration: batches from your stack, analysis mode, and payouts on any chain. Coming soon."
+tag: "Coming soon"
 ---
 
-<Note>
-  **Coming soon.** Agentic Netting opens to design partners first. Paths, field names, and schemas below are the planned shape; final versions publish at launch.
-</Note>
+import ComingSoon from '/snippets/coming-soon.mdx';
 
-Why it pays: [Agentic Netting](/netting/agentic-netting). Everything not on this page is the standard [Integration](/netting-api/integration).
+<ComingSoon />
 
-## Batches From Your Stack
+Your stack already holds the book: who used what, against which signed authorization. The agent platform integration is designed to take that book as batches, show you what would net before anything moves, and pay the residual out on the chain you choose. Everything not on this page is the standard [planned integration](/netting-api/integration); why it pays is on [Agentic Netting](/netting/agentic-netting). Paths, field names and schemas are the planned shape.
 
-* **Your stack already holds the book** - who used what, against which signed authorization.
-* **Export it as batches** to `POST /clearing/batches`, wrapping the native records - x402 payments and batch-settlement channels, payment-channel vouchers, and similar batched agent payments - without changing how they are signed.
-* **Nothing moves out of your stack** - your facilitator, wallets, signers, and custody stay where they are.
+| You will add | Planned surface |
+| --- | --- |
+| Batches from your stack | `POST /clearing/batches` |
+| A dry run first | `mode: analyze` |
+| Payouts on any chain | `POST /clearing/payout-instructions` |
 
-Only one state nets:
+<AccordionGroup>
+  <Accordion title="Batches from your stack">
+    * **Export it as batches** to `POST /clearing/batches`, wrapping the native records - x402 payments and batch-settlement channels, payment-channel vouchers, and similar batched agent payments - without changing how they are signed.
+    * **Nothing moves out of your stack** - your facilitator, wallets, signers, and custody stay where they are.
+
+    Only one state nets:
 
 | State | Nets? |
 | --- | --- |
@@ -24,11 +30,11 @@ Only one state nets:
 | Already paid | No - it reconciles, never nets twice |
 | Owed onward, as a payout | No - a payout instruction pays it |
 
-* **Cumulative vouchers count only their new delta** - a revision replaces the previous frontier, it is not a second debt.
-* **Duplicates drop by the payment's own identity** - channel and frontier, or authorization nonce - not only by your request key.
+    * **Cumulative vouchers count only their new delta** - a revision replaces the previous frontier, it is not a second debt.
+    * **Duplicates drop by the payment's own identity** - channel and frontier, or authorization nonce - not only by your request key.
+  </Accordion>
 
-## The Flow
-
+  <Accordion title="The planned flow">
 ```mermaid
 sequenceDiagram
   participant P as Your platform
@@ -45,12 +51,12 @@ sequenceDiagram
   T->>C: Pay out on your chosen asset and chain
   T-->>P: payout.settled, run statement
 ```
+  </Accordion>
 
-## Analyze Before You Execute
+  <Accordion title="Analyze before you execute">
+    You will start with `mode: analyze`: send real batches, get back what would have netted, execute nothing. The planned shape of a batch request, illustrative only, with one of two items shown:
 
-Start with `mode: analyze`: send real batches, get back what would have netted, execute nothing. An illustrative batch request, with one of two items shown:
-
-```json Batch (request)
+```json Planned batch request (illustrative, not callable yet)
 {
   "mode": "analyze",
   "circuit": { "network": "eip155:8453", "asset": "USDC" },
@@ -66,39 +72,33 @@ Start with `mode: analyze`: send real batches, get back what would have netted, 
 }
 ```
 
-For example, two opposing obligations of 100 and 80 USDC leave 20 USDC to fund after set-off. This is an explanation of the calculation, not a public API response shape. The [API overview](/overview) describes the current public API.
+    For example, two opposing obligations of 100 and 80 USDC leave 20 USDC to fund after set-off. This is an explanation of the calculation, not a public API response shape. The [API overview](/overview) describes the current public API.
 
-**From analysis to execution**, you need:
+    **From analysis to execution**, you will need:
 
-* each counterparty's **consent** to settle by set-off;
-* **eligibility** for the signed-obligation lane;
-* a **fence** so the original payment can't also be redeemed;
-* **authority to fund** the residual;
-* an agreed way to **prove a debt settled outside**.
+    * each counterparty's **consent** to settle by set-off;
+    * **eligibility** for the signed-obligation lane;
+    * a **fence** so the original payment can't also be redeemed;
+    * **authority to fund** the residual;
+    * an agreed way to **prove a debt settled outside**.
+  </Accordion>
 
-## Payouts on Any Chain
+  <Accordion title="Payouts on any chain">
+    * **Any asset, any chain** - a payout instruction sends the residual, or any funded receipt, to the asset and chain you choose over any [supported corridor](/supported-chains): `POST /clearing/payout-instructions`.
+    * **Agents stay inside their envelope** - when one of your agents calls it, every [envelope](/core-concepts/agents) check still applies: sponsor, expiry, kill switch, asset, chain, and destination limits.
 
-* **Any asset, any chain** - a payout instruction sends the residual, or any funded receipt, to the asset and chain you choose over any [supported corridor](/supported-chains): `POST /clearing/payout-instructions`.
-* **Agents stay inside their envelope** - when one of your agents calls it, every [envelope](/core-concepts/agents) check still applies: sponsor, expiry, kill switch, asset, chain, and destination limits.
+    **Key fields:** source receipts, destination asset and chain, minimum output, fee ceiling, deadline, refund address, callback.
+  </Accordion>
 
-**Key fields:** source receipts, destination asset and chain, minimum output, fee ceiling, deadline, refund address, callback.
+  <Accordion title="You stay the member">
+    * **Your platform is the counterparty of record** - your agents and end users never become nodes on the graph.
+    * **Agents are delegates** acting inside sponsored envelopes, never parties to a debt.
+    * **Money moves only along existing obligations** - net positions always come with permitted transfer legs, and importing a payment signature never creates a new counterparty.
+  </Accordion>
 
-## You Stay the Member
+  <Accordion title="No facilitator yet?">
+    TetraFi is designed to act as your x402 facilitator: standard verify and settle for every payment, and netting for payments made under a deferred scheme your payers authorized.
+  </Accordion>
+</AccordionGroup>
 
-* **Your platform is the counterparty of record** - your agents and end users never become nodes on the graph.
-* **Agents are delegates** acting inside sponsored envelopes, never parties to a debt.
-* **Money moves only along existing obligations** - net positions always come with permitted transfer legs, and importing a payment signature never creates a new counterparty.
-
-## No Facilitator Yet?
-
-Run on TetraFi as your x402 facilitator: standard verify and settle for every payment, and netting for payments made under a deferred scheme your payers authorized.
-
-<CardGroup cols={2}>
-  <Card title="Integration" icon="plug" href="/netting-api/integration">
-    The five touchpoints every member wires.
-  </Card>
-
-  <Card title="Register Interest" icon="sparkles" href="/support">
-    Join the design partners integrating first.
-  </Card>
-</CardGroup>
+Next: [Planned integration](/netting-api/integration) · [Register interest](/support) · Build today: [Quickstart](/quickstart) · [Platform status](/platform)

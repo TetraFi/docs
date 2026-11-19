@@ -9,16 +9,12 @@ import QuickstartAssets from '/snippets/samples/quickstart-assets.mdx'
 import QuickstartQuote from '/snippets/samples/quickstart-quote.mdx'
 import QuickstartOrder from '/snippets/samples/quickstart-order.mdx'
 import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
+import QuickstartTrade from '/snippets/samples/quickstart-trade.mdx'
 import TestSafelyMinimums from '/snippets/samples/test-safely-minimums.mdx'
 
-Go from a new key to a finished trade: list what you can trade, get quotes on 10 USDC to USDT from every venue your workspace can use, and **order the best one**.
+Your first trade in **5 calls**, copied in order: list assets, quote 10 USDC to USDT from every venue your workspace can use, order the best, then read its status and its trade.
 
-```mermaid
-flowchart LR
-  K[Key] --> A[Assets] --> Q[Quotes] --> O[Order] --> S[Status]
-```
-
-To quote, your workspace needs its company details on file; to order, also a funded venue account or wallet ([Before your first trade](/before-you-trade)).
+Quoting needs your company details on file; ordering, also a funded venue account or wallet ([Before your first trade](/before-you-trade)).
 
 <Accordion title="Tools and code samples">
   The cURL, Node.js and Python tabs show the API calls of one full script per language ([below](#run-the-full-script)): run it whole, since it also signs requests, checks inputs and saves the order record. cURL needs `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic); the Node.js (18 or later) and Python (3.8 or later) scripts need no third-party packages. The tab for the TypeScript SDK (not published yet; see [SDK and samples](/sdk)) quotes USDC for ETH and waits for the order to end.
@@ -26,21 +22,8 @@ To quote, your workspace needs its company details on file; to order, also a fun
 
 <Steps>
   <Step title="Get a key">
-    At `https://app.tetrafi.io`, create a personal API key with Read quotes, Submit orders, Read orders and Venue trading. Store the API Key and its signing secret apart: both are shown once.
+    At `https://app.tetrafi.io`, create a personal API key with Read quotes, Submit orders, Read orders, Read trades and Venue trading. Its API Key and signing secret are shown once.
 
-    <Accordion title="Where to click">
-      Sign in with a second factor, in a role that can request quotes and place orders ([who can turn on venue trading](/authentication#trade-on-your-venue-accounts)).
-
-      1. Open **Settings**, find **Personal API keys** under **Your account**, then select **Open API keys** and **Create key**.
-      2. Enter a **Name**, and under **Permissions** tick **Read quotes**, **Submit orders** and **Read orders**.
-      3. Switch **Venue trading** on and select **Create key**. It lets TetraFi trade on your venue accounts with this key, and turns on request signing.
-      4. Copy **API Key** and **Request-signing secret** to your secret manager, separately: both are shown once.
-
-      [Authentication](/authentication) explains each permission.
-    </Accordion>
-  </Step>
-
-  <Step title="Set your environment">
     ```bash
     export TETRAFI_BASE_URL=https://api.tetrafi.io
     export TETRAFI_API_KEY=...                           # from your secret manager
@@ -48,8 +31,19 @@ To quote, your workspace needs its company details on file; to order, also a fun
     export TETRAFI_WORKSPACE_ID=...                      # the TypeScript SDK example needs it
     ```
 
+    <Accordion title="Where to click">
+      Sign in with a second factor, in a role that can request quotes and place orders ([who can turn on venue trading](/authentication#trade-on-your-venue-accounts)).
+
+      1. Open **Settings**, find **Personal API keys** under **Your account**, then select **Open API keys** and **Create key**.
+      2. Enter a **Name**, and under **Permissions** tick **Read quotes**, **Submit orders**, **Read orders** and **Read trades**.
+      3. Switch **Venue trading** on and select **Create key**. It lets TetraFi trade on your venue accounts with this key, and turns on request signing.
+      4. Copy **API Key** and **Request-signing secret** to your secret manager, separately: both are shown once.
+
+      [Authentication](/authentication) explains each permission.
+    </Accordion>
+
     <Accordion title="The request helper">
-      cURL needs no workspace id: the key implies it. The SDK does: find it under workspace settings, **General**, **Workspace ID**.
+      cURL needs no workspace id: the key implies it, and call 5 reads it from `GET /api/v1/me`. The SDK does: find it under workspace settings, **General**, **Workspace ID**.
 
       The code below sends each request with your key, pins the API version with `TetraFi-Version` ([Versioning](/reference/conventions#versioning)) and [signs it](/authentication#sign-requests). It stops on a transport error or non-2xx status, printing the body. Requests time out after 60 seconds.
 
@@ -57,8 +51,8 @@ To quote, your workspace needs its company details on file; to order, also a fun
     </Accordion>
   </Step>
 
-  <Step title="List the assets you can trade">
-    Page through `GET /api/v1/assets`, following `nextCursor`, until both sides of your pair are listed.
+  <Step title="1. List assets">
+    Follow `nextCursor` until both sides of your pair are listed. Reference: [`GET /api/v1/assets`](/api-reference/trading/list-assets).
 
     <QuickstartAssets />
 
@@ -79,8 +73,8 @@ To quote, your workspace needs its company details on file; to order, also a fun
     ```
   </Step>
 
-  <Step title="Request quotes and pick the best">
-    `POST /api/v1/quotes` asks every venue for your pair and `sellAmount`, the exact amount you sell ([Request quotes](/search/how-it-works)). Take the first quote whose `next.kind` is `order`; if none is, read `sources` ([below](#if-something-goes-wrong)).
+  <Step title="2. Request quotes">
+    Every venue quotes your `sellAmount`. Take the first quote whose `next.kind` is `order`; if none is, read `sources` ([below](#if-something-goes-wrong)). Reference: [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes).
 
     <QuickstartQuote />
 
@@ -110,14 +104,16 @@ To quote, your workspace needs its company details on file; to order, also a fun
     ```
   </Step>
 
-  <Step title="Place the order">
-    `POST /api/v1/orders` with the quote id and an `Idempotency-Key` you generate. First save `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you ([Retries and recovery](/trade/orders#retries-and-recovery)).
+  <Step title="3. Place the order">
+    Send the quote id and a new `Idempotency-Key`, saved first ([Retries and recovery](/trade/orders#retries-and-recovery)). Reference: [`POST /api/v1/orders`](/api-reference/orders/place-order).
 
     <Warning>
     An order cannot be undone; in production it trades real assets. The cURL step orders only with `TETRAFI_PLACE_ORDER=1`. Start with the [smallest amount the venue takes](#find-the-smallest-amount-a-venue-takes).
     </Warning>
 
-    <Accordion title="If it needs minReceive">
+    <Accordion title="The saved record and minReceive">
+      Each script saves `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you, and reuses it for every retry.
+
       When `minReceiveRequired` is `true`, also send [`minReceive`](/trade/orders#minimum-receive): the quoted `buy.amount` less your slippage (`TETRAFI_SLIPPAGE_BPS`, default 50 basis points), rounded down to the asset's decimals.
     </Accordion>
 
@@ -136,13 +132,23 @@ To quote, your workspace needs its company details on file; to order, also a fun
     ```
   </Step>
 
-  <Step title="Read the status">
-    Read `statusUrl` until `terminal` is `true` (each script reads once); `outcomeUnknown` is not a failure ([Order status](/trade/order-status)). The app shows it under **Trades**.
+  <Step title="4. Read its status">
+    Read `statusUrl` until `terminal` is `true` (each script reads once); `outcomeUnknown` is not a failure ([Order status](/trade/order-status)). Reference: [`GET /api/v1/orders/{orderId}`](/api-reference/orders/get-order).
 
     <QuickstartStatus />
 
     ```json Output expandable
     {"kind":"basicTrade","status":"filled","terminal":true,"next":null,"idempotencyKey":"bef0…"}
+    ```
+  </Step>
+
+  <Step title="5. Read the trade">
+    Your [trade history](/trade/trade-history) holds it as a venue trade under its `orderId` (in the app: **Trades**); `executionStatus` says how it ended at the venue, `settlementState` where its settlement stands. Reference: [`GET …/trades/{tradeId}`](/api-reference/trades/get-trade).
+
+    <QuickstartTrade />
+
+    ```json Output expandable
+    {"tradeId":"abababab-…","kind":"venueTrade","executionStatus":"filled","outputReceived":"…","settlementState":"settled"}
     ```
   </Step>
 </Steps>
@@ -188,7 +194,7 @@ A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable order answer does not prove 
 
 ## Run the full script
 
-[cURL](https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh), [Node.js 18+](https://github.com/TetraFi/docs/blob/main/samples/node/quickstart.mjs) or [Python 3.8+](https://github.com/TetraFi/docs/blob/main/samples/python/quickstart.py): each lists assets, gets quotes and, with `TETRAFI_PLACE_ORDER=1`, orders the best one.
+[cURL](https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh), [Node.js 18+](https://github.com/TetraFi/docs/blob/main/samples/node/quickstart.mjs) or [Python 3.8+](https://github.com/TetraFi/docs/blob/main/samples/python/quickstart.py): each makes all five calls, and orders only with `TETRAFI_PLACE_ORDER=1`.
 
 <Accordion title="Other values">
   Every script reads these optional variables:

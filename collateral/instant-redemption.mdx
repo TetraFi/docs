@@ -1,47 +1,22 @@
 ---
 title: "Instant Redemption"
-description: "T+0 exits from tokenized assets and stablecoins - the vault buys the wait, the holder leaves instantly. Coming soon."
+description: "Planned: T+0 exits from tokenized assets and stablecoins - the vault buys the wait, the holder leaves instantly. Coming soon."
+tag: "Coming soon"
 ---
 
-<Note>
-  **Coming soon.** Instant Redemption is in design, not yet live. This page describes the planned product so issuers, capital providers, and market makers can evaluate it early - specifics such as parameters, contract addresses, and audits publish at launch, and unresolved economics are marked as such rather than guessed.
-</Note>
+import ComingSoon from '/snippets/coming-soon.mdx';
 
-## The Settlement-Time Gap
+<ComingSoon />
 
-A token burns in seconds; the value behind it often doesn't. Underlyings liquidate on T+1 cycles or worse - redemption windows, withdrawal queues, out-of-hours cutoffs - so "instant redemption" promises break precisely when they're tested. Today every product spanning that gap patches it privately: idle buffers, solver balance sheets, perpetual incentive spend.
+A token burns in seconds, but the value behind it often settles on T+1 cycles, queues or cutoffs, so "instant redemption" promises break when they are tested. Instant Redemption, the founding product of the [Shared Collateral Network](/collateral), is designed as a standing, market-priced bid from shared committed capital: the issuer runs **fully invested** while holders leave in seconds.
 
-Instant Redemption is the [Shared Collateral Network](/collateral)'s founding product for that gap: a standing, market-priced bid from shared committed capital, so the issuer runs **fully invested** - no buffer, no incentive spend - while holders leave in seconds. And because the bid draws on one pooled network rather than a reserve per product, it is deeper than any single buffer could be, and it stands on off days and when the primary market is closed. It is also rung one of what makes an asset collateral-grade on the network: an asset that can be exchanged now can be liquidated now, and only then can it back anything else.
+| Side | What will change |
+| --- | --- |
+| **Asset issuers** | Credible instant exits with no idle buffer and no incentive spend |
+| **Capital providers** | Yield from real redemption demand, in curated risk envelopes |
+| **Market makers & solvers** | A new book: price the wait as a revenue line |
 
-## How the Exit Works
-
-A [programmable collateral vault](/collateral/vaults) fronts the fast leg of the exit - the instant redemption, the off-hours stablecoin conversion - and recycles its capital when the slow leg completes.
-
-### An Exchange, Not a Loan
-
-Most instant-liquidity designs lend capital and hope repayment arrives. A [vault](/collateral/vaults) on the Shared Collateral Network never does: in this product its cash leaves **only inside a transaction where an obligation valued higher at oracle price arrives in exchange** - a tokenised asset already queued for redemption, an issuer redemption claim.
-
-That inversion carries the whole risk story. The vault's net asset value doesn't dip when capital deploys - one asset (cash) is swapped for another (an obligation bought at a discount). When the obligation matures at face value, the discount is realised as depositor yield. Fronting a multi-day redemption means *holding that obligation to maturity* - not trusting a borrower.
-
-### The Flow
-
-<Steps>
-  <Step title="A settlement gap appears">
-    A holder wants out of a tokenised asset mid-queue, or a stablecoin needs converting while the issuer's banking rails are shut.
-  </Step>
-
-  <Step title="An executor quotes the wait">
-    A market maker or solver prices the duration - how long until the slow leg completes - and requests a binding authorization from the vault. Every gate fires here: compliance policy, per-executor caps, duration limits, and the exit queue's seniority.
-  </Step>
-
-  <Step title="The vault exchanges, atomically">
-    In one transaction the obligation transfers into the vault and cash goes out at the authorized, oracle-bounded price. The vault itself performs the exchange - the executor only instructs it, and at no point holds vault capital.
-  </Step>
-
-  <Step title="The slow leg completes, capital recycles">
-    The issuer's redemption pays out - proceeds land in the vault at face value, the obligation retires, and the capital is immediately available for the next draw. Recycling is what makes a modest vault serve deep flow.
-  </Step>
-</Steps>
+A [vault](/collateral/vaults) will front the fast leg of the exit and recycle its capital when the slow leg completes. Its cash leaves **only inside a transaction where an obligation of greater oracle value arrives in exchange**.
 
 ```mermaid
 sequenceDiagram
@@ -61,93 +36,92 @@ sequenceDiagram
     Note over V: discount realised as yield - capital recycles
 ```
 
-### Why Zero-Collateral Is Safe Here
+<AccordionGroup>
+  <Accordion title="The settlement-time gap">
+    Underlyings liquidate on T+1 cycles or worse - redemption windows, withdrawal queues, out-of-hours cutoffs. Today every product spanning that gap patches it privately: idle buffers, solver balance sheets, perpetual incentive spend.
 
-No executor posts collateral, yet depositors are not extending unsecured credit. The protections stack:
+    Because the bid will draw on one pooled network rather than a reserve per product, it is designed to be deeper than any single buffer could be, and to stand on off days and when the primary market is closed. It is also rung one of what makes an asset collateral-grade on the network: an asset that can be exchanged now can be liquidated now, and only then can it back anything else.
+  </Accordion>
 
-1. **Obligation before liquidity.** There is no moment where cash is out and the obligation is not in - the exchange is one transaction or it doesn't happen.
-2. **The vault executes.** Executors instruct draws but never custody capital; no code path hands vault cash to an executor's address.
-3. **Oracle-bounded pricing.** Every purchase clears at or below oracle value minus a curator-set minimum discount - the vault can overpay only if the oracle itself is wrong, and concentration caps bound even that.
-4. **Withdrawals outrank draws.** Cash already promised to the exit queue can never be consumed by a new purchase.
-5. **Duration caps match exit windows.** No obligation may outlive the vault's withdrawal delay, so exiting depositors and maturing obligations never race each other.
-6. **Losses are shared instantly.** If an obligation ever impairs, the markdown hits all shares pro-rata the moment it's recognised - no first-out advantage, no reason to run.
-7. **Everyone is gated.** Curators, depositors, and executors pass KYB, sanctions, and jurisdiction checks per the vault's policy - and every draw re-checks it.
-8. **Caps and circuit breakers.** Per-executor and per-asset limits bound any single exposure; irregular settlement behaviour halts a lane automatically while existing obligations run to maturity.
+  <Accordion title="An exchange, not a loan">
+    Most instant-liquidity designs lend capital and hope repayment arrives. A vault on the network never does: in this product its cash leaves only inside a transaction where an obligation valued higher at oracle price arrives in exchange - a tokenised asset already queued for redemption, an issuer redemption claim.
 
-## Where It Goes to Work First
+    That inversion carries the whole risk story. The vault's net asset value doesn't dip when capital deploys - one asset (cash) is swapped for another (an obligation bought at a discount). When the obligation matures at face value, the discount is realised as depositor yield. Fronting a multi-day redemption means *holding that obligation to maturity* - not trusting a borrower.
+  </Accordion>
 
-### RWA Instant Redemptions
+  <Accordion title="The flow">
+    <Steps>
+      <Step title="A settlement gap appears">
+        A holder wants out of a tokenised asset mid-queue, or a stablecoin needs converting while the issuer's banking rails are shut.
+      </Step>
+      <Step title="An executor quotes the wait">
+        A market maker or solver prices the duration - how long until the slow leg completes - and requests a binding authorization from the vault. Every gate fires here: compliance policy, per-executor caps, duration limits, and the exit queue's seniority.
+      </Step>
+      <Step title="The vault exchanges, atomically">
+        In one transaction the obligation transfers into the vault and cash goes out at the authorized, oracle-bounded price. The vault itself performs the exchange - the executor only instructs it, and at no point holds vault capital.
+      </Step>
+      <Step title="The slow leg completes, capital recycles">
+        The issuer's redemption pays out - proceeds land in the vault at face value, the obligation retires, and the capital is immediately available for the next draw. Recycling is what makes a modest vault serve deep flow.
+      </Step>
+    </Steps>
+  </Accordion>
 
-The flagship lane, against [the asset set TetraFi is built for](/supported-chains). Tokenised funds and treasuries redeem on NAV cycles and cutoff windows; their holders expect exits in seconds. Curator-managed vaults stand between the two: market makers use vault capital - solely for quoting and filling redemptions through the RFQ flow - to buy the discounted asset from the exiting holder, and the vault holds it until the issuer's redemption pays face.
+  <Accordion title="Why zero-collateral is safe">
+    No executor posts collateral, yet depositors are not extending unsecured credit. The protections stack:
 
-Holders exit instantly, even mid-queue. Issuers get credible "instant redemption" without buffers or incentive programs. Market makers price the duration; depositors earn it.
+    1. **Obligation before liquidity.** There is no moment where cash is out and the obligation is not in - the exchange is one transaction or it doesn't happen.
+    2. **The vault executes.** Executors instruct draws but never custody capital; no code path hands vault cash to an executor's address.
+    3. **Oracle-bounded pricing.** Every purchase clears at or below oracle value minus a curator-set minimum discount - the vault can overpay only if the oracle itself is wrong, and concentration caps bound even that.
+    4. **Withdrawals outrank draws.** Cash already promised to the exit queue can never be consumed by a new purchase.
+    5. **Duration caps match exit windows.** No obligation may outlive the vault's withdrawal delay, so exiting depositors and maturing obligations never race each other.
+    6. **Losses are shared instantly.** If an obligation ever impairs, the markdown hits all shares pro-rata the moment it's recognised - no first-out advantage, no reason to run.
+    7. **Everyone is gated.** Curators, depositors, and executors pass KYB, sanctions, and jurisdiction checks per the vault's policy - and every draw re-checks it.
+    8. **Caps and circuit breakers.** Per-executor and per-asset limits bound any single exposure; irregular settlement behaviour halts a lane automatically while existing obligations run to maturity.
+  </Accordion>
 
-### Stablecoin Settlement Windows
+  <Accordion title="First lanes">
+    **RWA instant redemptions.** The flagship lane, against [the asset set TetraFi is built for](/supported-chains). Tokenised funds and treasuries redeem on NAV cycles and cutoff windows; their holders expect exits in seconds. Curator-managed vaults stand between the two: market makers use vault capital - solely for quoting and filling redemptions through the RFQ flow - to buy the discounted asset from the exiting holder, and the vault holds it until the issuer's redemption pays face. Holders exit instantly, even mid-queue. Issuers get credible "instant redemption" without buffers or incentive programs. Market makers price the duration; depositors earn it.
 
-Stablecoins with banked reserves inherit banking hours: mint and redemption pause overnight, over weekends, across cutoffs. A vault lane against issuer redemption claims keeps the instant path open when the primary window is shut - the same mechanism as the RWA lane, tuned to shorter, calendar-driven durations.
-
-### The Pattern
+    **Stablecoin settlement windows.** Stablecoins with banked reserves inherit banking hours: mint and redemption pause overnight, over weekends, across cutoffs. A vault lane against issuer redemption claims keeps the instant path open when the primary window is shut - the same mechanism as the RWA lane, tuned to shorter, calendar-driven durations.
 
 | Lane | The wait | The obligation the vault buys |
 | --- | --- | --- |
 | RWA redemptions | NAV cycles, queues | The tokenised asset, awaiting issuer redemption |
 | Stablecoin windows | Banking-hours cutoffs | An issuer redemption claim |
 
-Different durations, one mechanism: someone holds value that settles slowly, someone needs it settled now, and the vault is paid the spread between the two. New lanes are added as vetted obligation types, not as new protocols.
+    Different durations, one mechanism: someone holds value that settles slowly, someone needs it settled now, and the vault is paid the spread between the two. New lanes are added as vetted obligation types, not as new protocols.
+  </Accordion>
 
-## Key Facts
-
+  <Accordion title="Key facts">
 | | |
 | --- | --- |
-| **Status** | In design - register interest below |
+| **Status** | In design - register interest |
 | **Model** | Atomic obligation exchange: cash out only when an obligation of greater oracle value comes in, same transaction |
 | **Lanes** | [RWA & stablecoin](/supported-chains) instant redemptions · settlement-window coverage when primary rails are shut |
 | **Compliance** | KYB'd participants, jurisdiction filtering, policy-checked draws - configured per vault |
 | **Deployment** | Curated vaults at launch, opening to independent curators over time |
 | **First customer** | TetraFi itself - its settlement rails originate the first obligations the vaults buy |
 
-## Built for Three Sides
+    Asset issuers will integrate a redemption facility once, and gain distribution into TetraFi's institutional network with it.
+  </Accordion>
 
-|                     | What Instant Redemption changes for you                                              |
-| ------------------- | ----------------------------------------------------------------------------------- |
-| **Asset issuers**   | Integrate a redemption facility once: credible instant exits with no idle buffer and no incentive spend, and distribution into TetraFi's institutional network with it |
-| **Capital providers** | Yield sourced from real redemption demand, in curated and compliance-gated risk envelopes |
-| **Market makers & solvers** | A new book: service redemptions with vault capital, pricing the wait as a revenue line |
+  <Accordion title="Executors">
+    Market makers and solvers are this product's demand side. They spot the settlement gap, price the wait, and instruct draws - but the vault performs every exchange itself, so an executor never holds vault capital and cannot misdirect it.
 
-## Executors
+    - Participation is whitelisted and KYB'd, with per-executor caps that follow demonstrated settlement behaviour
+    - Vault capital is usable **solely to quote and fill redemptions** through the RFQ flow - not as a general trading line
+    - What executors gain is a book they couldn't run before: servicing redemptions at size without warehousing the duration on their own balance sheet
 
-Market makers and solvers are this product's demand side. They spot the settlement gap, price the wait, and instruct draws - but the vault performs every exchange itself, so an executor never holds vault capital and cannot misdirect it.
+    The vault-level roles - curators, who deploy and parameterise vaults, and depositors - are network-wide and live on [Programmable Collateral Vaults](/collateral/vaults).
+  </Accordion>
 
-* Participation is whitelisted and KYB'd, with per-executor caps that follow demonstrated settlement behaviour
-* Vault capital is usable **solely to quote and fill redemptions** through the RFQ flow - not as a general trading line
-* What executors gain is a book they couldn't run before: servicing redemptions at size without warehousing the duration on their own balance sheet
+  <Accordion title="Sibling products">
+    Two gaps this product used to describe now stand as products of their own on the same vault capital: fronting T+1 OTC and RWA settlement legs is [Instant Settlement](/collateral/instant-settlement), and destination-chain working capital for cross-chain fills is [Solver Credit](/collateral/solver-credit).
+  </Accordion>
 
-The vault-level roles - curators, who deploy and parameterise vaults, and depositors - are network-wide and live on [Programmable Collateral Vaults](/collateral/vaults).
+  <Accordion title="Not stated yet">
+    Fee splits, specific oracle providers, and idle-capital yield strategies are open design decisions - they'll be published as parameters, not promises. Specifics such as parameters, contract addresses, and audits publish at launch.
+  </Accordion>
+</AccordionGroup>
 
-## The Sibling Products
-
-Two gaps this product used to describe now stand as products of their own on the same vault capital: fronting T+1 OTC and RWA settlement legs is [Instant Settlement](/collateral/instant-settlement), and destination-chain working capital for cross-chain fills is [Solver Credit](/collateral/solver-credit).
-
-<Note>
-  **What's deliberately not stated yet:** fee splits, specific oracle providers, and idle-capital yield strategies are open design decisions - they'll be published as parameters, not promises.
-</Note>
-
-## Go Deeper
-
-<CardGroup cols={2}>
-  <Card title="Programmable Collateral Vaults" icon="vault" href="/collateral/vaults">
-    The shared primitive this product draws on - curators, depositors, compliance gating.
-  </Card>
-
-  <Card title="The Network" icon="circle-nodes" href="/collateral">
-    One capital base under all five products.
-  </Card>
-
-  <Card title="Trade Today" icon="bolt" href="/quickstart">
-    Firm escrow-backed execution is live now through the TetraFi API.
-  </Card>
-
-  <Card title="Register Interest" icon="sparkles" href="/support">
-    Issuing, providing capital, curating, or making markets? Get on the early list.
-  </Card>
-</CardGroup>
+Next: [vaults](/collateral/vaults) · [register interest](/support). Use today: [Quickstart](/quickstart) · [Basic execution](/overview) · [status](/platform).

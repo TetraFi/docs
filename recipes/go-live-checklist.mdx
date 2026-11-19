@@ -23,7 +23,8 @@ Before real assets move, check each item below; each links the page that explain
 | Watch markets with prices, never by polling quotes | [Prices](/search/prices) |
 | On a `429`, wait `Retry-After` and retry once, unless the code says otherwise | [Rate limits](/reference/rate-limits) |
 | Requote a held quote instead of searching again | [Requote](/search/firmness-and-lifetime#requote-a-quote) |
-| Tolerate fields and values you do not know | [Unknown codes](/trade/errors#codes-you-do-not-know) |
+| Tolerate fields and values you do not know | [Designed to grow](/reference/conventions#designed-to-grow) |
+| Know your key's API version (`apiVersion` on [`GET /api/v1/me`](/api-reference/auth/get-current-credential)) | [Versioning](/reference/conventions#versioning) |
 | Never sign an unknown step `type` | [What comes next](/trade/sign-with-your-own-wallet#what-comes-next) |
 | Match refusals on `error`, never `message` | [Errors](/trade/errors#codes-you-do-not-know) |
 | Parse amounts as decimals, never floats | [Conventions](/reference/conventions) |
@@ -40,13 +41,14 @@ Before real assets move, check each item below; each links the page that explain
 | `SETTLEMENT_WINDOW_CHANGED` | A credit trade's window can move before the order. |
 | Answer within 10 seconds | Verify the signature over the raw body before parsing; work afterwards. |
 | Deduplicate | Delivery is at least once and out of order; a redelivery gets a new `webhook-id`. |
-| Test delivery | `POST …/deliveries` with `{"kind":"test"}`. |
+| Test delivery | [`POST …/deliveries`](/api-reference/webhooks/send-test-delivery) with `{"kind":"test"}`. |
 | Paused endpoint | Resume, redeliver, then reconcile orders: receipts kept are capped by `deliveryRetention`. |
 | Clock and nonces | `X-Timestamp` within 300 seconds; each write, retries included, gets a new random `X-Nonce` and signature. A read has no nonce. |
 | Prices, not quotes | One live quote request per key every 3 seconds. |
 | `429` | `RATE_LIMITED` with `details.limit` `priceStreams` needs a stream closed first. |
 | Unknown values | Ignore unknown fields. Treat a value you do not know as other ([Conventions](/reference/conventions#values)); show `detail` or `message`, and keep following `terminal`. |
-| Unknown step `type` | `signing.mode`, step `type` and `next.kind` gain values; keep reading until `terminal` is `true`. |
+| Unknown step `type` | `signing.mode`, step `type`, `signer` and `next.kind` gain values; sign only a step whose `signer` is `you` and whose `type` you know, and keep reading until `terminal` is `true`. |
+| Several legs and signers | `legs`, `signing.signers`, `operation.steps` and `fills` can hold several items, linked by `legId`; a leg's `venue` can be `null`. |
 | Unknown codes | Treat an unknown code by its status class. |
 </Accordion>
 

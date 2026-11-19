@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Errors: three refusals, each read from the one error body every refusal uses.
-#   - a quote request for an asset TetraFi does not list (400 UNKNOWN_ASSET);
-#   - two quote requests at once, so one is rate limited (429 QUOTE_RATE_LIMITED), then retried;
+#   - a quote request for an asset TetraFi does not list (400 ASSET_UNKNOWN);
+#   - two quote requests at once, so one is rate limited (429 RATE_LIMITED), then retried;
 #   - a request naming a workspace other than the key's own (403 WORKSPACE_SCOPE_MISMATCH).
 #
 # Needs bash, curl, jq and openssl. Reads:
@@ -82,18 +82,18 @@ if refusal=$(tetrafi POST /api/v1/quotes \
 fi
 jq -c '{error, requestId, docUrl, next, details}' <<<"$refusal" >&2
 case $(jq -r '.error' <<<"$refusal") in
-  UNKNOWN_ASSET | UNKNOWN_CHAIN | UNKNOWN_VENUE)
+  ASSET_UNKNOWN | NETWORK_UNKNOWN | VENUE_UNKNOWN)
     echo "use values from GET /api/v1/assets: $(jq -c '.details' <<<"$refusal")" >&2 ;;
   *)
     echo "refused: $(jq -r '.message' <<<"$refusal") (requestId $(jq -r '.requestId' <<<"$refusal"))" >&2 ;;
 esac
 # endregion
-expect UNKNOWN_ASSET "$refusal"
+expect ASSET_UNKNOWN "$refusal"
 parse=$(jq -c '{error, requestId, next}' <<<"$refusal")
 
 # region errors-rate-limit
 # One live quote request every 3 seconds. Send two at once: one is answered, the other
-# answers 429 QUOTE_RATE_LIMITED with details.retryAfter (ISO 8601, such as PT3S) and the
+# answers 429 RATE_LIMITED with details.retryAfter (ISO 8601, such as PT3S) and the
 # same wait in whole seconds in the Retry-After header. Wait that long, then retry once.
 # Each signature is accepted once, so the two requests differ in amount.
 quote_body() {
@@ -107,7 +107,7 @@ wait "$second" && second_ok=true || second_ok=false
 
 if [[ $first_ok == true ]]; then limited=$(<"$tmp/second") amount=11; else limited=$(<"$tmp/first") amount=10; fi
 jq -c '{error, requestId, retryAfter: .details.retryAfter}' <<<"$limited" >&2
-if [[ $(jq -r '.error' <<<"$limited") == QUOTE_RATE_LIMITED ]]; then
+if [[ $(jq -r '.error' <<<"$limited") == RATE_LIMITED ]]; then
   # PT3S is 3 seconds; a fraction such as PT1.5S rounds up.
   wait_seconds=$(jq -r '.details.retryAfter | capture("^PT(?<s>[0-9.]+)S$").s | tonumber | ceil' <<<"$limited")
   sleep "$wait_seconds"
@@ -117,14 +117,14 @@ fi
 # endregion
 if [[ $first_ok == "$second_ok" ]]; then
   jq -c -n --argjson a "$first_ok" --argjson b "$second_ok" \
-    '{error: "UNEXPECTED_ANSWER", expected: "one answered, one QUOTE_RATE_LIMITED", firstAnswered: $a, secondAnswered: $b}' >&2
+    '{error: "UNEXPECTED_ANSWER", expected: "one answered, one RATE_LIMITED", firstAnswered: $a, secondAnswered: $b}' >&2
   exit 1
 fi
-expect QUOTE_RATE_LIMITED "$limited"
+expect RATE_LIMITED "$limited"
 retry_after=$(jq -r '.details.retryAfter' <<<"$limited")
 rate_limit=$(jq -c -n --arg r "$retry_after" --argjson s "$wait_seconds" --argjson q "$(jq '.quotes | length' <<<"$retried")" \
   --arg id "$(jq -r '.requestId' <<<"$limited")" \
-  '{error: "QUOTE_RATE_LIMITED", requestId: $id, retryAfter: $r, waitedSeconds: $s, retryQuotes: $q}')
+  '{error: "RATE_LIMITED", requestId: $id, retryAfter: $r, waitedSeconds: $s, retryQuotes: $q}')
 
 # region errors-wrong-workspace
 # An API key implies its workspace, so it never needs X-Workspace-Id; a workspace path names it.

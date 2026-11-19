@@ -13,6 +13,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
+// An open enum is published as anyOf [{enum}, {type: string}]; its listed values are the enum part's.
+const listed = (schema) => schema?.enum ?? schema?.anyOf?.find((part) => Array.isArray(part.enum))?.enum ?? [];
+
 const root = path.resolve(import.meta.dirname, '..');
 // Source outcomes come from the public spec (the `status` of QuoteSourceEntry and PriceRowStatus),
 // so an outcome is never mistaken for a reason and no outcome list is kept by hand.
@@ -24,7 +27,7 @@ export function outcomesFrom(spec) {
     const status = node.properties?.status;
     if (status) {
       if (typeof status.const === 'string') found.add(status.const);
-      for (const value of status.enum ?? []) if (typeof value === 'string') found.add(value);
+      for (const value of listed(status)) if (typeof value === 'string') found.add(value);
     }
     Object.values(node).forEach(walk);
   };
@@ -62,7 +65,7 @@ export function specReasonEnums(spec) {
   };
   for (const [name, schema] of Object.entries(spec?.components?.schemas ?? {})) {
     if (name.endsWith('Reason')) {
-      if (Array.isArray(schema?.enum)) schema.enum.forEach((value) => reasons.add(value));
+      listed(schema).forEach((value) => reasons.add(value));
       named(schema?.description);
     }
     named(schema?.properties?.reason?.description);

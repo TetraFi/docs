@@ -6,7 +6,7 @@
 /**
  * How one card is funded and settled. `fundingModel` is `credit` when the trade creates or increases a negative
  * position, and `creditPortion` says how much; `creditCheck` is the point-in-time credit decision it was derived
- * from, read at `checkedAt` and `observationAgeMs` old. A delayed trade carries `settlement.window`, the settlement
+ * from, read at `checkedAt` and `observationAgeSeconds` old. A delayed trade carries `settlement.window`, the settlement
  * window it will settle in; its `windowId` is what the order consents to.
  */
 function fundingOf(quote: Quote): Record<string, unknown> {
@@ -19,7 +19,7 @@ function fundingOf(quote: Quote): Record<string, unknown> {
     fundingModel: quote.fundingModel,
     creditPortion: quote.creditPortion ?? null,
     creditCheck: check && { decision: check.decision, available: check.available, checkedAt: check.checkedAt,
-      observationAgeMs: check.observationAgeMs, venueAccountId: check.venueAccountId },
+      observationAgeSeconds: check.observationAgeSeconds, venueAccountId: check.venueAccountId },
     settlementWindowId: window?.windowId ?? null,
     paymentDeadlineAt: window?.paymentDeadlineAt ?? null,
   };

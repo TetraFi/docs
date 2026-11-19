@@ -4,17 +4,64 @@
 | **Stop on** | `terminal`, never a status: states may be skipped ([Order status](/trade/order-status)). |
 | **Ends at** | Usually `settled`. A credit-venue trade with no recorded settlement terms ends `filled`, with `terminal` `true`. |
 
-<Accordion title="Fields to read">
+<Accordion title="After a webhook">
+A webhook tells you when to read. After an `order.updated` delivery, read the order here for its complete current state. Never put an API key in a URL.
+</Accordion>
+
+<Accordion title="Example response">
+```json From the spec expandable
+{
+  "executionMethod": "RFQ",
+  "fees": [],
+  "fills": [],
+  "kind": "basicTrade",
+  "operation": {
+    "bounds": {
+      "buy": {
+        "amount": "24975",
+        "asset": "USDC"
+      },
+      "maximumFees": [],
+      "sell": {
+        "amount": "25000",
+        "asset": "USD"
+      },
+      "sellAmount": "25000"
+    },
+    "connectionId": "44444444-4444-4444-8444-444444444444",
+    "createdAt": "2026-11-18T14:00:00Z",
+    "executionStatus": "dispatching",
+    "executionTypeId": "b2c2-rfq",
+    "initialReviewDisposition": "review_not_required",
+    "label": "Sell USD for USDC",
+    "operationId": "abababab-abab-4bab-8bab-abababababab",
+    "providerSite": "uat",
+    "requestKey": "33333333-3333-4333-8333-333333333333",
+    "settlementStatus": null,
+    "workspaceId": "11111111-1111-4111-8111-111111111111"
+  },
+  "orderId": "abababab-abab-4bab-8bab-abababababab",
+  "quoteId": "q_01JAY5EXW3MBMS1QSQJS0ZWPNQ",
+  "quotedBuyAmount": null,
+  "settledBuyAmount": null,
+  "settlesBy": null,
+  "status": "working",
+  "statusUrl": "/api/v1/orders/abababab-abab-4bab-8bab-abababababab",
+  "terminal": false,
+  "unrecordedFees": [],
+  "venueId": "b2c2",
+  "venueName": "B2C2 OTC"
+}
+```
+
 | Field | What it tells you |
 | --- | --- |
+| `kind` | `basicTrade` today. Every kind, including ones you do not know, carries `orderId`, `kind`, `status`, `terminal`, `statusUrl` and `next`. |
 | `status`, `terminal` | Where the order is, and whether it can still change ([Statuses](/trade/order-status#statuses)). |
 | `next` | What to do meanwhile, present only while there is something to do. |
 | `operation.dispatch.outcomeCode` | What the venue trade did ([What the order did](/trade/order-status#what-the-order-did)). |
-| `operation.steps` | On an order you sign from your own wallet (rolling out): every step and its transaction. |
-</Accordion>
-
-<Accordion title="After a webhook">
-A webhook tells you when to read. After an `order.updated` delivery, read the order here for its complete current state. Never put an API key in a URL.
+| `fills` | Each fill, with its `legId`, `venue` and `network` ([What the order did](/trade/order-status#what-the-order-did)). |
+| `operation.steps` | On an order you sign from your own wallet (rolling out): every step of the order, with its `signer` (`you`, `tetrafi` or `venue`), `legId`, `network` and transaction. |
 </Accordion>
 
 <Accordion title="Refusals">

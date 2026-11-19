@@ -7,7 +7,7 @@
 # window's statement says its provenance, whether each price was available, and whether the minimum
 # settlement makes it due.
 windows=$(tetrafi GET "$base/settlement/windows?limit=20")
-jq -c '.items[:3][] | {windowId, status, snapshotAt, paymentDeadlineAt, dueState}' <<<"$windows" >&2
+jq -c '.items[:3][] | {windowId, status, snapshotAt, paymentDeadlineAt, dueStatus}' <<<"$windows" >&2
 window_id=$(jq -r '.items[0].windowId // empty' <<<"$windows")
 if [[ -n $window_id ]]; then
   window=$(tetrafi GET "$base/settlement/windows/$window_id")
@@ -24,7 +24,7 @@ const windows: Array<Record<string, unknown>> = [];
 for await (const page of client.listSettlementWindowsAll(accountId, { limit: 20 })) {
   for (const window of page.items) {
     windows.push({ windowId: window.windowId, status: window.status, snapshotAt: window.snapshotAt,
-      paymentDeadlineAt: window.paymentDeadlineAt ?? null, dueState: window.dueState ?? null });
+      paymentDeadlineAt: window.paymentDeadlineAt ?? null, dueStatus: window.dueStatus ?? null });
   }
 }
 const firstWindowId = windows[0]?.windowId as string | undefined;

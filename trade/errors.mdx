@@ -46,7 +46,7 @@ Every refusal carries `error`, `message`, `retryable`, `requestId`, `timestamp`,
 <ResponseField name="docUrl" type="string" required>The code's reference entry.</ResponseField>
 <ResponseField name="retryable" type="boolean" required>Whether the same request, unchanged, may succeed later. `false` means change something first.</ResponseField>
 <ResponseField name="next" type="object">The way forward, when there is one.</ResponseField>
-<ResponseField name="details" type="object">Optional detail. Read the camelCase keys you know; more can appear. `details.value` names a refused value, `details.reason` says why, `details.retryAfter` how long to wait.</ResponseField>
+<ResponseField name="details" type="object">Optional detail. Its keys are per code and can grow: read the camelCase keys you know and ignore the rest. `details.value` names a refused value, `details.reason` says why, `details.retryAfter` how long to wait. `details.legId`, `details.stepId` and `details.venueId` name the leg, step or venue a refusal is about, so one refusal on a route over several venues (coming) says which part failed.</ResponseField>
 
   </Accordion>
   <Accordion title="Example bodies">
@@ -103,7 +103,7 @@ Act on the code of a quote for an asset TetraFi does not list:
 <ErrorsParse />
 
 ```json Output
-{"error":"UNKNOWN_ASSET","requestId":"5ee4d511-…","next":null,"details":{"value":"NOT_AN_ASSET"}}
+{"error":"ASSET_UNKNOWN","requestId":"5ee4d511-…","next":null,"details":{"value":"NOT_AN_ASSET"}}
 use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 ```
 
@@ -124,7 +124,7 @@ use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 | `order` | Order the quote as it is. |
 | `preflight` | Advanced, not open yet. Order a Basic quote. |
 
-To requote, send `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`.
+To requote, send [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) with `{"kind":"requote","requote":"<quote id>"}`.
 
   </Accordion>
 </AccordionGroup>
@@ -141,19 +141,20 @@ Codes can be added at any time: handle an unknown one by its status class ([abov
 | Status and code | When, and what to do |
 | --- | --- |
 | 401 `AUTH_REQUIRED` | Not authenticated. `details.reason`: `missingCredentials`, `invalidApiKey` (unknown or revoked), `apiKeyExpired`, or a [signing reason](/authentication#sign-requests). Act on `details.reason`; treat an unknown one as "fix the credentials". |
-| 400 `MISSING_WORKSPACE` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. Send it. |
-| 400 `INVALID_WORKSPACE_ID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is not a workspace id, or not yours. A key is bound to one workspace: it may leave `X-Workspace-Id` out, and `details` carries the key's workspace and the requested one. Use the `workspaceId` from `GET /api/v1/me`. |
+| 400 `WORKSPACE_REQUIRED` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. Send it. |
+| 400 `WORKSPACE_ID_INVALID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is not a workspace id, or not yours. A key is bound to one workspace: it may leave `X-Workspace-Id` out, and `details` carries the key's workspace and the requested one. Use the `workspaceId` from [`GET /api/v1/me`](/api-reference/auth/get-current-credential). |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. Contact support. |
 | 403 `CAPABILITY_BLOCKED`, 503 `CAPABILITY_UNAVAILABLE` | The workspace cannot do this yet, or that could not be read. `details` lists each blocker in `capabilityBlockers`: fix each ([Before your first trade](/before-you-trade#complete-your-company-details)); retry a `503` shortly. |
 | 403 `IP_NOT_ALLOWED` | Outside the key's IP allowlist. Send from an allowed address. |
 | 403 `INSUFFICIENT_SCOPE` | The key lacks this call's permission. Use a key with it ([Permissions](/authentication#permissions)). |
-| 403 `INSUFFICIENT_PERMISSION` | The key's owner no longer holds the permission. Ask a workspace admin. |
+| 403 `INSUFFICIENT_PERMISSION` | The key's owner no longer holds the permission, named in `details.permission` (or `details.anyOf` when any one of several will do). Ask a workspace admin. |
 | 403 `VENUE_TRADE_SCOPE_REQUIRED`, `VENUE_TRADE_KEY_DISABLED`, `VENUE_TRADE_SIGNATURE_REQUIRED` | A venue-account trade by a key without venue trading, with it off, or unsigned ([Trade on your venue accounts](/authentication#trade-on-your-venue-accounts)). |
 | 403 `VENUE_TRADE_KEY_CHANGED` | The key's venue trading changed mid-request. Send it again. |
 | 413 `REQUEST_BODY_TOO_LARGE`, 415 `UNSUPPORTED_CONTENT_TYPE` | The body is too large, or not `application/json`. Fix the body or header. |
 | 429 `RATE_LIMITED` | A limit is used up, or TetraFi is briefly at capacity. Wait `Retry-After` seconds; `details.retryAfter` is an ISO 8601 duration that can carry a fraction, such as `PT1.5S`. Sending sooner is refused again. |
 | 503 `API_KEY_UNAVAILABLE`, `AUTHORIZATION_UNAVAILABLE`, `KEY_AUTHORITY_UNAVAILABLE`, `VENUE_TRADE_KEY_UNAVAILABLE` | The key or workspace could not be checked. Sign again with a new timestamp and nonce, then retry. |
-| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It may not have completed. A read: retry with backoff. A write: read the resource back first (an order: [by its quote](/trade/orders#recover-an-order-by-its-quote)). Quote `requestId` if it persists. |
+| 400 `VENUE_CLIENT_ERROR` | The venue refused the order request. `details.reason` is our [source reason](/reference/error-codes) for it (`venueRefusedUnlisted` when it has none) and `details.venueCode` the venue's own code. Request a new quote, or choose another venue. |
+| 408 `REQUEST_TIMEOUT`, 500 `INTERNAL_ERROR`, 503 `SERVICE_UNAVAILABLE` | It may not have completed; `details.reason` names the part that failed, such as `storageUnavailable`. A read: retry with backoff. A write: read the resource back first (an order: [by its quote](/trade/orders#recover-an-order-by-its-quote)). Quote `requestId` if it persists. |
 | 409 `IDEMPOTENT_SECRET_ALREADY_SHOWN` | A retry with the same `Idempotency-Key` of a call that created a secret: the resource exists (`details.resourceId`), and its secret was shown once and is not stored. Use the secret from the first answer, or rotate or reissue that resource. |
 | 500 `IDEMPOTENT_ANSWER_UNAVAILABLE` | The request ran, but its answer could not be read. Read the resource before you retry; never send it again with a new `Idempotency-Key`. |
 | 409 `IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this `Idempotency-Key` may or may not have taken effect, and retrying the key can never tell. No `Retry-After`. Stop sending this key. Read the resource back (`details.readTarget` names the read), and use a new key only once that read shows nothing happened. |
