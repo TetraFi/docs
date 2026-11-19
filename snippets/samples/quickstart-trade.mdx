@@ -3,35 +3,39 @@
 <CodeGroup>
 
 ```bash cURL
-# Read the order back from your trade history (Read trades): an order's tradeId is its orderId,
-# and the path names the workspaceId GET /api/v1/me answers for your key. settlement.status says
-# how it ended: pending, settled, failed, refunded or unknown.
+# Read the order back from your trade history (Read trades). A Basic order
+# is a venue trade, filed under its orderId in your key's workspace.
+# executionStatus: how it ended at the venue. settlementState: its settlement.
 workspace=$(tetrafi GET /api/v1/me | jq -r '.workspaceId')
-trade=$(tetrafi GET "/api/v1/workspaces/$workspace/trades/$(jq -r '.orderId' <<<"$placed")")
-jq -c '{tradeId, kind, settlement: (.settlement | if . == null then null else {status, failureReason} end)}' <<<"$trade" >&2
+order_id=$(jq -r '.orderId' <<<"$placed")
+trade=$(tetrafi GET "/api/v1/workspaces/$workspace/trades/$order_id")
+jq -c '{tradeId, kind, executionStatus, outputReceived, settlementState}' \
+  <<<"$trade" >&2
 ```
 
 ```javascript Node.js
-// The same order in your trade history (Read trades): its tradeId is its orderId.
-// settlement.status: pending, settled, failed, refunded or unknown.
+// The order in your trade history (Read trades): a Basic order is a venue
+// trade, filed under its orderId. executionStatus: how it ended at the
+// venue. settlementState: its settlement.
 const { workspaceId } = await tetrafi('GET', '/api/v1/me');
 const trade = await tetrafi('GET',
   `/api/v1/workspaces/${workspaceId}/trades/${placed.orderId}`);
-const { status: settled = null, failureReason = null } = trade.settlement ?? {};
-console.error(json({ tradeId: trade.tradeId, kind: trade.kind,
-  settlement: trade.settlement ? { status: settled, failureReason } : null }));
+const shown = ['tradeId', 'kind', 'executionStatus', 'outputReceived',
+  'settlementState'];
+console.error(json(Object.fromEntries(
+  shown.map((key) => [key, trade[key] ?? null]))));
 ```
 
 ```python Python
-# The same order in your trade history (Read trades): its tradeId is its orderId.
-# settlement.status: pending, settled, failed, refunded or unknown.
+# The order in your trade history (Read trades): a Basic order is a venue
+# trade, filed under its orderId. executionStatus: how it ended at the
+# venue. settlementState: its settlement.
 workspace_id = tetrafi("GET", "/api/v1/me")["workspaceId"]
-trade = tetrafi("GET", f"/api/v1/workspaces/{workspace_id}/trades/{placed['orderId']}")
-settlement = trade.get("settlement")
-print(compact({"tradeId": trade.get("tradeId"), "kind": trade.get("kind"),
-               "settlement": None if settlement is None else {
-                   "status": settlement.get("status"),
-                   "failureReason": settlement.get("failureReason")}}), file=sys.stderr)
+path = f"/api/v1/workspaces/{workspace_id}/trades/{placed['orderId']}"
+trade = tetrafi("GET", path)
+shown = ("tradeId", "kind", "executionStatus", "outputReceived",
+         "settlementState")
+print(compact({key: trade.get(key) for key in shown}), file=sys.stderr)
 ```
 
 </CodeGroup>

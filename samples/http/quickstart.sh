@@ -287,10 +287,12 @@ jq -c --arg k "$idempotency_key" '{kind, status, terminal, next, idempotencyKey:
 # endregion
 
 # region quickstart-trade
-# Read the order back from your trade history (Read trades): an order's tradeId is its orderId,
-# and the path names the workspaceId GET /api/v1/me answers for your key. settlement.status says
-# how it ended: pending, settled, failed, refunded or unknown.
+# Read the order back from your trade history (Read trades). A Basic order
+# is a venue trade, filed under its orderId in your key's workspace.
+# executionStatus: how it ended at the venue. settlementState: its settlement.
 workspace=$(tetrafi GET /api/v1/me | jq -r '.workspaceId')
-trade=$(tetrafi GET "/api/v1/workspaces/$workspace/trades/$(jq -r '.orderId' <<<"$placed")")
-jq -c '{tradeId, kind, settlement: (.settlement | if . == null then null else {status, failureReason} end)}' <<<"$trade" >&2
+order_id=$(jq -r '.orderId' <<<"$placed")
+trade=$(tetrafi GET "/api/v1/workspaces/$workspace/trades/$order_id")
+jq -c '{tradeId, kind, executionStatus, outputReceived, settlementState}' \
+  <<<"$trade" >&2
 # endregion

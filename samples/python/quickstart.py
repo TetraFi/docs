@@ -232,15 +232,15 @@ def main():
     # endregion
 
     # region quickstart-trade
-    # The same order in your trade history (Read trades): its tradeId is its orderId.
-    # settlement.status: pending, settled, failed, refunded or unknown.
+    # The order in your trade history (Read trades): a Basic order is a venue
+    # trade, filed under its orderId. executionStatus: how it ended at the
+    # venue. settlementState: its settlement.
     workspace_id = tetrafi("GET", "/api/v1/me")["workspaceId"]
-    trade = tetrafi("GET", f"/api/v1/workspaces/{workspace_id}/trades/{placed['orderId']}")
-    settlement = trade.get("settlement")
-    print(compact({"tradeId": trade.get("tradeId"), "kind": trade.get("kind"),
-                   "settlement": None if settlement is None else {
-                       "status": settlement.get("status"),
-                       "failureReason": settlement.get("failureReason")}}), file=sys.stderr)
+    path = f"/api/v1/workspaces/{workspace_id}/trades/{placed['orderId']}"
+    trade = tetrafi("GET", path)
+    shown = ("tradeId", "kind", "executionStatus", "outputReceived",
+             "settlementState")
+    print(compact({key: trade.get(key) for key in shown}), file=sys.stderr)
     # endregion
 
 

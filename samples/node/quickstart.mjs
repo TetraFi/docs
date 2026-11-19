@@ -205,14 +205,16 @@ async function main() {
   // #endregion
 
   // #region quickstart-trade
-  // The same order in your trade history (Read trades): its tradeId is its orderId.
-  // settlement.status: pending, settled, failed, refunded or unknown.
+  // The order in your trade history (Read trades): a Basic order is a venue
+  // trade, filed under its orderId. executionStatus: how it ended at the
+  // venue. settlementState: its settlement.
   const { workspaceId } = await tetrafi('GET', '/api/v1/me');
   const trade = await tetrafi('GET',
     `/api/v1/workspaces/${workspaceId}/trades/${placed.orderId}`);
-  const { status: settled = null, failureReason = null } = trade.settlement ?? {};
-  console.error(json({ tradeId: trade.tradeId, kind: trade.kind,
-    settlement: trade.settlement ? { status: settled, failureReason } : null }));
+  const shown = ['tradeId', 'kind', 'executionStatus', 'outputReceived',
+    'settlementState'];
+  console.error(json(Object.fromEntries(
+    shown.map((key) => [key, trade[key] ?? null]))));
   // #endregion
 }
 
