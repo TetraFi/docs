@@ -1,8 +1,59 @@
 | | |
 | --- | --- |
 | **Paging** | `limit` 1 to 100 (default 20), then `cursor` from `nextCursor` ([Paging](/reference/conventions#paging)). |
-| **Read** | `success`, `httpStatus`, `errorMessage` and `redeliverAvailable` on each delivery. |
+| **Read** | `success`, `statusCode`, `errorMessage` and `redeliverAvailable` on each delivery. |
 | **Bounded** | The endpoint's `deliveryRetention` receipts, never a full history ([more](/trade/webhooks#retries-pauses-and-missed-events)). |
+
+<Accordion title="Example response">
+```json From the spec expandable
+{
+  "items": [
+    {
+      "attempt": 1,
+      "deliveredAt": "2026-11-18T14:02:00Z",
+      "eventType": "webhook.test",
+      "id": "88888888-8888-4888-8888-888888888888",
+      "statusCode": 204,
+      "success": true,
+      "test": true,
+      "webhookId": "77777777-7777-4777-8777-777777777777"
+    }
+  ],
+  "nextCursor": null,
+  "totalCount": 1
+}
+```
+
+| Field | What it tells you |
+| --- | --- |
+| `success`, `statusCode` | Whether your receiver answered `2xx`, and the status it answered. |
+| `attempt` | Attempts so far; the delivery `id` stays the same across them. |
+| `eventType`, `test` | The event it carried, and whether it was a test delivery. |
+| `redeliverAvailable` | Whether its payload is still retained to send again; a resend is checked again. |
+
+The body your receiver gets for an [`order.updated`](/reference/webhook-events#order.updated) event:
+
+```json order.updated body
+{
+  "id": "…",
+  "type": "order.updated",
+  "apiVersion": "2026-11-17",
+  "createdAt": "2026-10-30T09:12:44.000Z",
+  "data": {
+    "orderId": "…", "kind": "basicTrade", "status": "working", "terminal": false, "statusUrl": "/api/v1/orders/…",
+    "next": { "kind": "sign", "stepId": "7a41d0e5-…", "sequence": 2 }
+  }
+}
+```
+
+| Field | What it tells you |
+| --- | --- |
+| `id` | The event's id: deduplicate on it. |
+| `type`, `apiVersion` | The event, and the API version its body uses. |
+| `data.status`, `data.terminal` | The order's new status, and whether it can still change. |
+| `data.statusUrl` | Where to read the whole order. |
+| `data.next` | The order's next action, in the order's `next` shape. |
+</Accordion>
 
 <Accordion title="Refusals">
 | Status and code | Why, and what to do |

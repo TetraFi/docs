@@ -5,17 +5,6 @@
 | **Filters** | `asset`, `accountKind`, `accountId`, and `network` (an exact CAIP-2 match). |
 | **Paging** | `limit` and `cursor` until `nextCursor` is null ([Paging](/reference/conventions#paging)). |
 
-<Accordion title="Fields to read">
-| Field | What it tells you |
-| --- | --- |
-| `accountKind`, `accountId` | The wallet or venue account holding the row. |
-| `amount`, `asOf` | Everything held, in whole units, and when it was observed. |
-| `valueUsd`, `valuedAt` | US dollar value at the market-data display price (up to eight decimals), and when that price was observed. Without a price both are null, never zero. |
-| `unreachable` | Accounts this read could not state, repeated on every page. |
-
-For totals rounded to cents and daily history, read `GET …/balances:aggregate`.
-</Accordion>
-
 <Accordion title="Sort, fields and include">
 - Sort with `sort` set to `field` or `-field`, where field is `id` (the default), `accountId`, `asset`, `network`, `valueUsd` (unvalued rows last either way) or `asOf`.
 - `fields` restricts the row fields but always keeps `id`, `accountId` and `asset`.
@@ -26,6 +15,39 @@ For totals rounded to cents and daily history, read `GET …/balances:aggregate`
 - Venue accounts need View wallets in a company or broker workspace, or an admitted LP taker, as on the [account balance read](/api-reference/venue-accounts/get-account-balances).
 - Personal wallets are never listed. Accounts hidden from you change neither the rows nor the cursors.
 - A cursor is bound to the workspace, the caller, the filters, the sort and the visible rows in order. If accounts change while you page, start again without a cursor.
+</Accordion>
+
+<Accordion title="Example response">
+```json From the spec expandable
+{
+  "items": [
+    {
+      "accountId": "22222222-2222-4222-8222-222222222222",
+      "accountKind": "venueAccount",
+      "amount": "25000.00",
+      "asOf": "2026-11-18T14:00:00Z",
+      "asset": "USDC",
+      "freshness": "fresh",
+      "id": "bal_01JB05EXW3MBMS1QSQJS0ZWPNQ",
+      "network": null,
+      "valueUsd": "24998.75",
+      "valuedAt": "2026-11-18T14:00:01Z"
+    }
+  ],
+  "nextCursor": null,
+  "unreachable": []
+}
+```
+
+| Field | What it tells you |
+| --- | --- |
+| `accountKind`, `accountId` | The wallet or venue account holding the row. |
+| `amount`, `asOf` | Everything held, in whole units, and when it was observed. |
+| `freshness` | `fresh`, `stale` or `partial`: how current the recorded balance is. |
+| `valueUsd`, `valuedAt` | US dollar value at the market-data display price (up to eight decimals), and when that price was observed. Without a price both are null, never zero. |
+| `unreachable` | Accounts this read could not state, repeated on every page. |
+
+For totals rounded to cents and daily history, read `GET …/balances:aggregate`.
 </Accordion>
 
 <Accordion title="Refusals">

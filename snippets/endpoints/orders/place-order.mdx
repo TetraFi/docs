@@ -5,15 +5,6 @@
 | **minReceive** | Required when `minReceiveRequired` is `true` ([more](/trade/orders#minimum-receive)). |
 | **No answer?** | Never order again: [recover it by its quote](/trade/orders#retries-and-recovery). |
 
-<Accordion title="Fields to read">
-| Field | What it tells you |
-| --- | --- |
-| `kind` | `basicTrade` for a venue trade (`advancedTrade` is not open yet). New kinds carry the same `orderId`, `status`, `terminal`, `statusUrl` and `next`. |
-| `status`, `terminal` | `working` until the order ends. Read it until `terminal` is `true` ([Order status](/trade/order-status)). |
-| `statusUrl` | Where to read it: `GET /api/v1/orders/{orderId}`. Or subscribe to `order.updated`. |
-| `operation.dispatch.outcomeCode` | `not_sent` when nothing reached the venue; `notSentReason` says why. |
-</Accordion>
-
 <Accordion title="On-chain orders">
 A Basic trade on an on-chain venue (for example Uniswap v3, paid from an organisation wallet) answers `200` with `status: working` as soon as the order is recorded. Signing and broadcast run after the answer.
 
@@ -32,6 +23,61 @@ Send `{kind: "stream", priceId, minReceive | slippageBps}` to order a row of `GE
 1. The `priceId` is checked for your workspace and its `validFor` before anything is sent (`PRICE_ID_INVALID`, `PRICE_EXPIRED`).
 2. The venue is asked for that exact size; the order then runs like a quote order of that venue, with the same permission, order and outcome fields.
 3. Your limit is `minReceive`, or `slippageBps` below the price's receive amount (rounded up to the asset's precision). A price outside it is refused with `details.remediation` `widenLimit`, `details.currentReceive` and `details.requiredSlippageBps`.
+</Accordion>
+
+<Accordion title="Example response">
+```json From the spec expandable
+{
+  "executionMethod": "RFQ",
+  "fees": [],
+  "fills": [],
+  "kind": "basicTrade",
+  "operation": {
+    "bounds": {
+      "buy": {
+        "amount": "24975",
+        "asset": "USDC"
+      },
+      "maximumFees": [],
+      "sell": {
+        "amount": "25000",
+        "asset": "USD"
+      },
+      "sellAmount": "25000"
+    },
+    "connectionId": "44444444-4444-4444-8444-444444444444",
+    "createdAt": "2026-11-18T14:00:00Z",
+    "executionStatus": "dispatching",
+    "executionTypeId": "b2c2-rfq",
+    "initialReviewDisposition": "review_not_required",
+    "label": "Sell USD for USDC",
+    "operationId": "abababab-abab-4bab-8bab-abababababab",
+    "providerSite": "uat",
+    "requestKey": "33333333-3333-4333-8333-333333333333",
+    "settlementStatus": null,
+    "workspaceId": "11111111-1111-4111-8111-111111111111"
+  },
+  "orderId": "abababab-abab-4bab-8bab-abababababab",
+  "quoteId": "q_01JAY5EXW3MBMS1QSQJS0ZWPNQ",
+  "quotedBuyAmount": null,
+  "settledBuyAmount": null,
+  "settlesBy": null,
+  "status": "working",
+  "statusUrl": "/api/v1/orders/abababab-abab-4bab-8bab-abababababab",
+  "terminal": false,
+  "unrecordedFees": [],
+  "venueId": "b2c2",
+  "venueName": "B2C2 OTC"
+}
+```
+
+| Field | What it tells you |
+| --- | --- |
+| `kind` | `basicTrade` for a venue trade (`advancedTrade` is not open yet). New kinds carry the same `orderId`, `status`, `terminal`, `statusUrl` and `next`. |
+| `status`, `terminal` | `working` until the order ends. Read it until `terminal` is `true` ([Order status](/trade/order-status)). |
+| `statusUrl` | Where to read it: `GET /api/v1/orders/{orderId}`. Or subscribe to `order.updated`. |
+| `operation.dispatch.outcomeCode` | `not_sent` when nothing reached the venue; `notSentReason` says why. |
+| `orderId` | Keep it: every later read names the order by it, and your trade history lists it as `tradeId`. |
 </Accordion>
 
 <Accordion title="Refusals">

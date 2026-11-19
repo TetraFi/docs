@@ -4,20 +4,6 @@
 | **Idempotency-Key** | Optional: a same-body retry within 24 hours gets the first answer. |
 | **Sources** | Each venue's outcome, with its [reason](/reference/error-codes#source-reasons). |
 
-<Accordion title="Fields to read">
-The answer is a `PairQuoteSet`.
-
-| Field | What it tells you |
-| --- | --- |
-| `quotes[].next.kind` | `order`: order it now by its `id`. `fund`, `requote` or `preflight`: [not yet](/search/how-it-works#request-and-read-quotes). |
-| `quotes[].expiresAt`, `firm` | Until when, and how firmly, the price holds ([Firmness and requotes](/search/firmness-and-lifetime)). |
-| `quotes[].buy.amount`, `netReceived` | What lands after included fees; `netReceived` also subtracts fees you pay separately. |
-| `quotes[].legs[]` | One leg today: its `legId` (`leg_0`), `sell` and `buy` (`{asset, amount}`), `venue` (`null` on a leg no venue runs) and, optionally, the `source` that pays for it. Routes over several legs are coming. |
-| `quotes[].signing` | On an on-chain quote: who signs (`mode`), every signer in `signers` (`{signer, address, network, legIds}`, one today), and the `firstStep` to sign ([Sign with your own wallet](/trade/sign-with-your-own-wallet#the-step-object)). |
-| `sources[]` | Every venue considered, once: `status`, `reason` to match, `detail` to show. |
-| `quoteRequestId` | Read this answer again with `GET /api/v1/quotes/requests/{quoteRequestId}`. |
-</Accordion>
-
 <Accordion title="API keys and firm prices">
 - A key needs `quotes_write` and `orders_write`.
 - A firm quote from your venue accounts also needs `venue_trades_write` ([venue trading](/authentication#trade-on-your-venue-accounts)), the venue enabled on the key and request signing. Otherwise the quote is indicative, with `sourceRefusal: venueTradeScopeRequired`.
@@ -29,6 +15,46 @@ The answer is a `PairQuoteSet`.
 
 <Accordion title="Streaming">
 Send `Accept: text/event-stream` to get JSON-data server-sent events as venues answer: `quote` (one quote), `source` (one venue's outcome), `complete` (the whole `PairQuoteSet`) and `error`. Event ids increase, with keepalive comments between events. A stream takes no `Idempotency-Key`.
+</Accordion>
+
+<Accordion title="Example response">
+```json From the Quickstart (shortened) expandable
+{
+  "quoteRequestId": "rq_01M5…",
+  "venueAsked": true,
+  "quotes": [
+    {
+      "id": "q_01M5…",
+      "legs": [{ "venue": { "id": "binance-orderbook", "integrationMode": "basic" } }],
+      "quality": "executable",
+      "firm": false,
+      "sell": { "asset": "USDC", "network": null, "amount": "10" },
+      "buy": { "asset": "USDT", "network": null, "amount": "10.0134" },
+      "minOut": "9.9833",
+      "minReceiveRequired": true,
+      "next": { "kind": "order" },
+      "expiresAt": "2026-10-27T00:43:10.213Z"
+    }
+  ],
+  "sources": [
+    { "venue": { "id": "binance-orderbook" }, "status": "answered" },
+    { "venue": { "id": "across" }, "status": "unsupported", "reason": "pairNotServed" }
+  ]
+}
+```
+
+The answer is a `PairQuoteSet`.
+
+| Field | What it tells you |
+| --- | --- |
+| `quotes[].next.kind` | `order`: order it now by its `id`. `fund`, `requote` or `preflight`: [not yet](/search/how-it-works#request-and-read-quotes). |
+| `quotes[].expiresAt`, `firm` | Until when, and how firmly, the price holds ([Firmness and requotes](/search/firmness-and-lifetime)). |
+| `quotes[].buy.amount`, `netReceived` | What lands after included fees; `netReceived` also subtracts fees you pay separately. |
+| `quotes[].legs[]` | One leg today: its `legId` (`leg_0`), `sell` and `buy` (`{asset, amount}`), `venue` (`null` on a leg no venue runs) and, optionally, the `source` that pays for it. Routes over several legs are coming. |
+| `quotes[].signing` | On an on-chain quote: who signs (`mode`), every signer in `signers` (`{signer, address, network, legIds}`, one today), and the `firstStep` to sign ([Sign with your own wallet](/trade/sign-with-your-own-wallet#the-step-object)). |
+| `sources[]` | Every venue considered, once: `status`, `reason` to match, `detail` to show. |
+
+Read the same answer again with `GET /api/v1/quotes/requests/{quoteRequestId}`.
 </Accordion>
 
 <Accordion title="Refusals">
