@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { endpointVisibleWords, facts, stripSpecDescriptions, visibleWords, wideLines } from './page-shape.mjs';
+import { endpointVisibleWords, facts, stripSpecDescriptions, totalWords, visibleWords, wideLines } from './page-shape.mjs';
 
 test('accordion bodies, code blocks and frontmatter are not visible words; tables and titles are', () => {
   const page = ['---', 'title: "T"', '---', 'import X from "/x.mdx"', 'One two three.', '| A | B |', '| --- | --- |', '| four | five |',
@@ -85,4 +85,9 @@ test('without the spec descriptions, a fact only the description held is lost; a
   assert.equal(site({ lead, specFacts })().status, 0);
   const kept = site({ lead, snippet: '| | |\n| --- | --- |\n| **Once** | `QUOTE_ALREADY_ORDERED`. |\n', specFacts })('--without-spec-descriptions');
   assert.equal(kept.status, 0, kept.output);
+});
+
+test('total words count toggle bodies but not code', () => {
+  const page = ['---', 'title: "T"', '---', 'One two.', '<Accordion title="Three">', 'four five', '</Accordion>', '```bash', 'no code words', '```'].join('\n');
+  assert.equal(totalWords(page), 4);
 });

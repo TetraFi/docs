@@ -23,6 +23,7 @@
 //                                          ENDPOINT_OVER_BUDGET, LEAD_TOO_LONG, INTRO_OVER_BUDGET, SPEC_FACT_LOST)
 //   node scripts/page-shape.mjs --update   rewrite page-facts.json and wide-lines.json from the current tree
 //   node scripts/page-shape.mjs --without-spec-descriptions   the same check with the spec descriptions removed
+//   node scripts/page-shape.mjs --totals   also print every guide's total words, toggles included
 //   node scripts/page-shape.mjs --freeze-spec-facts           write scripts/spec-facts.json once (refuses to overwrite)
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -30,7 +31,7 @@ import { pathToFileURL } from 'node:url';
 
 const root = process.env.TETRAFI_DOCS_ROOT ?? path.resolve(import.meta.dirname, '..');
 const update = process.argv.includes('--update');
-const PAGE_BUDGET = 450;
+const PAGE_BUDGET = 350;
 const ENDPOINT_BUDGET = 110;
 const LEAD_LIMIT = 50;
 const INTRO_BUDGET = 150;
@@ -39,6 +40,14 @@ const BUDGET_EXCEPTIONS = {
   'reference/conventions': [600, 'a reference of rule tables that other pages link into, one per section'],
   'trade/sign-with-your-own-wallet': [700, 'the own-wallet contract draft, owned by the own-wallet work until it ships'],
   'recipes/own-wallet-trade': [500, 'the own-wallet walk-through, owned by the own-wallet work until it ships'],
+};
+// Guides over the budget when it dropped from 450 to 350 (2026-11-19), at their visible count then.
+// A page here may only shrink; it leaves the list when it is at or under its budget.
+const PENDING_TRIM = {
+  'search/how-it-works': 448, 'authentication': 447, 'trade/settlement-and-credit': 443, 'trade/orders': 450,
+  'search/firmness-and-lifetime': 362, 'trade/balances': 362, 'trade/wallets-and-accounts': 445, 'trade/webhooks': 443,
+  'trade/errors': 432, 'quickstart': 447, 'trade/how-a-trade-runs': 424, 'before-you-trade': 444,
+  'recipes/cross-chain-stablecoins': 359, 'recipes/go-live-checklist': 450, 'overview': 435,
 };
 const REFERENCE_PAGES = ['reference/introduction', 'reference/conventions', 'reference/rate-limits'];
 const factsFile = path.join(root, 'scripts', 'page-facts.json');
@@ -94,6 +103,11 @@ export function stripSpecDescriptions(spec) {
   return copy;
 }
 
+// Every word a reader could open, toggles included; code blocks excluded.
+export function totalWords(text) {
+  return words(body(text).replace(/```[\s\S]*?```/g, ''));
+}
+
 export function facts(text) {
   const found = new Set();
   const source = body(text);
@@ -124,8 +138,14 @@ function main() {
   const problems = [];
   for (const page of pages) {
     const [budget, reason] = BUDGET_EXCEPTIONS[page] ?? [PAGE_BUDGET];
-    const count = visibleWords(read(`${page}.mdx`));
-    if (count > budget) problems.push(`PAGE_OVER_BUDGET ${page} ${count} visible words, budget ${budget}${reason ? ` (${reason})` : ''}`);
+    const text = read(`${page}.mdx`);
+    const count = visibleWords(text);
+    const pending = PENDING_TRIM[page];
+    if (pending !== undefined) {
+      if (count > pending) problems.push(`PAGE_GREW ${page} ${count} visible words, was ${pending} (pending trim to ${budget})`);
+      else if (count <= budget) problems.push(`PENDING_TRIM_DONE ${page} ${count} visible words: remove it from PENDING_TRIM`);
+    } else if (count > budget) problems.push(`PAGE_OVER_BUDGET ${page} ${count} visible words, budget ${budget}${reason ? ` (${reason})` : ''}`);
+    if (process.argv.includes('--totals')) console.log(`TOTAL_WORDS ${page} ${totalWords(text)} (visible ${count})`);
   }
 
   // The whole site counts as "somewhere": a fact may move to any page, or into the spec.
