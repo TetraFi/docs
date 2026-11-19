@@ -1,57 +1,63 @@
 ---
 title: "Programmable Collateral Vaults"
 sidebarTitle: "Vaults"
-description: "The shared primitive under every product in the collateral network - permissioned, compliance-gated, curator-run."
+description: "Planned: the shared primitive under every product in the collateral network - permissioned, compliance-gated, curator-run. Coming soon."
+tag: "Coming soon"
 ---
 
-<Note>
-  **Coming soon.** The roles below describe the planned protocol. At launch, vaults are TetraFi-curated with a whitelisted participant set; independent curation opens after.
-</Note>
+import ComingSoon from '/snippets/coming-soon.mdx';
 
-## The Primitive
+<ComingSoon />
 
-Every product in the [Shared Collateral Network](/collateral) runs on the same kind of vault: a permissioned pool of committed capital with identifiable counterparties. What makes it programmable is the adapter - each use case reaches the capital through code that encodes what the money may do and the proof of how it comes back, verified when the draw happens. Add a product, and it arrives as a new adapter over the standing pool, never as a new pool to fund - which is the whole capital-efficiency case: one committed base earning across every use case, instead of a buffer per product earning nothing. Capital is encumbered only while a draw is live, and only to that one obligation - the rest of the pool keeps working for every other product at the same time.
+Every product in the [Shared Collateral Network](/collateral) is designed to run on the same kind of vault: a permissioned pool of committed capital with identifiable counterparties. Each use case will reach the capital through an **adapter**, code that encodes what the money may do and the proof of how it comes back, verified when the draw happens.
 
-## Curators
+| Role | What it will do |
+| --- | --- |
+| Curator | Deploys a vault and owns its risk envelope. |
+| Depositor | Supplies the vault's asset and holds vault shares. |
+| Drawer | Instructs draws; the vault moves the money itself. |
+| Another framework's vault | Joins with its own account, under its curator's mandate. |
 
-Curators deploy vaults and own their risk envelope: which products and adapters are enabled, which assets qualify, the minimum discount or yield every draw must clear, per-drawer and per-asset caps, the withdrawal delay, and the compliance policy that gates everyone else. They earn a share of the realised spread.
+At launch, vaults are planned to be TetraFi-curated with a whitelisted participant set; independent curation opens after.
 
-Curation is where vaults compete. Two curators can serve the same flow with different envelopes - one strict, single-jurisdiction, and short-duration; the other broader and higher-yielding - and depositors pick the envelope, not just the asset.
+<AccordionGroup>
+  <Accordion title="The primitive">
+    Add a product, and it arrives as a new adapter over the standing pool, never as a new pool to fund - which is the whole capital-efficiency case: one committed base earning across every use case, instead of a buffer per product earning nothing. Capital will be encumbered only while a draw is live, and only to that one obligation - the rest of the pool keeps working for every other product at the same time.
+  </Accordion>
 
-## Depositors
+  <Accordion title="Curators">
+    Curators will deploy vaults and own their risk envelope: which products and adapters are enabled, which assets qualify, the minimum discount or yield every draw must clear, per-drawer and per-asset caps, the withdrawal delay, and the compliance policy that gates everyone else. They earn a share of the realised spread.
 
-Depositors supply the vault's asset and hold vault shares against it. Yield comes from real settlement demand across every product the curator enables, not emissions - what depositors earn is what idle buffers used to cost the other side:
+    Curation is where vaults compete. Two curators can serve the same flow with different envelopes - one strict, single-jurisdiction, and short-duration; the other broader and higher-yielding - and depositors pick the envelope, not just the asset.
+  </Accordion>
 
-* **The discount spread** - obligations are bought below oracle value and mature at face
-* **Intrinsic obligation yield** - where the obligation itself accrues, priced with duration
-* **Idle-capital base yield** - potentially, as a curator-optional strategy; an open design decision, since it adds external protocol risk
+  <Accordion title="Depositors">
+    Depositors will supply the vault's asset and hold vault shares against it. Yield comes from real settlement demand across every product the curator enables, not emissions - what depositors earn is what idle buffers used to cost the other side:
 
-Exits go through a withdrawal delay - the same window that caps how long any obligation may live, so a requested exit can always be honoured from maturing obligations. If an obligation ever impairs, the loss marks all shares down pro-rata immediately: nobody wins by racing the exit.
+    - **The discount spread** - obligations are bought below oracle value and mature at face
+    - **Intrinsic obligation yield** - where the obligation itself accrues, priced with duration
+    - **Idle-capital base yield** - potentially, as a curator-optional strategy; an open design decision, since it adds external protocol risk
 
-## The Demand Side
+    Exits go through a withdrawal delay - the same window that caps how long any obligation may live, so a requested exit can always be honoured from maturing obligations. If an obligation ever impairs, the loss marks all shares down pro-rata immediately: nobody wins by racing the exit.
+  </Accordion>
 
-Each product brings its own drawers to the same capital: market makers and solvers filling [redemptions](/collateral/instant-redemption), desks and issuers being fronted a [deferred leg](/collateral/instant-settlement), PSPs executing across [venues](/collateral/venue-prefunding), solvers funding [cross-chain fills](/collateral/solver-credit). Drawers instruct draws; the vault performs every movement itself, so a drawer never custodies vault capital.
+  <Accordion title="The demand side">
+    Each product brings its own drawers to the same capital: market makers and solvers filling [redemptions](/collateral/instant-redemption), desks and issuers being fronted a [deferred leg](/collateral/instant-settlement), PSPs executing across [venues](/collateral/venue-prefunding), solvers funding [cross-chain fills](/collateral/solver-credit). Drawers instruct draws; the vault performs every movement itself, so a drawer never custodies vault capital.
+  </Accordion>
 
-## Bring Your Own Vault
+  <Accordion title="Bring your own vault">
+    Many allocators are mandated to deploy through a specific vault framework. They will still be able to join the network: a vault on another framework connects once and holds its own account inside the network, governed by its curator's mandate - which use cases it may fund, and how much of each.
 
-Many allocators are mandated to deploy through a specific vault framework. They can still join the network: a vault on another framework connects once and holds its own account inside the network, governed by its curator's mandate - which use cases it may fund, and how much of each.
+    - **Your mandate, enforced** - capital reaches only the use cases the curator allowed, never above the caps it set
+    - **Idle capital keeps working, at no extra fee** - the unused part earns in a short-term reserve and moves into a use case only at the moment a verified draw needs it
+    - **Losses stay where you chose to go** - each use case tracks every source's share of it, so a loss in one never reaches a vault that did not allow it
+    - **One network across frameworks** - several vaults, ours included, fund the same use cases side by side, so every committed dollar backs the whole network
+    - **Money never leaves your vault, if your mandate says so** - a curator can instead commit a line: the capital stays put and is pulled only for a verified draw, then returned
+  </Accordion>
 
-* **Your mandate, enforced** - capital reaches only the use cases the curator allowed, never above the caps it set
-* **Idle capital keeps working, at no extra fee** - the unused part earns in a short-term reserve and moves into a use case only at the moment a verified draw needs it
-* **Losses stay where you chose to go** - each use case tracks every source's share of it, so a loss in one never reaches a vault that did not allow it
-* **One network across frameworks** - several vaults, ours included, fund the same use cases side by side, so every committed dollar backs the whole network
-* **Money never leaves your vault, if your mandate says so** - a curator can instead commit a line: the capital stays put and is pulled only for a verified draw, then returned
+  <Accordion title="Who gates whom">
+    Every role will pass compliance checks appropriate to it - KYB, sanctions, jurisdiction - against the vault's own policy, and draws re-check standing at execution time. Compliance is configuration, per vault: the same primitive can run a tightly-scoped regulated vault and a broader one side by side. Every vault names its own regulated operator facing depositors and drawers - TetraFi stays infrastructure.
+  </Accordion>
+</AccordionGroup>
 
-## Who Gates Whom
-
-Every role passes compliance checks appropriate to it - KYB, sanctions, jurisdiction - against the vault's own policy, and draws re-check standing at execution time. Compliance is configuration, per vault: the same primitive can run a tightly-scoped regulated vault and a broader one side by side. Every vault names its own regulated operator facing depositors and drawers - TetraFi stays infrastructure.
-
-<CardGroup cols={2}>
-  <Card title="The Network" icon="circle-nodes" href="/collateral">
-    Why one shared capital base beats a buffer per product.
-  </Card>
-
-  <Card title="Register Interest" icon="sparkles" href="/support">
-    Tell us which side you're on - depositor, curator, issuer, or drawer.
-  </Card>
-</CardGroup>
+Next: [the network](/collateral) · [register interest](/support) as a depositor, curator, issuer, or drawer. Use today: [Quickstart](/quickstart) · [Basic execution](/overview) · [status](/platform).
