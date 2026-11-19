@@ -29,7 +29,8 @@ test('an endpoint page counts its lead, fits line, table and toggle titles, not 
   const snippet = ['| | |', '| --- | --- |', '| **Once** | One order per quote. |', '<Accordion title="Refusals">', 'many hidden words in the body', '</Accordion>'].join('\n');
   const lead = 'Place an order on a quote you hold.';
   assert.equal(endpointVisibleWords(stub, lead, snippet), 8 + visibleWords(stub) + 5 + 1);
-  assert.equal(visibleWords(stub), 8);
+  // The walkthrough link counts its label only: "Needs Submit orders · Walkthrough: Place an order".
+  assert.equal(visibleWords(stub), 7);
 });
 
 test('stripping the spec descriptions removes operation and API-key text only', () => {
