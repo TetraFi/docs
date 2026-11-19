@@ -352,7 +352,7 @@ function webhookEventsPage() {
     '',
     'Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) shows how to verify and handle them.',
     '',
-    '- Every event arrives in one envelope: `{id, type, apiVersion, createdAt, data}`.',
+    '- Every event arrives in one envelope: `{id, type, apiVersion, occurredAt, data}`.',
     '- Every event is signed with Standard Webhooks.',
     '- New events can appear. Answer one you do not handle with a `2xx`.',
     '',
@@ -540,8 +540,12 @@ function endpointMap() {
   const snippetPath = (op) => `snippets/endpoints/${pageSlug(op.tag)}/${pageSlug(endpointName(op.method, op.route))}.mdx`;
   const needs = (op) => {
     const { scopes, permissions: labels } = permissions.access(op);
+    // "None" means no extra permission, never no credential: the call still needs a valid key or token.
+    if (labels === 'None') return 'Any valid API key or token';
     if (labels !== 'Not applicable') return `Needs ${labels.replace(/<br \/>/g, ' and ')}`;
-    return scopes === 'Session only' ? 'Signed-in members only' : 'No API key needed';
+    if (scopes === 'Session only') return 'Signed-in members only';
+    // The token exchange authenticates with the service account's own credentials in the body.
+    return op.route === '/api/v1/oauth/token' ? "Your service account's client id and secret" : 'No API key needed';
   };
   const stubs = ops.map((op) => {
     const key = `${op.method} ${op.route}`;

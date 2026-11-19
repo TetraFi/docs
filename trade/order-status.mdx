@@ -56,11 +56,11 @@ flowchart LR
   W --> O[outcomeUnknown] -->|reconciled| T[its real outcome]
 ```
 
-Most orders take the top path; an order can skip statuses. Treat a value you do not know as other ([Conventions](/reference/conventions#values)); keep following `terminal`.
+The top row is an order that fills and settles; an order can skip statuses, and `terminal` always decides. Treat a value you do not know as other ([Conventions](/reference/conventions#values)); keep following `terminal`.
 
 | Not final | Final |
 | --- | --- |
-| `pending`, `working`, `filled`, `reviewRequired`, `outcomeUnknown` | `settled`, `unfilled`, `cancelled`, `failed`, `refunded`, `refused` |
+| `pending`, `working`, `filled`, `reviewRequired`, `outcomeUnknown` | `settled`, `unfilled`, `cancelled`, `failed`, `refunded`, `refused`, and `filled` when `terminal` is `true` |
 
 <Accordion title="Every other transition">
 
@@ -85,7 +85,7 @@ Most orders take the top path; an order can skip statuses. Treat a value you do 
 | --- | --- |
 | `pending` | Not final. Accepted; nothing sent to a venue yet. Keep reading. |
 | `working` | Not final. Sent to the venue and executing, including an on-chain trade waiting to confirm. Keep reading. |
-| `filled` | Not final. Executed; settlement or delivery is still to complete. Keep reading until it is final. |
+| `filled` | Executed. Usually not final: settlement or delivery is still to complete, so keep reading. A trade on a credit venue with no recorded settlement terms ends here, with `terminal` `true`. |
 | `reviewRequired` | Not final. A person must review it, such as for a compliance hold. Keep reading. |
 | `outcomeUnknown` | Not final. TetraFi lost track of the outcome and is reconciling it. The trade may have filled. Keep reading. Never order again. |
 | `settled` | Final. Executed and settled, or there was nothing to settle. Nothing to do. |

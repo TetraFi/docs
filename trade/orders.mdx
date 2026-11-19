@@ -256,7 +256,8 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 | 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. Lower `minReceive` or get a new price. |
 | 409 `FUNDING_SHORTFALL` | The venue account holds less than the trade needs. `next` is `fund`: fund the account, then get a new price. |
 | 409 `PILOT_TRADE_CAP_EXCEEDED` | Above the venue's Pilot per-trade cap. Get a price for a smaller amount. |
-| 400, 409, 503 `IDEMPOTENCY_*`, `ORDER_IN_PROGRESS` | The `Idempotency-Key` is missing, malformed, reused, or its order is still being placed ([Retries and recovery](#retries-and-recovery)). |
+| 400, 409, 503 `IDEMPOTENCY_*` | The `Idempotency-Key` is missing, malformed or reused, or its record could not be checked ([Retries and recovery](#retries-and-recovery)). `409 IDEMPOTENCY_OUTCOME_UNKNOWN` may have been sent: recover by the quote. |
+| 409 `ORDER_IN_PROGRESS` | May have been sent: it is still being placed. Wait `Retry-After`, then read the order. |
 | 410 `QUOTE_EXPIRED` | Past `expiresAt`. `next` is `requote`: [requote it](/search/firmness-and-lifetime#refresh-an-expired-quote). |
 | 410 `REQUOTE_WINDOW_CLOSED` | Past `retainUntil`. `next` is `search`: search again. |
 | 503 `QUOTE_STORE_UNAVAILABLE`, `VENUE_TEMPORARILY_REFUSED` | Held quotes cannot be read just now, or the venue briefly refused. Send the same request with the same key shortly. |

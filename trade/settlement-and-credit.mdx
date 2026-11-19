@@ -28,10 +28,14 @@ flowchart LR
   T[Trades] -->|join| W[Settlement window]
   W -->|statement nets into| O[Obligations]
   M[Movements] -->|matched to| O
-  O -->|all met| S[Window settled]
+  O -->|met or carried| S[Window settled]
 ```
 
-Each trade joins the account's open **window**. The window's statement nets its trades into **obligations**: what each side owes, by a deadline. Deposits and withdrawals (**movements**) are matched to them; what is left can carry into a later window.
+Each trade joins the account's open **window**. When its snapshot is `ready`, its statement nets them into **obligations**: what each side owes, by when. Deposits and withdrawals (**movements**) are matched to them; what is left can carry into a later window.
+
+<Accordion title="Other paths">
+  This is a window that settles by the clock (`settlesBy`). With `onAgreement`, the LP issues the statement and the window settles once it is agreed, with no clock time. A pay-in trade creates its obligation directly (`payInTrade`), and a carried amount adds a `carryFee` obligation.
+</Accordion>
 
 <AccordionGroup>
   <Accordion title="What each read needs">
@@ -272,15 +276,15 @@ Payloads carry ids, not statements: read the detail ([delivery rules](/trade/web
 <Accordion title="Events">
   A key subscribing to a `settlement.*` event needs Read settlements, and to `credit.updated` needs Treasury read; otherwise it gets `403 INSUFFICIENT_SCOPE`.
 
-| Event and `data.status` | Then read |
+| Event and `data.status` (`data.change` for credit) | Then read |
 | --- | --- |
-| [`settlement.window.ready`](/reference/webhook-events#settlement.window.ready): `ready` | The window, with its statement (`statementVersion`). |
+| [`settlement.window.ready`](/reference/webhook-events#settlement.window.ready): `ready` | The window, with its statement (`statementVersion`, an integer). |
 | [`settlement.obligation.due`](/reference/webhook-events#settlement.obligation.due): `dueSoon` or `payableNow` | The obligation (`obligationId`). |
 | [`settlement.obligation.overdue`](/reference/webhook-events#settlement.obligation.overdue): `overdue` | The obligation, then tell the member who pays. |
 | [`settlement.payment.matched`](/reference/webhook-events#settlement.payment.matched): `paymentReceived`, `deliveryReceived` or `reversed` | The movement (`movementId`) and the window's matches. |
-| [`credit.updated`](/reference/webhook-events#credit.updated): `agreedTermsChanged` or `lpReportedLimitChanged` | The account's credit (`termsVersion` is the new terms version). |
+| [`credit.updated`](/reference/webhook-events#credit.updated): `agreedTermsChanged` or `lpReportedLimitChanged` | The account's credit (`termsVersion` is the new terms version, an integer). |
 
-  Every settlement event's `data` carries `workspaceId`, `venueAccountId`, `windowId` and `status`, plus the ids above when they apply. `credit.updated` carries `workspaceId`, `venueAccountId`, `termsVersion` and `status`. New `status` values may appear: treat a value you do not know as other ([Conventions](/reference/conventions#values)).
+  Every settlement event's `data` carries `workspaceId`, `venueAccountId`, `windowId` and `status`, plus the ids above when they apply. `credit.updated` carries `workspaceId`, `venueAccountId`, `termsVersion` and `change`. New `status` and `change` values may appear: treat a value you do not know as other ([Conventions](/reference/conventions#values)).
 </Accordion>
 
 ## Refusals
