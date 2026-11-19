@@ -116,7 +116,7 @@ jq -e 'has("items") and has("unreachable")' <<<"$history" >/dev/null || fail DEP
 if foreign=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-enablements?cursor=not-issued-by-this-list" 2>/dev/null); then
   fail FOREIGN_CURSOR_READ
 fi
-[[ $(jq -r '.error // empty' <<<"$foreign") == INVALID_CURSOR ]] || fail FOREIGN_CURSOR_REFUSAL
+[[ $(jq -r '.error // empty' <<<"$foreign") == CURSOR_INVALID ]] || fail FOREIGN_CURSOR_REFUSAL
 # An account id this workspace doesn't hold is refused by name, never read as an empty account.
 if unknown=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/00000000-0000-4000-8000-000000000000/balances" 2>/dev/null); then
   fail UNKNOWN_ACCOUNT_READ
@@ -124,5 +124,5 @@ fi
 [[ $(jq -r '.error // empty' <<<"$unknown") == VENUE_ACCOUNT_NOT_FOUND ]] || fail UNKNOWN_ACCOUNT_REFUSAL
 
 jq -cn --argjson b "$balances" --argjson h "$history" '{status: $b.status,
-  assets: (($b.balances // []) | length), unknownAccount: "VENUE_ACCOUNT_NOT_FOUND", foreignCursor: "INVALID_CURSOR",
+  assets: (($b.balances // []) | length), unknownAccount: "VENUE_ACCOUNT_NOT_FOUND", foreignCursor: "CURSOR_INVALID",
   depositHistory: (if ($h.unreachable | length) > 0 then "unavailable" else ($h.items | length) end)}'

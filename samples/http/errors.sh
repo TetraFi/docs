@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Errors: three refusals, each read from the one error body every refusal uses.
-#   - a quote request for an asset TetraFi does not list (400 UNKNOWN_ASSET);
+#   - a quote request for an asset TetraFi does not list (400 ASSET_UNKNOWN);
 #   - two quote requests at once, so one is rate limited (429 QUOTE_RATE_LIMITED), then retried;
 #   - a request naming a workspace other than the key's own (403 WORKSPACE_SCOPE_MISMATCH).
 #
@@ -82,13 +82,13 @@ if refusal=$(tetrafi POST /api/v1/quotes \
 fi
 jq -c '{error, requestId, docUrl, next, details}' <<<"$refusal" >&2
 case $(jq -r '.error' <<<"$refusal") in
-  UNKNOWN_ASSET | UNKNOWN_CHAIN | UNKNOWN_VENUE)
+  ASSET_UNKNOWN | NETWORK_UNKNOWN | VENUE_UNKNOWN)
     echo "use values from GET /api/v1/assets: $(jq -c '.details' <<<"$refusal")" >&2 ;;
   *)
     echo "refused: $(jq -r '.message' <<<"$refusal") (requestId $(jq -r '.requestId' <<<"$refusal"))" >&2 ;;
 esac
 # endregion
-expect UNKNOWN_ASSET "$refusal"
+expect ASSET_UNKNOWN "$refusal"
 parse=$(jq -c '{error, requestId, next}' <<<"$refusal")
 
 # region errors-rate-limit

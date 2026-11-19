@@ -83,7 +83,7 @@ No settlement read creates a transfer, reservation, approval or instruction to t
 
     `nextTransitionAt` is the earliest time the clock alone changes the plan, such as a deadline passing: read it again then instead of polling.
 
-    A source that could not be read is listed in `failedReads`, with `complete: false`: the plan is partial, not "nothing due". An account whose settlement facts are not ready yet is its own entry, such as `SETTLEMENT_PROJECTION_PENDING` or `SETTLEMENT_PROJECTION_LAGGING` (the last good facts, a little behind); read again shortly.
+    A source that could not be read is listed in `failedReads`, with `complete: false`: the plan is partial, not "nothing due". An account whose settlement facts are not ready yet is its own entry, such as `SETTLEMENT_FACTS_PENDING` or `SETTLEMENT_FACTS_LAGGING` (the last good facts, a little behind); read again shortly.
   </Accordion>
   <Accordion title="One trade's settlement">
     - `GET …/trades/{tradeId}/settlement`: your side of the trade, with its lifecycle stages, transactions and the LP's response.
@@ -296,7 +296,7 @@ Payloads carry ids, not statements: read the detail ([delivery rules](/trade/web
 | --- | --- |
 | `403 INSUFFICIENT_SCOPE` | The key lacks the scope the message names: `settlements_read` (Read settlements) or `treasury_read` (Treasury read). Use a key that holds it. |
 | `403 JWT_REQUIRED` | A settlement action was called with a key. A [signed-in member](#settlement-actions-are-for-members) does it in the app. |
-| `403 INSUFFICIENT_WORKSPACE_PERMISSION` | The key's owner lacks the [workspace permission](/authentication#permissions). Ask a workspace admin. |
+| `403 INSUFFICIENT_PERMISSION` | The key's owner lacks the [workspace permission](/authentication#permissions). Ask a workspace admin. |
 | `403 LEDGER_ACCOUNT_FORBIDDEN` | The same, on `…/ledger`. |
 | `404 VENUE_ACCOUNT_NOT_FOUND` | No venue account with that id. |
 | `404 WORKSPACE_NOT_FOUND` | The path's workspace is not your key's. |

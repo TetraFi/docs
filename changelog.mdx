@@ -5,6 +5,14 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-19" description="Error codes: one form, one permission code, camelCase reasons">
+  - **Breaking.** Codes end in what is wrong: `INVALID_AMOUNT` is `AMOUNT_INVALID`, `INVALID_CURSOR` is `CURSOR_INVALID`, `INVALID_LIMIT` is `LIMIT_INVALID`, `INVALID_WORKSPACE_ID` is `WORKSPACE_ID_INVALID`, `UNKNOWN_ASSET` is `ASSET_UNKNOWN`, `UNKNOWN_VENUE` is `VENUE_UNKNOWN`, `UNKNOWN_CHAIN` is `NETWORK_UNKNOWN`, and `MISSING_WORKSPACE` is `WORKSPACE_REQUIRED`.
+  - **Breaking.** `VALIDATION_ERROR` is gone: a malformed request is `400 INVALID_REQUEST`, with `details.field` naming the input.
+  - **Breaking.** A missing permission is always `403 INSUFFICIENT_PERMISSION`, naming it in `details.permission` (or `details.anyOf`). `ACCESS_FORBIDDEN` and `INSUFFICIENT_WORKSPACE_PERMISSION` are gone; `INSUFFICIENT_SCOPE` is unchanged.
+  - **Breaking.** Every `details.reason` is camelCase, the signing reasons included. A venue's refusal of an order is `400 VENUE_CLIENT_ERROR`, with our reason in `details.reason` and the venue's own code in `details.venueCode`.
+  - **Breaking.** Faults inside TetraFi are `500 INTERNAL_ERROR` or `503 SERVICE_UNAVAILABLE`, with the failed part in `details.reason`. `LEDGER_JOURNAL_UNAVAILABLE` is `LEDGER_READ_UNAVAILABLE`, and the settlement plan's `SETTLEMENT_PROJECTION_*` read entries are `SETTLEMENT_FACTS_*`.
+</Update>
+
 <Update label="2026-11-19" description="Designed to grow: legs, steps and signers by id; signing with your own wallet and ordering a price row (all rolling out)">
   - Rolling out over the next releases: the shapes below name legs, steps and signers, so routes over several venues, steps signed by different parties, non-EVM signing and broker trading (all coming, not live) arrive later as additions only. What your client should tolerate: [Designed to grow](/reference/conventions#designed-to-grow).
   - Quote legs: each item of `legs[]` has a `legId` (`leg_0` on a one-leg quote), its own `sell` and `buy` (`{asset, amount}`) and an optional paying `source`. **Breaking.** `legs[].venue` can be `null`, on a leg no venue runs: read it as optional.

@@ -26,9 +26,9 @@ function run(codes, { generated = rows, documented = page } = {}) {
 }
 
 test('the guides have refusal rows to compare', () => {
-  for (const code of ['MISSING_WORKSPACE', 'AUTH_REQUIRED', 'RATE_LIMITED', 'IP_NOT_ALLOWED']) assert.ok(rows.includes(code), code);
+  for (const code of ['WORKSPACE_REQUIRED', 'AUTH_REQUIRED', 'RATE_LIMITED', 'IP_NOT_ALLOWED']) assert.ok(rows.includes(code), code);
   const site = documentedSiteCodes(path.join(import.meta.dirname, '..'));
-  for (const code of ['UNKNOWN_ASSET', 'QUOTE_RATE_LIMITED', 'QUOTE_ALREADY_ORDERED', 'MISSING_WORKSPACE']) assert.ok(site.has(code), code);
+  for (const code of ['ASSET_UNKNOWN', 'QUOTE_RATE_LIMITED', 'QUOTE_ALREADY_ORDERED', 'WORKSPACE_REQUIRED']) assert.ok(site.has(code), code);
 });
 
 test('a refusal table on any guide page is checked', () => {
@@ -80,7 +80,7 @@ test('a missing or withheld reference fails closed and still reports unknown han
 });
 
 test('source reasons and prose never count as generated refusal codes', () => {
-  assert.deepEqual([...generatedCodes(`${generatedPage(['UNKNOWN_ASSET'])}\nMention \`PROSE_ONLY_CODE\`.`)], ['UNKNOWN_ASSET']);
+  assert.deepEqual([...generatedCodes(`${generatedPage(['ASSET_UNKNOWN'])}\nMention \`PROSE_ONLY_CODE\`.`)], ['ASSET_UNKNOWN']);
   assert.throws(() => generatedCodes('no table'), /REFUSAL_TABLES_MISSING/);
 });
 
@@ -107,7 +107,7 @@ test('a file with no readable codes is refused, never read as empty', () => {
 });
 
 test('accepted shapes', () => {
-  const want = ['QUOTE_EXPIRED', 'UNKNOWN_ASSET'];
+  const want = ['QUOTE_EXPIRED', 'ASSET_UNKNOWN'];
   for (const shape of [want, want.map((code) => ({ code })), { codes: want }, { errors: Object.fromEntries(want.map((c) => [c, {}])) }])
     assert.deepEqual([...declaredCodes(shape)].sort(), want, JSON.stringify(shape));
 });
