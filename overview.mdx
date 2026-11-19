@@ -4,7 +4,7 @@ description: "Get quotes from every venue your workspace can use with one reques
 keywords: ["introduction", "what is TetraFi", "API", "REST API", "integration"]
 ---
 
-Your backend gets quotes, places orders and follows them to the end, as your team does in the app.
+Your backend gets quotes, places orders and follows them to the end, as your team does in the app. **One request asks every venue your workspace can use**; quotes come back best first, net of fees, and you order the one you choose by its id.
 
 ## At a glance
 
@@ -28,8 +28,26 @@ Your backend gets quotes, places orders and follows them to the end, as your tea
 | Understand a refusal | [Errors](/trade/errors) |
 | Go to production | [Go-live checklist](/recipes/go-live-checklist) |
 
-## What you can do
 
+
+## How a trade works
+
+Name the asset you sell, the asset you buy and one exact amount. Every venue is asked at once: on-chain protocols, DEXs, bridges, solvers and your exchange and OTC accounts. Each venue's outcome comes back too, so a missing quote always has a reason.
+
+| Step | Call, and what happens |
+| --- | --- |
+| Quote | `POST /api/v1/quotes`: each quote is held under its `id` until it expires. |
+| Order | `POST /api/v1/orders` with `{"quoteId": "<id>"}`: you send the id, never a copy of the quote. |
+| Follow | Read the order's `statusUrl`, or take a [webhook](/trade/webhooks), until `terminal` is `true`. |
+| Requote | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<id>"}` asks the same venue for fresh terms. |
+
+Each quote's `next.kind` names your next step: `order`, `fund` (the paying account is short) or `requote`. A trade runs one of five ways, and the quote says which ([How a trade runs](/trade/how-a-trade-runs)).
+
+<AccordionGroup>
+  <Accordion title="Basic and Advanced">
+    Every quote you can order today is **Basic**: TetraFi executes directly at the venue, through its own API or smart contracts, and the order answers `"kind": "basicTrade"` (`legs[].venue.integrationMode` says which a quote is). Advanced execution, through TetraFi's router and escrow, is not open yet ([Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts)).
+  </Accordion>
+  <Accordion title="Calls by task">
 <CardGroup cols={2}>
   <Card title="Get quotes" icon="magnifying-glass-dollar" href="/search/how-it-works">
     `POST /api/v1/quotes`<br />
@@ -75,20 +93,5 @@ Your backend gets quotes, places orders and follows them to the end, as your tea
     All operations by task, with their scopes.
   </Card>
 </CardGroup>
-
-A trade runs one of five ways, and each quote says which ([How a trade is funded, signed and settled](/trade/how-a-trade-runs)).
-
-## How a trade works
-
-One quote request names the asset you sell, the asset you buy and one exact amount. Every venue your workspace can use is asked at once (on-chain protocols, DEXs, bridges, solvers and your exchange and OTC accounts); quotes come back best first, net of fees, with each venue's outcome, so a missing quote always has a reason.
-
-| Step | Call, and what happens |
-| --- | --- |
-| Quote | `POST /api/v1/quotes`: venues answer; each quote is held under its `id` until it expires. |
-| Order | `POST /api/v1/orders` with `{"quoteId": "<id>"}` places the order on the held terms. You send the id, never a copy of the quote. |
-| Follow | `GET` the order's `statusUrl`, or receive a [webhook](/trade/webhooks), until `terminal` is `true`. |
-| Requote | `POST /api/v1/quotes` with `{"kind":"requote","requote":"<id>"}` asks the same venue again for fresh terms. |
-
-Each quote's `next.kind` names your next step: `order`, `fund` (the paying account is short) or `requote`.
-
-Every quote you can order today is **Basic**: TetraFi executes directly at the venue, through its own API or smart contracts, and the order answers `"kind": "basicTrade"` (`legs[].venue.integrationMode` says which a quote is). Advanced execution, through TetraFi's router and escrow, is not open yet ([Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts)).
+  </Accordion>
+</AccordionGroup>
