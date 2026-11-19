@@ -5,7 +5,7 @@ description: "Every trade runs through the same quote, order and follow calls. E
 keywords: ["funding model", "prefunded", "credit", "pay-in", "DvP", "settlement method"]
 ---
 
-Every trade runs quote, order, follow. Each quote states where the money comes from, who signs and when it settles, so you never choose them.
+Every trade runs quote, order, follow. **Each quote states where the money comes from, who signs and when it settles**: you read them, never choose them.
 
 ## At a glance
 
@@ -14,35 +14,41 @@ Every trade runs quote, order, follow. Each quote states where the money comes f
 | Where it trades from | `tradingSource`: an exchange or OTC account, or a wallet |
 | How it is funded | `fundingModel`: `prefunded`, `credit` or `payIn` |
 | How and when it settles | `settlement.method` and `settlement.timing` |
-| Who signs, on an on-chain venue | `signing.mode`, rolling out: `tetrafi` or `you`. Today TetraFi signs. |
+| Who signs, on-chain | `signing.mode`, rolling out: `tetrafi` or `you`. Today TetraFi signs. |
 | What to do next | `next.kind`: `order` when it can be ordered |
 
 <Steps>
   <Step title="Quote">
-    `POST /api/v1/quotes` with what you sell, what you buy and one amount. `source` is optional: without it, each venue quotes from your [defaults](/trade/wallets-and-accounts).
+    Send what you sell, what you buy and one amount ([Request quotes](/api-reference/quotes/request-quotes)). Without `source`, each venue quotes from your [defaults](/trade/wallets-and-accounts).
   </Step>
   <Step title="Pick a quote">
-    Read how it runs from the fields above. The quote fixes its source; to change it, [requote](/search/firmness-and-lifetime#requote-a-quote).
+    To change its source, [requote](/search/firmness-and-lifetime#requote-a-quote).
   </Step>
   <Step title="Order">
-    `POST /api/v1/orders` with `quoteId`, an `Idempotency-Key`, and whatever that quote asks for (below). Lost the answer? [Recover it by quote](/trade/orders#retries-and-recovery), never with a new key.
+    Send `quoteId`, an `Idempotency-Key` and what the quote asks for (below). Lost the answer? [Recover it](/trade/orders#retries-and-recovery).
   </Step>
   <Step title="Follow">
-    Read `GET /api/v1/orders/{orderId}`, or receive [webhooks](/trade/webhooks), until `terminal` is `true` ([Order status](/trade/order-status)).
+    Read the order, or take [webhooks](/trade/webhooks), until `terminal` is `true` ([Order status](/trade/order-status)).
   </Step>
 </Steps>
 
+<Accordion title="The calls">
+  `POST /api/v1/quotes`, then `POST /api/v1/orders` with `quoteId` and an `Idempotency-Key`; recover a lost answer by quote, never with a new key. Follow with `GET /api/v1/orders/{orderId}`. Each call's page lists its refusals: [Place an order](/api-reference/orders/place-order), [Get an order](/api-reference/orders/get-order).
+</Accordion>
+
 ## The five ways a trade runs
 
-| Way: the quote says, and when it settles | Status |
+| Way: quote says; settles | Status |
 | --- | --- |
-| [Exchange account](/recipes/exchange-account-order): `prefunded`, `venueLedger`; at once, inside the venue | Live |
-| [OTC or credit account](/trade/settlement-and-credit#trade-on-a-credit-account): `credit`, a `settlement.window`; in the window, netted | Live |
-| [Pay-in venue](#pay-in-after-the-order): `payIn` and its terms; when your payment is credited | Rolling out |
-| [On-chain venue, TetraFi signs](/recipes/cross-chain-stablecoins): `prefunded`, `dvp` or `fop`; on-chain, as its transactions confirm | Live |
-| [On-chain venue, you sign](/trade/sign-with-your-own-wallet): `signing.firstStep`; on-chain, as its transactions confirm | Rolling out |
+| [Exchange account](/recipes/exchange-account-order): `prefunded`, `venueLedger`; at once, at the venue | Live |
+| [OTC or credit account](/trade/settlement-and-credit#trade-on-a-credit-account): `credit`, a `settlement.window`; netted in the window | Live |
+| [Pay-in venue](#pay-in-after-the-order): `payIn`; when your payment is credited | Rolling out |
+| [On-chain, TetraFi signs](/recipes/cross-chain-stablecoins): `prefunded`, `dvp` or `fop`; as transactions confirm | Live |
+| [On-chain, you sign](/trade/sign-with-your-own-wallet): `signing.firstStep`; as transactions confirm | Rolling out |
 
-All five are **Basic**: execution at the venue, through its API or its own smart contracts. On-chain does not mean Advanced; Advanced (TetraFi's router and escrow) is not open yet.
+<Accordion title="All five are Basic">
+  All five are **Basic**: execution at the venue, through its API or its own smart contracts. On-chain does not mean Advanced; Advanced (TetraFi's router and escrow) is not open yet.
+</Accordion>
 
 <AccordionGroup>
   <Accordion title="Exchange account, prefunded">
@@ -74,7 +80,7 @@ All five are **Basic**: execution at the venue, through its API or its own smart
 
 ## Pay in after the order
 
-On a `payIn` quote you need nothing before you order: you order first, with `quoteId`, then send the money over the venue's own rail, such as a bank transfer. The venue delivers once your payment is credited; the quote's `payIn` states the deadline and what happens to late money.
+On a `payIn` quote you order first, then pay over the venue's own rail, such as a bank transfer. The venue delivers once your payment is credited; `payIn` states the deadline and what happens to late money.
 
 <AccordionGroup>
   <Accordion title="The payIn terms">
@@ -92,9 +98,4 @@ On a `payIn` quote you need nothing before you order: you order first, with `quo
   </Accordion>
 </AccordionGroup>
 
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Choose wallets and accounts" icon="wallet" href="/trade/wallets-and-accounts">Name the source a quote trades from.</Card>
-  <Card title="Place an order" icon="cart-shopping" href="/trade/orders">Order a quote and retry safely.</Card>
-</CardGroup>
+Next: [Wallets and accounts](/trade/wallets-and-accounts), [Place an order](/trade/orders).
