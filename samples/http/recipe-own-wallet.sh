@@ -78,9 +78,10 @@ address=$(cast wallet address --private-key "$SIGNER_PRIVATE_KEY")
 # region recipe-own-wallet-quote
 # Name the wallet's address for the chain you sell on. Each on-chain quote is then firm for that
 # address, and signing.mode "you" means you sign: signing.firstStep is the first thing to sign.
-# A move between chains asks only cross-chain venues; TETRAFI_VENUE keeps one venue.
-request=$(jq -nc --arg asset "$asset" --arg buy "$buy_asset" --arg amount "$amount" --arg from "$from_chain" \
-  --arg to "$to_chain" --arg address "$address" --arg venue "${TETRAFI_VENUE:-}" '{
+# A move between chains asks only cross-chain venues; TETRAFI_VENUE keeps one.
+request=$(jq -nc --arg asset "$asset" --arg buy "$buy_asset" \
+  --arg amount "$amount" --arg from "$from_chain" --arg to "$to_chain" \
+  --arg address "$address" --arg venue "${TETRAFI_VENUE:-}" '{
   kind: "pair",
   sell: {asset: $asset, network: $from},
   buy: {asset: $buy, network: $to},
