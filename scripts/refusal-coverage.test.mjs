@@ -28,7 +28,7 @@ function run(codes, { generated = rows, documented = page } = {}) {
 test('the guides have refusal rows to compare', () => {
   for (const code of ['WORKSPACE_REQUIRED', 'AUTH_REQUIRED', 'RATE_LIMITED', 'IP_NOT_ALLOWED']) assert.ok(rows.includes(code), code);
   const site = documentedSiteCodes(path.join(import.meta.dirname, '..'));
-  for (const code of ['ASSET_UNKNOWN', 'QUOTE_RATE_LIMITED', 'QUOTE_ALREADY_ORDERED', 'WORKSPACE_REQUIRED']) assert.ok(site.has(code), code);
+  for (const code of ['ASSET_UNKNOWN', 'SAME_ASSET_NEEDS_NETWORK', 'QUOTE_ALREADY_ORDERED', 'WORKSPACE_REQUIRED']) assert.ok(site.has(code), code);
 });
 
 test('a refusal table on any guide page is checked', () => {

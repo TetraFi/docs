@@ -18,18 +18,29 @@ const listed = (schema) => schema?.enum ?? schema?.anyOf?.find((part) => Array.i
 
 const root = path.resolve(import.meta.dirname, '..');
 // Source outcomes come from the public spec (the `status` of QuoteSourceEntry and PriceRowStatus),
-// so an outcome is never mistaken for a reason and no outcome list is kept by hand.
+// so an outcome is never mistaken for a reason and no outcome list is kept by hand. Each variant
+// is a named schema the union references (`#/components/schemas/QuoteSourceEntryAnswered`), so
+// local `$ref`s are followed, each schema once. Only the union's own variants are read (oneOf,
+// anyOf, allOf), never a field's nested schema, whose `status` is not a source outcome.
 export function outcomesFrom(spec) {
   const found = new Set();
+  const schemas = spec?.components?.schemas ?? {};
+  const visited = new Set();
   const walk = (node) => {
     if (Array.isArray(node)) return node.forEach(walk);
     if (!node || typeof node !== 'object') return;
+    const ref = typeof node.$ref === 'string' ? node.$ref.match(/^#\/components\/schemas\/(.+)$/)?.[1] : undefined;
+    if (ref && !visited.has(ref)) {
+      if (!schemas[ref]) throw new Error(`REASON_OUTCOMES_UNREADABLE ${node.$ref} is not in the spec`);
+      visited.add(ref);
+      walk(schemas[ref]);
+    }
     const status = node.properties?.status;
     if (status) {
       if (typeof status.const === 'string') found.add(status.const);
       for (const value of listed(status)) if (typeof value === 'string') found.add(value);
     }
-    Object.values(node).forEach(walk);
+    for (const key of ['oneOf', 'anyOf', 'allOf']) walk(node[key]);
   };
   for (const name of ['QuoteSourceEntry', 'PriceRowStatus']) walk(spec?.components?.schemas?.[name]);
   if (!found.size) throw new Error('REASON_OUTCOMES_UNREADABLE no source outcome statuses in the spec');
