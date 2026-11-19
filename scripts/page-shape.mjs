@@ -44,10 +44,7 @@ const BUDGET_EXCEPTIONS = {
 // Guides over the budget when it dropped from 450 to 350 (2026-11-19), at their visible count then.
 // A page here may only shrink; it leaves the list when it is at or under its budget.
 const PENDING_TRIM = {
-  'search/how-it-works': 448, 'authentication': 447, 'trade/orders': 450,
-  'search/firmness-and-lifetime': 362, 'trade/balances': 362, 'trade/wallets-and-accounts': 445,
-  'trade/errors': 432, 'quickstart': 447,
- 
+  'authentication': 447, 'trade/balances': 362, 'trade/wallets-and-accounts': 445, 'trade/errors': 432,
 };
 const REFERENCE_PAGES = ['reference/introduction', 'reference/conventions', 'reference/rate-limits'];
 const factsFile = path.join(root, 'scripts', 'page-facts.json');
