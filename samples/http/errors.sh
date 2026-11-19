@@ -93,7 +93,7 @@ parse=$(jq -c '{error, requestId, next}' <<<"$refusal")
 
 # region errors-rate-limit
 # One live quote request every 3 seconds. Send two at once: one is answered, the other
-# answers 429 RATE_LIMITED with details.retryAfter (ISO 8601, such as PT3S) and the
+# answers 429 RATE_LIMITED (or QUOTE_RATE_LIMITED) with details.retryAfter (ISO 8601, such as PT3S) and the
 # same wait in whole seconds in the Retry-After header. Wait that long, then retry once.
 # Each signature is accepted once, so the two requests differ in amount.
 quote_body() {
@@ -107,7 +107,7 @@ wait "$second" && second_ok=true || second_ok=false
 
 if [[ $first_ok == true ]]; then limited=$(<"$tmp/second") amount=11; else limited=$(<"$tmp/first") amount=10; fi
 jq -c '{error, requestId, retryAfter: .details.retryAfter}' <<<"$limited" >&2
-if [[ $(jq -r '.error' <<<"$limited") == RATE_LIMITED ]]; then
+if [[ $(jq -r '.error' <<<"$limited") =~ ^(QUOTE_)?RATE_LIMITED$ ]]; then
   # PT3S is 3 seconds; a fraction such as PT1.5S rounds up.
   wait_seconds=$(jq -r '.details.retryAfter | capture("^PT(?<s>[0-9.]+)S$").s | tonumber | ceil' <<<"$limited")
   sleep "$wait_seconds"
@@ -120,11 +120,13 @@ if [[ $first_ok == "$second_ok" ]]; then
     '{error: "UNEXPECTED_ANSWER", expected: "one answered, one RATE_LIMITED", firstAnswered: $a, secondAnswered: $b}' >&2
   exit 1
 fi
-expect RATE_LIMITED "$limited"
+limited_code=$(jq -r '.error' <<<"$limited")
+[[ $limited_code == QUOTE_RATE_LIMITED ]] || limited_code=RATE_LIMITED
+expect "$limited_code" "$limited"
 retry_after=$(jq -r '.details.retryAfter' <<<"$limited")
 rate_limit=$(jq -c -n --arg r "$retry_after" --argjson s "$wait_seconds" --argjson q "$(jq '.quotes | length' <<<"$retried")" \
-  --arg id "$(jq -r '.requestId' <<<"$limited")" \
-  '{error: "RATE_LIMITED", requestId: $id, retryAfter: $r, waitedSeconds: $s, retryQuotes: $q}')
+  --arg id "$(jq -r '.requestId' <<<"$limited")" --arg code "$limited_code" \
+  '{error: $code, requestId: $id, retryAfter: $r, waitedSeconds: $s, retryQuotes: $q}')
 
 # region errors-wrong-workspace
 # An API key implies its workspace, so it never needs X-Workspace-Id; a workspace path names it.

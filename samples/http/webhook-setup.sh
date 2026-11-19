@@ -92,7 +92,7 @@ unset secret
 # the secret, stores it, then answers 2xx within 10 seconds.
 delivery=$(tetrafi POST "$base/$webhook_id/deliveries" '{"kind":"test"}' \
   "Idempotency-Key: $(openssl rand -hex 16)")
-jq -c '{id, test, success, httpStatus, errorMessage}' <<<"$delivery" >&2
+jq -c '{id, test, success, statusCode, errorMessage}' <<<"$delivery" >&2
 # endregion
 
 # region webhook-deliveries
@@ -102,4 +102,4 @@ deliveries=$(tetrafi GET "$base/$webhook_id/deliveries")
 # endregion
 
 jq -c --arg w "$webhook_id" --arg f "$secret_file" '{webhookId: $w, secretFile: $f,
-  latest: (.items[0] | {id, test, success, httpStatus, errorMessage, redeliverAvailable})}' <<<"$deliveries"
+  latest: (.items[0] | {id, test, success, statusCode, errorMessage, redeliverAvailable})}' <<<"$deliveries"

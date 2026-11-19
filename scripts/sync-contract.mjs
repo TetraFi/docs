@@ -146,7 +146,7 @@ const FIRST_CODES = [
   ['INSUFFICIENT_SCOPE', 'Use a key that holds `details.requiredScope` ([Permissions](/authentication#permissions)).'],
   ['INSUFFICIENT_PERMISSION', 'The key\'s owner no longer holds the permission `details.permission` names. Ask a workspace admin.'],
   ['IP_NOT_ALLOWED', 'Call from an address on the key\'s IP allowlist, or update the allowlist.'],
-  ['STEP_UP_REQUIRED', 'Signed-in members only; API keys never get it. Complete the step-up `details.stepUpSubject` names, then retry with `stepUpProof`.'],
+  ['STEP_UP_REQUIRED', 'Signed-in members only; API keys never get it. Complete the step-up `details.stepUpSubject` names, then retry with its proof in the `X-Step-Up-Proof` header.'],
   ['INVALID_REQUEST', 'Correct the request as `message` and `details` say, then send it again.'],
   ['RATE_LIMITED', 'Wait `Retry-After` seconds, then retry ([Rate limits](/reference/rate-limits)).'],
   ['QUOTE_NOT_FOUND', 'No quote with this id is available to you. Check the id, or request a new quote.'],
