@@ -18,7 +18,7 @@ const NAMES = {
 
 const AUTH_CODES = [{ code: 'AUTH_REQUIRED', status: [401], meaning: 'Authentication is required.', remedy: 'Send credentials.', retryable: false }];
 
-function fixture(spec, names = NAMES, codes = AUTH_CODES, { journeys = null, files = {} } = {}) {
+function fixture(spec, names = NAMES, codes = AUTH_CODES, { journeys = null, files = {}, env = {} } = {}) {
   const workspace = mkdtempSync(path.join(tmpdir(), 'contract-permissions-'));
   const site = path.join(workspace, 'docs');
   const source = path.join(workspace, 'contract');
@@ -65,13 +65,14 @@ function fixture(spec, names = NAMES, codes = AUTH_CODES, { journeys = null, fil
   const run = (...args) => {
     const result = spawnSync(process.execPath, [path.join(site, 'scripts/sync-contract.mjs'), ...args], {
       encoding: 'utf8',
-      env: { ...process.env, TETRAFI_RFQ_API_DOCS: source, TETRAFI_LEAK_TERMS: terms, TETRAFI_ENDPOINT_NAMES: namesFile, TETRAFI_JOURNEYS: journeysFile },
+      // A fixture publishes few codes, so the first-codes table names only AUTH_REQUIRED unless a test says otherwise.
+      env: { ...process.env, TETRAFI_RFQ_API_DOCS: source, TETRAFI_LEAK_TERMS: terms, TETRAFI_ENDPOINT_NAMES: namesFile, TETRAFI_JOURNEYS: journeysFile, TETRAFI_FIRST_CODES: 'AUTH_REQUIRED', ...env },
       cwd: site,
     });
     assert.ifError(result.error);
     return { status: result.status, output: result.stdout + result.stderr };
   };
-  return { run, page: path.join(site, 'reference/permissions.mdx'), endpoints: path.join(site, 'reference/endpoints.mdx'),
+  return { run, site, page: path.join(site, 'reference/permissions.mdx'), endpoints: path.join(site, 'reference/endpoints.mdx'),
     errorCodes: path.join(site, 'reference/error-codes.mdx') };
 }
 
@@ -198,7 +199,7 @@ test('a description with a bare brace or angle bracket fails the sync; backticke
 
 // Catches codes leaving their product area, a lost docUrl anchor, a dropped status, and a code
 // silently filed under a catch-all.
-test('error codes group by product area in journey order, with status as a column', () => {
+test('error codes group by product area in journey order, each area folded under its name', () => {
   const row = (code, status) => ({ code, status, meaning: `${code} meaning.`, remedy: 'Do this.', retryable: false });
   const { run, errorCodes } = fixture(scopedSpec(), NAMES, [
     row('WEBHOOK_NOT_FOUND', [404]), row('QUOTE_EXPIRED', [410]), row('AUTH_REQUIRED', [401]),
@@ -207,14 +208,68 @@ test('error codes group by product area in journey order, with status as a colum
   const synced = run();
   assert.equal(synced.status, 0, synced.output);
   const text = readFileSync(errorCodes, 'utf8');
-  const at = (heading) => text.indexOf(`### ${heading}`);
+  const at = (area) => text.indexOf(`<Accordion title="${area}">`);
   assert.ok(at('Requests, keys and access') > 0 && at('Requests, keys and access') < at('Quotes, prices and assets'));
   assert.ok(at('Quotes, prices and assets') < at('Orders') && at('Orders') < at('Wallets and custody') && at('Wallets and custody') < at('Webhooks'));
   // The longest prefix wins: API_KEY_ORGANISATION_WALLET is a wallet code, not an API-key code.
   assert.ok(text.indexOf('API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED') > at('Wallets and custody'));
-  assert.ok(text.includes('| <span id="ORDER_NOT_FOUND"></span>`ORDER_NOT_FOUND` | 404, 410 |'));
-  assert.ok(text.includes('| [Orders](#orders) | 1 |'));
+  // The docUrl anchor stays on the row, clear of the sticky header, and the status keeps every value.
+  assert.ok(text.includes(`| <span id="ORDER_NOT_FOUND" style={{ scrollMarginTop: '10rem' }}></span>\`ORDER_NOT_FOUND\` | 404, 410 |`));
+  // Every area is closed (no defaultOpen), no area heading is left, and each says what it covers and how many codes it holds.
+  assert.ok(!text.includes('defaultOpen') && !/^### /m.test(text));
+  assert.ok(text.slice(at('Orders')).startsWith('<Accordion title="Orders">\n\nPlacing, following and cancelling an order'));
+  assert.match(text.slice(at('Orders')), /^<Accordion title="Orders">\n\n[^\n]* 1 code\.\n/);
+  // Each accordion closes before the next opens.
+  const tags = [...text.matchAll(/<\/?Accordion\b/g)].map((m) => m[0]);
+  assert.ok(tags.every((tag, i) => tag === (i % 2 ? '</Accordion' : '<Accordion')));
   assert.equal(run('--check').status, 0);
+});
+
+test('the first-codes table names its codes with their contract status and links each to its row', () => {
+  const row = (code, status) => ({ code, status, meaning: `${code} meaning.`, remedy: 'Do this.', retryable: false });
+  const codes = [row('AUTH_REQUIRED', [401]), row('RATE_LIMITED', [429]), row('ORDER_NOT_FOUND', [404])];
+  const { run, errorCodes } = fixture(scopedSpec(), NAMES, codes, { env: { TETRAFI_FIRST_CODES: 'RATE_LIMITED,AUTH_REQUIRED' } });
+  const synced = run();
+  assert.equal(synced.status, 0, synced.output);
+  const text = readFileSync(errorCodes, 'utf8');
+  const first = text.slice(text.indexOf('## Codes you will meet first'), text.indexOf('## Refusal codes'));
+  assert.ok(text.indexOf('## Codes you will meet first') > 0);
+  // In the listed order, with the contract's status, linking to the row's anchor; unlisted codes stay out.
+  assert.ok(first.indexOf('| [`RATE_LIMITED`](#RATE_LIMITED) | 429 | Wait `Retry-After` seconds') < first.indexOf('| [`AUTH_REQUIRED`](#AUTH_REQUIRED) | 401 |'));
+  assert.ok(!first.includes('ORDER_NOT_FOUND') && !first.includes('<span'));
+  // A listed code the contract does not publish refuses the page instead of dropping out of the table.
+  const missing = fixture(scopedSpec(), NAMES, codes, { env: { TETRAFI_FIRST_CODES: 'AUTH_REQUIRED,QUOTE_EXPIRED' } }).run();
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.output, /ERROR_CODE_FIRST_UNKNOWN QUOTE_EXPIRED/);
+  // A code with no What to do line refuses too.
+  const unnamed = fixture(scopedSpec(), NAMES, codes, { env: { TETRAFI_FIRST_CODES: 'ZEBRA_STRIPES_MISSING' } }).run();
+  assert.match(unnamed.output, /ERROR_CODE_FIRST_UNNAMED ZEBRA_STRIPES_MISSING/);
+});
+
+test('--only writes and checks just the named output and leaves every other generated file alone', () => {
+  const { run, site, errorCodes, page } = fixture(scopedSpec());
+  assert.equal(run().status, 0);
+  writeFileSync(page, 'hand edit\n');
+  writeFileSync(errorCodes, 'hand edit\n');
+  const synced = run('--only', 'reference/error-codes.mdx');
+  assert.equal(synced.status, 0, synced.output);
+  assert.match(synced.output, /sync-contract --only: wrote 1 files/);
+  assert.notEqual(readFileSync(errorCodes, 'utf8'), 'hand edit\n');
+  assert.equal(readFileSync(page, 'utf8'), 'hand edit\n');
+  // --check --only judges only the named file: clean here although permissions.mdx drifted.
+  const only = run('--check', '--only=./reference/error-codes.mdx');
+  assert.equal(only.status, 0, only.output);
+  assert.ok(!only.output.includes('permissions.mdx'));
+  const whole = run('--check');
+  assert.equal(whole.status, 1);
+  assert.match(whole.output, /CONTRACT_DRIFT reference\/permissions\.mdx/);
+  // A name that is not an output, or a missing value, refuses the run and writes nothing.
+  writeFileSync(path.join(site, 'compatibility.mdx'), 'hand edit\n');
+  const unknown = run('--only', 'reference/error-code.mdx');
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.output, /SYNC_ONLY_UNKNOWN_OUTPUT reference\/error-code\.mdx/);
+  assert.match(run('--only').output, /SYNC_ONLY_VALUE_MISSING/);
+  assert.equal(readFileSync(path.join(site, 'compatibility.mdx'), 'utf8'), 'hand edit\n');
 });
 
 test('a code no area claims refuses the page', () => {
