@@ -109,7 +109,7 @@ if [[ -z $quote ]]; then
   jq -c --arg v "$venue" '{venue: $v, orderable: false, sources: [.sources[] | {venue: .venue.id, status, reason}]}' <<<"$quotes"
   exit 0
 fi
-jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode, firm,
+jq -c '{quoteId: .id, venue: .legs[0].venue.id, mode: .legs[0].venue.integrationMode, quality,
   sell: .sell.amount, buy: .buy.amount, minOut, next: .next.kind, expiresAt}' <<<"$quote" >&2
 quote_id=$(jq -r '.id' <<<"$quote")
 # endregion
@@ -171,7 +171,7 @@ for _ in $(seq 1 30); do
 done
 # The venue's own detail is under operation. Amounts can be null when the venue has not reported
 # them. Bounds are limits, not a fill.
-jq -c '.operation | {executionStatus, settlementStatus, bounds: (.bounds | {sell, buy}),
+jq -c '.operation | {executionStatus, legsSettlementStatus, bounds: (.bounds | {sell, buy}),
   dispatch: (.dispatch | if . == null then null else {inputSpent, outputReceived, venueOrderId} end)}' <<<"$trade" >&2
 # endregion
 

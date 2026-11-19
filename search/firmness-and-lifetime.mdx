@@ -27,13 +27,13 @@ Order any of them only when `next.kind` is `order`.
 
 | `quality` | How to recognise it |
 | --- | --- |
-| `firm` | `firm: true` and `expiresAt` set. `minOut` and `staleAfter` are `null`. |
-| `executable` | `firm: false`, `expiresAt` set and `minOut` set by your [price protection](/search/how-it-works#filters-and-sort). `staleAfter` is `null`. Order-book and AMM quotes are executable. |
-| `indicative` | `firm: false`, `expiresAt` `null` and `staleAfter` set. `minOut` is `null`. Order it with `minReceive` (below). |
+| `firm` | `expiresAt` set. `minOut` and `staleAfter` are `null`. |
+| `executable` | `expiresAt` set and `minOut` set by your [price protection](/search/how-it-works#filters-and-sort). `staleAfter` is `null`. Order-book and AMM quotes are executable. |
+| `indicative` | `expiresAt` `null` and `staleAfter` set. `minOut` is `null`. Order it with `minReceive` (below). |
 
 - Ordering a `firm` or `executable` quote whose `next.kind` is `fund` is refused with `409 FUNDING_SHORTFALL`.
-- `firm` and `expiresAt` repeat `quality` in two fields. Treat a `quality` you do not recognise as `indicative`.
-- `lastLook` is always `false`: no venue re-checks an accepted price before it fills. An order inside a firm quote's window trades at that price or is refused unsent.
+- Treat a `quality` you do not recognise as `indicative`.
+- No venue re-checks an accepted price before it fills: an order inside a firm quote's window trades at that price or is refused unsent.
 - Firmness does not waive funding, wallet, permission or pre-trade checks. It does not mean the order will be accepted or settle immediately.
 - A [price](/search/prices) is never firm: only a quote can be.
 
@@ -118,7 +118,7 @@ Send a quote's id to get one new quote from its venue: to change how it executes
     {
       "id": "q_01M5XJXN…",
       "requoteOf": "q_01M5XJXM…",
-      "firm": false,
+      "quality": "executable",
       "buy": { "asset": "USDT", "amount": "5.00685" },
       "minOut": "4.99182",
       "expiresAt": "2026-10-27T02:27:15.792Z",
