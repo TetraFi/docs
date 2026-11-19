@@ -1,0 +1,25 @@
+| | |
+| --- | --- |
+| **Who** | Any current member. Keys and OAuth clients need `fee_schedule_read`; no other permission includes it. |
+| **Rates** | Decimal strings in parts per million: 100 ppm is one basis point. |
+| **All or nothing** | Never a partial or zero schedule: an unreadable one answers 503. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `current` | The fees in force now: `defaultRates`, and `venues` whose rates differ. |
+| `upcoming` | Each scheduled change, with its `effectiveFrom` and the whole schedule from then. |
+| `platform`, `grossPlatform` | Your charged rate, and the rate before any taker incentive. |
+| `takerIncentive`, `makerShare` | Your rebate, and your share as a partner maker; null if none. |
+
+[Every rate](/trade/balances#fee-schedule).
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | The path's workspace id is malformed. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `fee_schedule_read` (Read fee schedule). |
+| 404 `WORKSPACE_NOT_FOUND` | The path's workspace is unknown or not yours. |
+| 503 `FEE_SCHEDULE_UNAVAILABLE` | The schedule could not be read. Retry shortly. |
+</Accordion>

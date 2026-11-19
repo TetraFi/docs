@@ -1,0 +1,28 @@
+| | |
+| --- | --- |
+| **Who** | View wallets in a company or broker workspace, or an admitted LP taker. Keys also need `treasury_read`. |
+| **Read only** | Never authorizes a payment. |
+| **Which key** | The connection holding the balance key, a configured one first; see `connectionId`. |
+| **Empty or unknown** | `balances` null means no reading; `[]` means the account holds nothing. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `status`, `reasonCode` | `supported` when readable; otherwise `reasonCode` names the refusal. |
+| `observedAt`, `expiresAt` | When the venue reported, and when the reading stops being current. |
+| `balances[].available` | Free to trade, less what open trades and withdrawals already hold. |
+| `connectionId`, `executionTypeId` | The connection and execution type the read used. |
+
+Observation, staleness and display-value rules are those of the venue-connection balance read. A balance key held only by a disabled venue returns its last-known balance. [Every field](/trade/balances#one-exchange-account).
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 403 `VENUE_READ_AUTHORITY_REFUSED` | Your read authority ended, before or during the read: `authority_ended` (credential revoked, expired, or without `treasury_read`) or `permission_withdrawn` (the owner lost View wallets, membership or taker admission). An ended session answers 401. |
+| 404 `VENUE_ACCOUNT_NOT_FOUND` | No venue account with that id in the workspace. |
+| 409 `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | The money is in your own wallets: read [workspace balances](/api-reference/treasury/list-workspace-balances). |
+| 409 `VENUE_ACCOUNT_REVERIFY_REQUIRED` | No current key holds the balance. Re-verify or rotate the key. |
+| 409 `VENUE_ACCOUNT_REVOKED` | The account is disconnected. Reconnect it. |
+| 409 `VENUE_ACCOUNT_VENUE_UNKNOWN` | The account's venue is not recognised. |
+</Accordion>

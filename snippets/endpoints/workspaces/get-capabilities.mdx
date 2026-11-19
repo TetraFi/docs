@@ -1,0 +1,25 @@
+| | |
+| --- | --- |
+| **Who** | Keys need `compliance_read` and read only the workspace they are bound to. |
+| **Same decision** | Quote and order calls enforce exactly what this answers. |
+| **Blocked** | Each blocker has a `code` and the `unlockStep` that clears it. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `capabilities` | Per capability, such as `request_quotes` or `submit_order`: `allowed`, and `blockers` when not. |
+| `blockers[].currentlyDue` | What is still due, when something specific is. |
+| `workspace.kybStatus` | The workspace's KYB state. KYB blocks no capability. |
+| `account` | The acting member's own verification. |
+
+KYB record facts are filtered by your permissions. A review that could not be read reports unavailable, still with `200`.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `compliance_read`. |
+| 403 `WORKSPACE_SCOPE_MISMATCH` | The header's workspace is not available to this credential. |
+| 404 `WORKSPACE_NOT_FOUND` | The path's workspace is unknown, or not yours; both answer the same. |
+| 503 `CAPABILITIES_UNAVAILABLE` | Verification could not be read, or changed mid-read; no snapshot is released. Retry shortly. |
+</Accordion>

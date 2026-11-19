@@ -1,0 +1,38 @@
+| | |
+| --- | --- |
+| **Who** | View wallets (company, broker or admitted LP taker); keys also need `treasury_read`. |
+| **Crypto** | Send `asset` and `network` (CAIP-2) for an address; `options` lists the pairs. |
+| **Bank** | Send `currency` alone, plus `providerBankId` at a dedicated fiat venue. |
+| **Unconfirmed networks** | Never send real funds on an `unconfirmedNetworkAssets` asset ([why](/trade/balances#one-exchange-account)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `options` | The asset and network pairs the account takes deposits on. |
+| `bankDeposit` | `available`, `referenceOnly`, `notOffered` or `unread`, with a reason and code. Only the venue's declared offering makes it `notOffered`; a failed read is `unread`. |
+| `bankInstructions` | The bank coordinates, or the reference alone, when available. |
+| `status`, `reasonCode` | Whether instructions could be read, and why not. |
+
+The read uses the account's configured balance-key connection; its connection selection and fee rules apply. It does not authorize a payment. Answers are `no-store`, and every disclosure of a receiving account or full reference is audited.
+</Accordion>
+
+<Accordion title="Pay an open pay-in leg">
+Send a summary pay-in window's `payInLegId` alone, never with `asset`, `network`, `currency` or `providerBankId` (`400 PAY_IN_LEG_SELECTION_EXCLUSIVE`). The read selects that open leg's currency and, at a dedicated fiat venue, the paying bank recorded on its deposit declaration.
+
+- The leg is not this account's: `404 PAY_IN_LEG_NOT_FOUND`.
+- The leg no longer awaits funds: `409 PAY_IN_LEG_NOT_OPEN`.
+- The leg is paid in a digital asset: `409 PAY_IN_LEG_NOT_BANK_CURRENCY`. Read its address with `asset` and `network` instead.
+</Accordion>
+
+<Accordion title="Refusals">
+The account checks below run before the pay-in leg is looked up.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `PAY_IN_LEG_SELECTION_EXCLUSIVE` | `payInLegId` came with another selector. Send it alone. |
+| 403 `VENUE_READ_AUTHORITY_REFUSED` | Your read authority ended, before or during the read: `authority_ended` (credential revoked, expired or rescoped) or `permission_withdrawn` (View wallets, membership or taker admission lost). An ended session answers 401. |
+| 404 `VENUE_ACCOUNT_NOT_FOUND`, `PAY_IN_LEG_NOT_FOUND` | No such account in the workspace, or no such leg on it. |
+| 409 `VENUE_ACCOUNT_FUNDS_IN_WALLETS`, `VENUE_ACCOUNT_REVERIFY_REQUIRED`, `VENUE_ACCOUNT_REVOKED`, `VENUE_ACCOUNT_VENUE_UNKNOWN` | As on the [balance read](/api-reference/venue-accounts/get-account-balances). |
+| 409 `VENUE_ACCOUNT_FUNDING_VENUE_DISABLED` | Only a disabled venue holds the balance key. Re-enable it, then read again. |
+| 409 `PAY_IN_LEG_NOT_OPEN`, `PAY_IN_LEG_NOT_BANK_CURRENCY` | The leg no longer awaits funds, or is paid in a digital asset. |
+</Accordion>
