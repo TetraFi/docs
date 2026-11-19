@@ -10,8 +10,20 @@
 //      (it shows about 80 at 1440 px). samples/wide-lines.json records how many each snippet has; a
 //      snippet may only lose wide lines. --update records the current counts.
 //
-//   node scripts/page-shape.mjs            check (exit 1 with PAGE_OVER_BUDGET, FACT_LOST, SAMPLE_LINES_TOO_WIDE)
+//   4. Endpoint pages: the spec lead, the fits line and the page's snippet (its table and toggle titles)
+//      show at most ENDPOINT_BUDGET words, and a lead at most LEAD_LIMIT. A page is held to this once it
+//      is migrated (it has a snippet, or its lead is already short); the rest are counted as pending.
+//      Group intros (api-reference/intros) show at most INTRO_BUDGET.
+//   5. Spec facts: scripts/spec-facts.json froze every fact of the operation descriptions and the API-key
+//      scheme text before they were shortened. Each must stay on the site, or be listed under `removed`
+//      with a reason. --without-spec-descriptions strips those descriptions from the spec first, so a cut
+//      is proved lossless before the rfq commit.
+//
+//   node scripts/page-shape.mjs            check (exit 1 with PAGE_OVER_BUDGET, FACT_LOST, SAMPLE_LINES_TOO_WIDE,
+//                                          ENDPOINT_OVER_BUDGET, LEAD_TOO_LONG, INTRO_OVER_BUDGET, SPEC_FACT_LOST)
 //   node scripts/page-shape.mjs --update   rewrite page-facts.json and wide-lines.json from the current tree
+//   node scripts/page-shape.mjs --without-spec-descriptions   the same check with the spec descriptions removed
+//   node scripts/page-shape.mjs --freeze-spec-facts           write scripts/spec-facts.json once (refuses to overwrite)
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,6 +31,9 @@ import { pathToFileURL } from 'node:url';
 const root = process.env.TETRAFI_DOCS_ROOT ?? path.resolve(import.meta.dirname, '..');
 const update = process.argv.includes('--update');
 const PAGE_BUDGET = 450;
+const ENDPOINT_BUDGET = 110;
+const LEAD_LIMIT = 50;
+const INTRO_BUDGET = 150;
 const WIDE = 80;
 const BUDGET_EXCEPTIONS = {
   'reference/conventions': [600, 'a reference of rule tables that other pages link into, one per section'],
@@ -27,6 +42,9 @@ const BUDGET_EXCEPTIONS = {
 };
 const REFERENCE_PAGES = ['reference/introduction', 'reference/conventions', 'reference/rate-limits'];
 const factsFile = path.join(root, 'scripts', 'page-facts.json');
+const specFactsFile = path.join(root, 'scripts', 'spec-facts.json');
+const specFile = path.join(root, 'api-reference', 'openapi.json');
+const withoutSpecDescriptions = process.argv.includes('--without-spec-descriptions');
 const wideFile = path.join(root, 'samples', 'wide-lines.json');
 
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
@@ -37,6 +55,43 @@ export function visibleWords(text) {
   return words(body(text).replace(/```[\s\S]*?```/g, '')
     .replace(/<Accordion\b([^>]*)>[\s\S]*?<\/Accordion>/g, (_, attributes) => ` ${(attributes.match(/title="([^"]*)"/) ?? [])[1] ?? ''} `)
     .replace(/<Expandable\b[^>]*>[\s\S]*?<\/Expandable>/g, ' '));
+}
+
+// What a reader sees on an endpoint page before opening anything: the spec's lead above the method box,
+// then the stub's fits line and the snippet's table and toggle titles.
+export function endpointVisibleWords(stubText, lead, snippetText = '') {
+  return words(lead ?? '') + visibleWords(stubText) + (snippetText ? visibleWords(snippetText) : 0);
+}
+
+const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
+// The operation and response descriptions and the API-key scheme text: the spec text this plan shortens.
+export function specDescriptions(spec) {
+  const found = [];
+  for (const [route, item] of Object.entries(spec.paths ?? {})) {
+    for (const method of METHODS) {
+      const op = item[method];
+      if (!op) continue;
+      const key = `${method.toUpperCase()} ${route}`;
+      if (op.description) found.push([key, op.description]);
+      for (const [status, response] of Object.entries(op.responses ?? {})) if (response?.description) found.push([`${key} ${status}`, response.description]);
+    }
+  }
+  const scheme = spec.components?.securitySchemes?.api_key?.description;
+  if (scheme) found.push(['securityScheme api_key', scheme]);
+  return found;
+}
+
+export function stripSpecDescriptions(spec) {
+  const copy = structuredClone(spec);
+  for (const item of Object.values(copy.paths ?? {})) {
+    for (const method of METHODS) {
+      if (!item[method]) continue;
+      delete item[method].description;
+      for (const response of Object.values(item[method].responses ?? {})) if (response) delete response.description;
+    }
+  }
+  if (copy.components?.securitySchemes?.api_key) delete copy.components.securitySchemes.api_key.description;
+  return copy;
 }
 
 export function facts(text) {
@@ -74,11 +129,53 @@ function main() {
   }
 
   // The whole site counts as "somewhere": a fact may move to any page, or into the spec.
+  const spec = existsSync(specFile) ? JSON.parse(readFileSync(specFile, 'utf8')) : null;
+  const shownSpec = spec && withoutSpecDescriptions ? stripSpecDescriptions(spec) : spec;
   const site = [
     ...readdirSync(root, { recursive: true }).filter((file) => String(file).endsWith('.mdx') && !/^(node_modules|\.archive)\//.test(String(file)))
       .map((file) => read(String(file))),
-    existsSync(path.join(root, 'api-reference', 'openapi.json')) ? read(path.join('api-reference', 'openapi.json')) : '',
+    shownSpec ? JSON.stringify(shownSpec, null, 2) : '',
   ].join('\n');
+
+  if (process.argv.includes('--freeze-spec-facts')) {
+    if (existsSync(specFactsFile)) { console.log('SPEC_FACTS_EXIST scripts/spec-facts.json is frozen; edit it by hand'); process.exit(1); }
+    if (!spec) { console.log('SPEC_MISSING api-reference/openapi.json'); process.exit(1); }
+    const frozen = {};
+    for (const [owner, text] of specDescriptions(spec)) for (const fact of facts(text)) frozen[fact] ??= owner;
+    writeFileSync(specFactsFile, `${JSON.stringify({ about: 'Facts of the spec operation descriptions and API-key scheme text, frozen before they were shortened (2026-11-19). page-shape fails when one leaves the site; a deliberate drop goes under removed with its reason.', facts: Object.fromEntries(Object.entries(frozen).sort(([a], [b]) => (a < b ? -1 : 1))), removed: {} }, null, 1)}\n`);
+    console.log(`page-shape --freeze-spec-facts: ${Object.keys(frozen).length} facts`);
+    process.exit(0);
+  }
+
+  // Endpoint pages and group intros.
+  const leads = new Map(spec ? specDescriptions(spec) : []);
+  let pendingEndpoints = 0;
+  const apiDir = path.join(root, 'api-reference');
+  for (const dir of existsSync(apiDir) ? readdirSync(apiDir, { withFileTypes: true }).filter((e) => e.isDirectory()) : []) {
+    for (const file of readdirSync(path.join(apiDir, dir.name)).filter((f) => f.endsWith('.mdx'))) {
+      const page = `api-reference/${dir.name}/${file}`;
+      const text = read(page);
+      if (dir.name === 'intros') {
+        const count = visibleWords(text);
+        if (count > INTRO_BUDGET) problems.push(`INTRO_OVER_BUDGET ${page} ${count} visible words, budget ${INTRO_BUDGET}`);
+        continue;
+      }
+      const op = (text.match(/^openapi:\s*"api-reference\/openapi\.json (\w+) ([^"]+)"/m) ?? []).slice(1).join(' ');
+      const lead = leads.get(op) ?? '';
+      const snippet = (text.match(/^import Notes from '\/(snippets\/[^']+)'/m) ?? [])[1];
+      const leadWords = words(lead);
+      if (!snippet && leadWords > LEAD_LIMIT) { pendingEndpoints += 1; continue; }
+      if (leadWords > LEAD_LIMIT) problems.push(`LEAD_TOO_LONG ${op} ${leadWords} words, limit ${LEAD_LIMIT} (shorten its rfq description)`);
+      const count = endpointVisibleWords(text, lead, snippet && existsSync(path.join(root, snippet)) ? read(snippet) : '');
+      if (count > ENDPOINT_BUDGET) problems.push(`ENDPOINT_OVER_BUDGET ${page} ${count} visible words, budget ${ENDPOINT_BUDGET}`);
+    }
+  }
+
+  // Facts of the original spec descriptions stay on the site.
+  const specFacts = existsSync(specFactsFile) ? JSON.parse(readFileSync(specFactsFile, 'utf8')) : null;
+  for (const [fact, owner] of Object.entries(specFacts?.facts ?? {})) {
+    if (!Object.hasOwn(specFacts.removed ?? {}, fact) && !site.includes(fact)) problems.push(`SPEC_FACT_LOST ${JSON.stringify(fact)} (${owner})`);
+  }
   const current = new Map();
   for (const page of pages) for (const fact of facts(read(`${page}.mdx`))) if (!current.has(fact)) current.set(fact, page);
 
@@ -102,7 +199,7 @@ function main() {
     if (allowed && count > (allowed[snippet] ?? 0)) problems.push(`SAMPLE_LINES_TOO_WIDE ${snippet} ${count} lines over ${WIDE} columns, recorded ${allowed[snippet] ?? 0}`);
   }
   for (const problem of problems) console.log(problem);
-  console.log(`page-shape: ${pages.length} pages, ${Object.keys(recorded ?? {}).length} facts, ${problems.length} problems`);
+  console.log(`page-shape: ${pages.length} pages, ${Object.keys(recorded ?? {}).length} facts, ${Object.keys(specFacts?.facts ?? {}).length} spec facts, ${pendingEndpoints} endpoint pages pending, ${problems.length} problems${withoutSpecDescriptions ? ' (spec descriptions removed)' : ''}`);
   process.exit(problems.length ? 1 : 0);
 }
 
