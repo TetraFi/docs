@@ -59,7 +59,7 @@ tetrafi() {
 
 # quote_request BODY
 # POST /api/v1/quotes through tetrafi, for a new request or a requote. You may send one live
-# quote request every 3 seconds; a faster one answers 429 QUOTE_RATE_LIMITED with a Retry-After
+# quote request every 3 seconds; a faster one answers 429 RATE_LIMITED with a Retry-After
 # header, and the same wait in details.retryAfter (for example PT1S). This waits that long and
 # tries once more. Any other refusal prints its error body and returns 1.
 quote_request() {
@@ -68,7 +68,7 @@ quote_request() {
     printf '%s\n' "$response"
     return 0
   fi
-  wait=$(jq -r 'select(.error == "QUOTE_RATE_LIMITED") | .details.retryAfter
+  wait=$(jq -r 'select(.error == "RATE_LIMITED") | .details.retryAfter
     | capture("^PT(?<s>[0-9]+)S$").s' <<<"$response" 2>/dev/null || true)
   if [[ -z $wait ]]; then
     printf '%s\n' "$response"

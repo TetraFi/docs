@@ -66,7 +66,7 @@ tetrafi() {
 
 # quote_request BODY
 # POST /api/v1/quotes through tetrafi. You may send one live quote request every 3 seconds;
-# a faster one answers 429 QUOTE_RATE_LIMITED with a Retry-After header, and the same wait in
+# a faster one answers 429 RATE_LIMITED with a Retry-After header, and the same wait in
 # details.retryAfter (for example PT1S). This waits that long and tries once more.
 quote_request() {
   local response wait
@@ -74,7 +74,7 @@ quote_request() {
     printf '%s\n' "$response"
     return 0
   fi
-  wait=$(jq -r 'select(.error == "QUOTE_RATE_LIMITED") | .details.retryAfter
+  wait=$(jq -r 'select(.error == "RATE_LIMITED") | .details.retryAfter
     | capture("^PT(?<s>[0-9]+)S$").s' <<<"$response" 2>/dev/null || true)
   if [[ -z $wait ]]; then
     printf '%s\n' "$response" >&2
@@ -229,7 +229,7 @@ for _ in 1 2; do
     echo '{"error":"OLD_FILTER_NAME_ACCEPTED"}' >&2
     exit 1
   fi
-  wait=$(jq -r 'select(.error == "QUOTE_RATE_LIMITED") | .details.retryAfter
+  wait=$(jq -r 'select(.error == "RATE_LIMITED") | .details.retryAfter
     | capture("^PT(?<s>[0-9]+)S$").s' <<<"$old_refusal" 2>/dev/null || true)
   [[ -z $wait ]] && break
   sleep "$wait"

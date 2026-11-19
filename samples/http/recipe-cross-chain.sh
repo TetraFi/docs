@@ -63,11 +63,11 @@ tetrafi() {
 }
 
 # quote BODY: POST /api/v1/quotes. You may send one live quote request every 3 seconds;
-# on 429 QUOTE_RATE_LIMITED it waits details.retryAfter (an ISO 8601 duration) and sends once more.
+# on 429 RATE_LIMITED it waits details.retryAfter (an ISO 8601 duration) and sends once more.
 quote() {
   local answer wait
   if answer=$(tetrafi POST /api/v1/quotes "$1" 2>/dev/null); then printf '%s\n' "$answer"; return 0; fi
-  if [[ $(jq -r '.error // empty' <<<"$answer" 2>/dev/null) != QUOTE_RATE_LIMITED ]]; then
+  if [[ $(jq -r '.error // empty' <<<"$answer" 2>/dev/null) != RATE_LIMITED ]]; then
     printf '%s\n' "$answer" >&2
     return 1
   fi
@@ -89,7 +89,7 @@ from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
 to_chain=${TETRAFI_TO_CHAIN:-$(jq -r --arg f "$from_chain" 'map(select(. != $f))[0] // empty' <<<"$chains")}
 for chain in "$from_chain" "$to_chain"; do
   if ! jq -e --arg c "$chain" 'index($c) != null' <<<"$chains" >/dev/null; then
-    jq -nc --arg a "$asset" --arg c "$chain" '{error: "ASSET_NOT_ON_CHAIN", asset: $a, chain: $c}' >&2
+    jq -nc --arg a "$asset" --arg c "$chain" '{error: "ASSET_NOT_ON_NETWORK", asset: $a, chain: $c}' >&2
     exit 1
   fi
 done
