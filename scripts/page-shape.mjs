@@ -44,7 +44,7 @@ const BUDGET_EXCEPTIONS = {
 // Guides over the budget when it dropped from 450 to 350 (2026-11-19), at their visible count then.
 // A page here may only shrink; it leaves the list when it is at or under its budget.
 const PENDING_TRIM = {
-  'search/how-it-works': 448, 'authentication': 447, 'trade/settlement-and-credit': 443, 'trade/orders': 450,
+  'search/how-it-works': 448, 'authentication': 447, 'trade/orders': 450,
   'search/firmness-and-lifetime': 362, 'trade/balances': 362, 'trade/wallets-and-accounts': 445,
   'trade/errors': 432, 'quickstart': 447, 'trade/how-a-trade-runs': 424,
   'recipes/cross-chain-stablecoins': 359, 'recipes/go-live-checklist': 450, 'overview': 435,
