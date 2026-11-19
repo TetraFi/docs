@@ -163,7 +163,7 @@ A `503` names its cause in `details.cause` (`screening`, `chainRead`, `relay` or
 | 410 `SIGNING_STEP_EXPIRED` | Past its `signBy`; nothing was sent. Read the order for how it ended. |
 | 404 `SIGNING_STEP_NOT_FOUND` | The order has no such step for you: use the `stepId` of the order's `next.step`. |
 | 409 `SIGNING_TRANSACTION_NOT_FOUND` | The chain does not show the transaction yet: retry shortly. |
-| 409 `SIGNING_TRANSACTION_REJECTED` | The network refused the transaction; sign the reopened step. |
+| 409 `SIGNING_TRANSACTION_REJECTED` | The network refused your signed transaction. If it was underpriced or the wallet lacked gas money, nothing was sent: sign the step it reopens, with a new `stepId` at the same nonce. If its nonce was already taken, the step keeps that transaction and the chain decides it. |
 | 409 `SIGNING_WALLET_SCREENING_PENDING` | The wallet's screening is still running: retry shortly. |
 | 403 `SIGNING_WALLET_REFUSED` | The address failed screening. |
 | 503 `SCREENING_UNAVAILABLE` | The screening provider failed: retry shortly. A provider failure is never a refusal. |
@@ -173,15 +173,12 @@ A `503` names its cause in `details.cause` (`screening`, `chainRead`, `relay` or
 | 422 `SIGNING_WALLET_UNSUPPORTED` | `source.signer: "you"` on a wallet TetraFi signs for: not available yet. Leave `source.signer` out, or name the wallet by its id. |
 | 409 `PERSONAL_TARGET_NOT_ALLOWED` | The credential named a member's personal wallet; only that member's own session trades from it. |
 | 503 `SIGNING_STEP_UNAVAILABLE`, `SIGNING_WALLET_UNAVAILABLE` | The step could not be checked, or the wallet could not be recorded, right now; nothing was sent. Retry shortly. |
-
-These codes are not in the error-code reference yet:
-
-- 409 `SIGNING_WALLET_BUSY`: the wallet has an open step on this network in another order; `details.orderId` names it.
-- 409 `SIGNING_WALLET_FUNDS_SHORT`: the wallet's balance or gas money no longer covers the step; `details.field` is `balance` or `gas`. Nothing was sent.
-- 422 `SIGNING_TRANSACTION_TYPE_UNSUPPORTED`: the transaction is not legacy, EIP-2930 or EIP-1559; EIP-4844 and EIP-7702 are refused.
-- 429 `SIGNING_WALLET_LIMIT_REACHED`: your key or workspace named too many new addresses today.
-- 422 `DELIVER_TO_NOT_SIGNING_WALLET`: `deliverTo` names a wallet other than the signing wallet. Leave it out, or name that wallet.
-- 422 `DELIVER_TO_NOT_REGISTERED`: `deliverTo` is no wallet or saved destination of your workspace.
+| 409 `SIGNING_WALLET_BUSY` | The wallet has an open step on this network in another order; `details.orderId` names it. |
+| 409 `SIGNING_WALLET_FUNDS_SHORT` | The wallet's balance or gas money no longer covers the step; `details.field` is `balance` or `gas`. Nothing was sent. |
+| 422 `SIGNING_TRANSACTION_TYPE_UNSUPPORTED` | The transaction is not legacy, EIP-2930 or EIP-1559; EIP-4844 and EIP-7702 are refused. |
+| 429 `SIGNING_WALLET_LIMIT_REACHED` | Your key or workspace named too many new addresses today. |
+| 422 `DELIVER_TO_NOT_SIGNING_WALLET` | `deliverTo` names a wallet other than the signing wallet. Leave it out, or name that wallet. |
+| 422 `DELIVER_TO_NOT_REGISTERED` | `deliverTo` is no wallet or saved destination of your workspace. |
 
 </Accordion>
 

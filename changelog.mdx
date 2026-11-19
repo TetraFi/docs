@@ -5,7 +5,8 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
-<Update label="2026-11-19" description="Signing with your own wallet (rolling out): members, External wallets, new refusals and the step history">
+<Update label="2026-11-19" description="Signing with your own wallet and ordering a price row (both rolling out)">
+  - Rolling out, not live yet: `POST /api/v1/orders` also takes `{kind: "stream", priceId, minReceive | slippageBps}` to order a [Live prices](/search/prices) row. TetraFi checks the `priceId` (`PRICE_ID_INVALID`, `PRICE_EXPIRED`), asks the venue for that exact size, and runs the order like a quote order of that venue. A price outside your limit is refused with `details.remediation` `widenLimit`.
   - Rolling out, not live yet; the full contract is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
   - Signed-in members use the same three routes as API keys; the step route takes a session bearer token as well as a key. An External wallet named in `source.preferredWallets` makes the quote `signing.mode` `you`.
   - Without `firstStep`, the order opens with `next.kind` `sign` for step 1. Without `minReceive`, the order is bound by the minimum the quote's own step was drafted with.
