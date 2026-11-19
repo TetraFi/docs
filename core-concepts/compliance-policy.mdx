@@ -3,41 +3,49 @@ title: "Compliance Policy"
 description: "One policy, composed per deployment and controlled by your institution - enforced on-chain at the escrow, and the same gate on every layer."
 ---
 
-Every deployment runs under one **compliance policy**: composed and controlled by your institution, enforced **on-chain** at the escrow against attested credentials. The check runs inside the settlement path, so the audit trail *is* the settlement record.
-
-## Where It Is Enforced
+Every deployment runs under one **compliance policy**, composed and controlled by your institution. A trade that fails it is refused before any value moves, so there is no post-trade unwind.
 
 | Point | What happens |
 | --- | --- |
-| **The request** | RFQ requests reach workspace-approved LPs only, jurisdiction-filtered before they reach a desk. If no eligible LP can quote, you get a typed product-unavailable answer, never a silent fallback. |
-| **The credential** | An attested credential: something verifiable, not a self-declared flag. |
-| **The deposit** | `ComplianceSettlerEscrow` enforces the policy when your router locks the input under the signed order; its output-side twin gates fills on the destination chain ([Settlement & Smart Contracts](/core-concepts/settlement-smart-contracts)). |
+| **The request** | Requests reach only LPs your workspace approved, filtered by jurisdiction |
+| **The credential** | An attested credential: something verifiable, not a self-declared flag |
+| **The deposit** (Coming soon, with Advanced execution) | The escrow enforces the policy when your router locks the input |
 
-A trade that fails the policy is refused before any value moves; non-compliant funds never sit in escrow, so there is no post-trade unwind.
-
-## What You Compose
-
-The policy attaches to your deployment, not to the app calling it:
-
-* **Your compliance pipeline** - checks added, removed, or layered to fit your regulatory perimeter
-* **Your counterparty perimeter** - which LPs, jurisdictions, and venues your requests and router may reach
-* **Onboard once** - one verified onboarding pack, reused for KYB with every counterparty
-* **One audit trail** - enforcement evidence shared across parties instead of repeated manual reviews
-
-An asset restricted to qualifying investors or jurisdictions stays gated wherever it is routed.
+<Accordion title="Each point in detail">
+  - **The request.** RFQ requests reach workspace-approved LPs only, jurisdiction-filtered before they reach a desk. If no eligible LP can quote, you get a typed product-unavailable answer, never a silent fallback.
+  - **The deposit.** With [Advanced execution](/core-concepts/settlement-smart-contracts), which is not open yet, `ComplianceSettlerEscrow` is designed to enforce the policy **on-chain** when your router locks the input under the signed order; its output-side twin gates fills on the destination chain. The check runs inside the settlement path, so the audit trail *is* the settlement record, and non-compliant funds never sit in escrow.
+</Accordion>
 
 ## In the Workspace
 
-The pre-trade gate runs on every order in a fixed order: sanctions screening of originator and beneficiary, deposit screening, jurisdiction and corridor rules, travel-rule checks, then your workspace overlay. The **Compliance Center** composes that overlay, tighten-only: workflows that run in **shadow** before they enforce, sanctions evidence with recorded overrides, entity profiles, reporting. Every trade leaves an evidence pack in a tamper-evident ledger. (Workflow builder and reporting rolling out.)
+Every order clears a fixed pre-trade gate, then your own overlay, which you compose in the **Compliance Center**. Every trade leaves an evidence pack in a tamper-evident ledger.
 
-## The Same Gate on the Next Layers
+<AccordionGroup>
+  <Accordion title="The gate, in order">
+    Sanctions screening of originator and beneficiary, deposit screening, jurisdiction and corridor rules, travel-rule checks, then your workspace overlay.
+  </Accordion>
 
-<Note>
-  **Coming soon.** [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design.
-</Note>
+  <Accordion title="The Compliance Center">
+    It composes that overlay, tighten-only: workflows that run in **shadow** before they enforce, sanctions evidence with recorded overrides, entity profiles, reporting. Workflow builder and reporting are rolling out.
+  </Accordion>
 
-The policy you compose for the rails is the one both primitives run under:
+  <Accordion title="What you compose">
+    The policy attaches to your deployment, not to the app calling it:
 
-* **Netting** - membership is compliance-gated (KYB'd participants, jurisdiction-aware, per policy domain), checks run at every run entry, and compliance can only exclude a pairing, never redirect money
-* **Shared collateral** - every vault draw re-runs the policy: KYB'd counterparties, jurisdiction filters, machine-checkable policy
+    - **Your compliance pipeline** - checks added, removed, or layered to fit your regulatory perimeter
+    - **Your counterparty perimeter** - which LPs, jurisdictions, and venues your requests and router may reach
+    - **Onboard once** - one verified onboarding pack, reused for KYB with every counterparty
+    - **One audit trail** - enforcement evidence shared across parties instead of repeated manual reviews
 
+    An asset restricted to qualifying investors or jurisdictions stays gated wherever it is routed.
+  </Accordion>
+
+  <Accordion title="Netting and shared collateral (coming soon)">
+    [Multilateral Netting](/netting) and the [Shared Collateral Network](/collateral) are in design. The policy you compose for the rails is the one both will run under:
+
+    - **Netting** - membership is compliance-gated (KYB'd participants, jurisdiction-aware, per policy domain), checks run at every run entry, and compliance can only exclude a pairing, never redirect money
+    - **Shared collateral** - every vault draw re-runs the policy: KYB'd counterparties, jurisdiction filters, machine-checkable policy
+  </Accordion>
+</AccordionGroup>
+
+Build it: [Before your first trade](/before-you-trade) · [API reference](/api-reference/intros/balances-and-accounts)
