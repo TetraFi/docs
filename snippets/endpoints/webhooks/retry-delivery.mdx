@@ -1,0 +1,17 @@
+| | |
+| --- | --- |
+| **Sends** | The retained payload again, to the current URL, signed with the current secret. |
+| **Check** | The answer's `success`: the `200` is not your receiver's acknowledgement. |
+| **Duplicates** | It keeps its body `id`: deduplicate on it ([Webhooks](/trade/webhooks#set-up-an-endpoint)). |
+| **Idempotency-Key** | Optional: the same key replays the stored redelivery for 24 hours; while it still runs, `IDEMPOTENCY_IN_FLIGHT`. |
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `IDEMPOTENCY_KEY_INVALID` | Send one `Idempotency-Key` of 1 to 255 characters. |
+| 404 `WEBHOOK_NOT_FOUND`, `WEBHOOK_DELIVERY_NOT_FOUND` | Use ids from the webhook list and this endpoint's delivery log. |
+| 409 `WEBHOOK_REDELIVERY_REFUSED` | Paused, still pending, already being redelivered, or its payload is gone. [Resume](/api-reference/webhooks/resume-webhook) or wait. |
+| 409 `WEBHOOK_REDELIVERY_NOT_AVAILABLE` | Withheld because the endpoint's owner may not read it (`redeliverAvailable` is `false`); never resent. |
+| 409 `IDEMPOTENCY_CONFLICT` | The key was used with a different request. Use a new key. |
+| 503 `IDEMPOTENCY_UNAVAILABLE` | The key's state could not be read. Retry with the same key shortly. |
+</Accordion>

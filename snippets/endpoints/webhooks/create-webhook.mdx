@@ -1,0 +1,32 @@
+| | |
+| --- | --- |
+| **Secret** | `whsec_<base64>`, shown once: store it now. A replay returns `secret: null`. |
+| **Idempotency-Key** | Required: the same key and body within 24 hours replay the first `201`. |
+| **Events** | Current names from the [event catalogue](/reference/webhook-events). |
+| **Deliveries** | Retries, pauses, deduplication on the body's `id`: [Webhooks](/trade/webhooks#retries-pauses-and-missed-events). |
+
+<Accordion title="Verify each delivery">
+Each delivery carries the Standard Webhooks headers `webhook-id`, `webhook-timestamp` (Unix seconds) and `webhook-signature`: `v1,<base64 HMAC-SHA256>`.
+
+1. Take the base64-decoded key after `whsec_`.
+2. Sign `<webhook-id>.<webhook-timestamp>.<raw body>` with HMAC-SHA256, over the exact bytes received.
+3. Accept when any one `v1,` value matches, and refuse a timestamp over five minutes from your clock.
+
+Samples and a library: [Verify every delivery](/trade/webhooks#set-up-an-endpoint).
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `WEBHOOK_EVENT_UNKNOWN` | An `events` entry is not an event; `details.acceptedKeys` lists the ones you can use. |
+| 400 `WEBHOOK_EVENT_RETIRED` | An `events` entry is retired; `message` names its replacement. |
+| 400 `MAX_WEBHOOKS_REACHED` | The workspace has the maximum number of endpoints. Delete one you no longer use. |
+| 400 `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_KEY_INVALID` | Send one `Idempotency-Key` of 1 to 255 characters. |
+| 403 `INSUFFICIENT_SCOPE` | An API key subscribing to `settlement.*` needs `settlements_read`; to `credit.updated`, `treasury_read`. |
+| 403 `WEBHOOK_PRINCIPAL_UNRESOLVED` | Register it with a member session, a member's API key or a service account of this workspace. |
+| 403 `WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` | `treasury.automation.*` needs a credential that sees the amounts of every current Automation. Nothing was created. |
+| 404 `WORKSPACE_NOT_FOUND` | Use your authenticated workspace id in the path. |
+| 409 `WEBHOOK_EXISTS` | The workspace already has an endpoint for that URL. Use it, or register another URL. |
+| 409 `IDEMPOTENCY_CONFLICT` | The key was used with a different body. Use a new key. |
+| 503 `IDEMPOTENCY_UNAVAILABLE`, `WEBHOOK_AUTOMATION_AMOUNTS_UNAVAILABLE` | Nothing was created. Retry with the same key shortly. |
+</Accordion>

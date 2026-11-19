@@ -1,0 +1,12 @@
+---
+title: "Webhooks"
+description: "Register an endpoint, verify what it receives, and follow and resend its deliveries."
+---
+
+1. **Create** an endpoint with `POST …/webhooks`, naming its URL and events. Store the `whsec_` secret at once: it is shown only once.
+2. **Test** it with `POST …/deliveries` and `{"kind":"test"}`, then check the delivery's `success`.
+3. **Verify** every delivery's `webhook-signature` over the raw body before you parse it, answer a `2xx` within 10 seconds, and deduplicate on the body's `id`.
+4. **Follow** failures in `GET …/deliveries`. Unacknowledged deliveries are retried; after repeated failures the endpoint pauses.
+5. **Resume** a paused endpoint, then **retry** what it missed. **Rotate** the secret when you need a new one: both verify for 24 hours.
+
+Paths are under `/api/v1/workspaces/{workspaceId}/webhooks`. Full explanation: [Receive order updates by webhook](/trade/webhooks).
