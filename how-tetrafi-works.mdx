@@ -3,72 +3,68 @@ title: "How TetraFi Works"
 description: "How one trade moves through the network - rails execute it, netting shrinks what settles, shared collateral funds the wait."
 ---
 
-## Three Costs, Three Layers
-
-Every institutional settlement carries three costs: the **principal risk** of releasing one leg before the other lands, the **gross settlement** toll of moving full notional when only the net is owed, and the **trapped liquidity** parked to cover the wait. TetraFi runs one layer against each - composable primitives, built institutional-first and gated by one compliance policy.
+Every institutional settlement carries three costs: the **principal risk** of releasing one leg before the other lands, the **gross settlement** toll of moving full notional when only the net is owed, and the **trapped liquidity** parked to cover the wait. TetraFi runs one layer against each, gated by one compliance policy. The rails are live today with Basic execution; the other two layers are coming soon.
 
 | Layer | The cost it removes | Status |
 | --- | --- | --- |
-| **Settlement rails** | Principal risk - atomic delivery-versus-payment from any chain, asset, or venue to any other | Live |
-| **[Multilateral Netting](/netting)** | Gross settlement - obligations clear by set-off, and only the net residual settles | Soon |
-| **[Shared Collateral Network](/collateral)** | Trapped liquidity - committed once, cross-collateralised across every settlement gap | Next |
+| **Settlement rails** | Principal risk | Live: Basic execution. Coming soon: Advanced |
+| **[Multilateral Netting](/netting)** | Gross settlement: only the net residual settles | Coming soon |
+| **[Shared Collateral Network](/collateral)** | Trapped liquidity: committed once, cross-collateralised across every settlement gap | Coming soon |
 
-The rails are the pipes. Netting and shared collateral are where the capital efficiency comes from - and each layer makes the others cheaper to run. All three are **only possible on-chain**: atomicity is what retires principal risk without an intermediary standing in the middle, on-chain proofs are what let obligations clear with no central counterparty, and programmable collateral is what lets one pool answer every gap at once.
+<Accordion title="Why only on-chain">
+  The rails are the pipes. Netting and shared collateral are where the capital efficiency comes from, and each layer makes the others cheaper to run. All three are **only possible on-chain**: atomicity is what retires principal risk without an intermediary standing in the middle, on-chain proofs are what let obligations clear with no central counterparty, and programmable collateral is what lets one pool answer every gap at once.
+</Accordion>
 
-## Life of a Trade
+## Life of a trade
 
 <Steps>
   <Step title="Quote" icon="comments-dollar">
-    Your request fans out to every eligible solver, LP, and venue. Each answer comes back as a quote with its terms stated: firm and escrow-enforced, held to a minimum receive, or indicative.
+    One request reaches every venue your workspace can use. Live.
   </Step>
 
-  <Step title="Sign" icon="signature">
-    One signature on one intent. Compliance policy gates the request before it reaches a desk, and custody never leaves your side.
+  <Step title="Order" icon="signature">
+    Compliance policy gates the request before it reaches a desk. Live.
   </Step>
 
   <Step title="Settle or clear" icon="scale-balanced">
-    Settle instantly - in full, delivery-versus-payment, at today's price. Or opt the leg into netting at a deadline you pick, at a tighter quote: it joins the next run, offsets against the whole network's opposing flow, and only your net residual moves.
+    Settle in full now, or net at a deadline you pick. Coming soon: netting.
   </Step>
 
   <Step title="Fund the wait" icon="vault">
-    Wherever value waits on a slower leg - a T+1 desk cycle, a redemption queue, a residual at its deadline, an early exit from a netting position - a vault fronts it from committed capital and is repaid when the slow leg completes. You're paid now; the wait becomes a depositor's yield.
+    A vault fronts value waiting on a slower leg. Coming soon.
   </Step>
 </Steps>
 
-<Note>
-  Steps three and four describe Multilateral Netting (opening to design partners first) and the Shared Collateral Network (in design) - parameters publish at launch.
-</Note>
-
-## The Rails - Live
-
-A single routing, settlement, and compliance engine underlies everything, built around [regulated stablecoins and tokenized real-world assets at institutional size](/why-tetrafi). Spreads compress through solver competition, with depth aggregated from OTC desks, CEXs, DEXs, and regulated LPs. Aggregation is the familiar half; where it settles is not. Every fill lands in **immutable contracts on-chain**, atomically and across chains, rather than on a venue's internal ledger - so no balance has to be pre-funded to a counterparty, no principal is exposed mid-trade, and the trade composes with the on-chain assets and venues it touches. On top of it, one API returns every quote your workspace can reach, and each quote states the contract it offers:
-
 <AccordionGroup>
-  <Accordion title="Firm quotes - delivery or refund">
-    Your request goes to every eligible solver and LP in the workspace, and each can answer with a cryptographically firm, executable quote. Escrowed settlement enforces the terms exactly as quoted: deliver, or refund - a quote can disappoint you only by refunding, never by failing.
+  <Accordion title="Each step in detail">
+    - **Quote.** Your request fans out to every eligible source. Each answer comes back as a quote with its terms stated: firm and escrow-enforced (coming soon, with Advanced), held to a minimum receive, or indicative.
+    - **Order.** Today TetraFi executes your order on your own exchange and OTC venue accounts, or organisation wallets granted to your key, and custody never leaves your side. Coming soon, with Advanced: one signature on one intent.
+    - **Settle or clear.** Settle instantly, in full, at today's price. Coming soon: opt the leg into netting at a deadline you pick, at a tighter quote. It joins the next run, offsets against the whole network's opposing flow, and only your net residual moves.
+    - **Fund the wait.** Coming soon. Wherever value waits on a slower leg (a T+1 desk cycle, a redemption queue, a residual at its deadline, an early exit from a netting position), a vault fronts it from committed capital and is repaid when the slow leg completes. You are paid now; the wait becomes a depositor's yield. Parameters publish at launch.
   </Accordion>
 
-  <Accordion title="Routes - aggregated execution">
-    The same request reaches every other eligible execution source - direct DEX liquidity, bridges, issuers, and fiat rails - and each route comes back as its own quote. Each states its own firmness, settlement path, and fees. From the user's side it's one intent and one signature - routing, bridging, and settlement are the solver's problem, even across chains.
+  <Accordion title="The rails">
+    A single routing, settlement and compliance engine underlies everything, built around [regulated stablecoins and tokenized real-world assets at institutional size](/why-tetrafi). Spreads compress through competition, with depth aggregated from OTC desks, CEXs, DEXs and regulated LPs. One API returns every quote your workspace can reach, and each quote states the contract it offers. Your guarantees come from **the quote you pick**: they are printed on each quote, never assumed ([Request quotes](/search/how-it-works)).
+
+    Coming soon, with Advanced execution: every fill lands in **immutable contracts on-chain**, atomically and across chains, rather than on a venue's internal ledger. No balance is pre-funded to a counterparty, no principal is exposed mid-trade, and the trade composes with the on-chain assets and venues it touches.
+
+    - **Firm quotes, delivery or refund** (coming soon). Every eligible solver and LP can answer with a cryptographically firm, executable quote. Escrowed settlement enforces the terms exactly as quoted: a quote can disappoint you only by refunding, never by failing.
+    - **Routes, aggregated execution.** The same request reaches every other eligible execution source (direct DEX liquidity, bridges, issuers and fiat rails), and each route comes back as its own quote with its own firmness, settlement path and fees. With Advanced, it is one intent and one signature: routing, bridging and settlement are the solver's problem, even across chains.
   </Accordion>
-</AccordionGroup>
 
-The flow underneath is identical either way - quotes requested, sources compete, the quote you pick gets your signature, the order goes in - and on-chain settlement completes it with custody never leaving your side. Your guarantees come from **the quote you pick**: they are printed on each quote, never assumed. The details are in [how search works](/search/how-it-works).
+  <Accordion title="Multilateral Netting">
+    Coming soon. Every trade on the rails settles alone and pays the full toll (bridge, rebalance, conversion) even when an equal and opposite flow crosses minutes later. Netting collapses that gross flow to its **net residual** by atomic multilateral set-off. It opens to design partners first.
 
-## Multilateral Netting - Soon
+    - **Two firm quotes.** Settle instantly at today's price, or clear at a deadline you pick (hours-class, T+1 or T+2) at a tighter one. The choice is per settlement, and a tier is no lock-in.
+    - **Hold, don't move.** You settle by adjusting net positions: no pre-funding, no margin, no bridging inventory to cover a debt. Your capital keeps working until the lock window opens, and then only your net locks.
+    - **Proven and private.** Every run ships a **validity proof** checked on-chain before anything executes, and positions are readable only inside a sealed engine: nobody sees your book.
+    - **Every residual has an exit.** A remainder unpaid at its deadline takes a priced backstop ladder (standby funding, discount auction, vault liquidity, wholesale desk, then gross settlement), so the worst case is what you pay today.
 
-Every trade on the rails settles alone and pays the full toll - bridge, rebalance, conversion - even when an equal and opposite flow crosses minutes later. Netting collapses that gross flow to its **net residual** by atomic multilateral set-off.
+    See [how a clearing run works](/netting/how-it-works).
+  </Accordion>
 
-* **Two firm quotes.** Settle instantly at today's price, or clear at a deadline you pick - hours-class, T+1, or T+2 - at a tighter one. The choice is per settlement, and a tier is no lock-in.
-* **Hold, don't move.** You settle by adjusting net positions: no pre-funding, no margin, no bridging inventory to cover a debt. Your capital keeps working until the lock window opens, and then only your net locks.
-* **Proven and private.** Every run ships a **validity proof** checked on-chain before anything executes, and positions are readable only inside a sealed engine - nobody sees your book.
-* **Every residual has an exit.** A remainder unpaid at its deadline takes a priced backstop ladder - standby funding, discount auction, vault liquidity, wholesale desk, then gross settlement - so the worst case is what you pay today.
-
-See [how a clearing run works](/netting/how-it-works).
-
-## Shared Collateral Network - Next
-
-Netting shrinks what has to settle; the Shared Collateral Network funds what still has to wait. Capital is committed once into permissioned programmable collateral vaults and **cross-collateralised** across every settlement gap - encumbered only while a draw is live, and only to that one obligation.
+  <Accordion title="Shared Collateral Network">
+    Coming soon, in design. Netting shrinks what has to settle; the Shared Collateral Network funds what still has to wait. Capital is committed once into permissioned programmable collateral vaults and **cross-collateralised** across every settlement gap, encumbered only while a draw is live, and only to that one obligation.
 
 | Product | The gap today | What changes |
 | --- | --- | --- |
@@ -77,44 +73,32 @@ Netting shrinks what has to settle; the Shared Collateral Network funds what sti
 | [Venue Prefunding](/collateral/venue-prefunding) | A balance parked at every venue, sized for its worst day | Execute at flow size, fund at net size |
 | [Solver Credit](/collateral/solver-credit) | Inventory copied onto every chain a solver serves | Fill anywhere, warehouse nowhere |
 
-Every draw is an exchange, not a loan: capital moves only against a verified obligation, with the proof of repayment checked in the same transaction. The same vaults are netting's backstop and early exit - and, longer term, any programmable collateral use case joins as one more adapter over the same pool: one deep, **fungible pool** instead of a buffer per product.
+    Every draw is an exchange, not a loan: capital moves only against a verified obligation, with the proof of repayment checked in the same transaction. The same vaults are netting's backstop and early exit and, longer term, any programmable collateral use case joins as one more adapter over the same pool: one deep, **fungible pool** instead of a buffer per product.
+  </Accordion>
+</AccordionGroup>
 
-## One Gate Across Every Layer
+## One gate, your controls
 
-Compliance isn't a pillar beside the others - it's the gate every layer passes through.
+Compliance is the gate every layer passes through, and every deployment is built institutional-first: owned, configured and customised by your institution, under **full institutional control**. Use one primitive or compose all three.
 
-* **Onboard once.** Verify your entity once into a reusable onboarding pack that streamlines KYB across every counterparty on the network.
-* **One policy, everywhere.** Automated on-chain and off-chain checks under one policy - gating a quote request, netting membership and every run entry, and every vault draw - composed per deployment, under your institution's control.
-* **One audit trail.** Policy enforcement and an audit trail shared across parties - instead of every party repeating the same manual reviews - with flow monitoring and statistics in one place to run and evidence your activity.
+<AccordionGroup>
+  <Accordion title="One gate across every layer">
+    - **Onboard once.** Verify your entity once into a reusable onboarding pack that streamlines KYB across every counterparty on the network.
+    - **One policy, everywhere.** Automated on-chain and off-chain checks under one policy, gating a quote request today and, as they open, netting membership, every run entry and every vault draw, composed per deployment under your institution's control.
+    - **One audit trail.** Policy enforcement and an audit trail shared across parties, instead of every party repeating the same manual reviews, with flow monitoring and statistics in one place to run and evidence your activity.
+  </Accordion>
 
-## What You Control
-
-Every TetraFi deployment is built institutional-first: owned, configured, and customised by your institution, under **full institutional control**. Use one primitive or compose all three - each plugs into the shared liquidity and settlement network:
-
+  <Accordion title="What you control">
 | Layer | Your controls |
 | --- | --- |
-| **Rails** | Your workspace's own immutable on-chain router - no custody key, no upgrade key, capability upgrades only ever *add* to an allowlist - plus which venues it may touch, which LPs and jurisdictions your quote requests reach, and how your compliance pipeline is composed: checks added, removed, or layered to fit your regulatory perimeter |
-| **Netting** | Your own policy domain on the shared clearing network: membership rules, run cadence, backstop order, and asset scope |
-| **Shared Collateral Network** | Pick the vault envelope that fits your mandate - or, as independent curation opens, deploy your own: products, qualifying assets, caps, and policy |
+| **Rails** | Which venues you use, which LPs and jurisdictions your quote requests reach, and how your compliance pipeline is composed: checks added, removed or layered to fit your regulatory perimeter. Coming soon, with Advanced: your workspace's own immutable on-chain router, with no custody key and no upgrade key, whose capability upgrades only ever *add* to an allowlist |
+| **Netting** (coming soon) | Your own policy domain on the shared clearing network: membership rules, run cadence, backstop order and asset scope |
+| **Shared Collateral Network** (coming soon) | Pick the vault envelope that fits your mandate or, as independent curation opens, deploy your own: products, qualifying assets, caps and policy |
 
-Why that model is the whole point is the story of [Why TetraFi](/why-tetrafi).
+    Why that model is the whole point is the story of [Why TetraFi](/why-tetrafi).
+  </Accordion>
+</AccordionGroup>
 
-## Go Deeper
+Next: [Multilateral Netting](/netting) · [Shared Collateral Network](/collateral) · [What is live](/platform) · [Talk to us](/support)
 
-<CardGroup cols={2}>
-  <Card title="Multilateral Netting" icon="scale-balanced" href="/netting">
-    The clearing run, the settlement choice, and where the residual goes.
-  </Card>
-
-  <Card title="Shared Collateral Network" icon="circle-nodes" href="/collateral">
-    Why one shared capital base beats a buffer per product.
-  </Card>
-
-  <Card title="Build" icon="code" href="/platform">
-    One API for quotes and orders - start integrating.
-  </Card>
-
-  <Card title="Talk to us" icon="envelope" href="/support">
-    Still unsure which layers your flow needs? Get in touch with our team.
-  </Card>
-</CardGroup>
+Build it: [Request quotes](/search/how-it-works) · [API reference](/api-reference/intros/quotes)
