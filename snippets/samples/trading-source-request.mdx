@@ -3,13 +3,13 @@
 <CodeGroup>
 
 ```bash cURL
-# Name one trading wallet per chain in source.tradingWallets, by the financialAccountId sourceOptions
+# Name one trading wallet per chain in source.tradingWallets, as {wallet: <financialAccountId>} from sourceOptions
 # gave: two chains move USDC between them, one chain swaps USDC for ETH on it.
 request=$(jq -cn --argjson w "$trading_wallets" --arg amount "$amount" '($w | keys) as $chains
   | (if ($chains | length) > 1
       then {sell: {asset: "USDC", network: $chains[0]}, buy: {asset: "USDC", network: $chains[1]}}
       else {sell: {asset: "USDC", network: $chains[0]}, buy: {asset: "ETH", network: $chains[0]}} end)
-  + {kind: "pair", sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k))))}}')
+  + {kind: "pair", sellAmount: $amount, source: {tradingWallets: ($w | with_entries(select(.key as $k | $chains[0:2] | index($k)) | .value |= {wallet: .}))}}')
 ```
 
 ```typescript TypeScript SDK

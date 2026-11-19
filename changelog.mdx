@@ -5,6 +5,14 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-19" description="Signing with your own wallet: camelCase step values, wallet holds and the signing window (rolling out)">
+  - **Breaking.** An order's step history (`operation.steps[]`) sends camelCase values: `summary.purpose` (`token_approval` is `tokenApproval`, `uniswap_exact_input_single` is `uniswapExactInputSingle`, `bridge_deposit` is `bridgeDeposit`, and the rest alike), `authority.kind` (`headlessGrant`, `ownerCeremony`, `browserWallet`), a `GRANT_CAP_EXCEEDED` refusal's `cap` (`perTrade`) and `transaction.status` (`approvalPending`, `providerOutcomeUnknown`, `nonceConsumedElsewhere`, `signedNotBroadcast`; one-word values unchanged). Every set is open: treat an unknown value as other.
+  - **Breaking.** Each `source.tradingWallets` value is an object, `{wallet, signer?}`; a bare string is refused 400 `INVALID_REQUEST`, and the top-level `source.signer` is gone. Send `{"wallet": "<id or address>"}` per network.
+  - **Breaking.** A client-signed order holds its wallet on a network for its whole run, not only while a step is open: a second order answers 409 `SIGNING_WALLET_BUSY` naming the holder in `details.orderId`, including two orders placed at once.
+  - **Breaking.** Past a step's `signBy`, `declined` answers 410 `SIGNING_STEP_EXPIRED` and records nothing; before it, once the wallet's nonce moved past the step's, 409 `SIGNING_STEP_NOT_OPEN`.
+  - **Breaking.** Quoting a wallet you sign yourself needs the right to trade from it: a member without the Trade right on the wallet (a Viewer) is refused 403 `SIGNING_WALLET_NOT_ALLOWED` with `details.cause`. A key the order's steps would refuse is refused at `POST /api/v1/orders`, before any order exists. Details: [Sign with your own wallet](/trade/sign-with-your-own-wallet).
+</Update>
+
 <Update label="2026-11-19" description="Error codes: one form, one permission code, camelCase reasons">
   - **Breaking.** Codes end in what is wrong: `INVALID_AMOUNT` is `AMOUNT_INVALID`, `INVALID_CURSOR` is `CURSOR_INVALID`, `INVALID_LIMIT` is `LIMIT_INVALID`, `INVALID_WORKSPACE_ID` is `WORKSPACE_ID_INVALID`, `UNKNOWN_ASSET` is `ASSET_UNKNOWN`, `UNKNOWN_VENUE` is `VENUE_UNKNOWN`, `UNKNOWN_CHAIN` is `NETWORK_UNKNOWN`, and `MISSING_WORKSPACE` is `WORKSPACE_REQUIRED`.
   - **Breaking.** `VALIDATION_ERROR` is gone: a malformed request is `400 INVALID_REQUEST`, with `details.field` naming the input.

@@ -44,7 +44,7 @@ This recipe moves funds out of your wallet once it is live.
     ```json Request
     {"kind":"pair","sell":{"asset":"USDC","network":"eip155:8453"},"buy":{"asset":"USDC","network":"eip155:1"},"sellAmount":"100",
      "filters":{"locations":["crossChain"]},
-     "source":{"tradingWallets":{"eip155:8453":"0xAbc…"}}}
+     "source":{"tradingWallets":{"eip155:8453":{"wallet":"0xAbc…"}}}}
     ```
 
     ```json Output shape of the quote you pick (shortened) expandable
@@ -107,7 +107,7 @@ This recipe moves funds out of your wallet once it is live.
         type TransactionStep = {
           stepId: string;
           type: string;
-          signer: string; // you, tetrafi or venue
+          signer: string; // you or tetrafi; an open list
           legId: string;
           network: string; // CAIP-2, e.g. eip155:8453
           from: Address;
@@ -170,8 +170,10 @@ This recipe moves funds out of your wallet once it is live.
     ```json Output shape when it ends (shortened) expandable
     {"orderId":"9410e38e-…","status":"settled","terminal":true,
      "operation":{"steps":[
-       {"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","purpose":"approval","signer":"you","legId":"leg_0","status":"mined","network":"eip155:8453","txHash":"0x5e1…"},
-       {"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","purpose":"trade","signer":"you","legId":"leg_0","status":"mined","network":"eip155:8453","txHash":"0x9c4…"}]}}
+       {"stepId":"3f2b9c1e-8d4a-4c7e-9b1f-…","purpose":"approval","summary":{"purpose":"tokenApproval"},
+        "signer":"you","legId":"leg_0","status":"mined","network":"eip155:8453","txHash":"0x5e1…"},
+       {"stepId":"7a41d0e5-2c6b-4f39-a8e2-…","purpose":"trade","summary":{"purpose":"bridgeDeposit"},
+        "signer":"you","legId":"leg_0","status":"mined","network":"eip155:8453","txHash":"0x9c4…"}]}}
     ```
   </Step>
 </Steps>
@@ -180,13 +182,13 @@ This recipe moves funds out of your wallet once it is live.
 
 <AccordionGroup>
   <Accordion title="A fresh step 1, or a step not signed in time">
-    A fresh step 1 means the chain moved and nothing was relayed: sign `next.step` and submit it on the step endpoint. A step not signed by its `signBy` ends the order `unfilled`; quote again. Every ending: [How it ends](/trade/sign-with-your-own-wallet#how-it-ends).
+    A fresh step 1 means the chain moved and nothing was relayed: sign `next.step` and submit it on the step endpoint. Past a step's `signBy`, a signed answer is refused 410 `SIGNING_STEP_EXPIRED`; the order ends `unfilled` once finality shows the nonce did not move, and the wallet stays held until then ([Signing window](/trade/sign-with-your-own-wallet#submit-a-step)). Quote again after it ends. Every ending: [How it ends](/trade/sign-with-your-own-wallet#how-it-ends).
   </Accordion>
   <Accordion title="You would rather broadcast it yourself">
     Broadcast the signed transaction, then submit `{"kind":"transactionHash","txHash":"0x…"}`. TetraFi reads it from the chain and applies the same checks. `SIGNING_TRANSACTION_NOT_FOUND` (409) means the chain does not show it yet: retry with backoff.
   </Accordion>
   <Accordion title="You decide not to go on">
-    Submit `{"kind":"declined"}` on the step endpoint: the order ends `unfilled` and the deposit is never sent. An approval already mined stays.
+    Before the step's `signBy`, submit `{"kind":"declined"}` on the step endpoint: the order ends `unfilled` and the deposit is never sent. An approval already mined stays. A late decline is refused 410 `SIGNING_STEP_EXPIRED`.
   </Accordion>
   <Accordion title="A refusal">
     TetraFi relayed nothing for that submission; earlier steps may already be on-chain. Every code: [Refusals](/trade/sign-with-your-own-wallet#refusals).
