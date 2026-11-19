@@ -231,11 +231,11 @@ The API reference states this contract as data, in the API-key scheme's `x-reque
 
 | `details.reason` | What went wrong |
 | --- | --- |
-| `SIGNATURE_REQUIRED` | The key needs signing and a header is missing. |
-| `SIGNATURE_INVALID` | The signature is malformed or does not match. |
-| `TIMESTAMP_OUT_OF_RANGE` | `X-Timestamp` is more than 300 seconds off, or a write's is more than 10 seconds ahead. |
-| `NONCE_REQUIRED`, `NONCE_INVALID` | A write has no `X-Nonce`, or it is malformed or the header appears twice. |
-| `SIGNATURE_REPLAYED` | This nonce was already accepted for the key. |
+| `signatureRequired` | The key needs signing and a header is missing. |
+| `signatureInvalid` | The signature is malformed or does not match. |
+| `timestampOutOfRange` | `X-Timestamp` is more than 300 seconds off, or a write's is more than 10 seconds ahead. |
+| `nonceRequired`, `nonceInvalid` | A write has no `X-Nonce`, or it is malformed or the header appears twice. |
+| `signatureReplayed` | This nonce was already accepted for the key. |
 
   </Accordion>
 </AccordionGroup>
@@ -313,7 +313,7 @@ In the app, Rotate key issues a new key and Revoke key ends one for good.
 
 <Accordion title="Overlap and timing">
   - Rotate key issues a new key; the old key keeps working for one hour while you deploy the new one. The rotated key keeps its permissions and its request-signing secret.
-  - Revoke key is permanent: within at most 30 seconds the key is refused with `401 AUTH_REQUIRED` and `details.reason` `INVALID_API_KEY`.
+  - Revoke key is permanent: within at most 30 seconds the key is refused with `401 AUTH_REQUIRED` and `details.reason` `invalidApiKey`.
 
   Quote and other rate limits are on [Rate limits](/reference/rate-limits).
 </Accordion>
@@ -321,7 +321,7 @@ In the app, Rotate key issues a new key and Revoke key ends one for good.
 <Accordion title="Other key refusals">
 | Answer | Meaning |
 | --- | --- |
-| `401 AUTH_REQUIRED` with `API_KEY_EXPIRED` | The key is past its expiration. |
+| `401 AUTH_REQUIRED` with `apiKeyExpired` | The key is past its expiration. |
 | `429` on a replayed request | The rate limit is checked before the replay. |
 | `503 API_KEY_UNAVAILABLE` | Key or signing state unconfirmed; the nonce may be recorded. Sign again with a new timestamp and nonce, then retry. |
 </Accordion>
