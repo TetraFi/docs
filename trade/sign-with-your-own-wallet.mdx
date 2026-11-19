@@ -11,16 +11,22 @@ Name your wallet's address in the quote request, sign the step each on-chain quo
 
 ## At a glance
 
-| Step | Call | What you get |
-| --- | --- | --- |
-| Quote for your wallet | `POST /api/v1/quotes` with `source.tradingWallets` | On-chain quotes with `signing.firstStep` |
-| Order, with step 1 signed if you can | `POST /api/v1/orders`, optionally with `firstStep` | The order; with `firstStep` it opens and executes step 1 in one call |
-| Sign a later step, if any | `POST /api/v1/orders/{orderId}/steps/{stepId}` | The order again |
-| Follow | `GET /api/v1/orders/{orderId}` or [webhooks](/trade/webhooks) | `terminal: true` |
+| Call | What you get |
+| --- | --- |
+| `POST /api/v1/quotes` with `source.tradingWallets` | On-chain quotes with `signing.firstStep` |
+| `POST /api/v1/orders`, optionally with `firstStep` | The order; with `firstStep` it opens and executes step 1 in one call |
+| `POST /api/v1/orders/{orderId}/steps/{stepId}` | A later step signed; the order again |
+| `GET /api/v1/orders/{orderId}` or [webhooks](/trade/webhooks) | The order, until `terminal: true` |
 
 A trade takes two calls (quote, order) when the venue already has your token allowance, and three on a token's first trade: an approval, then the trade.
 
-You need a key with [venue trading](/authentication#trade-on-your-venue-accounts), and no organisation-wallet grant. The wallet need not be registered first, unless your workspace lets keys trade only from wallets it approved (`SIGNING_WALLET_NOT_ALLOWED`): then get the address approved before you order.
+A key needs [venue trading](/authentication#trade-on-your-venue-accounts) and no organisation-wallet grant. A signed-in member uses the same three routes with its session.
+
+<Accordion title="Keys, members and which wallets they may name">
+  - The wallet need not be registered first, unless your workspace lets keys trade only from wallets it approved (`SIGNING_WALLET_NOT_ALLOWED`): then get the address approved before you order. This is checked at the quote, the order and each step.
+  - A member names a wallet linked to them, or an External organisation wallet, by id or address. It may trade within its own trade permission, from wallets it can see. A member's personal wallet trades only in that member's own session (`PERSONAL_TARGET_NOT_ALLOWED`).
+  - The step route takes a member's session bearer token as well as an API key.
+</Accordion>
 
 ## Trade from your wallet
 
@@ -28,7 +34,7 @@ The full walk-through, with `cast` and viem: [Move stablecoins from your own wal
 
 <Steps>
   <Step title="Quote with your address">
-    Send your wallet's address for its network in `source.tradingWallets`, and fix `sellAmount`. Exchange and OTC venues quote as usual.
+    Send your wallet's address for its network in `source.tradingWallets`, and fix `sellAmount`. An External wallet named in `source.preferredWallets` also works ([who signs](#the-step-object)). Exchange and OTC venues quote as usual.
   </Step>
   <Step title="Sign the step">
     Sign the quote's `signing.firstStep` ([the step object](#the-step-object)).
@@ -69,19 +75,19 @@ Sign `transaction` on the chain of the step's `network` (`eip155:8453` is chain 
     `type` is `transaction` or `typedData`; `purpose` is `approval`, `trade`, `revoke`, `acceptance` or `funding`. Both lists can grow: do not sign a `type` you do not know, and keep following the order.
   </Accordion>
   <Accordion title="Who signs">
-    `signing.mode` is `you` for an address TetraFi cannot sign for, and `tetrafi` for an organisation wallet granted to your key. Send `source.signer: "you"` to sign yourself for a wallet TetraFi could sign. The list of modes can grow.
+    `signing.mode` is `you` for an address TetraFi cannot sign for, and `tetrafi` for an organisation wallet granted to your key. The wallet that pays decides who signs, whichever field named it: an External wallet named in `source.preferredWallets` makes the quote `you`, as it does in `source.tradingWallets`. `source.signer: "you"`, to sign yourself for a wallet TetraFi could sign, is not available yet: it is refused `SIGNING_WALLET_UNSUPPORTED`. The list of modes can grow.
   </Accordion>
   <Accordion title="Your wallet in TetraFi">
-    The address is screened before anything is relayed. Your first checked signature proves the wallet is yours: it then appears in Treasury as an external wallet, and an Owner can remove it. The output goes back to the signing wallet; delivery to another wallet of your workspace comes later. A wallet trades one order at a time per network: while it has an open step, another order from it is refused `SIGNING_WALLET_BUSY`, and its quotes read `walletBusy`.
+    The address is screened before anything is relayed. Your first checked signature proves the wallet is yours: it then appears in Treasury as an external wallet, and an Owner can remove it. The output goes back to the signing wallet: a `deliverTo` naming anything else is refused ([Refusals](#refusals)). Delivery to another wallet of your workspace comes later. At an on-chain Basic venue that needs no key and is still being set up, your first quote signed this way records the wallet as the venue's activation wallet; if nothing else is missing, the venue is ready on that same quote. A wallet trades one order at a time per network: while it has an open step, another order from it is refused `SIGNING_WALLET_BUSY`, and its quotes read `walletBusy`.
   </Accordion>
-  <Accordion title="Venues and networks at opening">
-    On EVM networks, for a quote with `sellAmount`:
+  <Accordion title="Steps by venue">
+    On EVM networks, for a quote with `sellAmount`, measured live:
 
-    | Venue | Steps you sign |
+    | Venue | Steps in order |
     | --- | --- |
-    | Uniswap, Across, Relay, Circle CCTP, Multiliquid | An approval if the allowance is short, then the trade: `transaction` steps. |
-    | Bebop | The approval, then the swap once Bebop's firm quote is in: `transaction` steps. |
-    | Circle StableFX | An approval if short, then the acceptance and funding messages: `typedData` steps. Its quote lasts about 4 seconds, so only an automated signer keeps up. |
+    | Uniswap, Across, Relay, Circle CCTP, Multiliquid | An approval `transaction` if the allowance is short, then the trade `transaction`. Multiliquid's quote lasts 30 seconds. |
+    | Bebop | When the allowance is short, the quote's price is Bebop's stream price less 150 bp, held 30 seconds, and `firstStep` is the approval `transaction`. Once it is mined, Bebop gives one firm quote (PMM only), then you sign the swap `transaction`. |
+    | Circle StableFX | The acceptance `typedData` (the `firstStep`), then a Permit2 approval `transaction` only if the allowance is short, then Circle's funding `typedData`. Its quote lasts about 4 seconds, so only an automated signer keeps up with step 1; there is no TetraFi signing budget, so a later step only has to be answered before its `signBy`. |
 
     With `buyAmount` these venues read `unavailable` (`exactOutputDeliveryUnsupported`); other venues read `clientSignedVenueUnsupported`. Solana and Tron follow as new step types.
   </Accordion>
@@ -103,53 +109,76 @@ Sign transactions as legacy, EIP-2930 or EIP-1559, from a wallet that signs with
 
 <Accordion title="Submission kinds: signedTransaction, transactionHash, signature, declined">
 
-| `kind` | Send | What TetraFi does |
-| --- | --- | --- |
-| `signedTransaction` | `raw` | Checks it against the step it issued, then relays it and follows it on-chain. While it is unmined you may submit the same transaction again with a higher fee. |
-| `transactionHash` | `txHash` | On the step endpoint only, once the wallet's screening passed: you broadcast it yourself; TetraFi checks it on-chain. |
-| `signature` | `signature` | For a `typedData` step: checks it, then passes it to the venue. |
-| `declined` | nothing | On the step endpoint only: ends the order `unfilled` and sends no further step. It does not undo a transaction already on-chain. |
+`firstStep` takes `signedTransaction` or `signature` only.
 
+| `kind`, and what you send | What TetraFi does |
+| --- | --- |
+| `signedTransaction`, with `raw` | Checks it against the step it issued, then relays it and follows it on-chain. While it is unmined you may submit the same transaction again with a higher fee. |
+| `transactionHash`, with `txHash` | On the step endpoint only, once the wallet's screening passed: you broadcast it yourself; TetraFi checks it on-chain. |
+| `signature`, with `signature` | For a `typedData` step: checks it recovers to the step's `from`, then passes it to the venue. |
+| `declined`, with nothing | On the step endpoint only: ends the order `unfilled` and sends no further step. It does not undo a transaction already on-chain. |
+
+</Accordion>
+
+<Accordion title="Order without minReceive">
+  Without `minReceive`, the order is bound by the minimum the quote's own step was drafted with. A `minReceive` that changes the trade's transaction means a fresh step 1 ([How it ends](#how-it-ends)). The rule itself: [Minimum receive](/trade/orders#minimum-receive).
 </Accordion>
 
 ## How it ends
 
-If your wallet's nonce, allowance or balance changed between the quote and the order, or the `minReceive` you send changes the trade's transaction, nothing is relayed: the order opens and `next` carries a fresh first step to sign.
+If your wallet's nonce or allowance changed between the quote and the order, or the `minReceive` you send changes the trade's transaction, nothing is relayed: the order opens and `next` carries a fresh first step to sign. Any other refused `firstStep` answers its own code, and no order opens.
 
 <Accordion title="Endings: unsigned, reverted, nonce used">
 
 | What happened | How the order reads |
 | --- | --- |
 | A later step was not signed by `signBy` | `unfilled`, `outcomeCode: not_sent`. A mined approval stays. |
-| A step's transaction reverted | `unfilled` or `failed`, with the reason. |
+| A step's transaction reverted | The step reads `reverted`; the order ends `unfilled` or `failed`, with the venue's reason. |
 | The network refused the transaction (fee too low, no gas money) | The step reopens with a new `stepId` in `next`: sign it again. |
-| Another transaction used the step's nonce | `unfilled`, `outcomeCode: nonce_used_elsewhere`. |
+| A different transaction was mined at the step's pinned nonce | `unfilled`, `outcomeCode: nonce_used_elsewhere`. |
+| Your workspace stopped keys trading from wallets it has not approved, mid-order | The next step is refused `SIGNING_WALLET_NOT_ALLOWED`; `unfilled`, `outcomeCode: not_sent`. |
 
 </Accordion>
 
-### Step refusals
+<Accordion title="Step history and confirmations">
+  - The order reads `clientSigned` and lists every step in `operation.steps`: `stepId`, `sequence`, `purpose`, `type`, `status` (`pending`, `sent`, `mined`, `reverted`, `refused` or `lapsed`), `txHash` and `signBy`. `order.updated` fires whenever `next` changes ([Webhooks](/trade/webhooks)).
+  - The next step opens once the previous one has 1 confirmation with a status-1 receipt.
+  - A terminal outcome is never delayed for finality and never rewritten. If a later finality re-read finds a step's receipt changed or gone, TetraFi raises a review item instead.
+  - After `signBy`, a matching transaction mined at the pinned nonce is adopted as the step, and a late `transactionHash` that matches the step exactly is accepted. A step counts as not sent only once finality proves it.
+</Accordion>
 
-A `503` on these routes names its cause in `details.cause` (`screening`, `chainRead`, `relay` or `stepStore`): retry shortly. TetraFi relayed nothing for the submission it refused. Earlier steps may already be on-chain, as may a transaction you broadcast yourself: read the order and its step hashes before you retry.
+### Refusals
 
-<Accordion title="Every step refusal">
+TetraFi relayed nothing for the submission it refused. Earlier steps may already be on-chain, as may a transaction you broadcast yourself: read the order and its step hashes before you retry.
 
-| Code | Status | Meaning |
-| --- | --- | --- |
-| `SIGNING_STEP_REQUIRED` | 422 | `firstStep` on a quote TetraFi signs, or a `firstStep` kind the order does not take (`transactionHash`, `declined`). |
-| `SIGNING_STEP_MISMATCH` | 422 | The signed step differs from the one issued; `details.field` says where. |
-| `SIGNING_STEP_NOT_OPEN` | 409 | Already answered, or the order no longer waits for it; nothing was sent. Read the order for its next step. |
-| `SIGNING_STEP_EXPIRED` | 410 | Past its `signBy`; nothing was sent. Read the order for how it ended. |
-| `SIGNING_TRANSACTION_NOT_FOUND` | 409 | The chain does not show the transaction yet: retry shortly. |
-| `SIGNING_WALLET_SCREENING_PENDING` | 409 | The wallet's screening is still running: retry shortly. |
-| `SIGNING_WALLET_REFUSED` | 403 | The address failed screening. |
-| `SIGNING_WALLET_BUSY` | 409 | The wallet has an open step on this network in another order; `details.orderId` names it. |
-| `SIGNING_WALLET_FUNDS_SHORT` | 409 | The wallet's balance or gas money no longer covers the step; `details.field` is `balance` or `gas`. |
-| `SIGNING_TRANSACTION_TYPE_UNSUPPORTED` | 422 | The transaction is not legacy, EIP-2930 or EIP-1559. |
-| `SIGNING_TRANSACTION_REJECTED` | 409 | The network refused the transaction; sign the reopened step. |
-| `SIGNING_WALLET_LIMIT_REACHED` | 429 | Your key or workspace named too many new addresses today. |
-| `SIGNING_STEP_REFUSED` | 403 | The key may not trade from this wallet now; the message says why. |
-| `SIGNING_WALLET_NETWORK_UNSUPPORTED` | 422 | No venue trades the wallet's network here, or its wallets cannot sign their own trades yet (only EVM networks can). No venue was asked. |
-| `SIGNING_WALLET_NOT_ALLOWED` | 403 | Your workspace does not let keys trade from wallets it has not approved, or the wallet is not yours to trade from. No venue was asked. |
+<Accordion title="Every refusal on this path">
+
+A `503` names its cause in `details.cause` (`screening`, `chainRead`, `relay` or `stepStore`): retry shortly. The [error-code reference](/reference/error-codes) marks `SOURCE_NOT_OWNED`, `PERSONAL_TARGET_NOT_ALLOWED`, `SIGNING_WALLET_UNSUPPORTED` and `ADVANCED_SOURCE_ACCOUNT_UNAVAILABLE` `definitelyNotSent: true`; `SCREENING_UNAVAILABLE` stays `false`, because the `firstStep` relay can answer it after the order opened.
+
+| Code | Meaning and what to do |
+| --- | --- |
+| 422 `SIGNING_STEP_REQUIRED` | `firstStep` on a quote TetraFi signs, or a `firstStep` kind the order does not take (`transactionHash`, `declined`). |
+| 422 `SIGNING_STEP_MISMATCH` | The signed step differs from the one issued; `details.field` says where. |
+| 409 `SIGNING_STEP_NOT_OPEN` | Already answered, or the order no longer waits for it; nothing was sent. Read the order for its next step. |
+| 410 `SIGNING_STEP_EXPIRED` | Past its `signBy`; nothing was sent. Read the order for how it ended. |
+| 404 `SIGNING_STEP_NOT_FOUND` | The order has no such step for you: use the `stepId` of the order's `next.step`. |
+| 409 `SIGNING_TRANSACTION_NOT_FOUND` | The chain does not show the transaction yet: retry shortly. |
+| 409 `SIGNING_TRANSACTION_REJECTED` | The network refused your signed transaction. If it was underpriced or the wallet lacked gas money, nothing was sent: sign the step it reopens, with a new `stepId` at the same nonce. If its nonce was already taken, the step keeps that transaction and the chain decides it. |
+| 409 `SIGNING_WALLET_SCREENING_PENDING` | The wallet's screening is still running: retry shortly. |
+| 403 `SIGNING_WALLET_REFUSED` | The address failed screening. |
+| 503 `SCREENING_UNAVAILABLE` | The screening provider failed: retry shortly. A provider failure is never a refusal. |
+| 403 `SIGNING_STEP_REFUSED` | The key may not trade from this wallet now; the message says why. |
+| 422 `SIGNING_WALLET_NETWORK_UNSUPPORTED` | No venue trades the wallet's network here, or its wallets cannot sign their own trades yet (only EVM networks can). No venue was asked. |
+| 403 `SIGNING_WALLET_NOT_ALLOWED` | Your workspace does not let keys trade from wallets it has not approved, or the wallet is not yours to trade from. No venue was asked. |
+| 422 `SIGNING_WALLET_UNSUPPORTED` | `source.signer: "you"` on a wallet TetraFi signs for: not available yet. Leave `source.signer` out, or name the wallet by its id. |
+| 409 `PERSONAL_TARGET_NOT_ALLOWED` | The credential named a member's personal wallet; only that member's own session trades from it. |
+| 503 `SIGNING_STEP_UNAVAILABLE`, `SIGNING_WALLET_UNAVAILABLE` | The step could not be checked, or the wallet could not be recorded, right now; nothing was sent. Retry shortly. |
+| 409 `SIGNING_WALLET_BUSY` | The wallet has an open step on this network in another order; `details.orderId` names it. |
+| 409 `SIGNING_WALLET_FUNDS_SHORT` | The wallet's balance or gas money no longer covers the step; `details.field` is `balance` or `gas`. Nothing was sent. |
+| 422 `SIGNING_TRANSACTION_TYPE_UNSUPPORTED` | The transaction is not legacy, EIP-2930 or EIP-1559; EIP-4844 and EIP-7702 are refused. |
+| 429 `SIGNING_WALLET_LIMIT_REACHED` | Your key or workspace named too many new addresses today. |
+| 422 `DELIVER_TO_NOT_SIGNING_WALLET` | `deliverTo` names a wallet other than the signing wallet. Leave it out, or name that wallet. |
+| 422 `DELIVER_TO_NOT_REGISTERED` | `deliverTo` is no wallet or saved destination of your workspace. |
 
 </Accordion>
 
