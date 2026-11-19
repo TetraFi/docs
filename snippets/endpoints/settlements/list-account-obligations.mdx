@@ -1,0 +1,24 @@
+| | |
+| --- | --- |
+| **Paging** | `limit` 1 to 200 (default 50); follow `nextCursor` until `null`. |
+| **readAt** | Read each row's own; the envelope `readAt` is deprecated. |
+| **Owner** | The key's owner also needs View settlements ([Permissions](/authentication#permissions)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `payer`, `payee` | Who pays whom: `workspace` or `lp`. |
+| `remainingAmount`, `asset` | What is still owed. |
+| `dueAt`, `dueState` | The deadline, and where the obligation stands against it. |
+| `status` | `open`, `partlyMet`, `met`, `lapsed` or `overdue`. |
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 403 `SETTLEMENT_PERMISSION_REQUIRED` | The key's owner lacks View settlements. `details.fix` names who can grant it. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `settlements_read`. |
+| 404 `SETTLEMENT_WINDOW_NOT_FOUND` | No window with the `windowId` filter's id on this account. |
+| 404 `SETTLEMENT_TRADE_NOT_FOUND` | No trade with the `tradeId` filter's id on this account. |
+| 503 `SETTLEMENT_OBLIGATION_READ_UNAVAILABLE` | The obligations could not be read. Retry shortly. |
+</Accordion>

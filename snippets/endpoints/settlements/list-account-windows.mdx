@@ -1,0 +1,23 @@
+| | |
+| --- | --- |
+| **Paging** | `limit` 1 to 100 (default 100); pass `nextCursor` unchanged as `cursor`. |
+| **readAt** | Read each window's own; the envelope `readAt` is deprecated. |
+| **Owner** | The key's owner also needs View settlements ([Permissions](/authentication#permissions)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `status` | The snapshot: `scheduled`, `building`, `ready`, `retrying` or `failed`. Filter by it. |
+| `statement` | Once `ready`: positions, snapshot prices (an unavailable price names its stage and reason) and the minimum-settlement decision. It is indicative. |
+| `dueState` | Where the window's payment stands, such as `dueSoon`, `overdue` or `met`. |
+| `paymentDeadlineAt` | When what is owed must be paid. |
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_LIMIT`, `INVALID_CURSOR` | `limit` is outside 1 to 100, or the cursor is not one this list issued. |
+| 403 `SETTLEMENT_VIEW_PERMISSION_REQUIRED` | The key's owner lacks View settlements. `details.fix` names who can grant it. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `settlements_read`. |
+| 503 `SETTLEMENT_SNAPSHOT_READ_UNAVAILABLE` | The windows could not be read. Retry shortly. |
+</Accordion>

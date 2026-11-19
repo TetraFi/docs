@@ -1,0 +1,29 @@
+| | |
+| --- | --- |
+| **tradeId** | An order id, or a venue trade's operation id, from the [trade history](/trade/trade-history#read-a-page). |
+| **How it ended** | Branch on `settlement.status`; show `settlement.failureReason` to people ([more](/trade/trade-history#read-one-trade)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `tradeId`, `kind`, `projection` | The same as on the list. |
+| `settlement.status` | `pending`, `settled`, `failed`, `refunded` or `unknown`. |
+| Detail fields | A taker order keeps its detail fields at the top level. |
+</Accordion>
+
+<Accordion title="Views for signed-in members">
+`scope` (`mine`, `workspace` or `umbrella`) and `perspective` work as on the list. The umbrella view is a broker's record with the client category's field visibility. `perspective=maker` is an LP's fill with pseudonymised counterparties, for a member of an LP workspace allowed to view settlements; `venueId` names the LP's own venue that filled it, and `flow` is `protocol`, `venueAccount` or `all`. With an API key these views answer `403 JWT_REQUIRED`.
+</Accordion>
+
+<Accordion title="Refusals">
+A `404` with no code means no trade with this id in this view.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | A list filter, or a parameter this view cannot apply. `field` names it. |
+| 403 `RECORDS_OUT_OF_SCOPE` | Another member's order, and you cannot view the workspace's compliance records. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `trades_read`. |
+| 403 `JWT_REQUIRED` | `scope=mine`, the umbrella or the maker view with an API key. |
+| 404 `WORKSPACE_NOT_FOUND` | The path's workspace is not your key's. |
+| 503 `TRADE_PROJECTION_UNAVAILABLE` | This view is not available on this deployment. Retry later. |
+</Accordion>

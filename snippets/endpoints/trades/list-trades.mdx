@@ -1,0 +1,38 @@
+| | |
+| --- | --- |
+| **Paging** | `limit` defaults to 25; send `nextCursor` as `cursor` until it is `null`. |
+| **Own trades** | Without View compliance records, you read only your own trades. |
+| **Partial page** | `unreachable` names a source not read: the page is partial, not shorter ([more](/trade/trade-history#read-a-page)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `tradeId`, `kind`, `projection` | On every row except an order summary. `kind` is `order` or `venueTrade`. |
+| `totalCount` | Rows matching your filters. |
+| `nextCursor` | The next page's `cursor`; it pages only the `sort` it was returned for. |
+| `unreachable` | Sources this page could not read. |
+</Accordion>
+
+<Accordion title="Each trade's settlement in one call">
+`include=settlement` adds each listed trade's settlement to `included`, by `tradeId`, as `GET …/trades/{tradeId}/settlement` answers you in the row's perspective, or null with that read's refusal. Not on a signed API-key request, and not with `format=csv`.
+</Accordion>
+
+<Accordion title="Views for signed-in members">
+- `scope=workspace` (the default) reads the workspace's taker orders and venue trades. `scope=mine` reads the caller's own (a member session only).
+- `scope=umbrella` reads a broker's clients' orders, with each client category's field visibility (a member allowed to view client compliance records).
+- `perspective=maker` reads an LP workspace's fills with pseudonymised counterparties (a member allowed to view settlements). A member allowed to view orders or bilateral documents but not settlements reads order summaries instead (`maker.summary`, without `tradeId`). With `settlementStage` or `minAgeSeconds`, it reads unsettled orders by stage (a member allowed to view bilateral documents).
+- The default perspective is taker in every workspace. `format=csv` returns the same filtered rows, for a member session only; a maker CSV also needs permission to view settlements.
+- With an API key, the umbrella and maker views answer `403 JWT_REQUIRED`.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | `field` names the parameter: unknown, a filter this view cannot apply, a cursor from another list, or two names for one filter. |
+| 400 `VALIDATION_ERROR` | A malformed filter. |
+| 400 `INCLUDE_UNKNOWN`, `INCLUDE_INVALID` | `include` names an unknown relation, or is malformed or repeated. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `trades_read`. |
+| 403 `JWT_REQUIRED` | `scope=mine`, the umbrella or the maker view with an API key. Use a member session. |
+| 404 `WORKSPACE_NOT_FOUND` | The path's workspace is not your key's. |
+| 503 `TRADE_PROJECTION_UNAVAILABLE` | This view is not available on this deployment. Retry later. |
+</Accordion>

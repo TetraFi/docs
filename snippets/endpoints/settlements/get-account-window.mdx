@@ -1,0 +1,32 @@
+| | |
+| --- | --- |
+| **include** | Adds related reads, such as `obligations` or `matches`, under `included`. |
+| **Owner** | The key's owner also needs View settlements ([Permissions](/authentication#permissions)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `statement` | The indicative statement: positions, snapshot prices and the minimum-settlement decision. |
+| `statementSource` | Whose statement settles the window: `indicative` or `lpIssued`. An LP-issued window adds `lpStatement`. |
+| `obligations` | This window's obligations, and the earlier ones it carries forward. |
+| `matches` | The movements matched to them. |
+</Accordion>
+
+<Accordion title="Related reads with include">
+Comma-separated. Each is keyed in `included` by the GET it read (path and query), with that GET's own answer to you, or null with its refusal.
+
+- `terms`: the account's settlement terms. `schedules`: its first 100 schedules (`schedules?limit=100`). `scheduleSelection`: its schedule selection.
+- `obligations`: the window's obligations (`obligations?windowId=`). `nudges`: its latest nudge (`nudges?limit=1`). `payments`: its first 100 payments.
+- `matches`: its first page of matches. `statements`: its statement versions. `messages`: its first 100 messages.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INCLUDE_UNKNOWN`, `INCLUDE_INVALID` | `include` names an unknown relation, or is malformed or repeated. |
+| 400 `INCLUDE_SIGNED_REQUEST_UNSUPPORTED` | `include` on a signed API-key request. Read each relation on its own. |
+| 403 `SETTLEMENT_VIEW_PERMISSION_REQUIRED` | The key's owner lacks View settlements. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `settlements_read`. |
+| 404 `SETTLEMENT_WINDOW_NOT_FOUND` | No window with this id on this account. List the windows. |
+| 503 `SETTLEMENT_SNAPSHOT_READ_UNAVAILABLE` | The window or its statement could not be read. Retry shortly. |
+</Accordion>
