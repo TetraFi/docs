@@ -39,16 +39,16 @@ Each trade joins the account's open **window**. When its snapshot is `ready`, it
 
 <AccordionGroup>
   <Accordion title="What each read needs">
-    Paths are under `/api/v1/workspaces/{workspaceId}`. Every trade is in the [trade history](/trade/trade-history) (Read trades). Told instead of polling: the `settlement.*` and `credit.updated` [webhooks](#webhooks). Settlement reads are `GET …/venue-accounts/{venueAccountId}/settlement/…`, plus `GET …/settlement/plan` and `GET …/trades/{tradeId}/settlement`.
+    Paths are under `/api/v1/workspaces/{workspaceId}`. Every trade is in the [trade history](/trade/trade-history) (Read trades). Told instead of polling: the `settlement.*` and `credit.updated` [webhooks](#webhooks). Settlement reads are `GET …/venue-accounts/{venueAccountId}/settlement/…`, plus [`GET …/settlement/plan`](/api-reference/settlements/get-settlement-plan) and [`GET …/trades/{tradeId}/settlement`](/api-reference/trades/get-trade-settlement).
 
-    Your `workspaceId` comes from `GET /api/v1/me`; another answers `404 WORKSPACE_NOT_FOUND`. Take a `venueAccountId` from [`GET …/venue-enablements`](/trade/balances#list-your-exchange-accounts). Permissions are in [Permissions](/authentication#permissions) and [Before your first trade](/before-you-trade).
+    Your `workspaceId` comes from [`GET /api/v1/me`](/api-reference/auth/get-current-credential); another answers `404 WORKSPACE_NOT_FOUND`. Take a `venueAccountId` from [`GET …/venue-enablements`](/trade/balances#list-your-exchange-accounts). Permissions are in [Permissions](/authentication#permissions) and [Before your first trade](/before-you-trade).
 
 | Reads | Key permission; key owner's workspace permission |
 | --- | --- |
 | Settlement plan, trades, windows, obligations, movements, schedules | Read settlements (`settlements_read`); View settlements |
 | `…/credit` | Treasury read; View wallets and View credit |
 | `…/ledger` | Treasury read; View wallets |
-| `GET …/venue-account-credit` | Treasury read |
+| [`GET …/venue-account-credit`](/api-reference/venue-accounts/list-account-credit) | Treasury read |
 
   </Accordion>
 </AccordionGroup>
@@ -64,13 +64,13 @@ No settlement read creates a transfer, reservation, approval or instruction to t
 | --- | --- |
 | `GET …/workspaces/{workspaceId}/settlement/plan` | What is due across your venue accounts |
 | `GET …/trades/{tradeId}/settlement` and `…/trades/{tradeId}/settlement/obligations` | How one trade settled |
-| `GET …/venue-accounts/{venueAccountId}/settlement/windows`, `…/windows/{windowId}` and `…/windows/{windowId}/matches` | An account's settlement windows and statements |
-| `GET …/venue-accounts/{venueAccountId}/settlement/obligations` and `…/obligations/{obligationId}` | What each side owes, and by when |
-| `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/movements/{movementId}` | The deposits and withdrawals that settled them |
-| `GET …/venue-accounts/{venueAccountId}/settlement/schedules` (paged with `limit` and `cursor`) | The LP's published settlement schedules |
-| `GET …/venue-accounts/{venueAccountId}/settlement/schedule-selection` | The schedule in effect, a pending change and the next window |
+| [`GET …/venue-accounts/{venueAccountId}/settlement/windows`](/api-reference/settlements/list-account-windows), `…/windows/{windowId}` and `…/windows/{windowId}/matches` | An account's settlement windows and statements |
+| [`GET …/venue-accounts/{venueAccountId}/settlement/obligations`](/api-reference/settlements/list-account-obligations) and `…/obligations/{obligationId}` | What each side owes, and by when |
+| [`GET …/venue-accounts/{venueAccountId}/settlement/movements`](/api-reference/settlements/list-account-movements) and `…/movements/{movementId}` | The deposits and withdrawals that settled them |
+| [`GET …/venue-accounts/{venueAccountId}/settlement/schedules`](/api-reference/settlements/list-account-schedules) (paged with `limit` and `cursor`) | The LP's published settlement schedules |
+| [`GET …/venue-accounts/{venueAccountId}/settlement/schedule-selection`](/api-reference/settlements/get-schedule-selection) | The schedule in effect, a pending change and the next window |
 | `GET …/venue-account-credit` | Every venue account's credit, in one call |
-| `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | The account's credit line and positions |
+| [`GET …/venue-accounts/{venueAccountId}/credit`](/api-reference/venue-accounts/get-account-credit) and `…/ledger` | The account's credit line and positions |
 
   </Accordion>
   <Accordion title="The settlement plan">
@@ -153,7 +153,7 @@ A refused read answers with its code, never an empty page.
 | --- | --- |
 | `GET …/venue-account-credit` | The same as the credit read, for every venue account (or those named in `venueAccountId`), with the ones that could not be read in `unreachable`. As current as the credit read. |
 | `GET …/venue-accounts/{venueAccountId}/credit` | The provider's reported line (limit, used, available and overrun), the agreed facility, TetraFi's open credit commitments and the signed positions, each with its observation time. From the last recorded ledger observation; no provider call. |
-| `GET …/venue-accounts/{venueAccountId}/ledger` | The signed positions and credit line. For a key, the last recorded observation (`source: "recorded"`), dated `observedAt`, `stale: true` past an hour. A key never starts a venue read. |
+| [`GET …/venue-accounts/{venueAccountId}/ledger`](/api-reference/venue-accounts/get-account-ledger) | The signed positions and credit line. For a key, the last recorded observation (`source: "recorded"`), dated `observedAt`, `stale: true` past an hour. A key never starts a venue read. |
 
 Readable positions still return when credit does not. A position with `prefundedOnly: true` is one the venue lets the account hold only long: selling more than its positive balance is refused whatever credit the account has, so deposit first. Without the field, the venue states no such rule.
 

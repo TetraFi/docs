@@ -124,7 +124,7 @@ use values from GET /api/v1/assets: {"value":"NOT_AN_ASSET"}
 | `order` | Order the quote as it is. |
 | `preflight` | Advanced, not open yet. Order a Basic quote. |
 
-To requote, send `POST /api/v1/quotes` with `{"kind":"requote","requote":"<quote id>"}`.
+To requote, send [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) with `{"kind":"requote","requote":"<quote id>"}`.
 
   </Accordion>
 </AccordionGroup>
@@ -142,7 +142,7 @@ Codes can be added at any time: handle an unknown one by its status class ([abov
 | --- | --- |
 | 401 `AUTH_REQUIRED` | Not authenticated. `details.reason`: `missingCredentials`, `invalidApiKey` (unknown or revoked), `apiKeyExpired`, or a [signing reason](/authentication#sign-requests). Act on `details.reason`; treat an unknown one as "fix the credentials". |
 | 400 `WORKSPACE_REQUIRED` | A session, or a key bound to no workspace, sent no `X-Workspace-Id`. Send it. |
-| 400 `WORKSPACE_ID_INVALID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is not a workspace id, or not yours. A key is bound to one workspace: it may leave `X-Workspace-Id` out, and `details` carries the key's workspace and the requested one. Use the `workspaceId` from `GET /api/v1/me`. |
+| 400 `WORKSPACE_ID_INVALID`, 403 `WORKSPACE_SCOPE_MISMATCH`, 404 `WORKSPACE_NOT_FOUND` | The workspace header or path is not a workspace id, or not yours. A key is bound to one workspace: it may leave `X-Workspace-Id` out, and `details` carries the key's workspace and the requested one. Use the `workspaceId` from [`GET /api/v1/me`](/api-reference/auth/get-current-credential). |
 | 403 `WORKSPACE_NOT_ACTIVE` | The workspace is suspended or deactivated. Contact support. |
 | 403 `CAPABILITY_BLOCKED`, 503 `CAPABILITY_UNAVAILABLE` | The workspace cannot do this yet, or that could not be read. `details` lists each blocker in `capabilityBlockers`: fix each ([Before your first trade](/before-you-trade#complete-your-company-details)); retry a `503` shortly. |
 | 403 `IP_NOT_ALLOWED` | Outside the key's IP allowlist. Send from an allowed address. |

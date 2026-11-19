@@ -27,7 +27,7 @@ Permissions and every refusal: [Place an order](/api-reference/orders/place-orde
     A new random `Idempotency-Key` per order, stored with the exact body before you send ([Retries](#retries-and-recovery)).
   </Step>
   <Step title="Send the order">
-    `POST /api/v1/orders` with that key, `kind: "quote"` and the quote's id. Each quote orders once.
+    [`POST /api/v1/orders`](/api-reference/orders/place-order) with that key, `kind: "quote"` and the quote's id. Each quote orders once.
 
     <Accordion title="Order fields">
       TetraFi kept the quote's terms; send only what you alone can supply. Leave out `signature` and `priceProtectionBps`: a Basic quote refuses them.
@@ -167,7 +167,7 @@ Refused with `409 IDEMPOTENCY_CONFLICT`; nothing is placed.
 
 ### Recover an order by its quote
 
-Lost the answer or the key? Read `GET /api/v1/orders/by-quote/{quoteId}`; it places nothing.
+Lost the answer or the key? Read [`GET /api/v1/orders/by-quote/{quoteId}`](/api-reference/orders/get-order-by-quote); it places nothing.
 
 <AccordionGroup>
   <Accordion title="States">
@@ -219,7 +219,7 @@ In practice you can cancel only an order waiting for a pay-in; later it is `409 
 
 <AccordionGroup>
   <Accordion title="Rules">
-    `POST /api/v1/orders/{orderId}/cancel`, with its own `Idempotency-Key`, stops an order until TetraFi claims it for dispatch, or a pay-in still waiting for funds. It needs Submit orders. The answer is the order: read its `status` and `terminal`, as for any read. Cancelling again changes nothing.
+    [`POST /api/v1/orders/{orderId}/cancel`](/api-reference/orders/cancel-order), with its own `Idempotency-Key`, stops an order until TetraFi claims it for dispatch, or a pay-in still waiting for funds. It needs Submit orders. The answer is the order: read its `status` and `terminal`, as for any read. Cancelling again changes nothing.
 
     - A Basic venue trade is sent as soon as it is placed, so in practice you can cancel only while it waits for a pay-in.
     - After it is sent, its funding or delivery moved, or it ended, the cancel is refused with `409 ORDER_NOT_CANCELLABLE` and the status in `details.status`.

@@ -52,7 +52,8 @@ const withoutSpecDescriptions = process.argv.includes('--without-spec-descriptio
 const wideFile = path.join(root, 'samples', 'wide-lines.json');
 
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
-const words = (text) => (text.replace(/<[^>]+>/g, ' ').replace(/[#*`|>\-[\]()]/g, ' ').match(/[A-Za-z0-9][\w'.:/-]*/g) ?? []).length;
+// A link's target is never shown, so `[label](/path)` counts only its label.
+const words = (text) => (text.replace(/\]\([^)\s]*\)/g, ']').replace(/<[^>]+>/g, ' ').replace(/[#*`|>\-[\]()]/g, ' ').match(/[A-Za-z0-9][\w'.:/-]*/g) ?? []).length;
 const body = (text) => text.replace(/^---[\s\S]*?---/, '').replace(/^import .*$/gm, '');
 
 export function visibleWords(text) {

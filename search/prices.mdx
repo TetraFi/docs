@@ -14,12 +14,12 @@ Both need [Read quotes](/authentication#permissions) (`prices_read`).
 
 | Endpoint | Result |
 | --- | --- |
-| `GET /api/v1/prices` | One row per venue, location and variant pair, sorted like quotes. |
-| `GET /api/v1/prices/stream` | A `snapshot` server-sent event when a watched pair changes. |
+| [`GET /api/v1/prices`](/api-reference/trading/get-prices) | One row per venue, location and variant pair, sorted like quotes. |
+| [`GET /api/v1/prices/stream`](/api-reference/trading/stream-prices) | A `snapshot` server-sent event when a watched pair changes. |
 
 - Use prices to show prices, size a trade or choose venues, then [request quotes](/search/how-it-works) to trade.
 - No venue is asked, so it is fast and does not use the [quote limit](/reference/rate-limits).
-- A price is never firm: every row carries `firm: false`. Order a quote's `id`. Ordering a price row directly, with `POST /api/v1/orders` `{kind: "stream", priceId}`, is rolling out, not live yet: the venue is asked for that exact size, within your `minReceive` or `slippageBps`.
+- A price is never firm: every row carries `firm: false`. Order a quote's `id`. Ordering a price row directly, with [`POST /api/v1/orders`](/api-reference/orders/place-order) `{kind: "stream", priceId}`, is rolling out, not live yet: the venue is asked for that exact size, within your `minReceive` or `slippageBps`.
 - A venue that publishes no price (`priceSourceNone`) answers only a quote request.
 
 <SearchPrices />

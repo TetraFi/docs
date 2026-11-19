@@ -12,16 +12,16 @@ import VenueBalances from '/snippets/samples/venue-balances.mdx';
 import VenueDepositHistory from '/snippets/samples/venue-deposit-history.mdx';
 import FeeScheduleRead from '/snippets/samples/fee-schedule-read.mdx';
 
-Read what each wallet and exchange account holds, and the TetraFi fees you pay. These reads never move money. Paths are under `/api/v1/workspaces/{workspaceId}`, with the `workspaceId` from `GET /api/v1/me` ([Permissions](/authentication#permissions)).
+Read what each wallet and exchange account holds, and the TetraFi fees you pay. These reads never move money. Paths are under `/api/v1/workspaces/{workspaceId}`, with the `workspaceId` from [`GET /api/v1/me`](/api-reference/auth/get-current-credential) ([Permissions](/authentication#permissions)).
 
 | Read | Permission |
 | --- | --- |
 | [Every balance](/api-reference/treasury/list-workspace-balances), one row per account, asset and chain: `GET …/balances` | Treasury read |
-| [Your exchange accounts](/api-reference/venue-enablements/list-venue-accounts): `GET …/venue-enablements` | Treasury read |
-| [One account's balances](/api-reference/venue-accounts/get-account-balances): `GET …/venue-accounts/{venueAccountId}/balances` | Treasury read |
+| [Your exchange accounts](/api-reference/venue-enablements/list-venue-accounts): [`GET …/venue-enablements`](/api-reference/venue-enablements/list-venue-accounts) | Treasury read |
+| [One account's balances](/api-reference/venue-accounts/get-account-balances): [`GET …/venue-accounts/{venueAccountId}/balances`](/api-reference/venue-accounts/get-account-balances) | Treasury read |
 | [Where to deposit](/api-reference/venue-accounts/get-deposit-instructions) and [what was credited](/api-reference/venue-accounts/list-account-deposits): `…/deposit-instructions`, `…/deposit-history` | Treasury read |
 | [Credit and positions](/trade/settlement-and-credit#credit-and-the-ledger): `…/credit` and `…/ledger` | Treasury read |
-| [Fees](/api-reference/workspaces/get-fee-schedule) now and scheduled: `GET …/fee-schedule` | Read fee schedule |
+| [Fees](/api-reference/workspaces/get-fee-schedule) now and scheduled: [`GET …/fee-schedule`](/api-reference/workspaces/get-fee-schedule) | Read fee schedule |
 
 ## Every balance in one list
 
@@ -139,8 +139,8 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
 | Read | Answers |
 | --- | --- |
-| `GET …/venue-accounts/{venueAccountId}/deposit-instructions` | The asset and network pairs it takes deposits on, in `options`. |
-| `GET …/venue-accounts/{venueAccountId}/deposit-history` | Deposits the venue credited for one `asset` on one `network` (CAIP-2), both required, from `from` (RFC 3339, 1 to 30 whole days back, 7 by default) until now. The credits are in `items`, oldest first; without paging, the whole window. With `limit` (1 to 200), follow `nextCursor` until `null`; a cursor keeps its window. Add `include=observation` for this read's own window (`since`, `until`), status and reason in `included.observation[venueAccountId].value`. |
+| [`GET …/venue-accounts/{venueAccountId}/deposit-instructions`](/api-reference/venue-accounts/get-deposit-instructions) | The asset and network pairs it takes deposits on, in `options`. |
+| [`GET …/venue-accounts/{venueAccountId}/deposit-history`](/api-reference/venue-accounts/list-account-deposits) | Deposits the venue credited for one `asset` on one `network` (CAIP-2), both required, from `from` (RFC 3339, 1 to 30 whole days back, 7 by default) until now. The credits are in `items`, oldest first; without paging, the whole window. With `limit` (1 to 200), follow `nextCursor` until `null`; a cursor keeps its window. Add `include=observation` for this read's own window (`since`, `until`), status and reason in `included.observation[venueAccountId].value`. |
 
 Empty `items` is truly empty only when `unreachable` is empty too; otherwise the history was not read, and its one `unreachable` entry names why in `reason`. A window of more than 1,000 venue records is not read (`DEPOSIT_HISTORY_WINDOW_TOO_LARGE`): read a shorter window.
 
