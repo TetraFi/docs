@@ -10,10 +10,22 @@ import ConventionsValues from '/snippets/samples/conventions-values.mdx';
 
 These rules hold on every endpoint, so implement them once. The examples order nothing.
 
-Example outputs across these docs were recorded on test networks, so some show test chain ids such as `eip155:84532` (Base Sepolia). Your answers carry the chains your venues reach ([Coverage](/supported-chains)).
+| | |
+| --- | --- |
+| **Amounts are strings** | Decimal strings such as `"10.0147"`, never JSON numbers ([Values](#values)). |
+| **Times in UTC** | RFC 3339 times, ISO 8601 durations ([Values](#values)). |
+| **Open values** | Enumerations and variants can grow: treat one you do not know as other ([Designed to grow](#designed-to-grow)). |
+| **Opaque ids** | Store and compare ids whole; send `nextCursor` back unchanged ([Paging](#paging)). |
+| **Match on `error`** | Never on `message`: every refusal has one body ([Errors and refusals](/trade/errors)). |
+| **Idempotency-Key** | On every `POST /api/v1/orders`: a retry returns the first answer ([Idempotency](#rate-limits-and-idempotency)). |
+| **429 means wait** | Wait `Retry-After`, then retry ([Rate limits](/reference/rate-limits)). |
+| **Pinned version** | A key is answered in the version it pinned when created ([Versioning](#versioning)). |
 
 ## Requests
 
+Base URL `https://api.tetrafi.io`; every path starts with `/api/v1`.
+
+<Accordion title="Credentials, workspace and bodies">
 | Rule | Detail |
 | --- | --- |
 | Base URL | `https://api.tetrafi.io`. Every path starts with `/api/v1`. |
@@ -21,9 +33,13 @@ Example outputs across these docs were recorded on test networks, so some show t
 | Workspace | The key implies its workspace, so it needs no `X-Workspace-Id`; a path under `/api/v1/workspaces/{workspaceId}/` names it. A header you send anyway must be the key's own. |
 | Version | Optional `TetraFi-Version: YYYY-MM-DD`. Without it, a key's requests use the version it pinned when created ([Versioning](#versioning)). |
 | Bodies | JSON, sent with `Content-Type: application/json`. |
+</Accordion>
 
 ## Values
 
+Amounts are decimal strings, times RFC 3339 in UTC, networks CAIP-2 ids, and field names camelCase.
+
+<Accordion title="Every value form">
 | Value | Form |
 | --- | --- |
 | Amounts | Decimal strings such as `"10.0147"`, never JSON numbers: parse with a decimal type, not a float. |
@@ -33,6 +49,9 @@ Example outputs across these docs were recorded on test networks, so some show t
 | Field names | camelCase: `expiresAt`. |
 | Ids | Opaque strings with no promised format (not UUIDs): store and compare them whole. |
 | Enumerations | Open sets that can gain values, such as `"status": "answered"`. Treat a value you do not know as other ([Conventions](/reference/conventions#values)). |
+
+Example outputs across these docs were recorded on test networks, so some show test chain ids such as `eip155:84532` (Base Sepolia). Your answers carry the chains your venues reach ([Coverage](/supported-chains)).
+</Accordion>
 
 <Accordion title="Precision, ids, variants and lifecycle">
 | Value | Rule |
@@ -55,14 +74,11 @@ Example outputs across these docs were recorded on test networks, so some show t
 
 A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged as `cursor` until `nextCursor` is absent or `null`.
 
+<Accordion title="Tokens, snapshots and page sizes">
 | Rule | Detail |
 | --- | --- |
 | Opaque tokens | Never decode, construct or edit them; their encoding is not part of the contract. |
 | Same list only | Use a token only for the same workspace, list and filters. |
-
-<Accordion title="Expired tokens, snapshot lists and page sizes">
-| Rule | Detail |
-| --- | --- |
 | Expired or invalid token | Tokens may expire, including after a server-key rotation or private-format deployment. An invalid or expired authenticated cursor answers 400: restart without `cursor`. |
 | Snapshot lists | A list with a snapshot contract may answer `409 CURSOR_STALE` after the underlying selection changes: restart from its first page. |
 | `GET /api/v1/assets` | 1 to 200 assets a page. |
@@ -79,13 +95,15 @@ A list that pages takes `limit` and answers `nextCursor`. Send it back unchanged
 
 ## Errors
 
+Every refusal has one body: match on `error`, never on `message`. [Errors and refusals](/trade/errors) shows how to read one.
+
+<Accordion title="The error body">
 | Rule | Detail |
 | --- | --- |
 | One body | Every refusal carries `error`, `message`, `requestId`, `timestamp`, `docUrl`, and `next` and `details` when they apply. |
 | One status per code | Each code has one HTTP status. `docUrl` links its entry in the [error-code reference](/reference/error-codes). |
 | Match on `error` | Never on `message`. |
-
-[Errors and refusals](/trade/errors) shows how to read one.
+</Accordion>
 
 ## Request ids
 
@@ -103,10 +121,14 @@ Every response carries `X-Request-Id`; a refusal repeats it as `requestId`. Quot
 
 ## Rate limits and idempotency
 
+A limit answers `429` with `Retry-After`; an `Idempotency-Key` makes a retry return the first answer.
+
+<Accordion title="Limits and idempotency keys">
 | Rule | Detail |
 | --- | --- |
 | Rate limits | Every limit answers `429` with `Retry-After` ([Rate limits](/reference/rate-limits)). |
 | Idempotency | Send an `Idempotency-Key` with every `POST /api/v1/orders`, and with `POST /api/v1/quotes` to make a quote retry safe. A retry with the same key and body returns the first answer, with `Idempotent-Replayed: true` ([Retries and recovery](/trade/orders#retries-and-recovery), [Retry a quote](/search/how-it-works#request-and-read-quotes)). |
+</Accordion>
 
 ## Read several resources at once
 
@@ -128,7 +150,7 @@ Every response carries `X-Request-Id`; a refusal repeats it as `requestId`. Quot
 
 ## Versioning
 
-The API is versioned by date. The one supported version today is `2026-11-17`. Every API key is answered in the version current when it was created; `TetraFi-Version: YYYY-MM-DD` chooses one request's version.
+The API is versioned by date. The one supported version today is `2026-11-17`.
 
 <Accordion title="Pins, requests, webhooks and upgrading">
 | Rule | Detail |
