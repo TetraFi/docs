@@ -107,7 +107,7 @@ test('a file with no readable codes is refused, never read as empty', () => {
 });
 
 test('accepted shapes', () => {
-  const want = ['QUOTE_EXPIRED', 'ASSET_UNKNOWN'];
+  const want = ['ASSET_UNKNOWN', 'QUOTE_EXPIRED'];
   for (const shape of [want, want.map((code) => ({ code })), { codes: want }, { errors: Object.fromEntries(want.map((c) => [c, {}])) }])
     assert.deepEqual([...declaredCodes(shape)].sort(), want, JSON.stringify(shape));
 });
