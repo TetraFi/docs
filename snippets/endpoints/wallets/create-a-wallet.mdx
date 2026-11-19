@@ -1,0 +1,31 @@
+| | |
+| --- | --- |
+| **Scope** | Organisation: `treasury_write` and Manage wallets. Personal: `orders_write` and View wallets. |
+| **Approval** | The `202` holds the signing request `id`; the link is also `wallet.approvalUrl`. |
+| **Idempotency-Key** | Same key and body make one creation. Another body is `409 IDEMPOTENCY_CONFLICT`. |
+| **Keys never approve** | Each owner picks and proves their own sign-in methods ([Create a wallet](/trade/create-wallet)). |
+
+<Accordion title="Return to your app">
+- `returnUrl` must be HTTPS on one of your registered exact origins (scheme, host and port), never TetraFi's app or signing origin. Otherwise `400 RETURN_URL_NOT_REGISTERED`. `returnTo` echoes it.
+- The page sends the person back with `signingRequestId` and `outcome`: `approved`, or `pending` while others still need to approve, as soon as their part is recorded; `refused` only after they see why and choose to return.
+- `startedWithApiKey` names the key that started the creation.
+</Accordion>
+
+<Accordion title="Refusals">
+Connection capabilities, the threshold and each owner's current membership are checked before anything is recorded. Your member's current permissions and standing apply.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `RETURN_URL_NOT_REGISTERED` | `returnUrl` is not on a registered origin. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `orders_write` (personal) or `treasury_write` (organisation). |
+| 403 `INSUFFICIENT_PERMISSION` | The key's member lacks Manage wallets. |
+| 403 `API_KEY_WALLET_FACTORS_REFUSED` | An owner was sent with sign-in methods or a wallet. Send none: each person picks their own. |
+| 403 `API_KEY_WALLET_GRANT_REFUSED` | The key asked for a grant (`stepUpProof`, `tradeFromThisWallet`, `initialAccess`). Set those in the app. |
+| 403 `ADVANCED_MODE_DISABLED` | A personal wallet where Advanced is not enabled. |
+| 403 `API_KEY_WALLET_CREATOR_NOT_A_PERSON` | Not a member's own key, such as a service account's. |
+| 404 `WALLET_CONNECTION_NOT_FOUND` | `connectionId` names no wallet connection of this workspace. |
+| `409 WALLET_CREATION_PERSONAL_OWNER` | A personal wallet named another owner. Its only owner is you. |
+| 409 `IDEMPOTENCY_CONFLICT` | This key was used with another body. |
+| 409 | The wallet cannot be made as asked: `error` names the rule (name, networks, owner group, threshold, a non-member, or a connection that does not create wallets). |
+| 500, 503 | Nothing was created. Retry when `retryable` is `true`. |
+</Accordion>

@@ -1,0 +1,11 @@
+---
+title: "Wallets"
+description: "Start an organisation wallet or your own personal wallet, follow its owners' approval, and withdraw it."
+---
+
+1. **Start** a wallet with `POST /api/v1/workspaces/{workspaceId}/wallets`: an organisation wallet, or your own personal wallet, with the owners who approve it.
+2. **Send** each owner to the approval link in the answer. Each picks and proves their own sign-in methods there; an API key never approves.
+3. **Follow** it with `GET …/wallets/{walletId}` until it is `active`. `missing` names who has not approved yet; `GET …/wallets?status=pending` lists the pending ones.
+4. **Withdraw** it with `POST …/wallets/{walletId}/cancel` while it is still pending or uncertain. After it fails or expires, start a new one.
+
+Nothing exists at the wallet provider until the owners have approved. Full explanation: [Create a wallet](/trade/create-wallet).
