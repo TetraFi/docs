@@ -93,7 +93,7 @@ parse=$(jq -c '{error, requestId, next}' <<<"$refusal")
 
 # region errors-rate-limit
 # One live quote request every 3 seconds. Send two at once: one is answered, the other
-# answers 429 RATE_LIMITED (or QUOTE_RATE_LIMITED) with details.retryAfter (ISO 8601, such as PT3S) and the
+# answers 429 RATE_LIMITED with details.limit (such as quotes), details.retryAfter (ISO 8601, such as PT3S) and the
 # same wait in whole seconds in the Retry-After header. Wait that long, then retry once.
 # Each signature is accepted once, so the two requests differ in amount.
 quote_body() {
@@ -121,8 +121,7 @@ if [[ $first_ok == "$second_ok" ]]; then
   exit 1
 fi
 limited_code=$(jq -r '.error' <<<"$limited")
-[[ $limited_code == QUOTE_RATE_LIMITED ]] || limited_code=RATE_LIMITED
-expect "$limited_code" "$limited"
+expect RATE_LIMITED "$limited"
 retry_after=$(jq -r '.details.retryAfter' <<<"$limited")
 rate_limit=$(jq -c -n --arg r "$retry_after" --argjson s "$wait_seconds" --argjson q "$(jq '.quotes | length' <<<"$retried")" \
   --arg id "$(jq -r '.requestId' <<<"$limited")" --arg code "$limited_code" \
