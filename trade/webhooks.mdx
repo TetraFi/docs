@@ -92,13 +92,16 @@ A `POST` with a JSON body and three `webhook-` headers. It only says an order ch
   "type": "order.updated",
   "apiVersion": "2026-11-17",
   "createdAt": "2026-10-30T09:12:44.000Z",
-  "data": { "orderId": "…", "kind": "basicTrade", "status": "working", "terminal": false, "statusUrl": "/api/v1/orders/…" }
+  "data": {
+    "orderId": "…", "kind": "basicTrade", "status": "working", "terminal": false, "statusUrl": "/api/v1/orders/…",
+    "next": { "kind": "sign", "stepId": "7a41d0e5-…", "sequence": 2 }
+  }
 }
 ```
 
-`data.kind` is `basicTrade` or `advancedTrade`. If `terminal` is absent, read `statusUrl`: absent is not `false`.
+`data.kind` is `basicTrade` or `advancedTrade`, and can gain values; `terminal` is always present. `data.next` is the order's next action, in the order's `next` shape: `stepId` and `sequence` are present when `kind` is `sign` (rolling out), and absent otherwise. Read the order for the step itself.
 
-Answer unknown fields and event types with a `2xx` and ignore them. `apiVersion` is the version the endpoint recorded when it was created; a breaking change ships only under a new version, which an endpoint reaches when you create it again ([Versioning](/reference/conventions#versioning)).
+Answer unknown fields and event types with a `2xx` and ignore them. `apiVersion` is the version the endpoint's bodies use: the version current when it was created, until you move it with `PATCH …/webhooks/{webhookId}` and `apiVersion`. A breaking change ships only under a new version ([Versioning](/reference/conventions#versioning)).
 
   </Accordion>
 </AccordionGroup>
@@ -124,7 +127,8 @@ Every call has its [API reference page](/api-reference/intros/webhooks), with it
 | List deliveries | `items`, `totalCount` and `nextCursor`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. How many receipts are kept is the endpoint's own `deliveryRetention` (`GET …/webhooks/{webhookId}`). |
 | Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Your receiver gets the event again; it keeps its body `id`, so [deduplicate](#set-up-an-endpoint) as for any delivery. A retry with the same `Idempotency-Key` and body returns the first redelivery instead of sending another. |
 | Resume | Reactivates a paused endpoint. Then redeliver what it missed. |
-| Get | The endpoint, with its `deliveryRetention`. An endpoint subscribed to automation events also carries `automationAmounts`: its `status` is `included`, `withheld` (some deliveries carry `amountVisibility` instead of amounts, because the endpoint's owner may not see them) or `unavailable`, with a `reason` when not included. Read a status you do not know as `withheld`. |
+| Update | `PATCH` with `If-Match` changes `url`, `events`, `active` or `apiVersion`, and answers the endpoint as `GET` does. `apiVersion` must be a supported version (otherwise `400 API_VERSION_UNSUPPORTED`); later bodies use it. |
+| Get | The endpoint, with its `apiVersion` and `deliveryRetention`. An endpoint subscribed to automation events also carries `automationAmounts`: its `status` is `included`, `withheld` (some deliveries carry `amountVisibility` instead of amounts, because the endpoint's owner may not see them) or `unavailable`, with a `reason` when not included. Read a status you do not know as `withheld`. |
 
   </Accordion>
 </AccordionGroup>

@@ -5,7 +5,18 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
-<Update label="2026-11-19" description="Signing with your own wallet and ordering a price row (both rolling out)">
+<Update label="2026-11-19" description="Designed to grow: legs, steps and signers by id; signing with your own wallet and ordering a price row (all rolling out)">
+  - Rolling out over the next releases: the shapes below name legs, steps and signers, so routes over several venues, steps signed by different parties, non-EVM signing and broker trading (all coming, not live) arrive later as additions only. What your client should tolerate: [Designed to grow](/reference/conventions#designed-to-grow).
+  - Quote legs: each item of `legs[]` has a `legId` (`leg_0` on a one-leg quote), its own `sell` and `buy` (`{asset, amount}`) and an optional paying `source`. **Breaking.** `legs[].venue` can be `null`, on a leg no venue runs: read it as optional.
+  - Steps: every step (`signing.firstStep`, `next.step`, `operation.steps[]`) names its `signer` (`you`, `tetrafi` or `venue`) and its `legId`; a step you sign also lists, in `covers`, the legs its signature authorises. `operation.steps` lists every step of the order. Sign only a step whose `signer` is `you`. The reference publishes the step as named variants by `type`: `transaction` (EVM) and `typedData` (EIP-712); other networks come as new `type` values. The wire is unchanged.
+  - `signing.signers` lists every party that signs a quote, `{signer, address, network, legIds}`, one entry today; `signing.address` is the first paying signer's address.
+  - Each of an order's `fills` names its `legId` and `network`; the order's `venueId` and `venueName` summarise a single-venue order.
+  - `POST /api/v1/orders` takes `onBehalfOf`, for broker trading (coming). It must be the `onBehalfOf` the quote was requested with, or the order is refused `403 DIRECT_USER_MISMATCH`.
+  - `tradingSource` and each `sourceOptions` candidate carry an optional `owner`, `{kind, id}`, with `kind` `workspace`, `member` or `principal`. A wallet `family` can be `bitcoin`, which nothing trades yet.
+  - A refusal's `details` can name `legId`, `stepId` and `venueId`. `details` keys are per code and can grow.
+  - `GET /api/v1/me` answers the key's pinned `apiVersion` and `venueAccounts` (`{"kind": "all"}` today), and each organisation-wallet grant its `rights` (`["trade"]` today).
+  - A webhook endpoint shows its `apiVersion`, and `PATCH …/webhooks/{webhookId}` with `apiVersion` moves it to another supported version without recreating it.
+  - **Breaking.** `order.updated` `data.next` takes the order's `next` shape: `stepId` and `sequence` are present only when `kind` is `sign`. `data.terminal` is always present.
   - Rolling out, not live yet: `POST /api/v1/orders` also takes `{kind: "stream", priceId, minReceive | slippageBps}` to order a [Live prices](/search/prices) row. TetraFi checks the `priceId` (`PRICE_ID_INVALID`, `PRICE_EXPIRED`), asks the venue for that exact size, and runs the order like a quote order of that venue. A price outside your limit is refused with `details.remediation` `widenLimit`.
   - Signing with your own wallet is rolling out, not live yet; the full contract is on [Sign with your own wallet](/trade/sign-with-your-own-wallet).
   - Signed-in members use the same three routes as API keys; the step route takes a session bearer token as well as a key. An External wallet named in `source.preferredWallets` makes the quote `signing.mode` `you`.
