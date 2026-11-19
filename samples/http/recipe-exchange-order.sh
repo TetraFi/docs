@@ -133,7 +133,7 @@ fi
 # region recipe-exchange-order
 # When the quote's minReceiveRequired is true, the venue executes within your limit: send minReceive,
 # here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to 8 decimal places.
-order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" '{quoteId: .id}
+order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" '{kind: "quote", quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * 100000000 | floor | . / 100000000 | tostring)} else {} end)' <<<"$quote")
 # Store the Idempotency-Key with your record of the order before you send it.

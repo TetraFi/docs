@@ -12,7 +12,7 @@ if refusal=$(tetrafi POST /api/v1/quotes \
 fi
 jq -c '{error, requestId, docUrl, next, details}' <<<"$refusal" >&2
 case $(jq -r '.error' <<<"$refusal") in
-  UNKNOWN_ASSET | UNKNOWN_CHAIN | UNKNOWN_VENUE)
+  UNKNOWN_ASSET | NETWORK_UNKNOWN | UNKNOWN_VENUE)
     echo "use values from GET /api/v1/assets: $(jq -c '.details' <<<"$refusal")" >&2 ;;
   *)
     echo "refused: $(jq -r '.message' <<<"$refusal") (requestId $(jq -r '.requestId' <<<"$refusal"))" >&2 ;;

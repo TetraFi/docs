@@ -1,0 +1,28 @@
+| | |
+| --- | --- |
+| **Permission** | Key scope `orders_read`; a member who can view or place orders. |
+| **Paging** | Up to 20 a page. Follow `nextCursor` until it is `null`. |
+| **Short pages** | A filtered page may hold fewer than `limit` items, even none, and still answer `nextCursor`. |
+| **Cursor** | Bound to you, the workspace and the exact filters; anything else is `INVALID_CURSOR`. |
+
+<Accordion title="Filters and order">
+Newest first, by created time and id. Each item is the same envelope as `GET /orders/{orderId}` ([Order status](/trade/order-status)).
+
+| Filter | Matches |
+| --- | --- |
+| `status` | One public status, shared by Basic and Advanced orders. It is checked against each order's current public status. |
+| `kind` | `basicTrade` or `advancedTrade`. |
+| `from`, `to` | Created at or after, and at or before, an RFC 3339 instant (both inclusive). |
+| `sellAsset`, `buyAsset` | The asset sold or bought. |
+| `clientOrderId` | Your exact reference, including terminal orders that reused it. |
+
+A filtered page keeps reading until it holds `limit` items or the orders end, within a bounded scan. A scan that stops before the orders end always answers a `nextCursor`, so a short or empty page does not mean you are done.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | An unknown parameter, or an unknown `status` or `kind` value. `details.field` names it. |
+| 400 `VALIDATION_ERROR` | `limit` outside 1 to 20, `from` after `to`, or an asset that is not registered. |
+| 400 `INVALID_CURSOR` | The cursor is malformed, from another caller or filter set, or its anchor order is gone. Start again without it. |
+</Accordion>

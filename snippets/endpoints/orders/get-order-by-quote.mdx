@@ -1,0 +1,16 @@
+| | |
+| --- | --- |
+| **ordered** | An order exists: read it at `statusUrl` until `terminal`. Never order again. |
+| **notOrdered** | Proven: no order used this quote. Order again only if `expired` is `false` ([how](/trade/orders#recover-an-order-by-its-quote)). |
+| **unknown** | Not proven either way: read again later. It never lets you order. |
+| **Permission** | Key scope `orders_read`; a member who can view the workspace's orders. |
+
+<Accordion title="Refusals">
+Retry the read on any refusal, never the order.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 404 `QUOTE_NOT_FOUND` | An unknown quote id, or one from another workspace: both answer the same. |
+| 503 `QUOTE_ORDER_UNAVAILABLE` | The quote's order could not be read. Read again shortly. |
+| 429 | Too many reads. Wait `Retry-After` seconds. |
+</Accordion>

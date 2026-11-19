@@ -20,6 +20,8 @@ const root = path.resolve(import.meta.dirname, '..');
 const CODE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/;
 const ROW_CODE = /`(?:\d{3} )?([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)`/g;
 const SECTION = /^(#{2,3}) Refusals\b/;
+// An endpoint page's refusals sit in a closed toggle: <Accordion title="Refusals…">…</Accordion>.
+const TOGGLE = /^\s*<Accordion title="Refusals\b/;
 // Generated from the API's own files, so never hand-written refusal tables.
 const GENERATED = new Set(['compatibility.mdx', 'reference/error-codes.mdx', 'reference/webhook-events.mdx', 'reference/permissions.mdx']);
 const SKIP_DIRS = new Set(['node_modules', 'snippets', 'api-reference']);
@@ -60,6 +62,12 @@ export function documentedCodes(page) {
   const lines = page.split('\n');
   let codes = null;
   lines.forEach((line, start) => {
+    if (TOGGLE.test(line)) {
+      const end = lines.findIndex((next, index) => index > start && /^\s*<\/Accordion>/.test(next));
+      codes ??= new Set();
+      for (const code of tableCodes(lines.slice(start + 1, end < 0 ? undefined : end).map((l) => l.trim()))) codes.add(code);
+      return;
+    }
     const heading = line.match(SECTION);
     if (!heading) return;
     const closes = new RegExp(`^#{1,${heading[1].length}} `);
@@ -76,7 +84,10 @@ function guidePages(siteRoot, dir = '') {
     const rel = path.posix.join(dir, entry.name);
     if (entry.name.startsWith('.')) continue;
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) pages.push(...guidePages(siteRoot, rel));
+      // Of the snippets, only the endpoint notes are hand-written refusal tables.
+      if (rel === 'snippets') {
+        if (existsSync(path.join(siteRoot, 'snippets', 'endpoints'))) pages.push(...guidePages(siteRoot, 'snippets/endpoints'));
+      } else if (!SKIP_DIRS.has(entry.name)) pages.push(...guidePages(siteRoot, rel));
     } else if (entry.name.endsWith('.mdx') && !GENERATED.has(rel)) pages.push(rel);
   }
   return pages;

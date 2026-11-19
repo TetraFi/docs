@@ -1,0 +1,15 @@
+| | |
+| --- | --- |
+| **Paging** | `limit` 1 to 100 (default 20); `nextCursor` is `null` on the last page. |
+| **In effect** | The account's own schedule and next window: `GET …/settlement/schedule-selection`. |
+| **Owner** | The key's owner also needs View settlements ([Permissions](/authentication#permissions)). |
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_LIMIT`, `INVALID_CURSOR` | `limit` is outside 1 to 100, or the cursor is not one this list issued. |
+| 400 `INVALID_REQUEST` | An unknown parameter, named in the answer. |
+| 403 `SETTLEMENT_VIEW_PERMISSION_REQUIRED` | The key's owner lacks View settlements. `details.fix` names who can grant it. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `settlements_read`. |
+| 503 `SETTLEMENT_SCHEDULE_READ_UNAVAILABLE` | The schedules could not be read. Retry shortly. |
+</Accordion>

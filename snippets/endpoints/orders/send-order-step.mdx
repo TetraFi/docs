@@ -1,0 +1,45 @@
+| | |
+| --- | --- |
+| **Rolling out** | Own-wallet signing is not live yet ([guide](/trade/sign-with-your-own-wallet)). |
+| **Idempotency-Key** | Required. A replay gets the first answer and sends nothing again. |
+| **Deadline** | Past the step's `signBy`, only `transactionHash` is still taken. |
+| **Wait** | A request holds at most 15 s, then answers `next: wait`. |
+
+<Accordion title="Submission kinds">
+Answer the step in the order's `next` with `kind: sign`, using its `stepId`. The body is tagged by `kind` ([Submit a step](/trade/sign-with-your-own-wallet#submit-a-step)). A signed-in member answers the steps of their own orders; an API key answers those of its own, with `orders_write`.
+
+| `kind`, and what you send | Rule |
+| --- | --- |
+| `signedTransaction`, with `raw` | TetraFi broadcasts it. Legacy (EIP-155), EIP-2930 or EIP-1559 only. It must match the step's `chainId`, `from`, `to`, `data`, `value` and `nonce`. |
+| `transactionHash`, with `txHash` | The step's transaction, which you broadcast yourself. It is checked like any other. |
+| `signature`, with `signature` | Answers a `typedData` step. |
+| `declined`, with nothing | Ends the order `unfilled`; no further step is sent. |
+</Accordion>
+
+<Accordion title="What happens next">
+- Nothing is sent until the wallet's screening has passed.
+- Nothing is sent while the wallet no longer holds the token the trade spends or, for a signed transaction, its value and gas at the signed fee.
+- The answer is the order envelope, the same as `GET /api/v1/orders/{orderId}`, once the order has moved past the step: its next step to sign, or a terminal outcome.
+- How an order ends when a step is unsigned, reverts or loses its nonce: [How it ends](/trade/sign-with-your-own-wallet#how-it-ends).
+</Accordion>
+
+<Accordion title="Refusals">
+TetraFi relayed nothing for a refused submission. Earlier steps, or a transaction you broadcast yourself, may already be on-chain: read the order before you retry. Every `503` names its cause in `details.cause`: `screening`, `chainRead`, `relay` or `stepStore`.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 404 `SIGNING_STEP_NOT_FOUND` | The order has no such step for you. Use the `stepId` of the order's `next.step`. |
+| 409 `SIGNING_STEP_NOT_OPEN` | Already answered, or the order no longer waits for it. Read the order for its next step. |
+| 410 `SIGNING_STEP_EXPIRED` | Past `signBy`. Read the order for how it ended. |
+| 422 `SIGNING_STEP_MISMATCH` | The submission differs from the step; `details.field` says where. On `maxFeePerGas`, a replacement must raise the fee. |
+| 422 `SIGNING_TRANSACTION_TYPE_UNSUPPORTED` | Not legacy, EIP-2930 or EIP-1559; EIP-4844 and EIP-7702 are refused. |
+| 409 `SIGNING_TRANSACTION_NOT_FOUND` | The chain does not show your `txHash` yet. Retry shortly. |
+| 409 `SIGNING_TRANSACTION_REJECTED` | The network refused the transaction. If it reopens the step, sign the new `stepId` ([Refusals](/trade/sign-with-your-own-wallet#refusals)). |
+| 409 `SIGNING_WALLET_SCREENING_PENDING` | The wallet's screening is still running. Retry shortly. |
+| 409 `SIGNING_WALLET_FUNDS_SHORT` | The wallet no longer covers the step; `details.field` is `balance` or `gas`. |
+| 403 `SIGNING_WALLET_REFUSED` | The wallet failed screening. |
+| 403 `SIGNING_WALLET_NOT_ALLOWED` | Your workspace does not let keys trade from wallets it has not approved, or the wallet is not yours. The order ends, not sent. |
+| 403 `SIGNING_STEP_REFUSED` | The key may not trade from this wallet now; the message says why. |
+| 503 `SCREENING_UNAVAILABLE` | The wallet's screening could not be completed. Retry. |
+| 503 `SIGNING_STEP_UNAVAILABLE`, `SIGNING_WALLET_UNAVAILABLE` | The step could not be checked, or the wallet recorded, right now. Retry shortly. |
+</Accordion>

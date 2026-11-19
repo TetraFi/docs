@@ -1,0 +1,25 @@
+| | |
+| --- | --- |
+| **Who** | View wallets and View credit; keys and OAuth clients also need `treasury_read`. |
+| **Which accounts** | Accounts that settle through a venue account, or those named in `venueAccountId` (comma-separated, at most 100). |
+| **Per account** | Each item is what the [one-account credit read](/api-reference/venue-accounts/get-account-credit) answers. |
+| **Paging** | `limit` 1 to 100 (default 20) and `cursor` from `nextCursor`. |
+
+<Accordion title="Accounts that could not be read">
+Each one is an `unreachable` entry, source `venueAccounts/<venueAccountId>`, while the others are listed. Its `reason` is:
+
+- `VENUE_ACCOUNT_NOT_FOUND` for an account the workspace does not own;
+- `VENUE_ACCOUNT_FUNDS_IN_WALLETS` for a wallet-based venue;
+- or the 503 code of that account's own read.
+
+Within a readable item, each component names a missing key, or `VENUE_ACCOUNT_KEY_STATE_UNAVAILABLE` when the key state could not be read. `include=consumers` expands every listed account's commitment rows under `included.consumers[venueAccountId]`. [Monitor credit](/trade/settlement-and-credit#monitor-credit-per-account).
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST`, `INVALID_LIMIT`, `INVALID_CURSOR` | The message names the bad input: a parameter, a `limit` outside 1 to 100, or a cursor. |
+| 403 `INSUFFICIENT_WORKSPACE_PERMISSION` | You lack View credit. Ask a workspace admin. |
+| 404 `WORKSPACE_NOT_FOUND` | The path's workspace is not yours. |
+| 503 | The account list could not be read. Retry shortly. |
+</Accordion>

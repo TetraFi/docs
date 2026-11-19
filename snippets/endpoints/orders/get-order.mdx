@@ -1,0 +1,27 @@
+| | |
+| --- | --- |
+| **Polling** | Every 10 to 15 seconds, never a tight loop. On `429`, wait `Retry-After`. |
+| **Stop on** | `terminal`, never a status: states may be skipped ([Order status](/trade/order-status)). |
+| **Ends at** | Usually `settled`. A credit-venue trade with no recorded settlement terms ends `filled`, with `terminal` `true`. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `status`, `terminal` | Where the order is, and whether it can still change ([Statuses](/trade/order-status#statuses)). |
+| `next` | What to do meanwhile, present only while there is something to do. |
+| `operation.dispatch.outcomeCode` | What the venue trade did ([What the order did](/trade/order-status#what-the-order-did)). |
+| `operation.steps` | On an order you sign from your own wallet (rolling out): every step and its transaction. |
+</Accordion>
+
+<Accordion title="After a webhook">
+A webhook tells you when to read. After an `order.updated` delivery, read the order here for its complete current state. Never put an API key in a URL.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 401 | No credential, or an invalid, revoked or expired key or token ([Authenticate](/authentication)). Every order read needs one. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `orders_read`, in its grant or in your current workspace permissions. |
+| 404 `ORDER_NOT_FOUND` | No such order, not yours to read, or not an order id. Another workspace's order answers the same, so its existence is not disclosed. |
+| 503 | Unavailable for a moment. Wait `Retry-After` when it is sent, then read again. |
+</Accordion>

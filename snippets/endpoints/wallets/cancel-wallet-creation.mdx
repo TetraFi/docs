@@ -1,0 +1,18 @@
+| | |
+| --- | --- |
+| **pending** | Nothing was sent: withdrawn at once, it reads `cancelled` with `failureCode` `WALLET_CREATION_CANCELLED`. |
+| **uncertain** | Read at its provider first. Refused by name if the provider holds it, or it is inside its settle window. |
+| **Any other status** | 409 `WALLET_CREATION_NOT_CANCELLABLE`. |
+| **Scope** | What its creation needed: `orders_write` personal, `treasury_write` organisation. |
+| **Idempotency-Key** | Required. The same key replays the withdrawal. |
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 409 `WALLET_CREATION_EXISTS_AT_PROVIDER` | The provider holds the wallet this creation made, so it is not withdrawn. |
+| 409 `WALLET_CREATION_ACTIVITY_EXISTS` | The provider holds an activity of this creation. |
+| 409 `WALLET_CREATION_ABSENCE_UNPROVEN` | Whether the provider holds the wallet is not proven yet, so it is not withdrawn. |
+| 409 `WALLET_CREATION_NOT_CANCELLABLE` | It is no longer `pending` or `uncertain`, or it changed while being withdrawn. |
+| 503 `WALLET_CREATION_CANCEL_UNAVAILABLE` | The provider could not be read; nothing was withdrawn. Retry. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks the scope; `details.requiredScope` names it. A key holding neither scope gets `orders_write`, the first of the two. |
+</Accordion>

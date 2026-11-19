@@ -1,0 +1,37 @@
+| | |
+| --- | --- |
+| **Items** | 1 to 20 `{id, method, url}`; `method` is `GET`, `url` a path and query. |
+| **Signed keys** | Cannot batch: send signed reads separately. |
+| **Rate limit** | Every item counts, all taken before any runs ([Rate limits](/reference/rate-limits)). |
+| **Not atomic** | Items answer independently, in request order. |
+| **No caching** | The answer is `Cache-Control: private, no-store`. |
+
+<Accordion title="Item answers">
+Each item returns `id`, `status`, `etag`, `body` and, when sent, `headers`. It answers as its own `GET` would, with the same permissions and error body. Some answers come only inside a batch:
+
+| Item status and code | Why, and what to do |
+| --- | --- |
+| 504 `SOURCE_TIMEOUT` | It had not answered by the batch's deadline. Read it again on its own. |
+| 413 `BATCH_RESPONSE_TOO_LARGE` | The batch answer reached 8 MiB before this item. Read it separately. |
+| 429 `SUB_REQUEST_BUDGET_EXHAUSTED` | The batch and its related reads reached 200 reads. Read the rest in another request. |
+| 429 `BATCH_RELATED_READ_BUDGET_EXCEEDED` | Its operation's related-read allowance could not fit, or it exceeded it. You get this, never partial values. |
+| `BATCH_UNKNOWN_ROUTE` | It could not dispatch to its named operation. |
+</Accordion>
+
+<Accordion title="Refusals">
+Each refuses the whole batch, and nothing ran; `details.itemId` names the item at fault.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `BATCH_INVALID` | Malformed or empty, or an item without a unique 1 to 64 character `id`. |
+| 400 `BATCH_TOO_MANY_ITEMS` | Over 20 items. Split the reads across batches. |
+| 400 `BATCH_METHOD_NOT_ALLOWED` | An item is not a `GET`. Send writes separately. |
+| 400 `BATCH_UNKNOWN_ROUTE` | An item `url` is not a `GET` operation of this reference. |
+| 400 `BATCH_ITEM_NOT_BATCHABLE` | An item reads a stream, an export or a file. Read it separately. |
+| 400 `BATCH_SIGNED_REQUEST_UNSUPPORTED` | The request is signed. Send the reads as separate signed requests. |
+| 400 `BATCH_EXCEEDS_RATE_BURST` | Your rate limit admits fewer requests at once than the batch holds. Send a smaller batch. |
+| 413 `REQUEST_BODY_TOO_LARGE` | The body is over 64 KiB. |
+| 415 | The body must be sent as `application/json`. |
+| 429 `RATE_LIMITED` | Your rate limit cannot cover every item. Wait `Retry-After` seconds. |
+| 503 `BATCH_UNAVAILABLE` | Retry shortly, or send the reads separately. |
+</Accordion>

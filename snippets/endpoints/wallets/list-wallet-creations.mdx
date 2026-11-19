@@ -1,0 +1,32 @@
+| | |
+| --- | --- |
+| **Who sees one** | A personal wallet: its creator. An organisation wallet: its people and members with Manage wallets. |
+| **Names you** | Workspace membership is enough to read a wallet that names you. |
+| **API key** | `treasury_read`: reads what its member would, as their permissions stand now. |
+| **Expiry** | A pending wallet past its expiry reads `expired`. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `status` | `pending`, `creating`, `uncertain`, `created`, `active`, `readbackMismatch`, `failed` or `expired`. Filter with it, for example `status=pending`. |
+| `missing` | The people who have not proven their factors yet. |
+| `createdBy` | Who started the wallet. |
+| `signingRequestId` | Your own open signing request on it, when you have one. |
+</Accordion>
+
+<Accordion title="Waiting for you: assignee=me">
+`assignee=me` lists only the wallets waiting for you, at any status:
+
+- your factors to prove, while it is `pending`;
+- the created wallet's owners to confirm from your own signing page, while it is `created` or `active`, each with its `signingRequestId`;
+- a registered organisation wallet you created whose Trade grant, chosen at creation, is not written yet (`creatorTradeGrant`). `POST …/wallets/{walletId}/reconcile` in your own session writes it.
+
+It never lists one you already confirmed, or one that does not name you.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 404 `WORKSPACE_NOT_FOUND` | The path workspace is unknown, or is not the one you are signed in to. |
+| 400 `INCLUDE_UNKNOWN`, `INCLUDE_INVALID` | `include` names a relation this list does not have, or is malformed or repeated. |
+</Accordion>

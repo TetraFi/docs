@@ -6,16 +6,14 @@ keywords: ["onboarding", "company details", "funding", "deposit", "venue account
 
 import MeOrganisationWallets from '/snippets/samples/me-organisation-wallets.mdx';
 
-Quotes need a key and a workspace with its company details on file; an order also needs an account or wallet to trade from and funds in it, set up once in the app.
+You set your workspace up **once**, in the app; after that your backend only quotes and orders. Quotes need company details on file; an order also needs a funded account or wallet:
 
-## At a glance
-
-| You need | Set it up, then check it |
-| --- | --- |
-| [Company details](#complete-your-company-details) | **Company profile** in the app. Check with [`GET …/capabilities`](#check-readiness-from-your-backend) (needs Read compliance), or the refusal on a quote. |
-| [A venue account](#connect-a-venue-account) | **Counterparties** in the app. Its quotes carry `tradingSource.kind` `venueAccount`. |
-| [Funds](#fund-it) | Deposit to the account or wallet. Check [Balances](/trade/balances). |
-| [Wallet grants](#give-a-key-organisation-wallets), for organisation wallets | The key's **Wallets** in the app. Check `GET /api/v1/me`. |
+| You need | Set it up in the app | Check it |
+| --- | --- | --- |
+| [Company details](#complete-your-company-details) | **Company profile** | [`GET …/capabilities`](#check-readiness-from-your-backend), or a quote's refusal |
+| [A venue account](#connect-a-venue-account) | **Counterparties** | Quotes carry `tradingSource.kind` `venueAccount` |
+| [Funds](#fund-it) | Deposit to the account or wallet | [Balances](/trade/balances) |
+| [Wallet grants](#give-a-key-organisation-wallets) (organisation wallets only) | The key's **Wallets** | `GET /api/v1/me` |
 
 ```mermaid
 flowchart LR
@@ -26,7 +24,7 @@ flowchart LR
 
 ## Complete your company details
 
-A company, broker or liquidity provider workspace can request quotes, place orders and connect to counterparties once its legal name, country of incorporation, registration number and registered address are on file under **Company profile**. Until then, those requests answer `403 CAPABILITY_BLOCKED`.
+Add your legal name, country of incorporation, registration number and registered address under **Company profile**. Until then, a company, broker or liquidity provider workspace gets `403 CAPABILITY_BLOCKED` on quotes, orders and connections.
 
 <AccordionGroup>
   <Accordion title="Blockers and what to do">
@@ -63,36 +61,37 @@ A company, broker or liquidity provider workspace can request quotes, place orde
 
 ## Connect a venue account
 
-Someone who can manage your workspace's venues connects each venue account in the app with the API key you already hold. Onboarding with the liquidity provider happens with them, off-platform: TetraFi adds no onboarding step or approval.
+You onboard with the liquidity provider off-platform; TetraFi adds no step or approval. Someone who manages your venues connects the account with the key you hold:
 
 <Steps>
   <Step title="Open the liquidity provider">
-    In **Counterparties**, open the liquidity provider whose venue you trade on.
+    Find it in **Counterparties**.
   </Step>
 
-  <Step title="Add your key on the venue's row">
-    You are already onboarded with them off-platform, so connect on the venue's row: enter the API key the venue issued you, with what the venue asks for alongside it.
+  <Step title="Add your key">
+    On the venue's row, enter the API key it issued you and anything it asks alongside.
   </Step>
 
   <Step title="Verify">
-    TetraFi verifies the key with the venue and reads the addresses whitelisted there into Treasury. Trading turns on once the venue verifies; nothing else is asked.
+    TetraFi checks the key and reads the venue's whitelisted addresses into Treasury. Trading then turns on.
   </Step>
 </Steps>
 
-Its quotes then appear, with `tradingSource.kind` `venueAccount`, for members and keys with [venue trading](/authentication#trade-on-your-venue-accounts). Without an account, a venue reads `unavailable` with `notConnected`.
+Quotes from it reach members and keys with [venue trading](/authentication#trade-on-your-venue-accounts). Without an account, the venue reads `unavailable` with `notConnected`.
 
 ## Fund it
 
-A Basic order spends what the account or wallet already holds. A quote whose `next.kind` is `fund` has a paying account short by `readiness.amount`.
+A Basic order spends what the account or wallet already holds. A quote that is short says `next.kind` `fund`.
 
-<Accordion title="Deposits and shortfalls">
-  - `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` lists where an exchange account takes deposits. The `venueAccountId` is the `accountId` of the account's entry in `GET /api/v1/workspaces/{workspaceId}/venue-enablements`; [Balances](/trade/balances) shows what each account holds.
-  - An order on a `fund` quote is refused with `409 FUNDING_SHORTFALL`: fund the account, then get a new price.
+<Accordion title="Shortfalls and deposits">
+  The quote is short by `readiness.amount`; ordering it answers `409 FUNDING_SHORTFALL`. Fund the account, then get a new price.
+
+  `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions` lists where an exchange account takes deposits. The `venueAccountId` is the `accountId` of the account's entry in `GET /api/v1/workspaces/{workspaceId}/venue-enablements`. [Balances](/trade/balances) shows what each account holds.
 </Accordion>
 
 ## Give a key organisation wallets
 
-An API key with venue trading trades from an organisation wallet only when the wallet is granted to it; venue accounts need no wallet grant. Organisation wallets granted to the key appear in its [`sourceOptions`](/trade/wallets-and-accounts#read-sourceoptions).
+A key trades from an organisation wallet only once the wallet is granted to it. Venue accounts need no grant. Granted wallets appear in the key's [`sourceOptions`](/trade/wallets-and-accounts#read-sourceoptions); until then, on-chain Basic venues read `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`.
 
 <AccordionGroup>
   <Accordion title="Grant or revoke a wallet">
@@ -106,14 +105,11 @@ An API key with venue trading trades from an organisation wallet only when the w
     - At trade time the key's owner still needs trading rights on the wallet, and the key needs Read quotes and Submit orders. A wallet an admin granted to the key, which the key's owner cannot trade, is refused.
   </Accordion>
 
-  <Accordion title="Before a wallet is granted">
-    Until then, on-chain Basic venues read `unavailable` with `apiKeyOrganisationWalletScopeRequired` or `onchainWalletNotUsable`.
-  </Accordion>
 </AccordionGroup>
 
 ## Check readiness from your backend
 
-`GET /api/v1/me` describes the key, including its `organisationWallets` trading authority. Quotes from your venue accounts need `venueTradeScope` and `venueTradeEnabled` both `true`.
+`GET /api/v1/me` shows the key's `organisationWallets` authority. Quotes from your venue accounts need `venueTradeScope` and `venueTradeEnabled` both `true`.
 
 <MeOrganisationWallets />
 
@@ -138,14 +134,4 @@ An API key with venue trading trades from an organisation wallet only when the w
   </Accordion>
 </AccordionGroup>
 
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Place your first order, with a small amount.
-  </Card>
-
-  <Card title="Authentication" icon="key" href="/authentication">
-    Permissions, venue trading and request signing.
-  </Card>
-</CardGroup>
+Next: [place your first order](/quickstart).

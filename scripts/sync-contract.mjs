@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { checkEndpointNames, endpointName } from './endpoint-names.mjs';
+import { checkJourneys, fitsLine } from './journeys.mjs';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -110,7 +111,28 @@ function referenceSpec() {
   const text = `${JSON.stringify(JSON.parse(raw), null, 2)}\n`;
   const hits = scanText(text, rulesFor(root, allowedInternalNames(from)));
   if (hits.length) return { spec: null, withheld: `${hits.length} leak hits (${[...new Set(hits.map((h) => h.match))].slice(0, 5).join(', ')}, …)` };
+  const hazards = mdxHazards(JSON.parse(raw));
+  if (hazards.length) throw new Error(`SPEC_DESCRIPTION_MDX_HAZARD ${hazards.length} descriptions hold {, } or < outside backticks, which Mintlify drops as MDX; the API must backtick them or use a [link](url):\n${hazards.slice(0, 10).join('\n')}`);
   return { spec: text, withheld: null };
+}
+
+// Mintlify renders every OpenAPI description as MDX: a bare {orderId} is an empty expression and a
+// bare <https://…> or <placeholder> an unknown tag, so the text silently disappears on the page.
+function mdxHazards(spec) {
+  const found = [];
+  const walk = (node, at) => {
+    if (Array.isArray(node)) { node.forEach((item, i) => walk(item, `${at}/${i}`)); return; }
+    if (!node || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'description' && typeof value === 'string') {
+        const bare = value.replace(/```[\s\S]*?```/g, '').replace(/`[^`]*`/g, '');
+        const match = bare.match(/.{0,30}[{}<].{0,30}/);
+        if (match) found.push(`  ${at} ${JSON.stringify(match[0])}`);
+      } else walk(value, `${at}/${key}`);
+    }
+  };
+  walk(spec, '#');
+  return found;
 }
 const reference = referenceSpec();
 
@@ -330,7 +352,7 @@ function webhookEventsPage() {
     '',
     'Pick the events a webhook receives when you add it. [Webhooks](/trade/webhooks) shows how to verify and handle them.',
     '',
-    '- Every event arrives in one envelope: `{id, type, apiVersion, createdAt, data}`.',
+    '- Every event arrives in one envelope: `{id, type, apiVersion, occurredAt, data}`.',
     '- Every event is signed with Standard Webhooks.',
     '- New events can appear. Answer one you do not handle with a `2xx`.',
     '',
@@ -386,7 +408,7 @@ function permissionsPage() {
   // Code spans are literal in MDX: only a pipe, which would split the table cell, is escaped.
   const code = (value) => `\`${value.replace(/\|/g, '\\|')}\``;
   const permission = (scope) => {
-    const label = labels && Object.hasOwn(labels, scope) ? labels[scope]?.permission : undefined;
+    const label = labels && Object.hasOwn(labels, scope) ? labels[scope]?.label : undefined;
     if (typeof label === 'string' && label.trim()) return cell(label);
     missingLabels.add(scope);
     return `SCOPE_LABEL_MISSING (${cell(scope)})`;
@@ -418,9 +440,15 @@ function permissionsPage() {
   const tags = [...new Set(operations.map((op) => op.tag))]
     .sort((a, b) => (tagOrder.includes(a) ? tagOrder.indexOf(a) : 1e3) - (tagOrder.includes(b) ? tagOrder.indexOf(b) : 1e3) || (a < b ? -1 : 1));
   const usedScopes = [...new Set(operations.flatMap(({ security }) => security.flatMap((r) => r.api_key ?? [])))].sort();
+  // Every published scope, in the spec's order, then any used scope it does not describe.
+  const listedScopes = [...new Set([...(labels && typeof labels === 'object' ? Object.keys(labels) : []), ...usedScopes])];
+  const described = (scope) => {
+    const text = labels && Object.hasOwn(labels, scope) ? labels[scope]?.description : undefined;
+    return typeof text === 'string' && text.trim() ? cell(text) : '';
+  };
   return { page: [
     ...heading,
-    'Each API operation below lists the API-key scopes it needs and the matching checkbox under **Permissions** when you create a key ([Authentication](/authentication#permissions)).',
+    'Each API operation below lists the API-key scopes it needs. A key names its scopes when you create it ([Authentication](/authentication#permissions)); each scope is `<resource>_read` or `<resource>_write`.',
     '',
     '| Entry | Meaning |',
     '| :--- | :--- |',
@@ -430,12 +458,12 @@ function permissionsPage() {
     '| **Session only** | Signed-in app users only; an API key is refused. |',
     '| **No API key required** | Called without an API key; the request carries its own credentials. |',
     '',
-    ...(missingLabels.size ? ['<Warning>', 'Some scopes have no exported app permission label. Entries marked `SCOPE_LABEL_MISSING` are incomplete; do not infer a checkbox from the scope name.', '</Warning>', ''] : []),
+    ...(missingLabels.size ? ['<Warning>', 'Some scopes have no exported label. Entries marked `SCOPE_LABEL_MISSING` are incomplete; do not infer what a scope allows from its name.', '</Warning>', ''] : []),
     '## Scopes',
     '',
-    '| Scope | Permission in the app |',
-    '| :--- | :--- |',
-    ...usedScopes.map((scope) => `| ${code(scope)} | ${permission(scope)} |`),
+    '| Scope | Label | What it allows |',
+    '| :--- | :--- | :--- |',
+    ...listedScopes.map((scope) => `| ${code(scope)} | ${permission(scope)} | ${described(scope)} |`),
     '',
     '## Operations',
     '',
@@ -446,7 +474,7 @@ function permissionsPage() {
       `<Accordion title="${cell(tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, " "))}">`,
       '',
       ...(tagDescription.get(tag) ? [cell(tagDescription.get(tag)), ''] : []),
-      '| Operation | API-key scopes | Permission in the app |',
+      '| Operation | API-key scopes | Scope label |',
       '| :--- | :--- | :--- |',
       ...operations.filter((op) => op.tag === tag).sort(byRoute).map(row),
       '',
@@ -482,10 +510,6 @@ const ENDPOINT_GUIDES = {
   'GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}': '/trade/trade-history',
   'GET /api/v1/workspaces/{workspaceId}/venue-enablements': '/trade/wallets-and-accounts',
 };
-// A rule a client must not miss on the operation's own page, one line under its walkthrough link.
-const ENDPOINT_NOTES = {
-  'POST /api/v1/orders': 'Lost the answer, or got a timeout or `5xx`? Never order again with a new key: [recover it by its quote](/trade/orders#retries-and-recovery).',
-};
 // Each operation's stub page is api-reference/<tag>/<short name>, lowercased and hyphenated.
 const WORKSPACE_PREFIX = '/api/v1/workspaces/{workspaceId}';
 const pageSlug = (text) => text.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -493,6 +517,7 @@ function endpointMap() {
   if (!permissions.operations) return { page: null, nav: null };
   const ops = permissions.operations;
   checkEndpointNames(ops);
+  checkJourneys(ops.map((op) => `${op.method} ${op.route}`));
   for (const tag of new Set(ops.map((op) => op.tag))) {
     if (!ENDPOINT_GROUPS.some(({ tags }) => tags.includes(tag))) throw new Error(`SPEC_TAG_UNGROUPED ${tag}`);
   }
@@ -516,14 +541,34 @@ function endpointMap() {
     return title;
   };
   const guideFor = (op) => ENDPOINT_GUIDES[`${op.method} ${op.route}`] ?? ENDPOINT_GROUPS.find(({ tags }) => tags.includes(op.tag)).guide;
-  const stubs = ops.map((op) => [`${stubPath(op)}.mdx`, ['---', `title: "${endpointName(op.method, op.route)}"`, `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', '',
-    `Walkthrough: [${guideTitle(guideFor(op))}](${guideFor(op)}).`, ...(ENDPOINT_NOTES[`${op.method} ${op.route}`] ? ['', ENDPOINT_NOTES[`${op.method} ${op.route}`]] : []), ''].join('\n')]);
+  // Each stub: one fits line (journey step, permission, walkthrough), then the operation's hand-written
+  // notes (snippets/endpoints/<tag>/<name>.mdx: rules table and closed toggles) when it has them.
+  const snippetPath = (op) => `snippets/endpoints/${pageSlug(op.tag)}/${pageSlug(endpointName(op.method, op.route))}.mdx`;
+  const needs = (op) => {
+    const { scopes, permissions: labels } = permissions.access(op);
+    // "None" means no extra permission, never no credential: the call still needs a valid key or token.
+    if (labels === 'None') return 'Any valid API key or token';
+    if (labels !== 'Not applicable') return `Needs ${labels.replace(/<br \/>/g, ' and ')}`;
+    if (scopes === 'Session only') return 'Signed-in members only';
+    // The token exchange authenticates with the service account's own credentials in the body.
+    return op.route === '/api/v1/oauth/token' ? "Your service account's client id and secret" : 'No API key needed';
+  };
+  const stubs = ops.map((op) => {
+    const key = `${op.method} ${op.route}`;
+    const notes = existsSync(path.join(root, snippetPath(op)));
+    const line = fitsLine(key, needs(op), `Walkthrough: [${guideTitle(guideFor(op))}](${guideFor(op)})`);
+    return [`${stubPath(op)}.mdx`, ['---', `title: "${endpointName(op.method, op.route)}"`, `openapi: "api-reference/openapi.json ${op.method} ${op.route}"`, '---', '',
+      ...(notes ? [`import Notes from '/${snippetPath(op)}'`, ''] : []),
+      line, ...(notes ? ['', '<Notes />'] : []), ''].join('\n')];
+  });
   const seen = new Set();
   for (const [file] of stubs) {
     if (seen.has(file)) throw new Error(`ENDPOINT_PAGE_DUPLICATE ${file}`);
     seen.add(file);
   }
-  const nav = groups.map(({ group, ops: list }) => ({ group, pages: list.map(stubPath) }));
+  // A group's hand-written intro (api-reference/intros/<group>.mdx) leads its sidebar group.
+  const intro = (group) => `api-reference/intros/${pageSlug(group)}`;
+  const nav = groups.map(({ group, ops: list }) => ({ group, pages: [...(existsSync(path.join(root, `${intro(group)}.mdx`)) ? [intro(group)] : []), ...list.map(stubPath)] }));
   const page = [
     '---',
     'title: "Endpoints at a glance"',
@@ -604,7 +649,7 @@ if (permissions.page) outputs.push([path.join('reference', 'permissions.mdx'), p
 if (endpoints.page) outputs.push([path.join('reference', 'endpoints.mdx'), endpoints.page], ['docs.json', docsJson()], ...endpoints.stubs);
 // An operation page the spec no longer has is stale: archive it.
 const apiPages = () => (existsSync(path.join(root, 'api-reference')) ? readdirSync(path.join(root, 'api-reference'), { withFileTypes: true }) : [])
-  .filter((entry) => entry.isDirectory())
+  .filter((entry) => entry.isDirectory() && entry.name !== 'intros')
   .flatMap((dir) => readdirSync(path.join(root, 'api-reference', dir.name)).filter((f) => f.endsWith('.mdx')).map((f) => `api-reference/${dir.name}/${f}`));
 const staleEndpointPages = endpoints.stubs ? apiPages().filter((f) => !endpoints.stubs.some(([stub]) => stub === f)) : [];
 

@@ -18,14 +18,14 @@ const NAMES = {
 
 const AUTH_CODES = [{ code: 'AUTH_REQUIRED', status: [401], meaning: 'Authentication is required.', remedy: 'Send credentials.', retryable: false }];
 
-function fixture(spec, names = NAMES, codes = AUTH_CODES) {
+function fixture(spec, names = NAMES, codes = AUTH_CODES, { journeys = null, files = {} } = {}) {
   const workspace = mkdtempSync(path.join(tmpdir(), 'contract-permissions-'));
   const site = path.join(workspace, 'docs');
   const source = path.join(workspace, 'contract');
   mkdirSync(path.join(site, 'scripts'), { recursive: true });
   mkdirSync(path.join(source, 'integrator'), { recursive: true });
   mkdirSync(path.join(workspace, 'tetrafi-docs/public-site'), { recursive: true });
-  for (const script of ['sync-contract.mjs', 'leak-rules.mjs', 'endpoint-names.mjs']) {
+  for (const script of ['sync-contract.mjs', 'leak-rules.mjs', 'endpoint-names.mjs', 'journeys.mjs']) {
     copyFileSync(path.join(import.meta.dirname, script), path.join(site, 'scripts', script));
   }
   const terms = path.join(workspace, 'tetrafi-docs/public-site/leak-terms.json');
@@ -44,6 +44,15 @@ function fixture(spec, names = NAMES, codes = AUTH_CODES) {
       keys.push(`${method.toUpperCase()} ${route}`);
     }
   }
+  // Every fixture operation is placed: by default request quotes is the one journey step, the rest standalone.
+  const journeyData = journeys ?? { journeys: keys.includes('POST /api/v1/quotes') ? [{ id: 'trade', title: 'Trade', guide: '/search/how-it-works', steps: [{ label: 'Quote', ops: ['POST /api/v1/quotes'] }] }] : [] };
+  const placed = new Set(journeyData.journeys.flatMap((j) => j.steps.flatMap((s) => s.ops)));
+  const journeysFile = path.join(workspace, 'journeys.json');
+  writeFileSync(journeysFile, JSON.stringify({ standalone: keys.filter((key) => !placed.has(key)), ...journeyData }));
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(site, file)), { recursive: true });
+    writeFileSync(path.join(site, file), text);
+  }
   const namesFile = path.join(workspace, 'endpoint-names.json');
   writeFileSync(namesFile, JSON.stringify(Object.fromEntries(keys.filter((key) => names[key]).map((key) => [key, names[key]]))));
   writeFileSync(path.join(site, 'docs.json'), JSON.stringify({ navigation: { tabs: [{ tab: 'API reference', groups: [{ group: 'Endpoints', openapi: 'api-reference/openapi.json' }] }] } }));
@@ -56,7 +65,7 @@ function fixture(spec, names = NAMES, codes = AUTH_CODES) {
   const run = (...args) => {
     const result = spawnSync(process.execPath, [path.join(site, 'scripts/sync-contract.mjs'), ...args], {
       encoding: 'utf8',
-      env: { ...process.env, TETRAFI_RFQ_API_DOCS: source, TETRAFI_LEAK_TERMS: terms, TETRAFI_ENDPOINT_NAMES: namesFile },
+      env: { ...process.env, TETRAFI_RFQ_API_DOCS: source, TETRAFI_LEAK_TERMS: terms, TETRAFI_ENDPOINT_NAMES: namesFile, TETRAFI_JOURNEYS: journeysFile },
       cwd: site,
     });
     assert.ifError(result.error);
@@ -80,8 +89,8 @@ const scopedSpec = () => ({
   },
   components: { securitySchemes: { api_key: { type: 'apiKey', in: 'header', name: 'X-API-Key',
     'x-tetrafi-scopes': {
-      'quotes:read': { permission: 'Read quotes', description: 'Read assets and prices.' },
-      'orders:write': { permission: 'Submit orders', description: 'Place orders.' },
+      'quotes:read': { label: 'Read quotes', description: 'Read assets and prices.' },
+      'orders:write': { label: 'Submit orders', description: 'Place orders.' },
     },
   } },
   schemas: {
@@ -104,6 +113,9 @@ test('scopes and app labels generate a row for every integrator operation', () =
     '| Get session<br />GET `/api/v1/session` | Session only | Not applicable |',
   ]) assert.ok(text.includes(row), `Missing row: ${row}`);
   assert.ok(text.indexOf('`/api/v1/assets`') < text.indexOf('`/api/v1/quotes`'));
+  // Every published scope is listed with its label and one-line description.
+  assert.ok(text.includes('| `quotes:read` | Read quotes | Read assets and prices. |'));
+  assert.ok(text.includes('| `orders:write` | Submit orders | Place orders. |'));
   assert.equal(run('--check').status, 0);
 });
 
@@ -125,8 +137,8 @@ test('no scopes anywhere generates only an unavailable placeholder and an inform
 
 // Catches a used scope being published as if its app permission were known.
 test('a missing scope label stays visible, is reported, and fails check even without drift', () => {
-  for (const labels of [undefined, { 'quotes:read': { permission: 'Read quotes' } }, {
-    'quotes:read': { permission: 'Read quotes' }, 'orders:write': { permission: ' ' },
+  for (const labels of [undefined, { 'quotes:read': { label: 'Read quotes' } }, {
+    'quotes:read': { label: 'Read quotes' }, 'orders:write': { label: ' ' },
   }]) {
     const spec = scopedSpec();
     spec.components.securitySchemes.api_key['x-tetrafi-scopes'] = labels;
@@ -169,6 +181,21 @@ test('operations are named by their short name, and a missing name fails the syn
   assert.match(failed.output, /ENDPOINT_NAME_MISSING GET \/api\/v1\/orders\/\{orderId\}/);
 });
 
+// Catches description text Mintlify would drop as MDX: a bare {param}, <https://…> or <placeholder>.
+test('a description with a bare brace or angle bracket fails the sync; backticked ones pass', () => {
+  for (const text of ['Read it with GET /orders/{orderId}.', 'Guide: <https://example.com/guide>.', 'Send client_id=<UUID>.']) {
+    const spec = scopedSpec();
+    spec.paths['/api/v1/assets'].get.description = text;
+    const failed = fixture(spec).run();
+    assert.notEqual(failed.status, 0, text);
+    assert.match(failed.output, /SPEC_DESCRIPTION_MDX_HAZARD 1 descriptions/);
+  }
+  const spec = scopedSpec();
+  spec.paths['/api/v1/assets'].get.description = 'Read it with `GET /orders/{orderId}`; send `client_id=<UUID>`. Guide: [how it works](https://example.com/guide).';
+  const synced = fixture(spec).run();
+  assert.equal(synced.status, 0, synced.output);
+});
+
 // Catches codes leaving their product area, a lost docUrl anchor, a dropped status, and a code
 // silently filed under a catch-all.
 test('error codes group by product area in journey order, with status as a column', () => {
@@ -203,5 +230,56 @@ test('each endpoint page links the guide that walks through it, by the guide tit
   const { run, page } = fixture(scopedSpec());
   assert.equal(run().status, 0);
   const site = path.dirname(path.dirname(page));
-  assert.match(readFileSync(path.join(site, 'api-reference/quotes/request-quotes.mdx'), 'utf8'), /^Walkthrough: \[Request quotes\]\(\/search\/how-it-works\)\.$/m);
+  assert.match(readFileSync(path.join(site, 'api-reference/quotes/request-quotes.mdx'), 'utf8'), /Walkthrough: \[Request quotes\]\(\/search\/how-it-works\)$/m);
+});
+
+// Catches a page that does not say where its call sits, or a new operation placed nowhere.
+test('a journey operation gets a step line, a standalone one only its permission', () => {
+  const journeys = { journeys: [{ id: 'trade', title: 'Trade', guide: '/search/how-it-works', steps: [
+    { label: 'Quote', ops: ['POST /api/v1/quotes'] }, { label: 'Credential', ops: ['GET /api/v1/me'] }] }] };
+  const { run, page } = fixture(scopedSpec(), NAMES, AUTH_CODES, { journeys });
+  const synced = run();
+  assert.equal(synced.status, 0, synced.output);
+  const site = path.dirname(path.dirname(page));
+  const quotes = readFileSync(path.join(site, 'api-reference/quotes/request-quotes.mdx'), 'utf8');
+  assert.match(quotes, /^\*\*Step 1 of 2:\*\* \*\*Quote\*\* → Credential<br \/>\nNeeds Read quotes and Submit orders · Walkthrough: /m);
+  assert.match(readFileSync(path.join(site, 'api-reference/quotes/list-assets.mdx'), 'utf8'), /^Needs Read quotes · Walkthrough: /m);
+});
+
+test('an operation in no journey and not standalone fails the sync', () => {
+  const { run } = fixture(scopedSpec(), NAMES, AUTH_CODES, { journeys: { journeys: [], standalone: [] } });
+  const failed = run();
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.output, /JOURNEY_OPERATION_UNPLACED/);
+});
+
+test('a journey step naming an operation the spec lacks fails the sync', () => {
+  const journeys = { journeys: [{ id: 'x', title: 'X', guide: '/search/how-it-works', steps: [{ label: 'Gone', ops: ['GET /api/v1/gone'] }] }] };
+  const failed = fixture(scopedSpec(), NAMES, AUTH_CODES, { journeys }).run();
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.output, /JOURNEY_OPERATION_UNKNOWN GET \/api\/v1\/gone/);
+});
+
+test('a snippet is imported into its stub; a stub without one still renders', () => {
+  const files = { 'snippets/endpoints/quotes/request-quotes.mdx': '| | |\n| --- | --- |\n| **Once** | A rule. |\n' };
+  const { run, page } = fixture(scopedSpec(), NAMES, AUTH_CODES, { files });
+  assert.equal(run().status, 0);
+  const site = path.dirname(path.dirname(page));
+  const quotes = readFileSync(path.join(site, 'api-reference/quotes/request-quotes.mdx'), 'utf8');
+  assert.match(quotes, /^import Notes from '\/snippets\/endpoints\/quotes\/request-quotes\.mdx'$/m);
+  assert.match(quotes, /^<Notes \/>$/m);
+  const assets = readFileSync(path.join(site, 'api-reference/quotes/list-assets.mdx'), 'utf8');
+  assert.ok(!assets.includes('import Notes') && !assets.includes('<Notes'));
+});
+
+test('an intro page leads its group and survives the sync', () => {
+  const intro = '---\ntitle: "Quotes"\n---\n\n1. Ask.\n';
+  const { run, page } = fixture(scopedSpec(), NAMES, AUTH_CODES, { files: { 'api-reference/intros/quotes.mdx': intro } });
+  assert.equal(run().status, 0);
+  const site = path.dirname(path.dirname(page));
+  const nav = JSON.parse(readFileSync(path.join(site, 'docs.json'), 'utf8')).navigation.tabs[0].groups.find((g) => g.group === 'Quotes');
+  assert.equal(nav.pages[0], 'api-reference/intros/quotes');
+  const checked = run('--check');
+  assert.ok(!/CONTRACT_DRIFT api-reference\/intros/.test(checked.output), checked.output);
+  assert.equal(readFileSync(path.join(site, 'api-reference/intros/quotes.mdx'), 'utf8'), intro);
 });

@@ -12,22 +12,16 @@ import VenueBalances from '/snippets/samples/venue-balances.mdx';
 import VenueDepositHistory from '/snippets/samples/venue-deposit-history.mdx';
 import FeeScheduleRead from '/snippets/samples/fee-schedule-read.mdx';
 
-Read what each wallet and exchange account holds and the TetraFi fees you pay; these reads never move money.
-
-## At a glance
-
-Paths are under `/api/v1/workspaces/{workspaceId}`.
+Read what each wallet and exchange account holds, and the TetraFi fees you pay. These reads never move money. Paths are under `/api/v1/workspaces/{workspaceId}`, with the `workspaceId` from `GET /api/v1/me` ([Permissions](/authentication#permissions)).
 
 | Read | Permission |
 | --- | --- |
-| Every wallet and exchange-account balance, one row per account, asset and chain: `GET …/balances` | Treasury read |
-| Your exchange accounts and their `venueAccountId`: `GET …/venue-enablements` | Treasury read |
-| What the venue last reported for one account: `GET …/venue-accounts/{venueAccountId}/balances` | Treasury read |
-| Where to deposit, and what was credited: `GET …/venue-accounts/{venueAccountId}/deposit-instructions` and `…/deposit-history` | Treasury read |
-| [Credit and positions](/trade/settlement-and-credit#credit-and-the-ledger): `GET …/venue-accounts/{venueAccountId}/credit` and `…/ledger` | Treasury read |
-| The fees in force now and every scheduled change: `GET …/fee-schedule` | Read fee schedule |
-
-Your workspace id is the `workspaceId` from `GET /api/v1/me` ([Permissions](/authentication#permissions)).
+| [Every balance](/api-reference/treasury/list-workspace-balances), one row per account, asset and chain: `GET …/balances` | Treasury read |
+| [Your exchange accounts](/api-reference/venue-enablements/list-venue-accounts): `GET …/venue-enablements` | Treasury read |
+| [One account's balances](/api-reference/venue-accounts/get-account-balances): `GET …/venue-accounts/{venueAccountId}/balances` | Treasury read |
+| [Where to deposit](/api-reference/venue-accounts/get-deposit-instructions) and [what was credited](/api-reference/venue-accounts/list-account-deposits): `…/deposit-instructions`, `…/deposit-history` | Treasury read |
+| [Credit and positions](/trade/settlement-and-credit#credit-and-the-ledger): `…/credit` and `…/ledger` | Treasury read |
+| [Fees](/api-reference/workspaces/get-fee-schedule) now and scheduled: `GET …/fee-schedule` | Read fee schedule |
 
 ## Every balance in one list
 
@@ -250,16 +244,6 @@ A key without Read fee schedule is refused with `403 INSUFFICIENT_SCOPE`.
   </Accordion>
 </AccordionGroup>
 
-Every other code is in [Error codes](/reference/error-codes).
+Each call's API reference page has the rest; scripts: [balances](https://github.com/TetraFi/docs/blob/main/samples/http/venue-balances.sh), [fees](https://github.com/TetraFi/docs/blob/main/samples/http/fee-schedule.sh).
 
-<CardGroup cols={2}>
-  <Card title="Run the balances script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/venue-balances.sh">Lists exchange accounts, then reads one's balances and deposits.</Card>
-  <Card title="Run the fees script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/fee-schedule.sh">Reads your current and upcoming fees.</Card>
-</CardGroup>
-
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Credit and settlement" icon="scale-balanced" href="/trade/settlement-and-credit">Every trade, its settlement, and credit.</Card>
-  <Card title="Errors and refusals" icon="triangle-exclamation" href="/trade/errors">Fix, retry or recover.</Card>
-</CardGroup>
+Next: [credit and settlement](/trade/settlement-and-credit), [errors](/trade/errors).

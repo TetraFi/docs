@@ -7,7 +7,7 @@
 # at 6 decimals. If it is stricter than the signed step allows, or the chain moved since the quote,
 # nothing is relayed and the order asks for a fresh step 1 in next.
 raw=$(sign_step "$first_step")
-order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --arg raw "$raw" '{quoteId: .id,
+order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --arg raw "$raw" '{kind: "quote", quoteId: .id,
   firstStep: {stepId: .signing.firstStep.stepId, kind: "signedTransaction", raw: $raw}}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * 1000000 | floor | . / 1000000 | tostring)} else {} end)' <<<"$quote")

@@ -1,0 +1,27 @@
+| | |
+| --- | --- |
+| **Who** | View wallets. Keys and OAuth clients also need `treasury_read`. |
+| **Live or recorded** | Members read live (`source: live`); keys read recorded data only, `stale` past an hour. |
+| **No polling** | Nothing reads the venue in the background ([more](/trade/settlement-and-credit#read-the-ledger)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `positions[].amount` | The signed position: negative is what the account owes. |
+| `positions[].prefundedOnly` | The venue lets the account hold this asset only long. |
+| `credit` | The credit line, read separately from the positions. |
+| `componentFreshness` | Positions and credit each keep their own observation and venue times. |
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 403 `LEDGER_ACCOUNT_FORBIDDEN` | You may not view this account's ledger. Use a credential with View wallets. |
+| 404 `VENUE_ACCOUNT_NOT_FOUND` | Not this workspace's account; answered before any venue read. |
+| 409 `LEDGER_NOT_OBSERVED` | A key found no recorded read. A member opens the account in the app; read again. |
+| 409 `LEDGER_UNSUPPORTED` | The venue has no ledger read. Read its balances instead. |
+| 409 `LEDGER_SETUP_MISSING`, `VENUE_ACCOUNT_LEDGER_PENDING` | No current key, or setup unfinished. A member with Manage credentials fixes it. |
+| 409 `VENUE_ACCOUNT_FUNDS_IN_WALLETS` | A wallet-based venue: read [workspace balances](/api-reference/treasury/list-workspace-balances). |
+| 502 `LEDGER_DATA_INVALID` | The venue's amounts could not be read exactly; none are shown. Retry shortly. |
+| 503 `LEDGER_READ_UNAVAILABLE`, `LEDGER_JOURNAL_UNAVAILABLE` | A read failed; `details.lastGoodReadAt` names the last good read when known. Retry shortly. |
+</Accordion>

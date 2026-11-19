@@ -1,0 +1,15 @@
+| | |
+| --- | --- |
+| **Send** | `{"kind":"test"}`, the only kind, with a new `Idempotency-Key`. You receive `webhook.test`. |
+| **Signed** | With the same Standard Webhooks headers as live events. |
+| **201 is not success** | Check `success`, `httpStatus` and `errorMessage` for your receiver's answer. |
+| **Replay** | The same key and kind return the stored delivery without a second send. |
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_KEY_INVALID` | Send one `Idempotency-Key` of 1 to 255 characters. |
+| 404 `WEBHOOK_NOT_FOUND` | Use an id from this workspace's webhook list. |
+| 409 `IDEMPOTENCY_CONFLICT` | The key was used with a different body. Use a new key. |
+| 503 `IDEMPOTENCY_UNAVAILABLE` | Retry with the same key shortly. |
+</Accordion>

@@ -1,0 +1,17 @@
+| | |
+| --- | --- |
+| **If-Match** | Required: the strong `ETag` from `GET`. |
+| **Owner** | Changing `url` or `events` makes you its accountable principal; `active` alone does not. |
+| **Validation** | As at creation: HTTPS URLs, current event names. |
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `WEBHOOK_EVENT_UNKNOWN`, `WEBHOOK_EVENT_RETIRED` | An `events` entry is not a current event. An invalid URL or empty update is also 400. |
+| 403 `WEBHOOK_AUTOMATION_AMOUNTS_NOT_READABLE` | You would receive `treasury.automation.*` without seeing every Automation's amounts. |
+| 404 `WEBHOOK_NOT_FOUND` | Use an id from this workspace's webhook list. |
+| 409 `WEBHOOK_EXISTS` | Another endpoint already has that URL. |
+| 412 `WEBHOOK_VERSION_CONFLICT` | It changed since you read it; nothing changed. Read it again first. |
+| 428 `WEBHOOK_VERSION_REQUIRED` | `If-Match` is missing or a wildcard; nothing changed. |
+| 503 `WEBHOOK_AUTOMATION_AMOUNTS_UNAVAILABLE` | Nothing changed. Retry shortly. |
+</Accordion>

@@ -1,0 +1,20 @@
+| | |
+| --- | --- |
+| **Ordering** | Only when `requestedByYou` is `true` can you order these quotes. |
+| **Not a new request** | Its `request` echo (`QuoteRequestEcho`) cannot be sent again. |
+| **Lost in a crash** | Its quotes are lost too: request fresh quotes. |
+
+<Accordion title="Who can read it">
+- Whoever asked.
+- A member session allowed to view the workspace's orders.
+- An API key with `quotes_read` and `orders_read`, when an order was placed on one of its quotes in that workspace.
+
+Anyone else gets the same `404` as for an unknown id.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 404 `QUOTE_REQUEST_NOT_FOUND` | Unknown, not readable by you, or lost before it was recorded. Check the `quoteRequestId`, or request fresh quotes. |
+| 503 `QUOTE_REQUEST_UNAVAILABLE` | It could not be read. Retry after `Retry-After` (also `details.retryAfter`). A read straight after the request never gets this while it is still being recorded. |
+</Accordion>

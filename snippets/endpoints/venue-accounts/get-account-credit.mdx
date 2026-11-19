@@ -1,0 +1,33 @@
+| | |
+| --- | --- |
+| **Who** | View wallets and View credit; keys and OAuth clients also need `treasury_read`. |
+| **Recorded** | Never calls the venue. A signed-in member reads live on the [ledger](/api-reference/venue-accounts/get-account-ledger). |
+| **Unreadable** | A part that cannot be read is named, never zero ([more](/trade/settlement-and-credit#credit-and-the-ledger)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `observation` | The venue's own credit report: reported, not reported, or unavailable. |
+| `usage` | Your credit standing, computed as a trade's credit check computes it, with holds, freshness and where the terms came from. |
+| `warning.levelPercent`, `warning.warningReached` | Your workspace threshold as a percent of the reported limit (null if unset), and whether it is reached; reached needs a readable line. `warning.status` says how usage stands. |
+| `warning.revision` | The warning setting's revision; omitted when the setting could not be read. |
+</Accordion>
+
+<Accordion title="What uses the credit">
+Send `include=consumers` to expand every commitment row in `included.consumers[venueAccountId].value`. Each row is one of:
+
+- `unsettledLeg`, with its `windowId`;
+- `openTrade`, with its `tradeId`;
+- `openQuote`, with its `quoteId`;
+
+each with its asset, an exact decimal amount and `since`. The rows share the commitments' snapshot and sum to them per asset. An expansion that cannot be read is null, with a named reason.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 403 `INSUFFICIENT_SCOPE`, `INSUFFICIENT_WORKSPACE_PERMISSION` | The key lacks `treasury_read`, or its owner lacks View wallets or View credit. |
+| 404 `VENUE_ACCOUNT_NOT_FOUND` | No such account in this workspace; another workspace's account answers the same. |
+| 503 `VENUE_ACCOUNT_ELIGIBILITY_UNAVAILABLE` | Your access to the account could not be read. Retry shortly. |
+| 503 | The credit terms could not be read; no version is invented. Retry shortly. |
+</Accordion>

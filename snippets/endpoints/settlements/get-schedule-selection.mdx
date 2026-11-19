@@ -1,0 +1,23 @@
+| | |
+| --- | --- |
+| **revision** | A schedule request is sent against it. |
+| **permissions** | Says whether you may change the schedule. |
+| **Owner** | The key's owner also needs View settlements ([Permissions](/authentication#permissions)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `activeSelection`, `effectiveSchedule` | The schedule in effect, with its minimum settlement. |
+| `termSources` | Where each of its terms comes from. |
+| `pendingSelection` | A change waiting on the LP. |
+| `nextWindow` | The next window; `nextWindowRolledFrom` when the calendar moved it. |
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 403 `SETTLEMENT_VIEW_PERMISSION_REQUIRED` | The key's owner lacks View settlements. `details.fix` names who can grant it. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `settlements_read`. |
+| 422 `SETTLEMENT_SCHEDULE_UNAVAILABLE` | The LP's published schedule cannot be used. Ask the LP to publish a valid one. |
+| 503 `SETTLEMENT_SCHEDULE_READ_UNAVAILABLE` | The schedule could not be read. Retry shortly. |
+</Accordion>

@@ -1,0 +1,32 @@
+| | |
+| --- | --- |
+| **Not paged** | Every window up to `horizonDays` (1 to 90) ahead; over 512 windows is refused whole. |
+| **Partial?** | `complete: false` lists `failedReads`: part is unread, not "nothing due". |
+| **Read again** | At `nextTransitionAt`, when the clock alone changes the plan. |
+| **Owner** | The key's owner also needs View settlements ([Permissions](/authentication#permissions)). |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `status`, `complete` | Whether the plan is open, empty or incomplete. |
+| `windows` | Each window due in the horizon. An unknown deadline stays unknown, never a guess. |
+| `totals` | What is still to pay and to receive per asset, today and the next `horizonDays - 1` days. |
+| `failedReads` | Each source that could not be read, with its code. |
+</Accordion>
+
+<Accordion title="The LP's view, for signed-in members">
+`perspective=maker` needs a human session in an LP workspace (otherwise 403 `LP_WORKSPACE_REQUIRED`). It lists only the client windows the current client-sharing grant covers, with turns relative to that LP; clocks and SLA facts are the same as on the windows. Client funding sources and executable proposals are never shown. `venueAccountId` filters the taker view only.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `SETTLEMENT_PLAN_HORIZON_INVALID` | `horizonDays` is outside 1 to 90. |
+| 400 `SETTLEMENT_PLAN_FILTER_UNSUPPORTED` | `venueAccountId` on a maker plan. Leave it out. |
+| 403 `SETTLEMENT_PLAN_VIEW_PERMISSION_REQUIRED` | The key's owner lacks View settlements. `details.fix` names who can grant it. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `settlements_read`. |
+| 404 `VENUE_ACCOUNT_NOT_FOUND` | `venueAccountId` is not one of the workspace's settlement accounts. |
+| 404 `SETTLEMENT_WORKSPACE_NOT_FOUND` | The path's workspace is not a workspace id. |
+| 422 `SETTLEMENT_PLAN_TOO_LARGE` | More than 512 windows: the plan is never truncated. Send a shorter `horizonDays`. |
+| 503 `SETTLEMENT_PLAN_READ_UNAVAILABLE`, `SETTLEMENT_PLAN_ACCOUNTS_UNAVAILABLE` | The plan could not be built. Retry shortly. |
+</Accordion>

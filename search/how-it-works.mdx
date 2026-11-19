@@ -18,27 +18,19 @@ import SearchFirmOnly from '/snippets/samples/search-firm-only.mdx';
 import SearchSortEta from '/snippets/samples/search-sort-eta.mdx';
 import SearchPriceProtection from '/snippets/samples/search-price-protection.mdx';
 
-Ask every venue with one request, then order the quote you want by its id.
-
-## At a glance
-
-| Endpoint | You need |
-| --- | --- |
-| `GET /api/v1/assets`: what you can trade | Read quotes |
-| `POST /api/v1/quotes`: `quotes`, best first, and `sources`, every venue's outcome | Read quotes and Submit orders; [venue trading](/authentication#trade-on-your-venue-accounts) for your venue accounts |
-| `GET /api/v1/quotes/requests/{quoteRequestId}`: a recorded search | Read quotes |
+One `POST /api/v1/quotes` covers every venue your workspace can use (filters narrow it), so you compare them in one go: `quotes`, best first, and `sources`, why each venue did or did not quote. **Order the quote you want by its `id`** before it expires. Permissions and every refusal: [Request quotes](/api-reference/quotes/request-quotes).
 
 ## Request and read quotes
 
 <Steps>
-  <Step title="Take values from discovery">
-    Read asset ids and networks from [`GET /api/v1/assets`](#use-values-from-discovery).
+  <Step title="Look up assets">
+    Take asset ids and networks from [`GET /api/v1/assets`](#use-values-from-discovery).
   </Step>
   <Step title="Send the request">
-    Send `kind: "pair"`, `sell.asset`, `buy.asset` and exactly one of `sellAmount` or `buyAmount`, as a decimal string such as `"10"`.
+    Send `kind: "pair"`, `sell.asset`, `buy.asset` and one of `sellAmount` or `buyAmount`, a decimal string such as `"10"`.
 
     <AccordionGroup>
-      <Accordion title="Every request field">
+      <Accordion title="Every field">
 
 <ParamField body="kind" type="string" required>`"pair"`. Missing: `400 QUOTE_REQUEST_KIND_REQUIRED`; unknown or not a string: `400 QUOTE_REQUEST_KIND_INVALID`. `"requote"` [refreshes a held quote](/search/firmness-and-lifetime#requote-a-quote).</ParamField>
 <ParamField body="sell.asset, buy.asset" type="string" required>An asset id from [`GET /api/v1/assets`](#use-values-from-discovery), such as `USDC`. Assets carry no chain.</ParamField>
@@ -54,7 +46,7 @@ Ask every venue with one request, then order the quote you want by its id.
 Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`, and `message` names it.
 
       </Accordion>
-      <Accordion title="Retry safely with an Idempotency-Key">
+      <Accordion title="Safe retries">
         Send an `Idempotency-Key` header (1 to 255 bytes; a UUID is a good choice) to make a retry safe. A retry with the same key and body within 24 hours returns the first answer, with `Idempotent-Replayed: true`, and asks no venue again; its quotes may have expired since, so check `expiresAt`. A retry while the first is still running waits for its answer.
 
         - The same key with a different body: `409 IDEMPOTENCY_CONFLICT`.
@@ -64,7 +56,7 @@ Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`
     </AccordionGroup>
   </Step>
   <Step title="Read the quotes">
-    `quotes` lists them best first. Order one whose `next.kind` is `order` before `expiresAt`.
+    Order one whose `next.kind` is `order` before `expiresAt`.
 
 ```json POST /api/v1/quotes response expandable
 {
@@ -92,7 +84,7 @@ Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`
 }
 ```
 
-<Accordion title="The fields to read first">
+<Accordion title="Fields to read">
 
 Each quote also carries `legs`, `fees`, `eta` and more.
 
@@ -115,19 +107,19 @@ Each quote also carries `legs`, `fees`, `eta` and more.
 
 ## Sell exact or buy exact
 
-A venue may round to its trading precision (selling `"100"` can come back as `"99.99994"`); the quote states the amount it used.
+Venues may round to their precision (`"100"` can become `"99.99994"`); the quote states what it used.
 
 <Tabs>
   <Tab title="Sell exact">
-    Send `sellAmount`, in units of `sell.asset`. Each quote states `buy.amount`, and `quotes` lists the most `netReceived` first.
+    Send `sellAmount`, in `sell.asset` units. Quotes state `buy.amount`, most `netReceived` first.
     <SearchSellExact />
   </Tab>
   <Tab title="Buy exact">
-    Send `buyAmount`, in units of `buy.asset`. Each quote states `sell.amount`, and `quotes` lists the least `sell.amount` first. Fewer venues quote a fixed buy amount.
+    Send `buyAmount`, in `buy.asset` units. Quotes state `sell.amount`, least first. Fewer venues quote this way.
 
     <SearchBuyExact />
 
-    <Accordion title="Venues that quote only the amount you sell">
+    <Accordion title="Why fewer venues">
 
 On-chain protocols, bridges and some exchanges quote only the amount you sell, so a buy-exact search usually returns fewer quotes:
 
@@ -145,12 +137,12 @@ When no venue can quote a fixed buy amount, size a `sellAmount` from a [price](/
 
 <Tabs>
   <Tab title="JSON">
-    By default you get one JSON reply when collection ends.
+    One reply when collection ends.
   </Tab>
   <Tab title="Stream">
-    Send `Accept: text/event-stream` to get server-sent events as venues answer.
+    Send `Accept: text/event-stream` for events as venues answer.
 
-    <Accordion title="Stream events and example">
+    <Accordion title="Stream events">
 
 | Event | Carries |
 | --- | --- |
@@ -171,7 +163,7 @@ The stream reports the search only. Follow an order through its status or [webho
 
 ## Filters and sort
 
-Narrow or reorder a search with `filters`, `sort` and `priceProtectionBps`. A filter you leave out keeps everything.
+`filters`, `sort` and `priceProtectionBps` narrow, order and protect a search. An omitted filter keeps everything.
 
 <AccordionGroup>
   <Accordion title="Every filter" id="every-filter">
@@ -214,7 +206,7 @@ Off-chain: keep `offChain` and pin no chain. Only your venue accounts answer.
 <SearchOffChain />
 
   </Accordion>
-  <Accordion title="Venue types and venues" id="venue-types-and-venues">
+  <Accordion title="Venues" id="venue-types-and-venues">
 
 Every venue has one type, in `venue.modality` on each source and quote leg. Treat a value you do not know as other ([Conventions](/reference/conventions#values)).
 
@@ -303,10 +295,10 @@ A [requote](/search/firmness-and-lifetime#requote-a-quote) can send its own `pri
 
 ## Sources: why a venue did or did not quote
 
-Each venue considered appears once in `sources`: a `status`, a `reason` token to match and a `detail` to show a person.
+Each venue appears once in `sources`: a `status`, a `reason` to match and a `detail` to show.
 
 <AccordionGroup>
-  <Accordion title="Every status and example reason">
+  <Accordion title="Statuses and reasons">
 
 | `status` | What happened |
 | --- | --- |
@@ -337,12 +329,12 @@ Example reasons:
 
 ## Size limits and minimums
 
-Read limits from the quote for your amount; limits reserve nothing (a firm quote's held credit is [`creditReservation`](/trade/settlement-and-credit)).
+Quotes and sources state each venue's limits for your amount. Limits reserve nothing.
 
 <AccordionGroup>
   <Accordion title="Where limits appear">
 
-Limits depend on the venue, pair, account and execution stage.
+A firm quote's held credit is [`creditReservation`](/trade/settlement-and-credit). Limits depend on the venue, pair, account and execution stage.
 
 | Where | What it tells you |
 | --- | --- |
@@ -352,17 +344,17 @@ Limits depend on the venue, pair, account and execution stage.
 | `quotes[].legs[].execution.stage` | A venue account leg's stage. `pilot` carries `maxPerTradeUsd` and `maxPerDayUsd`, USD caps; the daily cap is per UTC day across all workspaces on that venue. `live` has no TetraFi caps, and `disabled` does not execute. |
 
   </Accordion>
-  <Accordion title="When the amount does not fit">
+  <Accordion title="Amount does not fit">
 
 The venue stays in `sources` with a reason:
 
 | Reason | What to do |
 | --- | --- |
 | `belowVenueMinimum`, `amountBelowMinimum` | Raise the amount. `detail` names the venue's minimum when it is verified. |
-| `amountAboveMaximum`, `pilotTradeCapExceeded` | Lower the amount. |
-| `pilotMinimumAboveTradeCap` | The venue's minimum is above its Pilot cap, so no amount fits: choose another venue. |
+| `amountAboveMaximum`, `venueTradeCapExceeded` | Lower the amount. |
+| `venueMinimumAboveTradeCap` | The venue's minimum is above its Pilot cap, so no amount fits: choose another venue. |
 
-Order admission checks the caps again: `PILOT_TRADE_CAP_EXCEEDED` means nothing was sent.
+Order admission checks the caps again: `VENUE_TRADE_CAP_EXCEEDED` means nothing was sent.
 
   </Accordion>
   <Accordion title="Rate limit" id="rate-limit">
@@ -374,9 +366,9 @@ Each key may send one live quote request every 3 seconds ([Rate limits](/referen
 
 ## Use values from discovery
 
-Never hardcode asset ids, chains or venue lists: take them from `GET /api/v1/assets` and `sources[].venue.id`.
+Never hardcode assets, chains or venues: read them from `GET /api/v1/assets` and `sources[].venue.id`.
 
-<Accordion title="The assets response and how to use it">
+<Accordion title="The assets response">
 
 `GET /api/v1/assets` returns what your workspace can trade, and needs the Read quotes permission:
 
@@ -402,7 +394,7 @@ Never hardcode asset ids, chains or venue lists: take them from `GET /api/v1/ass
 ```
 
 - Send `asset` (the exact registry id; `assetSymbol` is display only) as `sell.asset` and `buy.asset`, and a deployment's `network` to pin a side.
-- `offChainVenues` lists the venue accounts that hold that variant.
+- `offChainVenues` lists the identifiers of the eligible off-chain venues that offer that variant.
 - When `unreachable` is not empty, the list is partial: its entry (source `venueEligibility`) names in `reason` which part could not be read. Read again shortly.
 - Take venue ids from `sources[].venue.id`.
 - An asset can carry `issuer` (the entity that issues it, such as `circle`) and `coingeckoId` (verified from a deployment address).
@@ -410,7 +402,7 @@ Never hardcode asset ids, chains or venue lists: take them from `GET /api/v1/ass
 
 </Accordion>
 
-<Accordion title="Find one asset by venue, network or address">
+<Accordion title="Find one asset">
 
 Optional filters narrow the list, never widen it:
 
@@ -427,51 +419,35 @@ Optional filters narrow the list, never widen it:
 
 ## Refusals
 
-Refusals use the standard [error body](/trade/errors#read-a-refusal); [Error codes](/reference/error-codes) lists every code.
+The ones you meet while searching ([error body](/trade/errors#read-a-refusal)); [Request quotes](/api-reference/quotes/request-quotes) lists every code.
 
 <AccordionGroup>
-  <Accordion title="Request refusals">
+  <Accordion title="Request">
 
 | Code | Why, and what to do |
 | --- | --- |
 | `INVALID_REQUEST` | A field is unknown (at any depth of the body), missing or of the wrong type; `message` names it. Remove or fix that field. |
-| `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | The value is not in the catalogue. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
+| `UNKNOWN_ASSET`, `NETWORK_UNKNOWN`, `UNKNOWN_VENUE` | The value is not in the catalogue. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
 | `INVALID_AMOUNT` | The amount is not a positive decimal string. Send it as a string, such as `"10"`. |
-| `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
-| `QUOTE_RATE_LIMITED` | More than one live quote request in 3 seconds. Wait `Retry-After` seconds. |
+| `API_KEY_ORGANISATION_WALLET_NOT_GRANTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
+| `RATE_LIMITED` | More than one live quote request in 3 seconds. Wait `Retry-After` seconds. |
 | `IDEMPOTENCY_CONFLICT` | An `Idempotency-Key` already used with a different body. Use a new key for a new request. |
 | `IDEMPOTENCY_KEY_INVALID` | The key is empty, longer than 255 bytes, or sent with a stream. Send 1 to 255 bytes, on a JSON request only. |
 
   </Accordion>
-  <Accordion title="Chain, venue and filter refusals">
+  <Accordion title="Chains, venues, filters">
 
 | Code | Why, and what to do |
 | --- | --- |
-| `SAME_ASSET_NEEDS_CHAIN` | The same asset on both sides with nothing to tell them apart: no chain pinned, or the same chain with `nativeOnly` on both sides. Pin a chain on at least one side, or two different chains. |
-| `CHAIN_PIN_NEEDS_ON_CHAIN` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. Remove the pin, or allow `singleChain` or `crossChain`. |
-| `ASSET_NOT_ON_CHAIN` | The pinned chain has no deployment of that asset; `details.value` is the chain. Pin a chain the asset is deployed on. |
-| `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A chain or venue id TetraFi does not know; `details.value` names it. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
+| `SAME_ASSET_NEEDS_NETWORK` | The same asset on both sides with nothing to tell them apart: no chain pinned, or the same chain with `nativeOnly` on both sides. Pin a chain on at least one side, or two different chains. |
+| `NETWORK_PIN_NEEDS_ONCHAIN_ASSET` | A side is pinned to a chain, but `filters.locations` allows only `offChain`. Remove the pin, or allow `singleChain` or `crossChain`. |
+| `ASSET_NOT_ON_NETWORK` | The pinned chain has no deployment of that asset; `details.value` is the chain. Pin a chain the asset is deployed on. |
+| `NETWORK_UNKNOWN`, `UNKNOWN_VENUE` | A chain or venue id TetraFi does not know; `details.value` names it. Use values from `GET /api/v1/assets` and `sources[].venue.id`. |
 | `INVALID_REQUEST` | A filter value is not one listed above, `filters.locations` includes `mixed`, `firmOnly` is not a boolean, `sort` is unknown, or `priceProtectionBps` is outside 0 to 1000. `message` names the field: fix it. |
 
   </Accordion>
 </AccordionGroup>
 
-<CardGroup cols={2}>
-  <Card title="Run the basics script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/search-basics.sh">
-    Sell-exact, buy-exact, a stream and prices; no order.
-  </Card>
-  <Card title="Run the filters script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/search-filters.sh">
-    One request per filter, sort and protection; no order.
-  </Card>
-</CardGroup>
+Scripts, no order placed: [basics](https://github.com/TetraFi/docs/blob/main/samples/http/search-basics.sh), [filters](https://github.com/TetraFi/docs/blob/main/samples/http/search-filters.sh).
 
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Firmness and requotes" icon="clock" href="/search/firmness-and-lifetime">
-    What a quote commits to, until when, and how to refresh it.
-  </Card>
-  <Card title="Place an order" icon="cart-shopping" href="/trade/orders">
-    Order a quote you hold by its id.
-  </Card>
-</CardGroup>
+Next: [firmness and requotes](/search/firmness-and-lifetime), then [place an order](/trade/orders).

@@ -1,0 +1,19 @@
+| | |
+| --- | --- |
+| **tradeId** | The order id, from the [trade history](/trade/trade-history#read-a-page). |
+| **Owner** | The key's owner also needs View settlements ([Permissions](/authentication#permissions)). |
+
+<Accordion title="The LP's view, for signed-in members">
+`perspective=maker` is the LP's settlement pipeline for the order: its stage, age, retries and transactions. It is a member-session read, for a member of the LP workspace allowed to view bilateral documents; an API key answers 403 `JWT_REQUIRED`. `venueId` names the LP's own venue; without it, every owned venue is read. Each perspective answers exactly what its own route answers. The settlement milestones that flow analytics records are its `milestones` sub-resource.
+</Accordion>
+
+<Accordion title="Refusals">
+A `404` with no code means the settlement is not found.
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | A parameter is unknown, including the retired `solverId` (the maker view takes `venueId`). |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `settlements_read`. |
+| 403 `JWT_REQUIRED` | `perspective=maker` with an API key. |
+| 503 `TRADE_PROJECTION_UNAVAILABLE` | Settlement is not available on this deployment. Retry later. |
+</Accordion>

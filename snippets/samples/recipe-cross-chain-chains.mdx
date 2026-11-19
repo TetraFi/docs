@@ -12,7 +12,7 @@ from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
 to_chain=${TETRAFI_TO_CHAIN:-$(jq -r --arg f "$from_chain" 'map(select(. != $f))[0] // empty' <<<"$chains")}
 for chain in "$from_chain" "$to_chain"; do
   if ! jq -e --arg c "$chain" 'index($c) != null' <<<"$chains" >/dev/null; then
-    jq -nc --arg a "$asset" --arg c "$chain" '{error: "ASSET_NOT_ON_CHAIN", asset: $a, chain: $c}' >&2
+    jq -nc --arg a "$asset" --arg c "$chain" '{error: "ASSET_NOT_ON_NETWORK", asset: $a, chain: $c}' >&2
     exit 1
   fi
 done

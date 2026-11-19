@@ -7,11 +7,11 @@
 # A retry with the same key and body returns the first answer, never a second order.
 order_record=$(order_record_path "$quote_id")
 if [[ ! -e $order_record && ! -L $order_record ]]; then
-  order_body=$(jq -c '{quoteId: .id}' <<<"$quote")
+  order_body=$(jq -c '{kind: "quote", quoteId: .id}' <<<"$quote")
   if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
     # minReceive: the quoted buy.amount less your slippage, rounded down to the asset's decimals.
     min_receive=$(quote_min_receive "$quote" "$assets" "${TETRAFI_SLIPPAGE_BPS:-50}")
-    order_body=$(jq -c --arg m "$min_receive" '{quoteId: .id, minReceive: $m}' <<<"$quote")
+    order_body=$(jq -c --arg m "$min_receive" '{kind: "quote", quoteId: .id, minReceive: $m}' <<<"$quote")
   fi
   save_order_record "$quote_id" "$(openssl rand -hex 16)" "$order_body"
 fi

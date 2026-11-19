@@ -8,17 +8,17 @@ import WebhookVerify from '/snippets/samples/webhook-verify.mdx';
 import WebhookCreate from '/snippets/samples/webhook-create.mdx';
 import WebhookTest from '/snippets/samples/webhook-test.mdx';
 
-Register an HTTPS endpoint and TetraFi posts an `order.updated` event each time one of your orders changes status, signed to the [Standard Webhooks](https://www.standardwebhooks.com) spec.
+Instead of polling, let TetraFi tell you when an order changes: it posts a signed `order.updated` event ([Standard Webhooks](https://www.standardwebhooks.com)) to your HTTPS endpoint each time one of your orders changes status.
 
 ## At a glance
 
 Paths are under `/api/v1/workspaces/{workspaceId}`.
 
-| Endpoint | Result |
-| --- | --- |
-| `POST …/webhooks`: Manage webhooks (`webhooks_manage`) | `201` with `webhook`, `secret` and `secretShownOnce`. |
-| `…/webhooks/{webhookId}` and its sub-paths: Manage webhooks | Test, rotate, redeliver, resume, read, change, remove. |
-| `statusUrl` from an event: Read orders | The order's current state. |
+| Call | Needs | Result |
+| --- | --- | --- |
+| `POST …/webhooks` | Manage webhooks (`webhooks_manage`) | `201` with `webhook`, `secret` and `secretShownOnce` |
+| `…/webhooks/{webhookId}` and below | Manage webhooks | [Manage the endpoint](#manage-an-endpoint) |
+| An event's `statusUrl` | Read orders | The order's current state |
 
 <AccordionGroup>
   <Accordion title="What the key needs">
@@ -34,21 +34,25 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 
 <Steps>
   <Step title="Create it">
-    `POST /api/v1/workspaces/{workspaceId}/webhooks` with an `Idempotency-Key` and `{"url": "https://…", "events": ["order.updated"]}`. Store the `whsec_` secret at once: a replay within 24 hours returns `201` with `secret: null`. Lost it? [Rotate it](#manage-an-endpoint); it is not your request-signing secret.
+    `POST …/webhooks` with an `Idempotency-Key` and `{"url": "https://…", "events": ["order.updated"]}`. Store the `whsec_` secret at once: it is shown once. Lost it? [Rotate it](#manage-an-endpoint).
 
-    <Accordion title="Create it from a script">
-      `tetrafi` is the signed request helper from the [Quickstart](/quickstart).
+    <Accordion title="From a script, and replays">
+      `POST /api/v1/workspaces/{workspaceId}/webhooks`: a replay within 24 hours returns `201` with `secret: null`. The secret is not your request-signing secret.
+
+      `tetrafi` is the signed request helper from the [Quickstart](/quickstart). The full script, [webhook-setup.sh](https://github.com/TetraFi/docs/blob/main/samples/http/webhook-setup.sh), keeps the secret in a 0600 file and sends a test delivery.
 
       <WebhookCreate />
     </Accordion>
   </Step>
   <Step title="Verify every delivery">
-    Check the HMAC-SHA256 signature over the exact bytes received, before parsing, and refuse a `webhook-timestamp` over five minutes from your clock. A [Standard Webhooks library](https://github.com/standard-webhooks/standard-webhooks), such as `standardwebhooks` on npm or PyPI, does it for you.
+    Check the signature over the exact bytes, before parsing; refuse a `webhook-timestamp` over five minutes from your clock, either way. A [Standard Webhooks library](https://github.com/standard-webhooks/standard-webhooks) does it for you.
 
-    <Accordion title="How to verify by hand, with samples">
+    <Accordion title="By hand, with samples">
+      The library is `standardwebhooks` on npm or PyPI.
+
       The signature is HMAC-SHA256 over `<webhook-id>.<webhook-timestamp>.<raw body>`, keyed with the base64-decoded secret after `whsec_`. Compare in constant time; accept when any one `v1,` value matches.
 
-      Each sample checks the Standard Webhooks example delivery:
+      Each sample checks the Standard Webhooks example delivery. [webhook-verify.sh](https://github.com/TetraFi/docs/blob/main/samples/http/webhook-verify.sh) does the same from a shell, and refuses a changed body and a stale timestamp.
 
       <WebhookVerify />
 
@@ -57,11 +61,11 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
       ```
     </Accordion>
   </Step>
-  <Step title="Acknowledge, then handle each event once">
-    Answer any `2xx` within 10 seconds, once verified and stored; work afterwards. Anything else is [retried](#retries-pauses-and-missed-events). Deliveries arrive at least once, possibly out of order: deduplicate on the body's `id` (`webhook-id` changes on a redelivery), and read `statusUrl` for the current status.
+  <Step title="Acknowledge, then handle it once">
+    Answer a `2xx` within 10 seconds, once verified and stored, then work; anything else is [retried](#retries-pauses-and-missed-events). Deliveries come at least once, in any order: deduplicate on the body's `id`, and read `statusUrl` for the status.
   </Step>
   <Step title="Send a test delivery">
-    `POST …/webhooks/{webhookId}/deliveries` with `{"kind":"test"}` and a new `Idempotency-Key`. The delivery reads `success: true` with your status code once your receiver acknowledged it.
+    `POST …/webhooks/{webhookId}/deliveries` with `{"kind":"test"}` and a new `Idempotency-Key`; it reads `success: true` once your receiver acknowledged it.
 
     <Accordion title="From a script">
       <WebhookTest />
@@ -71,7 +75,7 @@ Paths are under `/api/v1/workspaces/{workspaceId}`.
 
 ## What a delivery looks like
 
-A `POST` with a JSON body and three `webhook-` headers. The event only says an order changed.
+A `POST` with a JSON body and three `webhook-` headers. It only says an order changed: read the order.
 
 <AccordionGroup>
   <Accordion title="Headers and body">
@@ -101,20 +105,17 @@ Answer unknown fields and event types with a `2xx` and ignore them. `apiVersion`
 
 ## Manage an endpoint
 
-Paths are under `…/webhooks/{webhookId}`. Each `POST` takes an `Idempotency-Key`, and a `PATCH` sends `If-Match` with the strong `ETag` from `GET`. In the app: Integrations → Webhooks.
-
-| Call | Operation |
-| --- | --- |
-| `GET /api/v1/workspaces/{workspaceId}/webhooks` | List |
-| `GET`, `PATCH` (with `If-Match`), `DELETE` on the endpoint | Get, update, delete |
-| `GET …/deliveries` | Deliveries |
-| `POST …/deliveries` with `{"kind":"test"}` | Test |
-| `POST …/deliveries/{deliveryId}/retry` | Retry |
-| `POST …/resume` | Resume |
-| `POST …/rotate` | Rotate the secret |
+Every call has its [API reference page](/api-reference/intros/webhooks), with its refusals. Each `POST` takes an `Idempotency-Key`; a `PATCH` sends `If-Match` with the `ETag` from `GET`. In the app: Integrations → Webhooks.
 
 <AccordionGroup>
   <Accordion title="What each call answers">
+
+| Call | Path under `…/webhooks/{webhookId}` |
+| --- | --- |
+| List | `GET /api/v1/workspaces/{workspaceId}/webhooks` |
+| Get, update, delete | `GET`, `PATCH` (with `If-Match`), `DELETE` on the endpoint |
+| Deliveries, test | `GET …/deliveries`; `POST …/deliveries` with `{"kind":"test"}` |
+| Retry, resume, rotate | `POST …/deliveries/{deliveryId}/retry`, `POST …/resume`, `POST …/rotate` |
 
 | Operation | Answer |
 | --- | --- |
@@ -130,10 +131,10 @@ Paths are under `…/webhooks/{webhookId}`. Each `POST` takes an `Idempotency-Ke
 
 ## Retries, pauses and missed events
 
-An unacknowledged delivery is retried after 5 seconds, 30 seconds, 10 minutes, 1 hour, 6 hours and 24 hours. After five deliveries in a row fail every retry, the endpoint is paused: fix it, call `POST …/resume`, then redeliver the failures.
+An unacknowledged delivery is retried after 5 seconds, 30 seconds, 10 minutes, 1 hour, 6 hours and 24 hours. After five deliveries in a row fail every retry, the endpoint pauses: fix it, call `POST …/resume`, then redeliver the failures.
 
 <AccordionGroup>
-  <Accordion title="The delivery log and redelivery codes">
+  <Accordion title="The delivery log">
     The delivery log is bounded (see the endpoint's `deliveryRetention`: `capacity` receipts, and `scope` says whether they survive a TetraFi server restart), never a complete history; nothing replays every event since a time. When a delivery is gone, read the order's current state. Redelivery refusals: [Refusals](#refusals).
   </Accordion>
 </AccordionGroup>
@@ -160,14 +161,4 @@ An unacknowledged delivery is retried after 5 seconds, 30 seconds, 10 minutes, 1
 
 </Accordion>
 
-<CardGroup cols={2}>
-  <Card title="Set up an endpoint" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-setup.sh">Creates it, keeps the secret in a 0600 file and sends a test delivery.</Card>
-  <Card title="Verify deliveries" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/webhook-verify.sh">Verifies a delivery, and refuses a changed body and a stale timestamp.</Card>
-</CardGroup>
-
-## Next
-
-<CardGroup cols={2}>
-  <Card title="Order status" icon="signal" href="/trade/order-status">The state behind an event.</Card>
-  <Card title="Webhook events" icon="list" href="/reference/webhook-events">Every event type.</Card>
-</CardGroup>
+Next: [Order status](/trade/order-status), the state behind an event, and every [event type](/reference/webhook-events).

@@ -117,3 +117,22 @@ test('a code the generator withheld under the leak rules counts as generated; ot
   assert.deepEqual([...generatedCodes(page)].sort(), ['HIDDEN_CODE', 'OTHER_HIDDEN', 'SHOWN_CODE']);
   assert.deepEqual([...generatedCodes(generatedPage(['SHOWN_CODE']))], ['SHOWN_CODE']);
 });
+
+// Catches an endpoint page's Refusals toggle naming a code the API does not have.
+test('a code in an endpoint snippet Refusals toggle is checked against the declared codes', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'refusal-snippet-'));
+  const docs = path.join(fixture, 'api');
+  mkdirSync(path.join(docs, 'integrator'), { recursive: true });
+  for (const dir of ['trade', 'reference', 'snippets/endpoints/orders', 'snippets/samples']) mkdirSync(path.join(fixture, dir), { recursive: true });
+  writeFileSync(path.join(docs, 'integrator', 'error-codes.json'), JSON.stringify(rows));
+  writeFileSync(path.join(fixture, 'trade', 'errors.mdx'), page);
+  writeFileSync(path.join(fixture, 'reference', 'error-codes.mdx'), generatedPage(rows));
+  writeFileSync(path.join(fixture, 'snippets', 'samples', 'x.mdx'), '## Refusals\n| `IGNORED_SAMPLE_CODE` | 400 |\n');
+  writeFileSync(path.join(fixture, 'snippets', 'endpoints', 'orders', 'place-order.mdx'),
+    '<Accordion title="Refusals">\n  | Code | Status |\n  | --- | --- |\n  | `NOT_A_REAL_CODE` | 400 |\n</Accordion>\n');
+  const output = [];
+  const status = main({ env: { TETRAFI_RFQ_API_DOCS: docs }, siteRoot: fixture, log: (line) => output.push(line) });
+  assert.notEqual(status, 0);
+  assert.match(output.join('\n'), /NOT_A_REAL_CODE/);
+  assert.doesNotMatch(output.join('\n'), /IGNORED_SAMPLE_CODE/);
+});
