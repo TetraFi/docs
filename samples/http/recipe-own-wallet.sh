@@ -86,7 +86,7 @@ request=$(jq -nc --arg asset "$asset" --arg buy "$buy_asset" \
   sell: {asset: $asset, network: $from},
   buy: {asset: $buy, network: $to},
   sellAmount: $amount,
-  source: {tradingWallets: {($from): $address}}
+  source: {tradingWallets: {($from): {wallet: $address}}}
 } + {filters: ((if $from != $to then {locations: ["crossChain"]} else {} end)
   + (if $venue != "" then {venues: {include: [$venue]}} else {} end))}
   | if .filters == {} then del(.filters) else . end')
