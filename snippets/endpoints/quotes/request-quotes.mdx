@@ -1,0 +1,57 @@
+| | |
+| --- | --- |
+| **Rate** | One venue-asking request per 3 seconds (`429 QUOTE_RATE_LIMITED`). |
+| **Idempotency-Key** | Optional: a same-body retry within 24 hours gets the first answer. |
+| **Sources** | Each venue's outcome, with its [reason](/reference/error-codes#source-reasons). |
+
+<Accordion title="Fields to read">
+The answer is a `PairQuoteSet`.
+
+| Field | What it tells you |
+| --- | --- |
+| `quotes[].next.kind` | `order`: order it now by its `id`. `fund`, `requote` or `preflight`: [not yet](/search/how-it-works#request-and-read-quotes). |
+| `quotes[].expiresAt`, `firm` | Until when, and how firmly, the price holds ([Firmness and requotes](/search/firmness-and-lifetime)). |
+| `quotes[].buy.amount`, `netReceived` | What lands after included fees; `netReceived` also subtracts fees you pay separately. |
+| `sources[]` | Every venue considered, once: `status`, `reason` to match, `detail` to show. |
+| `quoteRequestId` | Read this answer again with `GET /api/v1/quotes/requests/{quoteRequestId}`. |
+</Accordion>
+
+<Accordion title="API keys and firm prices">
+- A key needs `quotes_request` and `orders_write`.
+- A firm quote from your venue accounts also needs `workspace_venue_trade` ([venue trading](/authentication#trade-on-your-venue-accounts)), the venue enabled on the key and request signing. Otherwise the quote is indicative, with `sourceRefusal: venueTradeScopeRequired`.
+- A key has no default wallet: `source.tradingWallets` maps CAIP-2 networks to workspace custody or granted organisation financial-account ids. A personal wallet is refused (`409 PERSONAL_TARGET_NOT_ALLOWED`).
+- `deliverTo` is for member sessions. On a key's requote it answers `409 REQUOTE_REFUSED` with `details.reason: deliverToNotPermitted`.
+- A requote in `auto` mode can ask a production desk for a firm price ([Requote a quote](/search/firmness-and-lifetime#requote-a-quote)).
+- A venue your workspace's LP relationship does not allow reads `restricted` with `venueRelationship` in `sources`, and is never asked.
+</Accordion>
+
+<Accordion title="Streaming">
+Send `Accept: text/event-stream` to get JSON-data server-sent events as venues answer: `quote` (one quote), `source` (one venue's outcome), `complete` (the whole `PairQuoteSet`) and `error`. Event ids increase, with keepalive comments between events. A stream takes no `Idempotency-Key`.
+</Accordion>
+
+<Accordion title="Refusals">
+A refusal means no quote set was returned; its body is an `ApiError` ([Error codes](/reference/error-codes)). A venue that cannot quote is not a refusal: it is listed in `sources` with its [source reason](/reference/error-codes#source-reasons).
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | A field is unknown, missing or malformed, at any depth; `message` names it. |
+| 400 `QUOTE_REQUEST_KIND_REQUIRED`, `QUOTE_REQUEST_KIND_INVALID` | Send `kind` `pair`, or `requote` to refresh a held quote. |
+| 400 `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE`, `INVALID_AMOUNT` | Use values from `GET /api/v1/assets`, and positive decimal amount strings. Chain and filter codes: [Refusals](/search/how-it-works#refusals). |
+| 400 `IDEMPOTENCY_KEY_INVALID` | The key is empty, over 255 bytes, or sent with a stream. |
+| 403 `PLATFORM_JURISDICTION_BLOCKED` | An applicable entity country is on the platform denylist. Trading is unavailable there. |
+| 403 `API_KEY_ORGANISATION_WALLET_NOT_ALLOWLISTED` | A key's `deliverTo` is not an organisation wallet the key may use. |
+| 403 `INTEGRATION_APP_MISMATCH`, `INTEGRATION_APP_FORBIDDEN` | The `integrationAppId` does not belong to you. |
+| 404 `QUOTE_NOT_FOUND` | A requote of an unknown quote id, or another caller's. |
+| 409 `PERSONAL_TARGET_NOT_ALLOWED` | A key named a personal account in `source.tradingWallets`. Name a granted organisation wallet. |
+| 409 `REQUOTE_REFUSED` | The venue would not requote. Act on `details.reason`, or request fresh quotes. |
+| 409 `IDEMPOTENCY_CONFLICT` | The key was used with another body. Use a new key. |
+| 409 `IDEMPOTENCY_OUTCOME_UNKNOWN` | The first request with this key may or may not have run. Stop retrying this key. |
+| 409 `LEGACY_CEX_LANE_RETIRED` | This LP's old connection path is retired. Connect it as a venue account. |
+| 410 `QUOTE_EXPIRED` | A requote more than 10 minutes past the quote's expiry. Request fresh quotes. |
+| 422 `PLATFORM_JURISDICTION_COUNTRY_REQUIRED` | A primary or applicable address country is missing. Record it, then ask again. |
+| 422 `ASSET_ISSUER_EXCLUDED` | Your workspace excluded the asset's issuer (`details.issuerId`). Include it again, or quote another asset. |
+| 429 `QUOTE_RATE_LIMITED`, `RATE_LIMITED` | Too many requests. Wait `Retry-After` seconds. |
+| 503 `PLATFORM_JURISDICTION_UNAVAILABLE`, `INTEGRATION_APP_UNAVAILABLE`, `QUOTE_CATALOGUE_UNAVAILABLE` | A country, the integration app or the asset catalogue could not be read. Retry shortly. |
+| 503 `IDEMPOTENCY_UNAVAILABLE` | The key's record could not be checked. Retry with the same key shortly. |
+| 504 `REQUOTE_TIMED_OUT` | The venue did not answer the requote in time. The original quote still holds. |
+</Accordion>

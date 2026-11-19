@@ -1,0 +1,16 @@
+| | |
+| --- | --- |
+| **Pairs** | `pairs=USDC:USDT,USDC:ZAR`: 1 to 25 SELL:BUY pairs, instead of `sell` and `buy`. |
+| **Sizes** | The amount or `sizes` applies to every pair; pairs × sizes at most 125. |
+| **Lifetime** | A keep-alive comment every 15 s; the stream ends after 10 minutes. |
+| **Limit** | 4 streams per caller; a fifth answers `429 PRICES_STREAM_LIMIT`. |
+
+<Accordion title="Refusals">
+Every other query parameter, and every refusal, is as [Get prices](/api-reference/trading/get-prices).
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 | More than 25 pairs, or a query `GET /api/v1/prices` refuses, with the same code. |
+| 429 `PRICES_STREAM_LIMIT` | You already hold 4 streams. Close one, then subscribe again. |
+| 429 `PRICES_RATE_LIMIT` | Too many price reads. Wait `Retry-After` seconds. |
+</Accordion>

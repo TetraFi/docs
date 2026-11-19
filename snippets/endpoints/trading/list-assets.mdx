@@ -1,0 +1,39 @@
+| | |
+| --- | --- |
+| **Paging** | `limit` 1 to 200, then the previous `nextCursor` as `cursor` ([Paging](/reference/conventions#paging)). |
+| **Filters** | `venue`, `venueCode`, `network` and `address` only narrow the list. |
+| **Caching** | An unpaged read carries an `ETag`; send it in `If-None-Match` for `304`. |
+| **Partial list** | A non-empty `unreachable` means read again shortly. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `asset` | The id to send as `sell.asset` or `buy.asset`. `assetSymbol` is for display only. |
+| `variants[].deployments[].network` | A CAIP-2 network to pin a side on. |
+| `offChainVenues` | The venue accounts that hold that variant. |
+| `issuer` | The entity that issues the asset, such as `circle`. |
+| `unreachable` | Which part of the list could not be read; `reason` says why. |
+
+Each asset is one issued asset: USD, USDC, USDT, EUR and EURC never stand in for each other.
+</Accordion>
+
+<Accordion title="Find one asset by venue, network or address">
+| Query | Returns |
+| --- | --- |
+| `venue` | The assets a venue offers you, on-chain venues included: a venue id (`valr`, every entry) or one entry (`valr-orderbook`). |
+| `venue` and `venueCode` | The asset the venue's own code means, when that instance is offered there: B2C2 `USC` is USDC. |
+| `network` | The assets deployed on that CAIP-2 network, such as `eip155:1`. |
+| `network` and `address` | The asset at that address, in the chain's own form. A token the registry does not list matches nothing. |
+
+Add `include=registry` to get the registry snapshot the listing was built from, in `included.registry`. A filter that matches nothing answers `200` with `items: []`.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | An unknown parameter, `limit` outside 1 to 200, or a blank filter (`details.reason` `ASSET_FILTER_BLANK`). `venueCode` without `venue`, or `address` without `network`, is `ASSET_FILTER_INCOMPLETE`. |
+| 400 `INVALID_CURSOR` | Not a cursor this API issued. Start again without one. |
+| 403 | Not a member of the workspace, or the key lacks `prices_read` or belongs to another workspace. |
+| 409 `CURSOR_STALE` | The listing changed since the cursor was issued. Start again without one. |
+| 503 `ASSET_CATALOGUE_UNAVAILABLE` | The asset catalogue is not loaded just now. Retry shortly, with backoff. |
+</Accordion>

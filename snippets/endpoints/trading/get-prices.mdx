@@ -1,0 +1,36 @@
+| | |
+| --- | --- |
+| **Never firm** | Every row has `firm: false`. To trade, [request quotes](/search/how-it-works). |
+| **Amount** | Exactly one of `sellAmount`, `buyAmount` or `sizes` (1 to 8 sell amounts). |
+| **Own limit** | `429 PRICES_RATE_LIMIT`, separate from the quote limit. |
+| **Caching** | Send the `ETag` back in `If-None-Match` for `304`. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `rows[].status` | `priced` holds a current price; other statuses say why not ([Row statuses](/search/prices)). |
+| `rows[].sizes[]` | One entry per size: `sell`, `buy` after included fees, `netReceived` and `filled`. |
+| `observedAt`, `staleAfter` | When the price was seen, and when it is old. |
+| `levels`, `ladderSemantics` | The venue's own price levels, and how to read them. |
+| `referenceMid` | The pair's reference price, or `null` with the reason in `referenceMidUnavailable`. |
+
+Rows come one per venue, location and variant pair; rows with no price come last.
+</Accordion>
+
+<Accordion title="Order a price row (rolling out)">
+Ordering a row directly, with `POST /api/v1/orders` `{kind: "stream", priceId}`, is rolling out, not live yet. The venue is then asked for that exact size, within your `minReceive` or `slippageBps` ([Place order](/api-reference/orders/place-order)).
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `UNKNOWN_ASSET`, `UNKNOWN_CHAIN`, `UNKNOWN_VENUE` | A value is not in the catalogue. Use values from `GET /api/v1/assets`. |
+| 400 `INVALID_AMOUNT` | An amount or a size is not a positive decimal. |
+| 400 `SAME_ASSET_NEEDS_CHAIN` | `sell` and `buy` are the same asset with no chain pinned. Add `sell.network` or `buy.network`. |
+| 400 `INVALID_REQUEST` | Both amounts, `sizes` with an amount, no amount, or an unknown parameter or filter. |
+| 403 `INSUFFICIENT_SCOPE` | The key lacks `prices_read`. Use a key with Read quotes. |
+| 403 `TAKER_ONBOARDING_INCOMPLETE` | TetraFi has turned off taker trading for this LP workspace. Contact TetraFi support. |
+| 429 `PRICES_RATE_LIMIT` | Too many price reads. Wait `Retry-After` seconds. |
+| 503 `PRICES_ELIGIBILITY_WARMING` | Your workspace's prices are still loading. Retry after `Retry-After` (about 1 second). |
+| 503 `PRICES_ELIGIBILITY_UNAVAILABLE`, `PRICES_POLICIES_UNAVAILABLE`, `TAKER_ADMISSION_UNAVAILABLE` | Which venues may price for you, your pricing policies or your taker admission could not be read. Retry shortly, with backoff. |
+</Accordion>
