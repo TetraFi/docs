@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Quickstart: list assets, request quotes, place an order on the best quote and read its status.
+# Quickstart: list assets, request quotes, place an order on the best quote, read its status and
+# read it back from your trade history.
 #
 # Needs bash, curl, jq, openssl and bc (for an exact minimum receive). Reads:
 #   TETRAFI_BASE_URL        https://api.tetrafi.io in production
@@ -283,4 +284,13 @@ jq -c '{kind, quoteId}' <<<"$placed" >&2
 # terminal says whether it can still change; next, when present, says what to do meanwhile.
 order=$(tetrafi GET "$(jq -r '.statusUrl' <<<"$placed")")
 jq -c --arg k "$idempotency_key" '{kind, status, terminal, next, idempotencyKey: $k}' <<<"$order"
+# endregion
+
+# region quickstart-trade
+# Read the order back from your trade history (Read trades): an order's tradeId is its orderId,
+# and the path names the workspaceId GET /api/v1/me answers for your key. settlement.status says
+# how it ended: pending, settled, failed, refunded or unknown.
+workspace=$(tetrafi GET /api/v1/me | jq -r '.workspaceId')
+trade=$(tetrafi GET "/api/v1/workspaces/$workspace/trades/$(jq -r '.orderId' <<<"$placed")")
+jq -c '{tradeId, kind, settlement: (.settlement | if . == null then null else {status, failureReason} end)}' <<<"$trade" >&2
 # endregion

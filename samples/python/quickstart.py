@@ -231,6 +231,18 @@ def main():
                    "idempotencyKey": idempotency_key}))
     # endregion
 
+    # region quickstart-trade
+    # The same order in your trade history (Read trades): its tradeId is its orderId.
+    # settlement.status: pending, settled, failed, refunded or unknown.
+    workspace_id = tetrafi("GET", "/api/v1/me")["workspaceId"]
+    trade = tetrafi("GET", f"/api/v1/workspaces/{workspace_id}/trades/{placed['orderId']}")
+    settlement = trade.get("settlement")
+    print(compact({"tradeId": trade.get("tradeId"), "kind": trade.get("kind"),
+                   "settlement": None if settlement is None else {
+                       "status": settlement.get("status"),
+                       "failureReason": settlement.get("failureReason")}}), file=sys.stderr)
+    # endregion
+
 
 def self_test():
     secret = bytes(range(32)).hex()

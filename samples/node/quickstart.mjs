@@ -203,6 +203,17 @@ async function main() {
   const { kind, status, terminal, next = null } = order;
   console.log(json({ kind, status, terminal, next, idempotencyKey }));
   // #endregion
+
+  // #region quickstart-trade
+  // The same order in your trade history (Read trades): its tradeId is its orderId.
+  // settlement.status: pending, settled, failed, refunded or unknown.
+  const { workspaceId } = await tetrafi('GET', '/api/v1/me');
+  const trade = await tetrafi('GET',
+    `/api/v1/workspaces/${workspaceId}/trades/${placed.orderId}`);
+  const { status: settled = null, failureReason = null } = trade.settlement ?? {};
+  console.error(json({ tradeId: trade.tradeId, kind: trade.kind,
+    settlement: trade.settlement ? { status: settled, failureReason } : null }));
+  // #endregion
 }
 
 function selfTest() {
