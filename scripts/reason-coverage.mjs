@@ -12,9 +12,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { listedValues } from './open-enum.mjs';
 
-// An open enum is published as anyOf [{enum}, {type: string}]; its listed values are the enum part's.
-const listed = (schema) => schema?.enum ?? schema?.anyOf?.find((part) => Array.isArray(part.enum))?.enum ?? [];
+const listed = (schema) => listedValues(schema) ?? [];
 
 const root = path.resolve(import.meta.dirname, '..');
 // Source outcomes come from the public spec (the `status` of QuoteSourceEntry and PriceRowStatus),

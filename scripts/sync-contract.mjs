@@ -16,6 +16,7 @@ import path from 'node:path';
 import { checkEndpointNames, endpointName } from './endpoint-names.mjs';
 import { checkJourneys, fitsLine } from './journeys.mjs';
 import { allowedInternalNames, rulesFor, scanText } from './leak-rules.mjs';
+import { listedValues } from './open-enum.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const source = process.env.TETRAFI_RFQ_API_DOCS ?? path.join(root, '..', 'tetrafi-rfq', 'docs', 'api');
@@ -686,8 +687,7 @@ function assetKindsSnippet() {
   const schemas = JSON.parse(reference.spec).components?.schemas ?? {};
   // A spec without the assets entry schema publishes no asset list to describe.
   if (!schemas.AssetEntry) return null;
-  // An open enum is published as anyOf [{enum}, {type: string}]; read the listed values either way.
-  const kinds = schemas.AssetKind?.enum ?? schemas.AssetKind?.anyOf?.find((part) => Array.isArray(part.enum))?.enum;
+  const kinds = listedValues(schemas.AssetKind);
   if (!Array.isArray(kinds) || !kinds.length || kinds.some((kind) => typeof kind !== 'string')) throw new Error('ASSET_KIND_ENUM_MISSING');
   const kindRef = schemas.AssetEntry?.properties?.kind;
   const refs = [kindRef?.$ref, ...(kindRef?.allOf ?? []).map((part) => part.$ref)];

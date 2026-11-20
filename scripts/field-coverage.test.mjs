@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { main, jqReads, pageReads, sampleReads, responseSchemas } from './field-coverage.mjs';
+import { main, jqReads, pageReads, sampleReads, responseSchemas, tsReads } from './field-coverage.mjs';
 
 function fixture(sample, schema = { type: 'object', properties: { dispatch: { type: 'object', properties: { venueOrderId: { type: 'string' } } } } }) {
   const root = mkdtempSync(path.join(tmpdir(), 'field-coverage-'));
@@ -195,6 +195,22 @@ test('a paragraph that says summary does not exempt the block; only its own labe
   assert.equal(result.status, 1, result.output);
   assert.match(result.output, /FIELD_UNDOCUMENTED response.mdx:4 \.madeUp/);
   assert.doesNotMatch(result.output, /localProjection/);
+});
+
+// Catches compatibility.mdx's open-enum example (anyOf, x-extensible-enum) read as response fields.
+test('a block showing a spec schema fragment is not a response; a response beside it still is', () => {
+  const page = '## Open enums\n\n```json\n{"anyOf":[{"type":"string","enum":["a"]},{"type":"string"}],"x-extensible-enum":true}\n```\n\n```json\n{"madeUp":true}\n```\n';
+  const result = site({ page });
+  assert.equal(result.status, 1, result.output);
+  assert.match(result.output, /FIELD_UNDOCUMENTED response.mdx:8 \.madeUp/);
+  assert.doesNotMatch(result.output, /anyOf|x-extensible-enum|\.enum|\.type/);
+});
+
+// Catches an SDK-added discriminant (`unknownKind`, never on the wire) read as an undocumented field.
+test('a field the SDK client adds is not a response read; a read beside it still is', () => {
+  const source = "const read = await client.getOrder(id);\nconst a = read.unknownKind !== true ? read.madeUp : null;\n";
+  const reads = tsReads(source, new Map([['getOrder', 'GET /orders/{id}']])).map((r) => r.parts.join('.'));
+  assert.deepEqual(reads, ['madeUp']);
 });
 
 test('JSON blocks are scanned whatever the fence case', () => {

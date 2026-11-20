@@ -496,9 +496,13 @@ function mentionedOperation(text, operationOf) {
 }
 
 // Every JSON block is a response example unless its own label says Output (a script's projection,
-// whose jq reads the sample check covers), Request or Summary. The operation is the one the block's
-// label or lead-in paragraph names, else the one the snippet just above it calls, else the one its
-// section names; otherwise it is unknown.
+// whose jq reads the sample check covers), Request or Summary. A value whose top-level keys include a
+// JSON Schema composition keyword or an `x-` extension is a fragment of the spec itself, not a
+// response (compatibility.mdx, generated from the RFQ repo, shows how an open enum is written); no
+// public response field is named that way, since response fields are camelCase. The operation is
+// the one the block's label or lead-in paragraph names, else the one the snippet just above it
+// calls, else the one its section names; otherwise it is unknown.
+const SCHEMA_KEYWORD = /^(anyOf|oneOf|allOf|\$ref|x-.+)$/;
 export function pageReads(text, { operationOf = () => null, regionOps = new Map() } = {}) {
   const reads = []; const blocks = /(^[ \t]*```json\b([^\n]*)\n)([\s\S]*?)^[ \t]*```/gim;
   const snippets = new Map([...text.matchAll(/^import\s+(\w+)\s+from\s+['"]\/snippets\/samples\/([\w-]+)\.mdx['"]/gm)].map((m) => [m[1], m[2]]));
@@ -518,7 +522,7 @@ export function pageReads(text, { operationOf = () => null, regionOps = new Map(
     const contentOffset = block.index + block[1].length;
     // Read the keys lexically so shortened examples and JSON-lines still receive coverage; each
     // top-level value of the block is one fragment.
-    const stack = []; let value = 0;
+    const stack = []; let value = 0; const blockReads = [];
     const pattern = /"(?:\\.|[^"\\])*"\s*:|[{}\[\],]|"(?:\\.|[^"\\])*"/g;
     for (const token of block[3].matchAll(pattern)) {
       const raw = token[0];
@@ -528,12 +532,14 @@ export function pageReads(text, { operationOf = () => null, regionOps = new Map(
         const frame = stack.at(-1); if (!frame) continue;
         frame.key = key;
         const parts = stack.flatMap((entry) => entry.type === 'array' ? [ARRAY] : entry.key ? [entry.key] : []);
-        reads.push({ parts, line: lineAt(text, contentOffset + token.index), operation, fragment: `${blockIndex}:${value}`, root: operation ? 'inside' : 'fallback' });
+        blockReads.push({ parts, line: lineAt(text, contentOffset + token.index), operation, fragment: `${blockIndex}:${value}`, root: operation ? 'inside' : 'fallback' });
       } else if (raw === '{' || raw === '[') {
         stack.push({ type: raw === '[' ? 'array' : 'object', key: null });
       } else if (raw === '}' || raw === ']') { stack.pop(); if (!stack.length) value++; }
       else if (raw === ',' && stack.at(-1)?.type === 'object') stack.at(-1).key = null;
     }
+    const schemaFragments = new Set(blockReads.filter((read) => read.parts.length === 1 && SCHEMA_KEYWORD.test(read.parts[0])).map((read) => read.fragment));
+    reads.push(...blockReads.filter((read) => !schemaFragments.has(read.fragment)));
     blockIndex++;
   }
   return reads;
@@ -597,6 +603,9 @@ function tsCode(source) {
 const ELEMENT_CALLBACKS = new Set(['find', 'findLast', 'filter', 'some', 'every', 'map', 'flatMap', 'forEach', 'findIndex']);
 const KEEPS_ARRAY = new Set(['filter', 'slice', 'sort', 'toSorted', 'reverse']);
 const ELEMENT_RESULT = new Set(['find', 'findLast', 'at']);
+// Fields the SDK client adds to a response itself, which the wire never carries, so no spec documents
+// them: `unknownKind: true` marks an order whose kind this SDK does not know (sdk src/client.ts).
+const SDK_ADDED_FIELDS = new Set(['unknownKind']);
 
 // Property reads on values the SDK returned: `const x = await client.method(…)`, destructuring of
 // such a result, and the parameters of array callbacks over them (`set.quotes.find((q) => q.id)`).
@@ -654,7 +663,7 @@ export function tsReads(source, methodOps = new Map()) {
           record(state, path, tokens[i]);
           return { end: j, path: null };
         }
-        if (name === 'length') { record(state, path, tokens[i]); return { end: j + 2, path: null }; }
+        if (name === 'length' || SDK_ADDED_FIELDS.has(name)) { record(state, path, tokens[i]); return { end: j + 2, path: null }; }
         path = [...path, name]; state.accessed = true; j += 2; continue;
       }
       if (at(j) === '[') {
