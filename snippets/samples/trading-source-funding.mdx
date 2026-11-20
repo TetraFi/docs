@@ -15,7 +15,7 @@ jq -c '.quotes[] | {quoteId: .id, venue: ([.legs[].venue.id] | join(" + ")), loc
 // them, never assume them from the venue's name.
 const quotes = set.quotes.map((quote) => ({
   quoteId: quote.id,
-  venue: quote.legs.map((leg) => leg.venue.id).join(' + '),
+  venue: quote.legs.map((leg) => (leg.venue?.id ?? "no venue")).join(' + '),
   location: quote.location.kind,
   tradingSource: 'tradingSource' in quote ? quote.tradingSource : null,
   fundingModel: 'fundingModel' in quote ? quote.fundingModel : null,

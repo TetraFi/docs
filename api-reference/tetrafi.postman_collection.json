@@ -387,7 +387,7 @@
             "key": "Idempotency-Key",
             "value": "<Idempotency-Key>",
             "disabled": true,
-            "description": "Makes a retry safe. Required for API keys (a missing key answers 400 IDEMPOTENCY_KEY_REQUIRED); optional for signed-in members. 1 to 255 bytes, unique per order you mean to place; a UUID is a good choice. A retry with the same key and the same body, from the same credential's owner in the same workspace within 24 hours, returns the first answer and never places a second order. The same key with a different body answers 409 IDEMPOTENCY_CONFLICT; another principal's key answers 403 IDEMPOTENCY_AUTHORITY_REQUIRED. A retry that arrives while the first request is still running waits for it, and answers 409 ORDER_IN_PROGRESS (with Retry-After) if it is still running after 30 seconds. A retry after a first request that may or may not have taken effect (it stopped without an answer, or failed after it reached the venue) answers 409 IDEMPOTENCY_OUTCOME_UNKNOWN, with no Retry-After: retrying that key can never settle it, so read the orders back (GET /api/v1/orders, details.readTarget) and use a new key only once the order is not there. Refusals are not stored: after one, fix the request and send it again with the same key or a new one."
+            "description": "Makes a retry safe. Required for every caller, member session or API key (a missing key answers 400 IDEMPOTENCY_KEY_REQUIRED). 1 to 255 bytes, unique per order you mean to place; a UUID is a good choice. A retry with the same key and the same body, from the same principal in the same workspace within 24 hours, returns the first answer and never places a second order. The same key with a different body answers 409 IDEMPOTENCY_CONFLICT; another principal's key answers 403 IDEMPOTENCY_AUTHORITY_REQUIRED. A retry that arrives while the first request is still running waits for it before any other check (an expired quote or price included), answers what the first request answered, and answers 409 ORDER_IN_PROGRESS (with Retry-After) if it is still running after 30 seconds. A retry after a first request that may have placed an order (it stopped without an answer, or was refused with `details.placementEffect` `uncertain`) answers 409 IDEMPOTENCY_OUTCOME_UNKNOWN before any other check, with no Retry-After: retrying that key can never settle it, so read the orders back (GET /api/v1/orders, details.readTarget) and use a new key only once the order is not there. One `uncertain` refusal releases its key: a source transaction's registration refused while its receipt is pending or unreadable; send the same request again once the transaction is readable (the quote still places at most one order). A refusal marked `noOrder` is not stored: fix the request and send it again with the same key or a new one."
           },
           {
             "key": "X-Step-Up-Proof",
@@ -406,7 +406,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Place an order\n\nOrder a quote you hold by its `id`, on its terms. Read it at its `statusUrl` until `terminal` is `true`.",
+        "description": "Place an order\n\nOrder a quote you hold by its `id`, on its terms. Read it at its `statusUrl` until `terminal` is `true`. A refusal's `details.placementEffect` says whether an order may exist.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/orders",
           "host": [
