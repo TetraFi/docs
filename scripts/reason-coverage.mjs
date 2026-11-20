@@ -81,6 +81,12 @@ export function specReasonEnums(spec) {
     }
     named(schema?.properties?.reason?.description);
   }
+  // A security scheme's request-signing refusal lists the `details.reason` values it answers
+  // (x-request-signing.refusal.reasons, for example signatureInvalid on AUTH_REQUIRED).
+  for (const scheme of Object.values(spec?.components?.securitySchemes ?? {})) {
+    const declared = scheme?.['x-request-signing']?.refusal?.reasons;
+    if (Array.isArray(declared)) declared.filter((value) => typeof value === 'string').forEach((value) => reasons.add(value));
+  }
   return reasons;
 }
 
