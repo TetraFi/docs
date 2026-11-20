@@ -38,7 +38,7 @@ One [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) covers every v
 <ParamField body="sellAmount or buyAmount" type="string" required>Exactly one: a positive decimal string in asset units, such as `"10"`, never base units. Both or neither: `400 INVALID_REQUEST`.</ParamField>
 <ParamField body="filters, sort, priceProtectionBps" type="object, string, integer">Narrow, order and protect the search ([Filters and sort](#filters-and-sort)). `sort` defaults to `netReceived`; `priceProtectionBps` is 0 to 1000, 30 when omitted.</ParamField>
 <ParamField body="firmness" type="string">`auto` (default), `firm` or `indicative` ([Ask for firm prices](/search/firmness-and-lifetime#ask-for-firm-prices)).</ParamField>
-<ParamField body="timeout" type="string">How long venues are collected, as an ISO 8601 duration: `PT6S` by default, from 100 milliseconds up to `PT10S`.</ParamField>
+<ParamField body="timeout" type="string">When the answer is due, as an ISO 8601 duration from your request: venues not priced by then are listed `timedOut`. `PT6S` by default, which answers as soon as every venue has; from 100 milliseconds up to `PT10S`.</ParamField>
 <ParamField body="source, deliverTo, preferredWallets" type="object">Which wallet or account trades and where the output goes; your defaults when omitted ([Wallets and accounts](/trade/wallets-and-accounts)).</ParamField>
 <ParamField body="onBehalfOf" type="string">For a broker: the direct user you quote for.</ParamField>
 <ParamField body="integrationAppId" type="string">The integration app whose partner fee terms apply ([Monetize](/monetize)).</ParamField>
@@ -61,7 +61,7 @@ Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`
 ```json POST /api/v1/quotes response expandable
 {
   "quoteRequestId": "rq_...",
-  "venueAsked": true,
+  "answeredFrom": "venues",
   "referenceMid": { "sellUsd": "0.99965", "buyUsd": "2323.71", "buyPerSell": "0.00043019" },
   "quotes": [
     {
@@ -92,7 +92,7 @@ Each quote also carries `legs`, `fees`, `eta` and more.
 <ResponseField name="buy.amount" type="string">What lands at `deliverTo` after every fee the quote includes.</ResponseField>
 <ResponseField name="netReceived" type="object">Also subtracts fees you pay separately, for fair comparison. `{"kind": "unavailable", "reason": ...}` when a fee could not be read, never 0.</ResponseField>
 <ResponseField name="location.kind" type="string">`singleChain`, `crossChain`, `offChain`, or `mixed` for a route whose legs differ.</ResponseField>
-<ResponseField name="venueAsked" type="boolean">`false` when every quote came from cached prices and no venue was contacted.</ResponseField>
+<ResponseField name="answeredFrom" type="string">`venues` when at least one venue was contacted, `cache` when every quote came from cached prices. More values may come.</ResponseField>
 
 [`GET /api/v1/quotes/requests/{quoteRequestId}`](/api-reference/quotes/get-quote-request) reads a recorded search again. Its `request` echo (`QuoteRequestEcho`) is not a valid new request.
 
@@ -307,7 +307,7 @@ Each venue appears once in `sources`: a `status`, a `reason` to match and a `det
 | `restricted` | A permission keeps it from you. |
 | `needsWallet` | It quotes only for a wallet you have not named ([When a quote needs a wallet](/trade/wallets-and-accounts#when-a-quote-needs-a-wallet)). |
 | `walletRefused` | The wallet it would use cannot trade there; `wallet` names it. |
-| `timedOut` | It did not answer before the collection deadline. |
+| `timedOut` | It did not answer before your `timeout`. |
 | `refused` | The venue declined. |
 
 Example reasons:
@@ -395,7 +395,7 @@ Never hardcode assets, chains or venues: read them from `GET /api/v1/assets` and
 - `offChainVenues` lists the identifiers of the eligible off-chain venues that offer that variant.
 - When `unreachable` is not empty, the list is partial: its entry (source `venueEligibility`) names in `reason` which part could not be read. Read again shortly.
 - Take venue ids from `sources[].venue.id`.
-- An asset can carry `issuer` (the entity that issues it, such as `circle`) and `coingeckoId` (verified from a deployment address).
+- An asset can carry `issuer` (the entity that issues it, such as `circle`) and `externalIds.coingecko` (verified from a deployment address).
 - Each asset is one issued asset: USD, USDC, USDT, EUR and EURC are separate assets and never stand in for each other.
 
 </Accordion>

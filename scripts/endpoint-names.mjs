@@ -14,6 +14,7 @@ const NAMES = {
   'POST /api/v1/oauth/token': 'Create access token',
 
   'GET /api/v1/assets': 'List assets',
+  'GET /api/v1/pairs': 'List pairs',
   'GET /api/v1/prices': 'Get prices',
   'GET /api/v1/prices/stream': 'Stream prices',
 

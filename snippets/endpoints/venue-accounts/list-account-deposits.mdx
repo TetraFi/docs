@@ -1,31 +1,34 @@
 | | |
 | --- | --- |
 | **Who** | View wallets (company, broker or admitted LP taker); keys also need `treasury_read`. |
+| **Pairs** | `asset`, `network`: comma lists; omit both for every pair. |
 | **Window** | `from` is 1 to 30 whole days back (default 7); it ends now. |
-| **Not read** | An unread history is named in `unreachable`, never shown as empty. |
-| **Paging** | Optional: `limit` 1 to 200, then `nextCursor`. Without it, the whole window. |
 
 <Accordion title="Fields to read">
 | Field | What it tells you |
 | --- | --- |
-| `items` | Credits, sorted by venue record time, then venue deposit id. |
+| `items` | Credits of every pair read, oldest first. |
+| `items[].asset`, `network` | The credit's pair; `network` is `null` for an asset read by asset only. |
 | `items[].amount`, `venueRecordedAt` | What the venue credited, and when it recorded it. |
 | `items[].unverifiedFields` | Fields the venue record did not carry, such as `network` or `fee`. |
-| `unreachable` | Empty when the history was read. Otherwise one entry, source `depositHistory`: `reason` is the observation's `reasonCode`, and `readAt` its `observedAt` when it was read. |
+| `unreachable` | One entry per pair not read, source `depositHistory`: `id` is the pair (`asset/network`, or the asset alone), `reason` its `reasonCode`, `readAt` its `observedAt`. |
 
 The read uses the account's configured balance-key connection and its deposit-history rules.
 </Accordion>
 
-<Accordion title="Cursors and the observation">
-- A cursor overrides `from` and binds the workspace, account, asset, network and the full credit fingerprint. It keeps its frozen window and page size. If the observation changed, the cursor is refused rather than skipping or repeating credits.
-- `include=observation` adds this read's observation in `included.observation[venueAccountId].value`: connection, status, reason and `reasonCode`, asset, `network`, `networkCode`, `networkConfirmed`, `since`, `until`, `observedAt` and `expiresAt`.
+<Accordion title="Paging, cursors and the observation">
+- Paging is optional: `limit` 1 to 200, then `nextCursor`. Without it, you get the whole window.
+- A cursor overrides `from` and binds the workspace, account, the pairs read and the full credit fingerprint. It keeps its frozen window and page size; ask with the same `asset` and `network`. If an observation changed, the cursor is refused rather than skipping or repeating credits.
+- `include=observation` adds each pair's observation in `included.observation[<pair>].value`, keyed like `unreachable[].id`: status, reason and `reasonCode`, asset, `network`, `networkCode`, `networkConfirmed`, `since`, `until`, `observedAt` and `expiresAt`.
+- `include=connection` adds the connection the read went through in `included.connection[venueAccountId].value`.
 - A venue that declares no networks gives `networkConfirmed` false and an empty `networkCode`, and credits match by asset only.
 </Accordion>
 
 <Accordion title="Refusals">
 | Status and code | Why, and what to do |
 | --- | --- |
-| 400 `INVALID_REQUEST` | An unknown parameter, or `from` out of range. |
+| 400 `INVALID_REQUEST` | An unknown parameter, an empty or over-long (more than 200) list value, or `from` out of range. |
+| 400 `VENUE_CONNECTION_INVALID` | An asset the venue does not list, or no network of the venue matches. Ask for one it lists. |
 | 403 `VENUE_READ_AUTHORITY_REFUSED` | Your read authority ended, before or during the read: `authority_ended` (credential revoked, expired or rescoped) or `permission_withdrawn` (View wallets, membership or taker admission lost). An ended session answers 401. |
 | 404 `VENUE_ACCOUNT_NOT_FOUND` | No venue account with that id in the workspace. |
 | 409 `VENUE_ACCOUNT_FUNDS_IN_WALLETS`, `VENUE_ACCOUNT_REVERIFY_REQUIRED`, `VENUE_ACCOUNT_REVOKED`, `VENUE_ACCOUNT_VENUE_UNKNOWN` | As on the [balance read](/api-reference/venue-accounts/get-account-balances). |

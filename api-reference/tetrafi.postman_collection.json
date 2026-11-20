@@ -144,13 +144,13 @@
               "key": "venueId",
               "value": "<venueId>",
               "disabled": true,
-              "description": "Only assets a venue offers this workspace, on-chain venues included: its venue id (`valr`,\nevery entry of it) or one venue entry (`valr-orderbook`, that entry only). With `venueCode`,\nonly the asset that venue's code is (`USC` at `b2c2` is USDC), and only when the instance the\ncode names, its variant included, is offered at that same venue or entry (`USDT0` is USDT\nvariant USDT0 at `valr-orderbook`, nothing at `valr-rfq`). Every filter narrows the listing;\nan empty value answers 400 `INVALID_REQUEST` with `details.reason` `ASSET_FILTER_BLANK`."
+              "description": "Only assets a venue offers this workspace, on-chain venues included: its venue id (`valr`,\nevery entry of it) or one venue entry (`valr-orderbook`, that entry only). With `venueCode`,\nonly the asset that venue's code is (`USC` at `b2c2` is USDC), and only when the instance the\ncode names, its variant included, is offered at that same venue or entry (`USDT0` is USDT\nvariant USDT0 at `valr-orderbook`, nothing at `valr-rfq`). Every filter narrows the listing;\nan empty value answers 400 `ASSET_FILTER_BLANK` with `details.field` naming the filter."
             },
             {
               "key": "venueCode",
               "value": "<venueCode>",
               "disabled": true,
-              "description": "A venue's own code for an asset; needs `venueId` (otherwise 400 `INVALID_REQUEST` with\n`details.reason` `ASSET_FILTER_INCOMPLETE`)."
+              "description": "A venue's own code for an asset; needs `venueId` (otherwise 400 `ASSET_FILTER_INCOMPLETE`\nwith `details.field` `venueCode`)."
             },
             {
               "key": "network",
@@ -162,7 +162,7 @@
               "key": "address",
               "value": "<address>",
               "disabled": true,
-              "description": "A token address on `network`, in that chain's own form (EVM hex, Solana base58, Tron\nbase58check or hex; a form of another chain family matches nothing); needs `network` (otherwise 400 `INVALID_REQUEST` with `details.reason`\n`ASSET_FILTER_INCOMPLETE`). A token the registry does not list matches nothing, whatever it\ncalls itself."
+              "description": "A token address on `network`, in that chain's own form (EVM hex, Solana base58, Tron\nbase58check or hex; a form of another chain family matches nothing); needs `network` (otherwise 400 `ASSET_FILTER_INCOMPLETE` with `details.field`\n`address`). A token the registry does not list matches nothing, whatever it\ncalls itself."
             }
           ]
         }
@@ -621,6 +621,87 @@
       "response": []
     },
     {
+      "name": "List pairs",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "List tradable pairs\n\nLists the directed asset pairs your workspace can trade now, each with the routes (venue and where it executes) that serve it. `availability=connectable` lists instead the pairs only a venue you have not connected serves.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/pairs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "pairs"
+          ],
+          "query": [
+            {
+              "key": "sellAsset",
+              "value": "<sellAsset>",
+              "disabled": true,
+              "description": "Only pairs selling this asset id (`USDC`)."
+            },
+            {
+              "key": "buyAsset",
+              "value": "<buyAsset>",
+              "disabled": true,
+              "description": "Only pairs buying this asset id."
+            },
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": "Only pairs with this asset id on either side."
+            },
+            {
+              "key": "venueId",
+              "value": "<venueId>",
+              "disabled": true,
+              "description": "Only routes of this venue entry (`binance-orderbook`); a pair with none left is not listed.\nA route of several legs is venue `composite` (`venueId=composite` lists those)."
+            },
+            {
+              "key": "network",
+              "value": "<network>",
+              "disabled": true,
+              "description": "Only routes with either leg on this CAIP-2 network (`eip155:1`); off-chain routes are left out."
+            },
+            {
+              "key": "availability",
+              "value": "enabled",
+              "disabled": true,
+              "description": "`enabled` (default) or `connectable`."
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Pairs per page, 1 to 500. Omit both `limit` and `cursor` for every pair."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The previous page's `nextCursor`, for the same filters."
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "Get prices",
       "request": {
         "method": "GET",
@@ -863,7 +944,7 @@
             "value": "application/json"
           }
         ],
-        "description": "Request quotes\n\nOne request covers every venue your workspace can use, and filters narrow it. You get `quotes`, best first, and each venue's outcome in `sources`; `venueAsked` says whether any venue was contacted. Order a quote by its `id`.",
+        "description": "Request quotes\n\nOne request covers every venue your workspace can use, and filters narrow it. You get `quotes`, best first, and each venue's outcome in `sources`; `answeredFrom` says where the answer came from: `venues` when any venue was contacted, `cache` otherwise. Order a quote by its `id`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/quotes",
           "host": [
@@ -1462,7 +1543,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Get trade settlement\n\nReads one trade's settlement: its lifecycle stages, transactions and the LP's response. Read it after an order fills to follow how it settles.",
+        "description": "Get trade settlement\n\nReads one trade's settlement after an order fills: its lifecycle stages, transactions and the LP's response. For a venue trade, lpResponse.solverName names the venue and transactions.fillTx is its last fill; a trade that ended unsettled leaves its remaining stages pending.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/trades/:tradeId/settlement",
           "host": [
@@ -1500,7 +1581,7 @@
             {
               "key": "tradeId",
               "value": "<tradeId>",
-              "description": "The trade's tradeId (its order id)"
+              "description": "The trade's tradeId: its order id, or a venue trade's operation id (the orderId of its Basic order)"
             }
           ]
         }
@@ -1645,13 +1726,19 @@
             "value": "application/json"
           },
           {
+            "key": "Cache-Control",
+            "value": "<Cache-Control>",
+            "disabled": true,
+            "description": "`no-cache` reads the venue now instead of answering the stored reading"
+          },
+          {
             "key": "TetraFi-Version",
             "value": "2026-11-17",
             "disabled": true,
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the venue account's balances at its venue\n\nRead what the venue last reported for one venue account, one line per asset.",
+        "description": "Read the venue account's balances at its venue\n\nRead what the venue last reported for one venue account, one line per asset: the stored reading (`observedAt`) while unexpired (`expiresAt`), refreshed periodically and after each fill. Send `Cache-Control: no-cache` to read the venue now.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/balances",
           "host": [
@@ -1753,7 +1840,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read the venue account's deposit history\n\nRead the deposits a venue credited to the account for one asset on one network, over a window of up to 30 days.",
+        "description": "Read the venue account's deposit history\n\nRead the deposits a venue credited to the account over up to 30 days, for every asset and network asked for in one read (comma lists; omit them for all). Items arrive oldest first; a pair that could not be read is named in `unreachable`, never shown as empty.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/deposit-history",
           "host": [
@@ -1772,14 +1859,14 @@
             {
               "key": "asset",
               "value": "<asset>",
-              "disabled": false,
-              "description": "Asset the credits moved."
+              "disabled": true,
+              "description": "Assets the credits moved, comma-separated (any of). Omit for every asset the venue offers\nfor deposit on the account's site."
             },
             {
               "key": "network",
               "value": "<network>",
-              "disabled": false,
-              "description": "CAIP-2 network the credits moved on."
+              "disabled": true,
+              "description": "CAIP-2 networks the credits moved on, comma-separated (any of). Omit for every network. An\nasset the venue declares no network for is read by asset only, whatever this asks."
             },
             {
               "key": "from",
@@ -1791,19 +1878,19 @@
               "key": "limit",
               "value": "0",
               "disabled": true,
-              "description": "Credits per page, 1 to 200. Omit for all credits; a cursor retains its page size."
+              "description": "Credits per page across every pair, 1 to 200. Omit for all credits; a cursor retains its\npage size."
             },
             {
               "key": "cursor",
               "value": "<cursor>",
               "disabled": true,
-              "description": "The previous page's nextCursor."
+              "description": "The previous page's nextCursor. Ask with the same `asset` and `network`."
             },
             {
               "key": "include",
               "value": "<include>",
               "disabled": true,
-              "description": "`observation`: the read's own observation in `included.observation[venueAccountId]`."
+              "description": "`observation` (each pair's observation in `included.observation[<pair>]`) and/or\n`connection` (the connection in `included.connection[venueAccountId]`), comma-separated."
             }
           ],
           "variable": [

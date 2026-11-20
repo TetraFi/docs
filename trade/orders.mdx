@@ -177,7 +177,7 @@ It says what a quote produced, and works after the quote expired.
 | `status` | What it means, and what to do |
 | --- | --- |
 | `ordered` | An order exists. Follow its `statusUrl` until `terminal` ([Order status](/trade/order-status)). Do not order again. |
-| `notOrdered` | No order was placed with this quote. If `expired` is `false`, order it with the saved body and key, or with a new key if that key's outcome was unknown ([When to retry](#retries-and-recovery)). If `true`, requote or search again. |
+| `notOrdered` | No order was placed with this quote. If `quote` is `orderable`, order it with the saved body and key, or with a new key if that key's outcome was unknown ([When to retry](#retries-and-recovery)). If it is `expired`, or a value you don't know, requote or search again. |
 | `unknown` | TetraFi cannot yet prove either way. Wait and read again. Do not order. |
 
 An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND`. A failed read answers `503 QUOTE_ORDER_UNAVAILABLE`: retry the read, never the order.
@@ -190,7 +190,7 @@ An unknown quote id, or one from another workspace, answers `404 QUOTE_NOT_FOUND
 
     ```json
     {"status":"ordered","orderId":"acb84378-…","statusUrl":"/api/v1/orders/acb84378-…"}
-    {"status":"notOrdered","expired":false}
+    {"status":"notOrdered","quote":"orderable"}
     ```
   </Accordion>
 </AccordionGroup>

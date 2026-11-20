@@ -38,7 +38,7 @@ Act on each code's own **Do** line and **Retry** answer, not on its status alone
 
 <Accordion title="Requests, keys and access">
 
-Malformed requests, credentials, request signing, permissions, workspaces, idempotency, paging and batch reads. 107 codes.
+Malformed requests, credentials, request signing, permissions, workspaces, idempotency, paging and batch reads. 114 codes.
 
 <span id="ACCOUNT_KEY_AUTHORITY_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ACCOUNT_<wbr />KEY_<wbr />AUTHORITY_<wbr />REQUIRED</code> · 403 · Retry: no<br />The request needs a current API key owned by the account with the required permission.<br />**Do:** Use a current account-owned key that holds the permission, or ask an admin to grant it.
 
@@ -52,7 +52,7 @@ Malformed requests, credentials, request signing, permissions, workspaces, idemp
 
 <span id="AUTH_NOT_CONFIGURED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>AUTH_<wbr />NOT_<wbr />CONFIGURED</code> · 500 · Retry: no<br />Authentication is enabled but the token service is not configured on this server.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
 
-<span id="AUTH_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>AUTH_<wbr />REQUIRED</code> · 401 · Retry: no<br />This operation needs an authenticated caller, or the presented credential was refused. details.reason names the cause (MISSING_CREDENTIALS when no credential was sent) and details.remediation its fix: sendCredentials, useActiveKey, issueNewKey, issueWorkspaceKey, requestNewToken or signRequest.<br />**Do:** Act on details.reason. Absent or missingCredentials: send an API key (X-API-Key) or a bearer token. invalidApiKey: the key is unknown or no longer active; use an active key. apiKeyExpired: the key has expired; issue a new key. legacyUserKeyRequiresRebinding: the key has no workspace binding; issue a workspace key. serviceAccountCredentialRevoked: the key that issued this bearer token is no longer active; request a token with an active key. invalidToken: the bearer token is malformed or not valid here; request a new token. tokenExpired: the bearer token has expired; request a new token. sessionRevoked: the token's session was revoked; request a new token. signatureRequired: this key signs its requests; send X-Timestamp and X-Signature. signatureInvalid: a signing header is malformed or the signature does not match; check the canonical string and the signing secret. timestampOutOfRange: X-Timestamp is more than 300 seconds from server time, or more than 10 seconds ahead on a request with X-Nonce; correct the clock and sign again. nonceRequired: a signed POST, PUT, PATCH or DELETE needs X-Nonce; sign again with one. nonceInvalid: send X-Nonce once, as 16 to 128 characters of A-Z, a-z, 0-9, - or _. signatureReplayed: this nonce was already accepted for this key; sign again with a new nonce. signaturePredatesRestart: reserved, not answered today; if it is, sign again with a fresh timestamp and nonce.
+<span id="AUTH_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>AUTH_<wbr />REQUIRED</code> · 401 · Retry: no<br />This operation needs an authenticated caller, or the presented credential was refused. details.reason names the cause (missingCredentials when no credential was sent) and details.remediation its fix: sendCredentials, useActiveKey, issueNewKey, issueWorkspaceKey, requestNewToken or signRequest.<br />**Do:** Act on details.reason. Absent or missingCredentials: send an API key (X-API-Key) or a bearer token. invalidApiKey: the key is unknown or no longer active; use an active key. apiKeyExpired: the key has expired; issue a new key. legacyUserKeyRequiresRebinding: the key has no workspace binding; issue a workspace key. serviceAccountCredentialRevoked: the key that issued this bearer token is no longer active; request a token with an active key. invalidToken: the bearer token is malformed or not valid here; request a new token. tokenExpired: the bearer token has expired; request a new token. sessionRevoked: the token's session was revoked; request a new token. signatureRequired: this key signs its requests; send X-Timestamp and X-Signature. signatureInvalid: a signing header is malformed or the signature does not match; check the canonical string and the signing secret. timestampOutOfRange: X-Timestamp is more than 300 seconds from server time, or more than 10 seconds ahead on a request with X-Nonce; correct the clock and sign again. nonceRequired: a signed POST, PUT, PATCH or DELETE needs X-Nonce; sign again with one. nonceInvalid: send X-Nonce once, as 16 to 128 characters of A-Z, a-z, 0-9, - or _. signatureReplayed: this nonce was already accepted for this key; sign again with a new nonce. signaturePredatesRestart: reserved, not answered today; if it is, sign again with a fresh timestamp and nonce.
 
 <span id="BATCH_EXCEEDS_RATE_BURST" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BATCH_<wbr />EXCEEDS_<wbr />RATE_<wbr />BURST</code> · 400 · Retry: no<br />The credential's rate limit admits fewer requests at once than the batch holds, so waiting would not help; nothing ran.<br />**Do:** Send a smaller batch.
 
@@ -63,6 +63,8 @@ Malformed requests, credentials, request signing, permissions, workspaces, idemp
 <span id="BATCH_ITEM_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BATCH_<wbr />ITEM_<wbr />UNREADABLE</code> · 502 · Retry: no<br />Answered as one item's body inside a 200 batch: that item's answer could not be read. The item keeps its own status when it was a refusal, else 502.<br />**Do:** Send that read as a separate request.
 
 <span id="BATCH_METHOD_NOT_ALLOWED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BATCH_<wbr />METHOD_<wbr />NOT_<wbr />ALLOWED</code> · 400 · Retry: no<br />A batch item can only be a GET; details.itemId names the item.<br />**Do:** Send writes as separate requests.
+
+<span id="BATCH_RELATED_READ_BUDGET_EXCEEDED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BATCH_<wbr />RELATED_<wbr />READ_<wbr />BUDGET_<wbr />EXCEEDED</code> · 429 · Retry: no<br />Answered as one item's status and body inside a 200 batch: that read's related reads do not fit what is left of the batch's read allowance, so it did not run.<br />**Do:** Send that read as a separate request.
 
 <span id="BATCH_RESPONSE_TOO_LARGE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BATCH_<wbr />RESPONSE_<wbr />TOO_<wbr />LARGE</code> · 413 · Retry: no<br />Answered as one item's status and body inside a 200 batch: the batch answer reached its 8 MiB limit before this item.<br />**Do:** Read that item as a separate request, or batch fewer large reads.
 
@@ -95,6 +97,8 @@ Malformed requests, credentials, request signing, permissions, workspaces, idemp
 <span id="IDEMPOTENCY_AUTHORITY_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />AUTHORITY_<wbr />REQUIRED</code> · 403 · Retry: no<br />The caller no longer holds the authority needed to replay this stored response.<br />**Do:** Use a credential with the same authority as the original request.
 
 <span id="IDEMPOTENCY_CONFLICT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />CONFLICT</code> · 409 · Retry: no<br />This Idempotency-Key was already used with a different request body.<br />**Do:** Use a new Idempotency-Key for a different request.
+
+<span id="IDEMPOTENCY_IN_FLIGHT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />IN_<wbr />FLIGHT</code> · 409 · Retry: yes<br />An earlier request with this Idempotency-Key is still running.<br />**Do:** Wait, then send the same request with the same Idempotency-Key again.
 
 <span id="IDEMPOTENCY_KEY_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />KEY_<wbr />INVALID</code> · 400 · Retry: no<br />The Idempotency-Key header is repeated, padded, empty or too long.<br />**Do:** Send one Idempotency-Key of 1 to 255 characters.
 
@@ -184,6 +188,8 @@ Malformed requests, credentials, request signing, permissions, workspaces, idemp
 
 <span id="SCHEMA_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SCHEMA_<wbr />INVALID</code> · 400 · Retry: no<br />The order's signed payload does not match its schema.<br />**Do:** Request a new quote, then place the order on it.
 
+<span id="SECOND_PROOF_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SECOND_<wbr />PROOF_<wbr />REQUIRED</code> · 403 · Retry: no<br />The step-up proof lacks the extra check the member set for orders, so the order was refused before any claim and nothing was placed (details.placementEffect noOrder).<br />**Do:** Complete the step-up again with the extra check, then send the order with the new proof.
+
 <span id="SERVICE_ACCOUNT_AUTHORITY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SERVICE_<wbr />ACCOUNT_<wbr />AUTHORITY_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The service account's own trading grant or signing key could not be read; nothing was placed.<br />**Do:** Retry the same request shortly, with backoff.
 
 <span id="SERVICE_ACCOUNT_CANNOT_REVIEW" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SERVICE_<wbr />ACCOUNT_<wbr />CANNOT_<wbr />REVIEW</code> · 403 · Retry: no<br />A service account cannot read or decide another principal's venue trade review; only human members review.<br />**Do:** Review the trade as a human member of the workspace.
@@ -238,6 +244,10 @@ Malformed requests, credentials, request signing, permissions, workspaces, idemp
 
 <span id="WORKSPACE_CONTEXT_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />CONTEXT_<wbr />REQUIRED</code> · 400 · Retry: no<br />A workspace context is required to act on this order.<br />**Do:** Send the request with the workspace's credential.
 
+<span id="WORKSPACE_DAILY_TRADE_CAP_REACHED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />DAILY_<wbr />TRADE_<wbr />CAP_<wbr />REACHED</code> · 409 · Retry: no<br />This order would take the workspace's orders today (UTC) past the daily cap it set on its treasury settings (tradeCaps.dailyNotionalUsd, US dollars); nothing was sent.<br />**Do:** Lower the amount, wait for the next UTC day, or ask a workspace admin with Manage treasury policy to raise the cap in Treasury, Access &amp; policies, Approvals and limits.
+
+<span id="WORKSPACE_HAS_DEFERRED_BALANCES" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />HAS_<wbr />DEFERRED_<wbr />BALANCES</code> · 409 · Retry: no<br />Members still hold deferred balances at this venue, so it is not disconnected; nothing changed.<br />**Do:** Settle the members' deferred balances at the venue, then disconnect it.
+
 <span id="WORKSPACE_ID_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />ID_<wbr />INVALID</code> · 400 · Retry: no<br />The workspace id is not a valid workspace id.<br />**Do:** Correct the request body as the message says, then send it again.
 
 <span id="WORKSPACE_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />INVALID</code> · 403 · Retry: no<br />The credential's workspace id is invalid.<br />**Do:** Check the key's workspace.
@@ -254,13 +264,15 @@ Malformed requests, credentials, request signing, permissions, workspaces, idemp
 
 <span id="WORKSPACE_SCOPE_MISMATCH" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />SCOPE_<wbr />MISMATCH</code> · 403 · Retry: no<br />The header or other workspace scope selector is not available to this credential or session.<br />**Do:** Use a workspace the session belongs to and the credential is bound to.
 
+<span id="WORKSPACE_TRADE_CAPS_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />TRADE_<wbr />CAPS_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The workspace's trade caps or its day total could not be read; nothing was sent.<br />**Do:** Retry the same request shortly, with backoff.
+
+<span id="WORKSPACE_TRADE_CAP_EXCEEDED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WORKSPACE_<wbr />TRADE_<wbr />CAP_<wbr />EXCEEDED</code> · 409 · Retry: no<br />This order is above the per-trade cap the workspace set on its treasury settings (tradeCaps.perTradeUsd, US dollars); nothing was sent.<br />**Do:** Lower the amount, or ask a workspace admin with Manage treasury policy to raise the cap in Treasury, Access &amp; policies, Approvals and limits.
+
 </Accordion>
 
 <Accordion title="Quotes, prices and assets">
 
-Asking venues for quotes, requoting, prices, assets, networks and routes. 81 codes.
-
-<span id="ACROSS_FEE_SHARE_EXCEEDS_25_PERCENT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ACROSS_<wbr />FEE_<wbr />SHARE_<wbr />EXCEEDS_<wbr />25_<wbr />PERCENT</code> · 409 · Retry: no<br />The bridge fee exceeds a quarter of the amount; nothing was sent.<br />**Do:** Increase the amount or choose another quote.
+Asking venues for quotes, requoting, prices, assets, networks and routes. 83 codes.
 
 <span id="AGGREGATION_TIMEOUT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>AGGREGATION_<wbr />TIMEOUT</code> · 504 · Retry: yes<br />No venue returned a valid quote before the deadline.<br />**Do:** Retry the same request shortly, with backoff.
 
@@ -274,6 +286,10 @@ Asking venues for quotes, requoting, prices, assets, networks and routes. 81 cod
 
 <span id="ASSET_CATALOG_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ASSET_<wbr />CATALOG_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The asset catalogue could not be read to check the deposit network.<br />**Do:** Retry the same request shortly, with backoff.
 
+<span id="ASSET_FILTER_BLANK" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ASSET_<wbr />FILTER_<wbr />BLANK</code> · 400 · Retry: no<br />An asset-list filter was sent with an empty value, which is never read as absent; details.field names it.<br />**Do:** Give the filter a value, or leave it out.
+
+<span id="ASSET_FILTER_INCOMPLETE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ASSET_<wbr />FILTER_<wbr />INCOMPLETE</code> · 400 · Retry: no<br />An asset-list filter needs another one beside it (venueCode needs venueId, address needs network); details.field names it.<br />**Do:** Add the filter it needs, or leave it out.
+
 <span id="ASSET_HAS_NO_CHAIN_DEPOSIT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ASSET_<wbr />HAS_<wbr />NO_<wbr />CHAIN_<wbr />DEPOSIT</code> · 400 · Retry: no<br />The selected asset has no on-chain deposit.<br />**Do:** Read its bank-deposit instructions by sending the asset without a network, or select an asset with an on-chain token.
 
 <span id="ASSET_ISSUER_EXCLUDED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ASSET_<wbr />ISSUER_<wbr />EXCLUDED</code> · 422 · Retry: no<br />An Asset in the request is issued by an asset issuer the workspace excluded in its counterparty management; details.issuerId names the issuer and details.asset the Asset.<br />**Do:** Include the issuer again in counterparty management, or quote another Asset.
@@ -284,9 +300,11 @@ Asking venues for quotes, requoting, prices, assets, networks and routes. 81 cod
 
 <span id="ASSET_UNKNOWN" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ASSET_<wbr />UNKNOWN</code> · 400 · Retry: no<br />The asset is not in the catalogue; details.value names it.<br />**Do:** Use an asset listed by GET /assets.
 
-<span id="BUDGET_EXHAUSTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BUDGET_<wbr />EXHAUSTED</code> · 429 · Retry: yes<br />This venue's quote budget is used up for now.<br />**Do:** Wait for the Retry-After period, then requote.
+<span id="BRIDGE_FEES_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BRIDGE_<wbr />FEES_<wbr />UNAVAILABLE</code> · 409 · Retry: yes<br />The fees of the bridge details.provider names could not be read; nothing was sent.<br />**Do:** Retry the same request shortly, with backoff.
 
-<span id="CCTP_FEES_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CCTP_<wbr />FEES_<wbr />UNAVAILABLE</code> · 409 · Retry: yes<br />The bridge fees could not be read; nothing was sent.<br />**Do:** Retry the same request shortly, with backoff.
+<span id="BRIDGE_FEE_SHARE_TOO_HIGH" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BRIDGE_<wbr />FEE_<wbr />SHARE_<wbr />TOO_<wbr />HIGH</code> · 409 · Retry: no<br />The bridge fee exceeds details.limitPercent percent of the amount at the bridge details.provider names; nothing was sent.<br />**Do:** Increase the amount or choose another quote.
+
+<span id="BUDGET_EXHAUSTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BUDGET_<wbr />EXHAUSTED</code> · 429 · Retry: yes<br />This venue's quote budget is used up for now.<br />**Do:** Wait for the Retry-After period, then requote.
 
 <span id="CONVERSION_IDENTITY_MISMATCH" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CONVERSION_<wbr />IDENTITY_<wbr />MISMATCH</code> · 409 · Retry: no<br />The venue trade already belongs to another operation; nothing was sent.<br />**Do:** Read the existing operation, or request a new quote for a new trade.
 
@@ -297,6 +315,8 @@ Asking venues for quotes, requoting, prices, assets, networks and routes. 81 cod
 <span id="CORRIDOR_NOT_OFFERED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CORRIDOR_<wbr />NOT_<wbr />OFFERED</code> · 400 · Retry: no<br />This quote was not offered on the corridor the request names.<br />**Do:** Requote on a corridor the quote lists, or request new quotes.
 
 <span id="CORRIDOR_NOT_SUPPORTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CORRIDOR_<wbr />NOT_<wbr />SUPPORTED</code> · 422 · Retry: no<br />No settlement path is live on both ends of this network pair.<br />**Do:** Choose a different network pair or quote.
+
+<span id="COUNTERPARTY_NOT_READY" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COUNTERPARTY_<wbr />NOT_<wbr />READY</code> · Stream event · Retry: no<br />Sent as the hint of a 200 pair or asset list, never as an HTTP status: the workspace's connected venues list nothing yet, because each is still being set up, has trading paused, or needs Advanced while it is not available.<br />**Do:** Finish setting up or resume a venue in Venues (GET /api/v1/pairs?availability=connectable names each with its state), or connect another.
 
 <span id="DELIVER_TO_AMBIGUOUS" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>DELIVER_<wbr />TO_<wbr />AMBIGUOUS</code> · 409 · Retry: no<br />The deliverTo address matches more than one withdrawal destination. A quote source answers unavailable with it; an order or requote on that source is refused.<br />**Do:** Name the destination exactly, including its tag or memo.
 
@@ -399,8 +419,6 @@ Asking venues for quotes, requoting, prices, assets, networks and routes. 81 cod
 <span id="QUOTE_WALLET_NOT_BOUND" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>QUOTE_<wbr />WALLET_<wbr />NOT_<wbr />BOUND</code> · 409 · Retry: no<br />The quote was priced before a paying wallet was chosen (its tradingSource is null and its next is requote); nothing was sent.<br />**Do:** Choose the wallet to pay from, requote, then order the new quote.
 
 <span id="REFERENCE_PRICE_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>REFERENCE_<wbr />PRICE_<wbr />UNAVAILABLE</code> · 409 · Retry: no<br />A reference price for the bounds check could not be read; nothing was sent.<br />**Do:** Request a new quote shortly.
-
-<span id="RELAY_FEE_SHARE_EXCEEDS_25_PERCENT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>RELAY_<wbr />FEE_<wbr />SHARE_<wbr />EXCEEDS_<wbr />25_<wbr />PERCENT</code> · 409 · Retry: no<br />The bridge fee exceeds a quarter of the amount; nothing was sent.<br />**Do:** Increase the amount or choose another quote.
 
 <span id="REQUOTE_FIELDS_CONFLICT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>REQUOTE_<wbr />FIELDS_<wbr />CONFLICT</code> · 400 · Retry: no<br />A requote body carries fields that cannot go with requote; details.conflicts lists them.<br />**Do:** Send requote alone, or send a fresh quote request.
 
@@ -520,6 +538,8 @@ Placing, following and cancelling an order: minimum receive, slippage, caps, the
 
 <span id="PREFLIGHT_NOT_APPLICABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>PREFLIGHT_<wbr />NOT_<wbr />APPLICABLE</code> · 409 · Retry: no<br />This quote trades on a venue account and needs no preflight.<br />**Do:** Place the order directly.
 
+<span id="PRICE_ACCOUNT_NOT_PRICED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>PRICE_<wbr />ACCOUNT_<wbr />NOT_<wbr />PRICED</code> · 409 · Retry: no<br />The venue account the priceId was read on has no orderable price for its size now (its connection is gone, or the venue priced only another of the workspace's accounts); nothing was sent.<br />**Do:** Read Live prices again and order the fresh priceId.
+
 <span id="PRICE_EXPIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>PRICE_<wbr />EXPIRED</code> · 409 · Retry: no<br />The priceId's validFor lapsed before the order arrived; nothing was sent.<br />**Do:** Read Live prices again and order the fresh priceId at once.
 
 <span id="PRICE_ID_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>PRICE_<wbr />ID_<wbr />INVALID</code> · 400 · Retry: no<br />The priceId was not issued to this workspace by this server, or was altered; nothing was sent.<br />**Do:** Read Live prices again and order a tradable row's priceId as returned.
@@ -550,13 +570,9 @@ Placing, following and cancelling an order: minimum receive, slippage, caps, the
 
 <span id="REFIRM_UNSUPPORTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>REFIRM_<wbr />UNSUPPORTED</code> · 409 · Retry: no<br />This venue does not firm an existing order's price again.<br />**Do:** Request a new quote for a new order.
 
-<span id="RELAY_CONTEXT_UNRESOLVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>RELAY_<wbr />CONTEXT_<wbr />UNRESOLVED</code> · 409 · Retry: no<br />The order's compliance context could not be resolved; nothing was relayed.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
+<span id="REPLACEMENT_FEE_ABOVE_APPROVED_CAP" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>REPLACEMENT_<wbr />FEE_<wbr />ABOVE_<wbr />APPROVED_<wbr />CAP</code> · Stream event · Retry: no<br />Sent as a 200 step transaction's replacementFailureCode, never as an HTTP status: replacing the stuck send would cost more network fee than its approved cap, so it was not replaced.<br />**Do:** A person re-sends the stuck transaction, or approves a higher fee cap.
 
-<span id="RELAY_FUNDER_UNRESOLVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>RELAY_<wbr />FUNDER_<wbr />UNRESOLVED</code> · 409 · Retry: no<br />The order's funding source could not be resolved; nothing was relayed.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
-
-<span id="RELAY_RECHECK_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>RELAY_<wbr />RECHECK_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The pre-send re-check could not be recorded; nothing was relayed.<br />**Do:** Retry the same request shortly, with backoff.
-
-<span id="RELAY_SUBJECT_UNRESOLVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>RELAY_<wbr />SUBJECT_<wbr />UNRESOLVED</code> · 409 · Retry: no<br />The order's compliance subject could not be resolved; nothing was relayed.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
+<span id="REPLACEMENT_FEE_CAP_NOT_APPROVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>REPLACEMENT_<wbr />FEE_<wbr />CAP_<wbr />NOT_<wbr />APPROVED</code> · Stream event · Retry: no<br />Sent as a 200 step transaction's replacementFailureCode, never as an HTTP status: the stuck send has no approved fee cap for a replacement, so it was not replaced.<br />**Do:** A person re-sends the stuck transaction, or approves a fee cap for its replacement.
 
 <span id="REPRICING_OFFER_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>REPRICING_<wbr />OFFER_<wbr />UNAVAILABLE</code> · 409 · Retry: no<br />There is no repricing offer to accept.<br />**Do:** Prepare the continuation again without acceptRepricing.
 
@@ -598,6 +614,8 @@ Placing, following and cancelling an order: minimum receive, slippage, caps, the
 
 <span id="SUBMIT_SLIPPAGE_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SUBMIT_<wbr />SLIPPAGE_<wbr />INVALID</code> · 400 · Retry: no<br />The submitted slippage tolerance is not a non-negative integer in basis points.<br />**Do:** Use whole basis points in deferredOptions.submitSlippageBps.
 
+<span id="SWAP_SLIPPAGE_TOLERANCE_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SWAP_<wbr />SLIPPAGE_<wbr />TOLERANCE_<wbr />UNAVAILABLE</code> · 409 · Retry: no<br />The workspace's swap slippage tolerance could not be read, so no minimum could be set for the swap; nothing was sent.<br />**Do:** Set the workspace's swapSlippageToleranceBps again, then request a new quote.
+
 <span id="TRADING_SOURCE_NOT_LINKED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>TRADING_<wbr />SOURCE_<wbr />NOT_<wbr />LINKED</code> · 409 · Retry: no<br />The selected trading source is not linked to the venue account this quote would use.<br />**Do:** Choose a linked trading source, or link it on the venue account, then request quotes again.
 
 <span id="TRANSPORT_PATHWAY_UNREACHABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>TRANSPORT_<wbr />PATHWAY_<wbr />UNREACHABLE</code> · 422 · Retry: no<br />The settlement transport for this network pair has no live path.<br />**Do:** Choose a different network pair or quote.
@@ -635,6 +653,8 @@ Signing grants, wallet signatures, signed steps and owner authorizations. 47 cod
 <span id="FUNDER_PERMIT_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDER_<wbr />PERMIT_<wbr />REQUIRED</code> · 400 · Retry: no<br />This continuation needs funderSignature and funderPermit2.<br />**Do:** Include funderSignature and funderPermit2.
 
 <span id="GRANT_ENDS_BEFORE_VENUE_FUNDING" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>GRANT_<wbr />ENDS_<wbr />BEFORE_<wbr />VENUE_<wbr />FUNDING</code> · 409 · Retry: no<br />The wallet's signing grant expires before the venue's funding window; no trade acceptance or funds were sent.<br />**Do:** Renew the wallet's StableFX signing grant for at least 2 days, longer than the venue's 24-hour funding window plus its safety margin.
+
+<span id="NATIVE_BALANCE_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>NATIVE_<wbr />BALANCE_<wbr />UNAVAILABLE</code> · Stream event · Retry: yes<br />Sent as the reason of a 200 read's unavailable wallet balance, never as an HTTP status: the network's native-coin balance read failed, so no balance is shown.<br />**Do:** Read the balance again shortly.
 
 <span id="NATIVE_GRANT_EXPIRY_REAPPROVAL_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>NATIVE_<wbr />GRANT_<wbr />EXPIRY_<wbr />REAPPROVAL_<wbr />REQUIRED</code> · 409 · Retry: no<br />The wallet's installed trading grant needs owner reapproval; no preparation or funds were sent.<br />**Do:** Have the wallet's owners reapprove its trading grant, then request a new quote.
 
@@ -694,7 +714,7 @@ Signing grants, wallet signatures, signed steps and owner authorizations. 47 cod
 
 <span id="SIGNING_TRANSACTION_TYPE_UNSUPPORTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SIGNING_<wbr />TRANSACTION_<wbr />TYPE_<wbr />UNSUPPORTED</code> · 422 · Retry: no<br />The signed transaction is not an EIP-1559, EIP-2930 or legacy (EIP-155) transaction; blob (EIP-4844), set-code (EIP-7702) and pre-EIP-155 transactions are not relayed. Nothing was sent.<br />**Do:** Sign the step as an EIP-1559 transaction and send it again.
 
-<span id="SIGNING_WALLET_BUSY" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SIGNING_<wbr />WALLET_<wbr />BUSY</code> · 409 · Retry: no<br />Another order (orderId names it) is trading from this wallet on this network: an order holds the wallet it signs for its whole run, from its first step until it ends, because each step pins the wallet's next nonce. Two orders placed at once are told apart within seconds, the later one refused. Nothing was sent.<br />**Do:** Answer or decline that order's open step, or wait for it to end, then order again.
+<span id="SIGNING_WALLET_BUSY" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SIGNING_<wbr />WALLET_<wbr />BUSY</code> · 409 · Retry: no<br />Another order is trading from this wallet on this network: an order holds the wallet it signs for its whole run, from its first step until it ends, because each step pins the wallet's next nonce. The nonce belongs to the address, so an order of another workspace holds it too when that workspace has proven the address or has signed a step from it; one that only names an unproven address never does. orderId names the holding order when it is your workspace's; an order of another workspace is never named. Two orders placed at once are told apart within seconds, the later one refused. A step's signed transaction or signature can also get this answer when it is handed in: if an order of another workspace signed from the same address first, it holds the wallet and the later hand-in is not relayed. Nothing was sent.<br />**Do:** Answer or decline your order's open step, or wait for the other step to end, then order again.
 
 <span id="SIGNING_WALLET_FUNDS_SHORT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SIGNING_<wbr />WALLET_<wbr />FUNDS_<wbr />SHORT</code> · 409 · Retry: no<br />The wallet no longer holds what the step spends, read on the network just now: details.field is balance (the token the trade spends) or gas (the network coin for the transaction's value and gas at its signed fee). Nothing was sent.<br />**Do:** Fund the wallet, then send the order or the step again; to trade a smaller amount, request a new quote.
 
@@ -712,8 +732,6 @@ Signing grants, wallet signatures, signed steps and owner authorizations. 47 cod
 
 <span id="SIGNING_WALLET_UNSUPPORTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SIGNING_<wbr />WALLET_<wbr />UNSUPPORTED</code> · 422 · Retry: no<br />The wallet is one TetraFi signs for, and a trade the client signs from it itself is not available yet. No venue was asked.<br />**Do:** Name the wallet by its id with signer "tetrafi" to trade from it as TetraFi-signed, or name a wallet you sign yourself.
 
-<span id="STABLEFX_SIGNING_GRANT_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>STABLEFX_<wbr />SIGNING_<wbr />GRANT_<wbr />REQUIRED</code> · 409 · Retry: no<br />This wallet has no active Circle StableFX trading grant; the previous grant may have expired or been stopped. Nothing was prepared or sent.<br />**Do:** A wallet owner sets up a StableFX trading grant for this wallet in the TetraFi app; then request a new quote.
-
 <span id="TRADER_SIGNATURE_NOT_APPLICABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>TRADER_<wbr />SIGNATURE_<wbr />NOT_<wbr />APPLICABLE</code> · 400 · Retry: no<br />Only certain continuations take a traderSignature.<br />**Do:** Remove traderSignature.
 
 <span id="TRADER_SIGNATURE_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>TRADER_<wbr />SIGNATURE_<wbr />REQUIRED</code> · 409 · Retry: no<br />The continuation needs the client's trader signature.<br />**Do:** Sign traderTypedData and send it as traderSignature.
@@ -722,7 +740,9 @@ Signing grants, wallet signatures, signed steps and owner authorizations. 47 cod
 
 <Accordion title="Venues and accounts">
 
-Connecting and reading venue and LP accounts, onboarding and company details. 108 codes.
+Connecting and reading venue and LP accounts, onboarding and company details. 120 codes.
+
+<span id="ACCOUNT_DEPOSIT_HISTORY_UNSUPPORTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ACCOUNT_<wbr />DEPOSIT_<wbr />HISTORY_<wbr />UNSUPPORTED</code> · Stream event · Retry: no<br />Sent as the reason of a 200 deposit-history read's unreachable entry, never as an HTTP status: this venue offers no deposit history to read.<br />**Do:** Confirm deposits at the venue itself.
 
 <span id="ACCOUNT_NOT_AVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ACCOUNT_<wbr />NOT_<wbr />AVAILABLE</code> · 403 · Retry: no<br />The venue account the quote names is not available to this credential.<br />**Do:** Requote without that account, or use a credential that can trade on it.
 
@@ -773,6 +793,10 @@ Connecting and reading venue and LP accounts, onboarding and company details. 10
 <span id="OBSERVATION_AUTHORITY_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>OBSERVATION_<wbr />AUTHORITY_<wbr />REQUIRED</code> · 403 · Retry: no<br />The caller lacks current authority to read this.<br />**Do:** Use a credential with read access to this resource.
 
 <span id="OBSERVATION_AUTHORITY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>OBSERVATION_<wbr />AUTHORITY_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The caller's current read authority could not be checked.<br />**Do:** Retry the same request shortly, with backoff.
+
+<span id="ONBOARDED_VENUES_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ONBOARDED_<wbr />VENUES_<wbr />UNAVAILABLE</code> · Stream event · Retry: yes<br />Sent as the reason of a 200 asset list's unreachable entry (source venueEligibility), never as an HTTP status: which venues the workspace is onboarded at could not be read, so the list may be incomplete.<br />**Do:** Read the asset list again shortly.
+
+<span id="PROFILE_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>PROFILE_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The signed-in person's profile could not be read.<br />**Do:** Retry the same request shortly, with backoff.
 
 <span id="TAKER_ADMISSION_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>TAKER_<wbr />ADMISSION_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The workspace's taker admission could not be read.<br />**Do:** Retry the same request shortly, with backoff.
 
@@ -850,7 +874,13 @@ Connecting and reading venue and LP accounts, onboarding and company details. 10
 
 <span id="VENUE_FIRM_QUOTE_COUNT_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />FIRM_<wbr />QUOTE_<wbr />COUNT_<wbr />UNREADABLE</code> · 409 · Retry: yes<br />The workspace's daily firm-quote count could not be read; the price remains blocked and no new ask is sent.<br />**Do:** Try again to read the count before requesting a firm price.
 
-<span id="VENUE_FIRM_QUOTE_LIMITED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />FIRM_<wbr />QUOTE_<wbr />LIMITED</code> · 429 · Retry: yes<br />This venue's firm-quote limit is reached.<br />**Do:** Wait for the Retry-After period, then retry.
+<span id="VENUE_FIRM_QUOTE_DAILY_CAP_REACHED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />FIRM_<wbr />QUOTE_<wbr />DAILY_<wbr />CAP_<wbr />REACHED</code> · Stream event · Retry: no<br />Sent as a 200 answer's firm-quote warning code, never as an HTTP status: the venue's daily firm-quote limit is reached; used, limit and resetsAt give the count.<br />**Do:** Wait until resetsAt, or ask another venue.
+
+<span id="VENUE_FIRM_QUOTE_DAILY_NEAR_CAP" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />FIRM_<wbr />QUOTE_<wbr />DAILY_<wbr />NEAR_<wbr />CAP</code> · Stream event · Retry: no<br />Sent as a 200 answer's firm-quote warning code, never as an HTTP status: the venue's firm quotes today have reached 80% of its daily limit; used, limit and resetsAt give the count.<br />**Do:** Expect firm quotes at this venue to stop at the limit until resetsAt.
+
+<span id="VENUE_FIRM_QUOTE_DECLINED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />FIRM_<wbr />QUOTE_<wbr />DECLINED</code> · 409 · Retry: no<br />The venue declined to give a firm price for this trade; nothing was signed or sent.<br />**Do:** Get a new price, or try another amount or venue.
+
+<span id="VENUE_FIRM_QUOTE_LIMITED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />FIRM_<wbr />QUOTE_<wbr />LIMITED</code> · 429 · Retry: yes<br />This venue's firm-quote limit is reached: this caller's own share of the minute (details.scope principal, one API key or member session) or the workspace's total for the minute or the UTC day (details.scope workspace). details.limit is the cap that refused and details.resetsAt when it lifts.<br />**Do:** Wait for the Retry-After period, then retry; a principal-scope refusal does not hold back the workspace's other API keys or members.
 
 <span id="VENUE_FUNDING_BALANCE_SHORT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />FUNDING_<wbr />BALANCE_<wbr />SHORT</code> · 409 · Retry: no<br />The order chose funding: balance, but the quote's held credit decision draws credit: the venue balance is short by balanceShortfall.shortBy (balanceShortfall.asset); nothing was sent. details.cause is balanceShort.<br />**Do:** Order the same quote again with funding: credit, or lower the amount and request a new quote.
 
@@ -860,9 +890,17 @@ Connecting and reading venue and LP accounts, onboarding and company details. 10
 
 <span id="VENUE_IP_NOT_WHITELISTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />IP_<wbr />NOT_<wbr />WHITELISTED</code> · 409 · Retry: no<br />The venue has not approved this trading connection's network access; no trade was sent.<br />**Do:** Ask the workspace's venue administrator to finish the venue's network whitelist setup, then place the order again.
 
+<span id="VENUE_KEY_DAILY_LIMIT_REACHED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />KEY_<wbr />DAILY_<wbr />LIMIT_<wbr />REACHED</code> · 409 · Retry: no<br />This order would take the venue key's orders today (UTC) past the daily trade limit its owner declared on the key (tradeLimitPerDay, US dollars); nothing was sent.<br />**Do:** Lower the amount, wait for the next UTC day, or raise the key's tradeLimitPerDay by rotating the key with a higher limit.
+
+<span id="VENUE_KEY_FEE_CAP_EXCEEDED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />KEY_<wbr />FEE_<wbr />CAP_<wbr />EXCEEDED</code> · 409 · Retry: no<br />This order's expected venue fee is above the fee cap its owner declared on the venue key (feeCap, US dollars); nothing was sent.<br />**Do:** Lower the amount, or raise the key's feeCap by rotating the key with a higher cap.
+
+<span id="VENUE_KEY_FEE_NOT_KNOWN" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />KEY_<wbr />FEE_<wbr />NOT_<wbr />KNOWN</code> · 409 · Retry: no<br />The venue key declares a fee cap and this order's venue fee could not be established before sending; nothing was sent.<br />**Do:** Request a new quote; if the venue never states its fee, remove the key's feeCap by rotating the key.
+
 <span id="VENUE_KEY_IDENTITY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />KEY_<wbr />IDENTITY_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The key's venue-account identity could not be read; no identity decision was recorded.<br />**Do:** Retry verification once the venue's account identity read is available.
 
 <span id="VENUE_KEY_IP_RESTRICTION_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />KEY_<wbr />IP_<wbr />RESTRICTION_<wbr />REQUIRED</code> · 409 · Retry: no<br />The account's key does not have the required IP restriction.<br />**Do:** Apply the required IP restriction at the venue, then verify the key.
+
+<span id="VENUE_KEY_LIMITS_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />KEY_<wbr />LIMITS_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The venue key's declared trade limits or its day total could not be read; nothing was sent.<br />**Do:** Retry the same request shortly, with backoff.
 
 <span id="VENUE_KEY_REFUSED_LIKELY_IP_WHITELIST" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />KEY_<wbr />REFUSED_<wbr />LIKELY_<wbr />IP_<wbr />WHITELIST</code> · 409 · Retry: no<br />The venue refused this key; TetraFi's egress IPs may not be whitelisted.<br />**Do:** Whitelist TetraFi's current egress IPs on this key at the venue, check the key's permissions, then retry the operation.
 
@@ -892,15 +930,19 @@ Connecting and reading venue and LP accounts, onboarding and company details. 10
 
 <span id="VENUE_ROUTING_STATE_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />ROUTING_<wbr />STATE_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The venue enablement's routing state could not be read in time, so the Basic order is not placed. Nothing was placed.<br />**Do:** Retry the same request shortly, with backoff.
 
-<span id="VENUE_SENDER_NOT_WHITELISTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />SENDER_<wbr />NOT_<wbr />WHITELISTED</code> · 409 · Retry: no<br />The venue has not approved this workspace's trading executor; no trade was sent.<br />**Do:** Ask the workspace's venue administrator to finish the venue's onboarding, then place the order again.
+<span id="VENUE_SENDER_NOT_WHITELISTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />SENDER_<wbr />NOT_<wbr />WHITELISTED</code> · 409 · Retry: no<br />The venue has not whitelisted the address this trade is sent from (the paying wallet, or the workspace's trading executor); nothing was signed or sent.<br />**Do:** Ask the workspace's venue administrator to finish the venue's onboarding so it whitelists that address, or pay from a wallet the venue has whitelisted, then get a new price.
 
 <span id="VENUE_SEND_DEADLINE_UNDECLARED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />SEND_<wbr />DEADLINE_<wbr />UNDECLARED</code> · 409 · Retry: no<br />This venue declares no send deadline for its firm prices, so the order cannot be bounded; nothing was sent.<br />**Do:** Request a quote from another venue.
+
+<span id="VENUE_SIGNING_GRANT_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />SIGNING_<wbr />GRANT_<wbr />REQUIRED</code> · 409 · Retry: no<br />This wallet has no active trading grant for the venue details.venueId names; the previous grant may have expired or been stopped. Nothing was prepared or sent.<br />**Do:** A wallet owner sets up a trading grant for this wallet and that venue in the TetraFi app; then request a new quote.
 
 <span id="VENUE_TEMPORARILY_REFUSED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />TEMPORARILY_<wbr />REFUSED</code> · 503 · Retry: yes<br />The liquidity provider refused this order for now (a timeout or rate limit); the refusal is not final.<br />**Do:** Retry the same request shortly, with backoff.
 
 <span id="VENUE_TRADE_CAP_EXCEEDED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />TRADE_<wbr />CAP_<wbr />EXCEEDED</code> · 409 · Retry: no<br />The trade is above this venue's per-trade limit during its pilot; nothing was sent.<br />**Do:** Lower the amount.
 
 <span id="VENUE_TRADE_INITIATOR_NOT_PERMITTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />TRADE_<wbr />INITIATOR_<wbr />NOT_<wbr />PERMITTED</code> · 403 · Retry: no<br />The venue account refused this initiator: it is neither a current workspace member nor an active human-operated service account, with a current sponsor, acting through an unrevoked signing key that has venue trading switched on and the venue_trades_write scope. Nothing was placed.<br />**Do:** Use a current member, or a current human-operated service account's venue-trading key, and the same key for the quote and the order.
+
+<span id="VENUE_TRADE_IP_ALLOWLIST_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />TRADE_<wbr />IP_<wbr />ALLOWLIST_<wbr />REQUIRED</code> · 400, 403 · Retry: no<br />An API key with venue trading (the venue_trades_write scope) must have an IP allowlist naming its own networks: non-empty, with no entry wider than an IPv4 /8 or an IPv6 /16 (0.0.0.0/0 and ::/0 are refused). 400: a create or edit would leave such a key without one. 403: an existing such key without one is refused on every venue-trading request; nothing was placed.<br />**Do:** Add the addresses your trading server calls from to the key's ipAllowlist (for example 203.0.113.10/32), then retry.
 
 <span id="VENUE_TRADE_KEY_CHANGED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>VENUE_<wbr />TRADE_<wbr />KEY_<wbr />CHANGED</code> · 403 · Retry: no<br />The API key's venue-trading settings changed since the request was admitted.<br />**Do:** Retry so the request is admitted under the key's current settings.
 
@@ -944,7 +986,7 @@ Connecting and reading venue and LP accounts, onboarding and company details. 10
 
 <Accordion title="Wallets and custody">
 
-Organisation, personal and custody wallets, and which wallet a key may trade from. 72 codes.
+Organisation, personal and custody wallets, and which wallet a key may trade from. 80 codes.
 
 <span id="API_KEY_ORGANISATION_WALLET_AUTHORITY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>API_<wbr />KEY_<wbr />ORGANISATION_<wbr />WALLET_<wbr />AUTHORITY_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The API key's organisation-wallet grants or signing state could not be read, so the answer was refused rather than shown empty (GET /api/v1/me).<br />**Do:** Retry the same request shortly, with backoff.
 
@@ -975,6 +1017,8 @@ Organisation, personal and custody wallets, and which wallet a key may trade fro
 <span id="DELEGATION_DESTINATION_UNPINNABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>DELEGATION_<wbr />DESTINATION_<wbr />UNPINNABLE</code> · 409 · Retry: no<br />No wallet provider can limit this venue's fund calls to your own destination, so a delegated signing grant can't be set up for it and the venue was not asked. Nothing was prepared or sent.<br />**Do:** Request the route on another venue (a quote's refusal names the venues that can carry it), or trade this venue from a wallet that signs each trade itself.
 
 <span id="DESTINATION_NOT_APPROVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>DESTINATION_<wbr />NOT_<wbr />APPROVED</code> · 409 · Retry: no<br />deliverTo is not an approved withdrawal destination of the venue account. A quote source answers unavailable with it; an order or requote on that source is refused.<br />**Do:** Approve the destination on the venue account, or deliver elsewhere.
+
+<span id="ONCHAIN_MARKETS_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ONCHAIN_<wbr />MARKETS_<wbr />UNAVAILABLE</code> · Stream event · Retry: yes<br />Sent as the reason of a 200 asset list's unreachable entry (source venueEligibility), never as an HTTP status: an enabled on-chain venue's markets could not be read, so the list may be incomplete.<br />**Do:** Read the asset list again shortly.
 
 <span id="ONCHAIN_WALLET_NOT_USABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ONCHAIN_<wbr />WALLET_<wbr />NOT_<wbr />USABLE</code> · 403 · Retry: no<br />This quote is indicative because the API key cannot use the organisation wallet.<br />**Do:** Grant the key an organisation wallet before ordering, then request fresh quotes.
 
@@ -1038,9 +1082,13 @@ Organisation, personal and custody wallets, and which wallet a key may trade fro
 
 <span id="WALLET_MEMBER_CURVE_UNVERIFIED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />MEMBER_<wbr />CURVE_<wbr />UNVERIFIED</code> · 409 · Retry: no<br />A wallet named as an owner signs with a key the connection cannot verify.<br />**Do:** Name a wallet whose key the connection verifies, or a person instead.
 
+<span id="WALLET_MEMBER_FACTORS_BELOW_MINIMUM" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />MEMBER_<wbr />FACTORS_<wbr />BELOW_<wbr />MINIMUM</code> · Stream event · Retry: no<br />Sent as a 200 creation read's memberWalletUnavailable, never as an HTTP status: the reader's wallet holds fewer factors than the owner group requires of each member, so it cannot approve as a member.<br />**Do:** Add factors to that wallet, or approve as a person with your own factors.
+
 <span id="WALLET_MEMBER_KIND_NOT_OFFERED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />MEMBER_<wbr />KIND_<wbr />NOT_<wbr />OFFERED</code> · 409 · Retry: no<br />The wallet connection cannot make this kind of owner.<br />**Do:** Use an owner kind the connection offers.
 
 <span id="WALLET_MEMBER_WALLET_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />MEMBER_<wbr />WALLET_<wbr />INVALID</code> · 409 · Retry: no<br />A member wallet is named beside sign-in methods, with more than one approval, or for another person: only the person whose wallet it is names it, as their one approval.<br />**Do:** Name your own wallet as your only approval, or invite the person to pick theirs.
+
+<span id="WALLET_MEMBER_WALLET_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />MEMBER_<wbr />WALLET_<wbr />UNREADABLE</code> · Stream event · Retry: yes<br />Sent as a 200 creation read's memberWalletUnavailable or memberWalletOffersUnavailable, never as an HTTP status: the reader's own wallets could not be read, which is not the same as having none.<br />**Do:** Read the creation again shortly.
 
 <span id="WALLET_NAME_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />NAME_<wbr />INVALID</code> · 409 · Retry: no<br />The wallet's name is empty or longer than 120 characters.<br />**Do:** Name the wallet in 1 to 120 characters.
 
@@ -1068,15 +1116,23 @@ Organisation, personal and custody wallets, and which wallet a key may trade fro
 
 <span id="WALLET_NETWORK_UNSCREENED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />NETWORK_<wbr />UNSCREENED</code> · 409 · Retry: no<br />A payout from a workspace wallet on a network other than its home network needs a clear screening result of the wallet on that network, and there is none yet (or the result is under review). A custody vault is not screened per network. Nothing was recorded or sent.<br />**Do:** Try again later, or pay on a network the wallet is cleared on; TetraFi screens each network a wallet is switched on for. Contact support if it stays.
 
+<span id="WALLET_NONCE_PENDING" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />NONCE_<wbr />PENDING</code> · Stream event · Retry: no<br />Sent as a 200 venue trade's notSentCause, never as an HTTP status: an earlier transaction from the paying wallet was still unconfirmed when this trade's send window closed, so nothing was sent.<br />**Do:** Wait for the earlier transaction to confirm, then request a new quote.
+
 <span id="WALLET_NOT_LINKED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />NOT_<wbr />LINKED</code> · 422 · Retry: no<br />The funding wallet is not linked to the order's owner.<br />**Do:** Link the wallet to the owner, or use a linked one.
 
 <span id="WALLET_NOT_ON_NETWORK" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />NOT_<wbr />ON_<wbr />NETWORK</code> · 400 · Retry: no<br />The bound wallet or address is not an account on the network it was bound to.<br />**Do:** Bind a wallet registered on that network.
 
 <span id="WALLET_ORDER_SENDING" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />ORDER_<wbr />SENDING</code> · 409 · Retry: no<br />Another order from this wallet was still in its approval and debit step, and this quote had too little life left to wait for it, so this order was refused before anything was held or sent.<br />**Do:** Request a new quote, then place the order on it.
 
+<span id="WALLET_OWNERS_READ_PENDING" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />OWNERS_<wbr />READ_<wbr />PENDING</code> · Stream event · Retry: yes<br />Sent as a 200 creation read's memberWalletUnavailable, never as an HTTP status: the owners of the reader's wallet have not been read yet, so it cannot approve as a member yet.<br />**Do:** Read the creation again shortly.
+
 <span id="WALLET_OWNER_GROUP_EMPTY" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />OWNER_<wbr />GROUP_<wbr />EMPTY</code> · 409 · Retry: no<br />The owner group names no member.<br />**Do:** Name at least one owner.
 
 <span id="WALLET_OWNER_GROUP_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />OWNER_<wbr />GROUP_<wbr />INVALID</code> · 409 · Retry: no<br />The owner group cannot be used as sent.<br />**Do:** Correct the owner group as the message says, then send it again.
+
+<span id="WALLET_OWNER_MATCH_NOT_KEPT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />OWNER_<wbr />MATCH_<wbr />NOT_<wbr />KEPT</code> · Stream event · Retry: no<br />Sent as a 200 creation read's ownerMatchesUnavailable, never as an HTTP status: TetraFi keeps no proof for this person (they proved before proofs were kept, left the owners, or the wallet was retired), so their owners are not matched.<br />**Do:** The person proves their factors again on their signing page.
+
+<span id="WALLET_OWNER_MATCH_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />OWNER_<wbr />MATCH_<wbr />UNREADABLE</code> · Stream event · Retry: yes<br />Sent as a 200 creation read's ownerMatchesUnavailable, never as an HTTP status: this person's stored proofs could not be read, so their owners cannot be matched.<br />**Do:** Read the creation again shortly.
 
 <span id="WALLET_OWNER_MEMBER_DUPLICATE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />OWNER_<wbr />MEMBER_<wbr />DUPLICATE</code> · 409 · Retry: no<br />The owner group names the same person or wallet more than once.<br />**Do:** Name each owner once.
 
@@ -1086,6 +1142,8 @@ Organisation, personal and custody wallets, and which wallet a key may trade fro
 
 <span id="WALLET_PORT_NOT_IMPLEMENTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />PORT_<wbr />NOT_<wbr />IMPLEMENTED</code> · 409 · Retry: no<br />This wallet connection does not create wallets yet.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
 
+<span id="WALLET_REGISTRATION_AUTHORITY_LOST" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />REGISTRATION_<wbr />AUTHORITY_<wbr />LOST</code> · Stream event · Retry: no<br />Sent as a 200 creation read's registrationFailure, never as an HTTP status: the wallet's creator no longer holds the right to manage wallets, so the active wallet is not yet in the directory; registration is retried.<br />**Do:** Ask a workspace admin to restore the creator's right to manage wallets; registration is retried while the wallet is unregistered.
+
 <span id="WALLET_RULE_SHARED_PRINCIPAL" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />RULE_<wbr />SHARED_<wbr />PRINCIPAL</code> · 409 · Retry: no<br />Two of the factors counted toward the threshold are one sign-in at the provider, so they cannot count twice.<br />**Do:** Count such factors once, or lower the threshold.
 
 <span id="WALLET_SIGNATURE_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>WALLET_<wbr />SIGNATURE_<wbr />REQUIRED</code> · 400 · Retry: no<br />The order is missing the wallet signature the quote requires.<br />**Do:** Sign the quote's terms in the paying wallet and include the signature.
@@ -1094,7 +1152,7 @@ Organisation, personal and custody wallets, and which wallet a key may trade fro
 
 <Accordion title="Funding, balances and treasury">
 
-Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees. 46 codes.
+Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees. 50 codes.
 
 <span id="BALANCE_LIST_QUERY_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BALANCE_<wbr />LIST_<wbr />QUERY_<wbr />INVALID</code> · 400 · Retry: no<br />The balances query has an unknown or malformed parameter, an empty or over-long asset or accountId, or an accountKind other than wallet, venueAccount or bankAccount.<br />**Do:** Use only cursor, limit, asset, accountKind and accountId with valid values, then send the request again.
 
@@ -1105,6 +1163,8 @@ Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees
 <span id="BANK_DESTINATION_NOT_SCREENED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BANK_<wbr />DESTINATION_<wbr />NOT_<wbr />SCREENED</code> · 403 · Retry: no<br />The payout's bank destination has not been screened.<br />**Do:** Screen the bank destination, then place the order again.
 
 <span id="BANK_DESTINATION_SCREEN_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>BANK_<wbr />DESTINATION_<wbr />SCREEN_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The bank destination's screening could not be read; nothing was admitted.<br />**Do:** Retry the same request shortly, with backoff.
+
+<span id="DEPOSIT_HISTORY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>DEPOSIT_<wbr />HISTORY_<wbr />UNAVAILABLE</code> · Stream event · Retry: yes<br />Sent as the reason of a 200 deposit-history read's unreachable entry, never as an HTTP status: no current deposit history could be read from the venue.<br />**Do:** Read the deposit history again shortly.
 
 <span id="DEPOSIT_SCREENING_NETWORK_UNSUPPORTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>DEPOSIT_<wbr />SCREENING_<wbr />NETWORK_<wbr />UNSUPPORTED</code> · 403 · Retry: no<br />Wallet screening does not cover the sending network, so the order is refused.<br />**Do:** Send from a network that screening covers.
 
@@ -1150,6 +1210,8 @@ Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees
 
 <span id="FUNDING_DEPOSIT_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDING_<wbr />DEPOSIT_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The order's funding deposit, its state or the card's debit amount could not be read; nothing was sent.<br />**Do:** Execute again shortly, or omit fundingDepositId.
 
+<span id="FUNDING_INFORMATION_EXPIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDING_<wbr />INFORMATION_<wbr />EXPIRED</code> · Stream event · Retry: no<br />Sent as the reason of a 200 deposit-history read's unreachable entry, never as an HTTP status: the venue's deposit history, or the key's permission to read it, expired before it could be shown.<br />**Do:** Verify the venue account's key again, then read the deposit history again.
+
 <span id="FUNDING_NOT_ACCEPTED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDING_<wbr />NOT_<wbr />ACCEPTED</code> · 400 · Retry: no<br />This quote is not paid from a venue account, so it takes no funding choice or funding deposit.<br />**Do:** Remove the funding and fundingDepositId fields.
 
 <span id="FUNDING_NOT_AVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDING_<wbr />NOT_<wbr />AVAILABLE</code> · 404 · Retry: no<br />No pending funding step is available to this caller for this order.<br />**Do:** Read the order's current state; terminal orders do not offer funding data. Check the order id and workspace if no order is visible.
@@ -1158,7 +1220,11 @@ Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees
 
 <span id="FUNDING_SHORTFALL" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDING_<wbr />SHORTFALL</code> · 409 · Retry: no<br />The venue account holds less than the trade needs; nothing was sent.<br />**Do:** Fund the venue account, then request a new quote.
 
+<span id="FUNDING_SOURCE_UNRESOLVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDING_<wbr />SOURCE_<wbr />UNRESOLVED</code> · 409 · Retry: no<br />The order's funding source (the wallet and network the next step spends from) could not be resolved before the step was sent; nothing was sent.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
+
 <span id="FUNDING_STAGE_DISABLED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>FUNDING_<wbr />STAGE_<wbr />DISABLED</code> · 409 · Retry: no<br />Funding on this venue is not open; nothing was sent.<br />**Do:** Choose another venue.
+
+<span id="PAY_IN_AMOUNT_MISMATCH" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>PAY_<wbr />IN_<wbr />AMOUNT_<wbr />MISMATCH</code> · Stream event · Retry: no<br />Sent as a 200 obligation read's dueRefusal, never as an HTTP status: the on-time payment differs from the amount the obligation requires; payInDifference says by how much.<br />**Do:** Settle the difference with the counterparty; the obligation stays open until the agreed amount is recorded.
 
 <span id="PAY_IN_LEGS_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>PAY_<wbr />IN_<wbr />LEGS_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The pay-in leg could not be read.<br />**Do:** Retry the read.
 
@@ -1192,7 +1258,7 @@ Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees
 
 <Accordion title="Settlement, credit and trades">
 
-Settlement windows and obligations, credit, the ledger and trade records. 104 codes.
+Settlement windows and obligations, credit, the ledger and trade records. 105 codes.
 
 <span id="CREDIT_CUTOVER_PENDING" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CREDIT_<wbr />CUTOVER_<wbr />PENDING</code> · 429 · Retry: yes<br />The facility is fenced until its reported accounting reset.<br />**Do:** Retry after the reset time in the refusal.
 
@@ -1320,6 +1386,8 @@ Settlement windows and obligations, credit, the ledger and trade records. 104 co
 
 <span id="SETTLEMENT_MOVEMENT_NOT_FOUND" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />MOVEMENT_<wbr />NOT_<wbr />FOUND</code> · 404 · Retry: no<br />This venue account has no movement, or no window for the windowId filter, with that id.<br />**Do:** List the account's movements or windows and use an id from that list.
 
+<span id="SETTLEMENT_NOT_FOUND" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />NOT_<wbr />FOUND</code> · 404 · Retry: no<br />No settlement for this trade is visible in the workspace.<br />**Do:** Check the trade id, and that it belongs to the workspace in the path.
+
 <span id="SETTLEMENT_OBLIGATION_NOT_FOUND" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />OBLIGATION_<wbr />NOT_<wbr />FOUND</code> · 404 · Retry: no<br />This venue account has no settlement obligation with that id.<br />**Do:** List the account's obligations and use an id from that list.
 
 <span id="SETTLEMENT_OBLIGATION_READ_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />OBLIGATION_<wbr />READ_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The settlement obligations could not be read; nothing was changed.<br />**Do:** Retry the same request shortly, with backoff.
@@ -1438,7 +1506,7 @@ Creating, testing and redelivering webhook endpoints. 13 codes.
 
 <Accordion title="Compliance">
 
-Capabilities, jurisdiction, screening and compliance policy. 26 codes.
+Capabilities, jurisdiction, screening and compliance policy. 29 codes.
 
 <span id="ADDRESS_SCREEN_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ADDRESS_<wbr />SCREEN_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The sanctions address screen for the sending network could not answer; nothing was admitted.<br />**Do:** Retry the same request shortly, with backoff.
 
@@ -1449,6 +1517,8 @@ Capabilities, jurisdiction, screening and compliance policy. 26 codes.
 <span id="CAPABILITY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CAPABILITY_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />Whether the workspace can use this capability could not be read (for example BASE_PROFILE_UNREADABLE: its company details could not be read).<br />**Do:** Retry the same request shortly, with backoff.
 
 <span id="COMPLIANCE_ATTESTATION_NOT_CONFIGURED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />ATTESTATION_<wbr />NOT_<wbr />CONFIGURED</code> · 503 · Retry: no<br />On-chain compliance attestation is not configured for this route.<br />**Do:** Choose another quote; this route cannot be traded until it is configured.
+
+<span id="COMPLIANCE_CONTEXT_UNRESOLVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />CONTEXT_<wbr />UNRESOLVED</code> · 409 · Retry: no<br />The compliance re-check before sending the order's next step could not resolve its amount, network or sending address; nothing was sent.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
 
 <span id="COMPLIANCE_CREDENTIAL_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />CREDENTIAL_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The compliance credential could not be published on-chain just now.<br />**Do:** Retry the same request shortly, with backoff.
 
@@ -1466,6 +1536,8 @@ Capabilities, jurisdiction, screening and compliance policy. 26 codes.
 
 <span id="COMPLIANCE_READINESS_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />READINESS_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The wallet's compliance identity could not be prepared just now.<br />**Do:** Retry the same request shortly, with backoff.
 
+<span id="COMPLIANCE_RECHECK_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />RECHECK_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The compliance re-check before sending the order's next step could not be read or recorded; nothing was sent.<br />**Do:** Retry the same request shortly, with backoff.
+
 <span id="COMPLIANCE_SERVICE_NOT_CONFIGURED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />SERVICE_<wbr />NOT_<wbr />CONFIGURED</code> · 503 · Retry: no<br />The compliance attestation service is not configured for this route.<br />**Do:** Choose another quote; this route cannot be traded until it is configured.
 
 <span id="COMPLIANCE_SETTLEMENT_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />SETTLEMENT_<wbr />UNAVAILABLE</code> · 503 · Retry: no<br />Compliant settlement contracts are not configured for this request.<br />**Do:** Choose another quote or route.
@@ -1473,6 +1545,8 @@ Capabilities, jurisdiction, screening and compliance policy. 26 codes.
 <span id="COMPLIANCE_SNAPSHOT_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />SNAPSHOT_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The current compliance snapshot could not be read; nothing was admitted or sent.<br />**Do:** Retry the same request shortly, with backoff.
 
 <span id="COMPLIANCE_SUBJECTS_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />SUBJECTS_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The parties to screen for this order could not be read.<br />**Do:** Retry the same request shortly, with backoff.
+
+<span id="COMPLIANCE_SUBJECT_UNRESOLVED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />SUBJECT_<wbr />UNRESOLVED</code> · 409 · Retry: no<br />The compliance re-check before sending the order's next step could not resolve whose order it is; nothing was sent.<br />**Do:** Contact TetraFi support with the requestId; do not retry in a loop.
 
 <span id="COMPLIANCE_TARGET_NOT_ATTACHED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>COMPLIANCE_<wbr />TARGET_<wbr />NOT_<wbr />ATTACHED</code> · 503 · Retry: no<br />The settlement contract is not attached to the compliance service.<br />**Do:** Choose another quote.
 
@@ -1782,6 +1856,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="bondAssetUnreadable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>bondAssetUnreadable</code> · Retry: no<br />The route's bond asset could not be read.<br />**Do:** Request quotes again.
 
+<span id="bookUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>bookUnavailable</code> · Retry: yes<br />The venue's order book is not available, or is older than the venue's own freshness bound.<br />**Do:** Read prices again shortly.
+
 <span id="buyAmountUnsupported" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>buyAmountUnsupported</code> · Retry: no<br />The venue cannot quote a fixed buy amount.<br />**Do:** Set sellAmount instead.
 
 <span id="buyNetworkInvalid" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>buyNetworkInvalid</code> · Retry: no<br />The buy network could not be read.<br />**Do:** Request quotes again.
@@ -1935,6 +2011,10 @@ A source reason says why one venue did not quote; the request as a whole still s
 <span id="jurisdictionUnproven" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>jurisdictionUnproven</code> · Retry: no<br />The requester's identity country is not on record, so the quote was withheld.<br />**Do:** Complete the identity country, then request quotes again.
 
 <span id="laneNotEnabled" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>laneNotEnabled</code> · Retry: no<br />This route's lane at the venue is not enabled for Basic trading.<br />**Do:** Choose another venue or route.
+
+<span id="linkSnapshot" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>linkSnapshot</code> · Retry: yes<br />The wallet's venue links were not ready in time for this quote, so no venue was asked.<br />**Do:** Request quotes again shortly.
+
+<span id="linkWrite" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>linkWrite</code> · Retry: yes<br />The link between the wallet you named and the venue account could not be recorded right now, so no venue was asked.<br />**Do:** Request quotes again shortly.
 
 <span id="livePriceUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>livePriceUnavailable</code> · Retry: yes<br />The venue's live indicative price could not be read.<br />**Do:** Request prices again shortly.
 
@@ -2110,7 +2190,7 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="priceImpactTooHigh" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>priceImpactTooHigh</code> · Retry: no<br />The venue will not quote this size on this route because its price impact is too high.<br />**Do:** Try another amount or another venue.
 
-<span id="priceOnRequest" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>priceOnRequest</code> · Retry: no<br />The venue publishes no price; it prices when asked.<br />**Do:** Name it in filters.venues.include or requote its card.
+<span id="priceOnRequest" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>priceOnRequest</code> · Retry: no<br />The venue publishes no standing price for this route; it prices when quotes are requested.<br />**Do:** Request quotes for its price: name it in filters.venues.include, or requote its card.
 
 <span id="priceOutOfBand" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>priceOutOfBand</code> · Retry: yes<br />The provider refused this stablecoin's price because it is outside the protocol's permitted band.<br />**Do:** Request quotes again later, or choose another asset.
 
@@ -2148,11 +2228,13 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="quotePayloadNotPrepared" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>quotePayloadNotPrepared</code> · Retry: no<br />The venue's quote payload could not be prepared, so the quote was withheld.<br />**Do:** Choose another quote.
 
-<span id="quotePreparationFailed" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>quotePreparationFailed</code> · Retry: yes<br />The venue quote could not be prepared and verified (its size limits, fees or price could not be read); no quote was offered.<br />**Do:** Request quotes again.
+<span id="quotePreparationFailed" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>quotePreparationFailed</code> · Retry: yes<br />The venue quote could not be prepared and verified, for a cause with no named reason; `detail` carries its code. No quote request was sent.<br />**Do:** Request quotes again; if it repeats, contact support with the code and the quote request's id.
 
 <span id="quoteReconfirmationRequired" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>quoteReconfirmationRequired</code> · Retry: yes<br />The venue's price changed before it could be confirmed.<br />**Do:** Request quotes again.
 
 <span id="quoteRejected" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>quoteRejected</code> · Retry: yes<br />The venue declined this quote request.<br />**Do:** Request quotes again, or choose another venue.
+
+<span id="quoteRejectedCreditLine" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>quoteRejectedCreditLine</code> · Retry: no<br />The venue declined the quote: the trade is over the workspace's credit line with this credit-only venue.<br />**Do:** Refresh the account's credit, lower the amount or reduce what is owed, then request quotes again.
 
 <span id="quoteRejectedInsufficientBalance" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>quoteRejectedInsufficientBalance</code> · Retry: no<br />The venue refused the quote because the paying balance is too low.<br />**Do:** Fund the paying account or lower the amount, then request quotes again.
 
@@ -2190,6 +2272,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="routeCapacityExceeded" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>routeCapacityExceeded</code> · Retry: yes<br />The amount exceeds the venue's current capacity on this route; detail names the dollar ceiling when the venue states one.<br />**Do:** Lower the amount, choose another venue or wait for capacity.
 
+<span id="routeLegAssetUnknown" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>routeLegAssetUnknown</code> · Retry: no<br />An asset a route leg spends or delivers is not in the asset catalogue, so this route was not offered.<br />**Do:** Request quotes again, or choose another venue.
+
 <span id="routeLegNetworkUnknown" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>routeLegNetworkUnknown</code> · Retry: no<br />A route leg's network is not known.<br />**Do:** Request quotes again.
 
 <span id="routeLegUnnamed" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>routeLegUnnamed</code> · Retry: no<br />A route leg could not be identified.<br />**Do:** Request quotes again.
@@ -2217,6 +2301,10 @@ A source reason says why one venue did not quote; the request as a whole still s
 <span id="shortfallUnreadable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>shortfallUnreadable</code> · Retry: no<br />The funding shortfall could not be read.<br />**Do:** Request quotes again.
 
 <span id="sideNotAccepted" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>sideNotAccepted</code> · Retry: no<br />The venue does not accept this side for this pair.<br />**Do:** Choose another venue.
+
+<span id="signedInMember" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>signedInMember</code> · Retry: no<br />Your signed-in session does not name a member TetraFi can read, so the wallet you named could not be checked and no venue was asked.<br />**Do:** Sign in again, then request quotes again.
+
+<span id="signerAuthority" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>signerAuthority</code> · Retry: yes<br />Your right to trade from the wallet you named could not be read right now, so no venue was asked.<br />**Do:** Request quotes again shortly.
 
 <span id="signerLacksRight" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>signerLacksRight</code> · Retry: no<br />The wallet's signer lacks the right this venue needs.<br />**Do:** Grant the signer the right, or choose another wallet.
 
@@ -2253,6 +2341,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 <span id="stalePrice" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>stalePrice</code> · Retry: yes<br />The venue's price expired before it could be shown.<br />**Do:** Request quotes again.
 
 <span id="submitOrderBlocked" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>submitOrderBlocked</code> · Retry: no<br />The workspace cannot submit orders now.<br />**Do:** Resolve what blocks order submission.
+
+<span id="swapSlippageToleranceUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>swapSlippageToleranceUnavailable</code> · Retry: no<br />The workspace's swap slippage tolerance could not be read, so no minimum can be set for this swap.<br />**Do:** Set the workspace's swapSlippageToleranceBps again, then request quotes again.
 
 <span id="symbolUnsupported" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>symbolUnsupported</code> · Retry: no<br />The venue lists no market for this pair.<br />**Do:** Choose another pair or venue.
 
@@ -2306,6 +2396,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="venueConnectionStorageUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueConnectionStorageUnavailable</code> · Retry: yes<br />The venue account's quote-admission records could not be read or written.<br />**Do:** Request quotes again shortly.
 
+<span id="venueConnections" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueConnections</code> · Retry: yes<br />The workspace's venue connections could not be read right now, so no venue was asked.<br />**Do:** Request quotes again shortly.
+
 <span id="venueDailyLimitReached" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueDailyLimitReached</code> · Retry: yes<br />The provider has reached this asset's daily transfer limit; a zero limit means the asset cannot trade today.<br />**Do:** Request quotes again on a later day, or choose another provider.
 
 <span id="venueDataStale" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueDataStale</code> · Retry: yes<br />The venue could not read its own balances or prices just now.<br />**Do:** Request quotes again shortly.
@@ -2316,9 +2408,13 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="venueEnablementUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueEnablementUnavailable</code> · Retry: yes<br />The workspace's venue enablements could not be read.<br />**Do:** Request quotes again shortly.
 
+<span id="venueError" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueError</code> · Retry: no<br />The venue answered with its own error code while the quote was prepared; `detail` names the code. Nothing was sent.<br />**Do:** Contact support with the venue's code and the quote request's id.
+
 <span id="venueFeeBalanceInsufficient" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueFeeBalanceInsufficient</code> · Retry: yes<br />The provider cannot pay this book's protocol fee right now.<br />**Do:** Choose another provider, or request quotes again later.
 
 <span id="venueJurisdictionExcluded" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueJurisdictionExcluded</code> · Retry: no<br />The LP excludes an applicable incorporation, nationality or address jurisdiction; it was not asked.<br />**Do:** Choose an LP that serves the entity's recorded jurisdictions.
+
+<span id="venueKeyRefused" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueKeyRefused</code> · Retry: no<br />The venue refused this workspace's API key when it was asked; nothing was sent.<br />**Do:** Verify the key on the venue's connection page (enter it again if it was rotated or revoked), then request quotes again.
 
 <span id="venueKeyRefusedLikelyIpWhitelist" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueKeyRefusedLikelyIpWhitelist</code> · Retry: no<br />The venue refused this key; TetraFi's egress IPs may not be whitelisted.<br />**Do:** Whitelist TetraFi's current egress IPs on this key at the venue, check its permissions, then retry.
 
@@ -2327,6 +2423,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 <span id="venueMaintenance" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueMaintenance</code> · Retry: yes<br />The venue answered that it is in scheduled maintenance, so it gave no price.<br />**Do:** Request prices again once the venue's maintenance ends.
 
 <span id="venueMarketDisabled" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueMarketDisabled</code> · Retry: no<br />The venue has this market switched off.<br />**Do:** Choose another pair or venue.
+
+<span id="venueMarketOffline" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueMarketOffline</code> · Retry: yes<br />The venue lists this pair but has it offline right now; nothing was sent.<br />**Do:** Request quotes again shortly, or choose another venue.
 
 <span id="venueMarketsUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueMarketsUnavailable</code> · Retry: yes<br />The venue's market list could not be read yet.<br />**Do:** Request quotes again shortly.
 
@@ -2378,6 +2476,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="venueRoutingStateUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueRoutingStateUnavailable</code> · Retry: yes<br />Whether order routing to this venue is on could not be read.<br />**Do:** Request quotes again shortly.
 
+<span id="venueSiteUnqualified" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueSiteUnqualified</code> · Retry: no<br />The venue's market source has no qualified site for this deployment, so it publishes no price here.<br />**Do:** Contact support with the request id.
+
 <span id="venueTradeCapExceeded" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueTradeCapExceeded</code> · Retry: no<br />The amount is above the venue's pilot trade cap.<br />**Do:** Lower the amount.
 
 <span id="venueTradeKeyUnavailable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueTradeKeyUnavailable</code> · Retry: yes<br />The API key's venue-trading settings could not be read.<br />**Do:** Request quotes again shortly.
@@ -2392,13 +2492,15 @@ A source reason says why one venue did not quote; the request as a whole still s
 
 <span id="venueWithdrawalDestinationNotWhitelisted" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueWithdrawalDestinationNotWhitelisted</code> · Retry: no<br />The venue refused a withdrawal destination that is not whitelisted.<br />**Do:** Whitelist this destination address at the venue, then retry the withdrawal.
 
+<span id="walletAccountMissing" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletAccountMissing</code> · Retry: no<br />The wallet you named has no trading account record, so no venue was asked.<br />**Do:** Add the wallet in Treasury again or name another wallet, then request quotes again.
+
 <span id="walletBalanceInsufficient" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletBalanceInsufficient</code> · Retry: no<br />The paying wallet does not hold enough of the paying asset for this swap.<br />**Do:** Fund the wallet or lower the amount, then request quotes again.
 
 <span id="walletBlacklisted" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletBlacklisted</code> · Retry: no<br />The protocol or provider has blacklisted this wallet.<br />**Do:** Choose another wallet.
 
 <span id="walletBrowserSigningEvmOnly" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletBrowserSigningEvmOnly</code> · Retry: no<br />One side of the transfer is a wallet signed in the browser on a network other than EVM; browser signing sends EVM transactions only. Nothing was asked or sent.<br />**Do:** Choose an organisation wallet for that side in the venue's activation (its Wallets step), then request quotes again.
 
-<span id="walletBusy" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletBusy</code> · Retry: yes<br />Another order is trading from the wallet the client signs on this network; the card still prices, and an order on it is refused SIGNING_WALLET_BUSY until that order ends.<br />**Do:** Answer or decline the other order's open step, or wait for it to end, then request quotes again.
+<span id="walletBusy" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletBusy</code> · Retry: yes<br />Another order (of this workspace, or of another workspace that has proven the address or signed from it) is trading from the wallet the client signs on this network; the card still prices, and an order on it is refused SIGNING_WALLET_BUSY until that order ends.<br />**Do:** Answer or decline the other order's open step, or wait for it to end, then request quotes again.
 
 <span id="walletFundsInsufficient" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletFundsInsufficient</code> · Retry: no<br />The paying wallet lacks the paying token or the network coin for transaction and account-creation costs; nothing was sent.<br />**Do:** Fund the wallet, then request quotes again.
 
@@ -2407,6 +2509,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 <span id="walletHasNoAddress" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletHasNoAddress</code> · Retry: no<br />The bound wallet has no address on this network.<br />**Do:** Bind a wallet with an address on the network.
 
 <span id="walletNetworkMismatch" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletNetworkMismatch</code> · Retry: no<br />The saved wallet is registered on a different network.<br />**Do:** Choose a wallet on this network.
+
+<span id="walletNetworks" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletNetworks</code> · Retry: yes<br />The networks switched on for the wallet you named could not be read right now, so no venue was asked.<br />**Do:** Request quotes again shortly.
 
 <span id="walletNotOnNetwork" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletNotOnNetwork</code> · Retry: no<br />The chosen wallet is registered on another network, so the venue was not asked.<br />**Do:** Choose a wallet on this network.
 
@@ -2423,6 +2527,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 <span id="walletQuorumTooSlow" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletQuorumTooSlow</code> · Retry: no<br />The venue needs a wallet that can sign the swap within about 20 s; this wallet needs more than one approver.<br />**Do:** Choose a wallet one person can sign for.
 
 <span id="walletQuorumUnreadable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletQuorumUnreadable</code> · Retry: yes<br />The wallet's approval quorum could not be read, so the venue was not asked.<br />**Do:** Request quotes again shortly.
+
+<span id="walletRead" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletRead</code> · Retry: yes<br />The wallet you named could not be read right now, so no venue was asked.<br />**Do:** Request quotes again shortly.
 
 <span id="walletRefused" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>walletRefused</code> · Retry: no<br />The bound wallet cannot trade on this venue.<br />**Do:** Bind another wallet.
 

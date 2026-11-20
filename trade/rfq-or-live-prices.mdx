@@ -1,0 +1,48 @@
+---
+title: "Request for quote or Live prices"
+description: "Two ways to trade a desk venue: request a quote and order it by quoteId, or order a streamed Live price by its priceId. When to use which."
+keywords: ["Request for quote", "Live prices", "RFQ", "streaming", "firm", "executable", "latency", "minReceive", "firm-quote limit"]
+---
+
+A desk venue can be traded two ways. **Request for quote** asks the venue for your exact trade and holds its answer. **Live prices** orders the price the venue is already streaming, in one call. Both end as the same order of that venue, followed the same way.
+
+## At a glance
+
+| | Request for quote | Live prices |
+| --- | --- | --- |
+| Calls | `POST /api/v1/quotes`, then `POST /api/v1/orders {kind: "quote", quoteId}` | `GET /api/v1/prices`, then `POST /api/v1/orders {kind: "stream", priceId}` |
+| Speed | A venue round trip for the quote, then the order | No quote request: the order is the only call that asks the venue |
+| Price certainty | A firm quote delivers exactly `buy.amount` until `expiresAt` | Executable, not firm: the price can move between your read and your order |
+| Your protection | The quote's terms; `minReceive` where the quote asks for it | Your `minReceive` or `slippageBps`, always: the order fills at or above it, or not at all |
+| How long you have | Until the quote's `expiresAt` | The row's `validFor`, a few seconds |
+| Firm-quote budget | Each firm ask counts against the venue's day budget | Reads streamed prices, so watching the market spends no firm ask |
+| Venues | Every venue | Desks that stream executable prices to your connection (`tradable: true`) |
+
+## Which to use
+
+<AccordionGroup>
+  <Accordion title="Use Request for quote when">
+    - you need a price that will not move while you decide, or must show a person the exact amount before they accept;
+    - the size is larger than the venue streams, or the row reads `sizeNotStreamed` or `quoteOnly`;
+    - you compare every venue, on chain and off, for one trade.
+  </Accordion>
+  <Accordion title="Use Live prices when">
+    - you trade often, or quickly, and a few basis points of movement inside your limit are acceptable;
+    - you watch a desk's prices continuously and want to act on the one you see;
+    - you would otherwise spend firm quotes to watch the market. B2C2, for example, allows a workspace 200 firm quotes per UTC day.
+  </Accordion>
+  <Accordion title="What is the same">
+    The same permission (Place orders), `Idempotency-Key` rules, order resource, statuses and refusals of the venue. A stream order is recorded with `operation.placedFrom: "stream"`, and a quote order with `quote`.
+  </Accordion>
+</AccordionGroup>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Request for quote" icon="magnifying-glass" href="/trade/request-for-quote">
+    Request quotes for your exact trade and order one by its id.
+  </Card>
+  <Card title="Live prices" icon="bolt" href="/trade/live-prices">
+    Read a tradable row and order its priceId with your limit.
+  </Card>
+</CardGroup>

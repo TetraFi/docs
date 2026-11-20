@@ -269,7 +269,7 @@ results=$(jq -c --argjson q "$quote_events" --argjson s "$source_events" \
 
 # region search-prices
 # Prices for the pair from memory: no venue is asked, so it costs no quote request.
-# Each row is one venue, location and variant pair. Rows are indicative, never orderable.
+# Each row is one venue, location and variant pair. Only a tradable row can be ordered (Live prices).
 path="/api/v1/prices?sell=$sell&buy=$buy&sellAmount=$amount"
 prices=$(tetrafi GET "$path")
 jq -c '{referenceMid: .referenceMid.buyPerSell, rows: [.rows[] | {venue: .venue.id,

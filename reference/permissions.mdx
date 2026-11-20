@@ -25,10 +25,10 @@ Each API operation below lists the API-key scopes it needs. A key names its scop
 | `affiliations_write` | Write affiliations | Read, create, update and detach broker affiliations. |
 | `alerts_read` | Read alerts | Read expiry alerts (alerts with source=expiry). |
 | `analytics_read` | Read analytics | Read population analytics and workspace-wide flow totals. |
-| `capabilities_read` | Read capabilities | Read one workspace capability decision. |
+| `capabilities_read` | Read capabilities | Read the workspace capability snapshot and each capability decision. The KYB record is withheld from every key. |
 | `companies_read` | Read companies | Read affiliated companies and sub-workspaces. |
 | `companies_write` | Write companies | Create sub-workspaces and manage affiliations. |
-| `compliance_read` | Read compliance | Read compliance events, policy and the workspace capability snapshot. |
+| `compliance_read` | Read compliance | Read compliance events and policy, and the workspace capability snapshot (also read with capabilities_read). |
 | `compliance_write` | Write compliance | Change the compliance policy and act on compliance events. |
 | `contract_registry_write` | Write contract registry | Publish, promote and reconcile the contract registry. Platform credentials only, held alone. |
 | `counterparties_read` | Read counterparties | Read the counterparty directory (counterparties with view=directory). |
@@ -62,7 +62,7 @@ Each API operation below lists the API-key scopes it needs. A key names its scop
 | `users_read` | Read users | Read the broker's users, direct users included. |
 | `users_write` | Write users | Onboard direct users into the broker's umbrella. |
 | `venue_code_suggestions_write` | Write venue code suggestions | Replace the asset identity importer's venue code suggestions and read the venue code review list. Platform credentials only, held alone, always with an expiry of at most 90 days. Like every key, it can also read its own identity (GET /api/v1/me). |
-| `venue_trades_write` | Write venue trades | Quote and trade on the workspace's own venue accounts. Needs a signing key with its venue switch on. |
+| `venue_trades_write` | Write venue trades | Quote and trade on the workspace's own venue accounts. Needs a signing key with its venue switch on and a non-empty IP allowlist. |
 | `webhooks_write` | Write webhooks | Manage webhook endpoints, test them and read or retry their deliveries. |
 
 ## Operations
@@ -87,6 +87,7 @@ Discover the assets, chains and venues you can trade, and read or stream their i
 | Operation | API-key scopes | Scope label |
 | :--- | :--- | :--- |
 | List assets<br />GET `/api/v1/assets` | `prices_read` | Read prices |
+| List pairs<br />GET `/api/v1/pairs` | `prices_read` | Read prices |
 | Get prices<br />GET `/api/v1/prices` | `prices_read` | Read prices |
 | Stream prices<br />GET `/api/v1/prices/stream` | `prices_read` | Read prices |
 
@@ -213,7 +214,7 @@ The workspace's verification state, the capabilities it allows, and its fee sche
 
 | Operation | API-key scopes | Scope label |
 | :--- | :--- | :--- |
-| Get capabilities<br />GET `/api/v1/workspaces/{workspaceId}/capabilities` | `compliance_read` | Read compliance |
+| Get capabilities<br />GET `/api/v1/workspaces/{workspaceId}/capabilities` | `compliance_read` or `capabilities_read` | Read compliance or Read capabilities |
 | Get fee schedule<br />GET `/api/v1/workspaces/{workspaceId}/fee-schedule` | `fee_schedule_read` | Read fee schedule |
 
 </Accordion>

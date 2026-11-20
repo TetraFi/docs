@@ -226,22 +226,22 @@ function errorCodesPage() {
       'EMAIL', 'EXPORT', 'FORBIDDEN', 'IDEMPOTENCY', 'IDEMPOTENT', 'INCLUDE', 'INSUFFICIENT_PERMISSION', 'INSUFFICIENT_SCOPE',
       'INSUFFICIENT_WORKSPACE_PERMISSION', 'INTEGRATION', 'INVALID', 'IP', 'JWT', 'KEY', 'METADATA', 'METHOD', 'MFA', 'MISSING',
       'LIMIT', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
-      'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
+      'SECOND_PROOF', 'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
     ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
-      'ACROSS', 'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BUDGET', 'CCTP', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'DELIVER',
-      'DESK', 'EXACT', 'MORE', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'RELAY_FEE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
+      'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BRIDGE', 'BUDGET', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'COUNTERPARTY_NOT_READY', 'DELIVER',
+      'DESK', 'EXACT', 'MORE', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
       'UNKNOWN', 'USABLE', 'VENUE_QUOTE_RATE_LIMITED']],
     ['Orders', 'Placing, following and cancelling an order: minimum receive, slippage, caps, the source it trades from and its execution.', [
       'ADVANCED', 'BROWSER', 'CLIENT', 'DIRECT', 'EXECUTION', 'FIRM', 'HELD', 'HIGH', 'INSUFFICIENT_BALANCE', 'INSUFFICIENT_LIQUIDITY',
-      'INSUFFICIENT_LP_BALANCE', 'LEGACY', 'MIN', 'OPERATION', 'ORDER', 'PERIOD', 'PILOT', 'PREFLIGHT', 'PRICE', 'RECORDED', 'RELAY',
-      'RECOVERY', 'REFIRM', 'REPRICING', 'ROUTE', 'SELF', 'SOURCE', 'SUBMIT', 'TRADING', 'TRANSPORT', 'VENUE_QUOTE', 'WORKSPACE_ORDER_PLACING',
+      'INSUFFICIENT_LP_BALANCE', 'LEGACY', 'MIN', 'OPERATION', 'ORDER', 'PERIOD', 'PILOT', 'PREFLIGHT', 'PRICE', 'RECORDED',
+      'RECOVERY', 'REFIRM', 'REPLACEMENT', 'REPRICING', 'ROUTE', 'SELF', 'SOURCE', 'SUBMIT', 'SWAP', 'TRADING', 'TRANSPORT', 'VENUE_QUOTE', 'WORKSPACE_ORDER_PLACING',
       'WORKSPACE_SLIPPAGE']],
     ['Signing and grants', 'Signing grants, wallet signatures, signed steps and owner authorizations.', [
       'EIP712', 'EXPIRED', 'FUNDER', 'GRANT', 'NATIVE', 'OWNER', 'PERMIT', 'RELEASE', 'SIGNATURE', 'SIGNED', 'SIGNER', 'SIGNING',
-      'STABLEFX', 'STEP', 'TRADER']],
+      'STEP', 'TRADER']],
     ['Venues and accounts', 'Connecting and reading venue and LP accounts, onboarding and company details.', [
       'ACCOUNT', 'ACTIVATION', 'AGENT', 'BASE', 'COMPANY', 'COUNTERPARTY_STANDING', 'EDD', 'INVENTORY', 'KYC', 'LP', 'OBSERVATION',
-      'TAKER', 'VENUE']],
+      'ONBOARDED', 'PROFILE', 'TAKER', 'VENUE']],
     ['Wallets and custody', 'Organisation, personal and custody wallets, and which wallet a key may trade from.', [
       'API_KEY_ORGANISATION_WALLET', 'API_KEY_WALLET', 'AUTO', 'CUSTODY', 'DELEGATION', 'DESTINATION', 'ONCHAIN', 'PERSONAL', 'TARGET',
       'WALLET']],
@@ -561,6 +561,7 @@ const ENDPOINT_GROUPS = [
 // An operation whose guide is not its group's.
 const ENDPOINT_GUIDES = {
   'GET /api/v1/assets': '/search/how-it-works',
+  'GET /api/v1/pairs': '/search/how-it-works',
   'GET /api/v1/quotes/requests/{quoteRequestId}': '/search/how-it-works',
   'GET /api/v1/orders': '/trade/order-status',
   'GET /api/v1/orders/{orderId}': '/trade/order-status',

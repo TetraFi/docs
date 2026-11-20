@@ -19,7 +19,7 @@ Both need [Read quotes](/authentication#permissions) (`prices_read`).
 
 - Use prices to show prices, size a trade or choose venues, then [request quotes](/search/how-it-works) to trade.
 - No venue is asked, so it is fast and does not use the [quote limit](/reference/rate-limits).
-- A price is never firm: no row has `quality: firm`. Order a quote's `id`. Ordering a price row directly, with [`POST /api/v1/orders`](/api-reference/orders/place-order) `{kind: "stream", priceId}`, is rolling out, not live yet: the venue is asked for that exact size, within your `minReceive` or `slippageBps`.
+- A price is never firm: no row has `quality: firm`. A row with `tradable: true` can be ordered directly by its `priceId`, within your `minReceive` or `slippageBps` ([Live prices](/trade/live-prices)); every other row is traded through a [quote](/trade/request-for-quote).
 - A venue that publishes no price (`priceSourceNone`) answers only a quote request.
 
 <SearchPrices />

@@ -87,24 +87,16 @@ jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then 
 # endregion
 
 # region venue-deposit-history
-# GET …/deposit-instructions lists the asset and network pairs the account takes deposits on
-# (options); GET …/deposit-history?asset=…&network=… lists the deposits the venue credited on one
-# of them. An empty items is a read that found none only when unreachable is empty; otherwise the history
-# was not read and unreachable says why. include=observation returns this read's own window and status.
-instructions=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-instructions")
-read -r asset network < <(jq -r '(.options // [])[0] | "\(.asset // "") \(.network // "")"' <<<"$instructions")
-if [[ -z $asset ]]; then
-  # A venue that declares no deposit network answers options [] and names its assets in
-  # unconfirmedNetworkAssets: ask for one of them on a network GET /api/v1/assets lists for it.
-  asset=$(jq -r '.unconfirmedNetworkAssets // [] | if index("USDC") then "USDC" else .[0] // "" end' <<<"$instructions")
-  network=$(tetrafi GET /api/v1/assets | jq -r --arg a "$asset" 'first(.items[] | select(.asset == $a)
-    | .variants[] | select(.kind == "native") | .deployments[] | .network) // ""')
-fi
-[[ -n $asset && -n $network ]] || fail NO_DEPOSIT_OPTION
-history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?asset=$asset&network=$network&include=observation")
-jq -c --arg account "$account" '(.included.observation[$account].value // {}) as $o
-  | {asset: $o.asset, network: $o.network, status: $o.status, since: $o.since, until: $o.until,
-     deposits: (.items | length), unreachable: [.unreachable[] | .reason]}' <<<"$history" >&2
+# GET …/deposit-history lists the deposits the venue credited, every asset and network in one request:
+# omit asset and network for the whole account, or pass comma lists (asset=USDC,USDT&network=eip155:1).
+# Each credit names its asset and network (null for an asset the venue declares no network for, read by
+# asset only). An empty items is a read that found none only for pairs absent from unreachable; a pair
+# that was not read has an unreachable entry whose id is the pair and whose reason says why.
+# include=observation returns each pair's own window and status, keyed by the same pair id.
+history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?include=observation")
+jq -c '{deposits: (.items | length),
+  pairs: [.included.observation | to_entries[] | {pair: .key, status: .value.status, since: .value.since}],
+  unreachable: [.unreachable[] | {id, reason}]}' <<<"$history" >&2
 # endregion
 
 jq -e 'has("balances") and has("status") and has("observedAt")' <<<"$balances" >/dev/null || fail BALANCES_SHAPE

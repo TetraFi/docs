@@ -1,0 +1,102 @@
+---
+title: "Live prices"
+description: "Order a desk's streamed executable price directly by its priceId, inside a minimum receive you set, without requesting a quote first."
+keywords: ["Live prices", "priceId", "stream order", "kind stream", "validFor", "executable price", "minReceive", "slippageBps", "fill-or-kill"]
+---
+
+import StreamOrderPrice from '/snippets/samples/stream-order-price.mdx';
+import StreamOrderPlace from '/snippets/samples/stream-order-place.mdx';
+
+Some desks stream executable prices. Read one from [`GET /api/v1/prices`](/api-reference/trading/get-prices) and order it by its `priceId`: one call, no quote request. The price is executable, not firm, so you set the least you accept and the order fills at or above it, or not at all.
+
+Not sure this is the right flow? [Request for quote or Live prices](/trade/rfq-or-live-prices).
+
+## At a glance
+
+| Step | Call |
+| --- | --- |
+| Read a tradable row | `GET /api/v1/prices?sell=…&buy=…&sizes=…` (Read quotes, `prices_read`) |
+| Order it | [`POST /api/v1/orders`](/api-reference/orders/place-order) `{kind: "stream", priceId, slippageBps}` (Place orders, `orders_write`) |
+| Follow it | `statusUrl`, as for any order ([Order status](/trade/order-status)) |
+
+## Order a Live price
+
+<Steps>
+  <Step title="Read Live prices for your size">
+    Pass the amount you sell in `sizes`. A row with `tradable: true` has a `priceId` on each size its venue streams; order it within `validFor` seconds.
+
+    <StreamOrderPrice />
+
+    <Accordion title="Row fields">
+      <ResponseField name="tradable" type="boolean">`true` when at least one size carries a `priceId`. Only a venue that streams executable all-in prices to your workspace's own connection is tradable; every other venue is traded through a quote.</ResponseField>
+      <ResponseField name="sizes[].priceId" type="string | null">The id that trades exactly this size at this price. It is bound to your workspace.</ResponseField>
+      <ResponseField name="validFor" type="integer | null">Whole seconds, at `computedAt`, that the row's ids may still be ordered, a few seconds. Each `priceId` carries its own expiry, which is what the order is judged by.</ResponseField>
+      <ResponseField name="notTradableReason" type="string | null">Why a row cannot be ordered: `quoteOnly` (the venue trades through quotes), `notPriced`, `sellAmountOnly`, `sizeNotStreamed` (the venue streams no full price for that size), `priceIdUnavailable` or `priceExpired`. An open set: treat an unknown value as other.</ResponseField>
+    </Accordion>
+  </Step>
+  <Step title="Order the priceId with your limit">
+    Send exactly one limit: `slippageBps` (0 to 9999, below the receive amount the price states, rounded up to the asset's precision) or `minReceive` (an exact amount). Keep one `Idempotency-Key` with the body, as for a [quote order](/trade/orders#retries-and-recovery).
+
+    <StreamOrderPlace />
+
+    <Accordion title="Order fields">
+      <ParamField body="kind" type="string" required>`stream`.</ParamField>
+      <ParamField body="priceId" type="string" required>A tradable row's id for one size, as returned.</ParamField>
+      <ParamField body="minReceive" type="string">The least you accept to receive, in units of the asset you buy. Send this or `slippageBps`.</ParamField>
+      <ParamField body="slippageBps" type="integer">Your tolerance below the price's receive amount, in basis points.</ParamField>
+      <ParamField body="acknowledgeHighSlippage" type="boolean">`true` to accept a limit more than 10% below the venue's receive amount.</ParamField>
+      <ParamField body="clientOrderId" type="string">Your reference, 1 to 64 letters, digits, underscores or hyphens.</ParamField>
+    </Accordion>
+  </Step>
+  <Step title="Follow it to the end">
+    From here it is an ordinary order of that venue: `operation.placedFrom` reads `stream`. It ends filled, or unfilled with the reason in `operation.dispatch.noFillReason` (for example `priceMoved`) and the remedy in `operation.dispatch.remediation` ([Order status](/trade/order-status)).
+  </Step>
+</Steps>
+
+## What TetraFi checks
+
+<AccordionGroup>
+  <Accordion title="One order per priceId">
+    A `priceId` orders once. Ordering it again answers `409 QUOTE_ALREADY_ORDERED` with `details.orderId` naming the first order: read that order, do not place it again. A retry with the same `Idempotency-Key` and body returns the first answer instead.
+  </Accordion>
+  <Accordion title="Your minimum receive">
+    TetraFi asks the venue for your exact size at the moment you order and sends a fill-or-kill order with your minimum as its limit. You never receive less. If the venue's price is already below your minimum, nothing is sent: `409 VENUE_QUOTE_OUTSIDE_BOUNDS` with `details.remediation`, either `widenLimit` (with `details.currentReceive` and `details.requiredSlippageBps`) or `requote`. If an order could not be sent in time, TetraFi tries once more, still inside your limit.
+  </Accordion>
+  <Accordion title="Step-up in a signed-in session">
+    API keys are never asked to step up. A signed-in member who turned on the check for orders is refused `403 STEP_UP_REQUIRED` with `details.stepUpSubject`, which names the venue, the pair and the size. The proof, sent in `X-Step-Up-Proof`, covers those terms only: a proof for another size answers `STEP_UP_SUBJECT_MISMATCH`, and a used proof `STEP_UP_ALREADY_USED`.
+  </Accordion>
+</AccordionGroup>
+
+## Refusals
+
+<Accordion title="Live prices order refusals">
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| `400 PRICE_ID_INVALID` | The `priceId` was altered, or issued to another workspace. Nothing was sent. Read Live prices again and order an id as returned. |
+| `400 INVALID_REQUEST` | No limit, both limits, or an unknown field (`details.field`). Send `kind`, `priceId` and one limit. |
+| `409 PRICE_EXPIRED` | The id's `validFor` lapsed before the order arrived. Nothing was sent. Read Live prices again and order at once. |
+| `409 QUOTE_ALREADY_ORDERED` | The id was already ordered; `details.orderId` names that order. |
+| `409 VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's price is below your minimum. Nothing was sent. Act on `details.remediation`. |
+| `409 VENUE_QUOTE_NOT_PRICED` | The venue gave no price for your size; `details.cause` says why, for example `firmQuoteLimited`. Read Live prices again. |
+| `422 HIGH_SLIPPAGE_ACK_REQUIRED` | Your limit is more than 10% below the venue's receive amount. Add `acknowledgeHighSlippage: true`, or tighten it. |
+| `503 PRICE_ID_UNAVAILABLE` | The id could not be checked right now. Nothing was sent. Retry the same request shortly, with backoff. |
+
+Every other refusal is that of a quote order: [Place an order](/api-reference/orders/place-order).
+
+</Accordion>
+
+<Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/stream-order.sh">
+  Reads Live prices for one size and, with `TETRAFI_PLACE_ORDER=1`, orders the tradable row and follows the order.
+</Card>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Request for quote" icon="magnifying-glass" href="/trade/request-for-quote">
+    Get a firm price for your exact trade, held until it expires.
+  </Card>
+  <Card title="Order status" icon="list-check" href="/trade/order-status">
+    Follow an order to its end and read why it did not fill.
+  </Card>
+</CardGroup>
