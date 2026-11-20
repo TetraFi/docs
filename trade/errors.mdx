@@ -14,6 +14,7 @@ Every refusal, `413` and `415` included, is one JSON shape: match on `error`, an
 | Answer | What to do |
 | --- | --- |
 | An order fails or times out | It may be placed: [recover it by its quote](/trade/orders#retries-and-recovery); never resend with a new key. |
+| An order refusal | Read `details.placementEffect`: `noOrder` means this request placed nothing; if an earlier attempt with the same Idempotency-Key or quote may have been sent, recover it first. `uncertain`, absent or a value you do not know means an order may exist, so recover it by its quote before sending another; never resend it with a new Idempotency-Key. Never decide from the status: a `4xx` can follow a send. |
 | `409` conflict | Change the state first. Retry only where the code says, such as `ORDER_IN_PROGRESS`. |
 | `429` | Wait `Retry-After` ([Rate limits](/reference/rate-limits)), unless the code says otherwise. |
 | `503` | Retry after `Retry-After`, else after a second or two with backoff, signing again. |

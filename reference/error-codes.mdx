@@ -406,7 +406,7 @@ Signing grants, wallet signatures, signed steps and owner authorizations. 47 cod
 
 <Accordion title="Venues and accounts">
 
-Connecting and reading venue and LP accounts, onboarding and company details. 107 codes.
+Connecting and reading venue and LP accounts, onboarding and company details. 108 codes.
 
 | Code | Status | What it means, and what to do | Retry |
 | :--- | :--- | :--- | :--- |
@@ -506,6 +506,7 @@ Connecting and reading venue and LP accounts, onboarding and company details. 10
 | <span id="VENUE_TRADE_KEY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span>`VENUE_TRADE_KEY_UNAVAILABLE` | 503 | The API key's venue-trading settings could not be read.<br />**Do:** Retry the same request shortly, with backoff. | Yes |
 | <span id="VENUE_TRADE_PAYOUT_DESTINATION_CHANGED" style={{ scrollMarginTop: '10rem' }}></span>`VENUE_TRADE_PAYOUT_DESTINATION_CHANGED` | 409 | The payout destination changed after the trade was prepared.<br />**Do:** Prepare the trade again. | No |
 | <span id="VENUE_TRADE_PAYOUT_FEE_INVALID" style={{ scrollMarginTop: '10rem' }}></span>`VENUE_TRADE_PAYOUT_FEE_INVALID` | 422 | The payout fee is not valid for the venue's precision.<br />**Do:** Request a new quote. | No |
+| <span id="VENUE_TRADE_PREPARATION_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span>`VENUE_TRADE_PREPARATION_UNAVAILABLE` | 503 | The venue trade could not be read or its outcome could not be recorded, possibly after the order reached the venue (details.placementEffect uncertain): an order may exist.<br />**Do:** Read the order back by its quote (GET /api/v1/orders/by-quote/&#123;quoteId&#125;) before sending another, and never resend it with a new Idempotency-Key; a retry with the same key answers IDEMPOTENCY_OUTCOME_UNKNOWN. | No |
 | <span id="VENUE_TRADE_RECONFIRMATION_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span>`VENUE_TRADE_RECONFIRMATION_REQUIRED` | 409 | This confirmation placed no order; the trade needs a fresh quote accepted.<br />**Do:** Request a fresh quote and accept it. | No |
 | <span id="VENUE_TRADE_REVIEW_EXPIRED" style={{ scrollMarginTop: '10rem' }}></span>`VENUE_TRADE_REVIEW_EXPIRED` | 409 | The trade's review expired; nothing was sent.<br />**Do:** Prepare the trade again for a new review. | No |
 | <span id="VENUE_TRADE_REVIEW_PENDING" style={{ scrollMarginTop: '10rem' }}></span>`VENUE_TRADE_REVIEW_PENDING` | 409 | The trade waits for a human approval on its venue trade review; nothing was sent.<br />**Do:** Wait for a human member to approve the review, then confirm again. | No |

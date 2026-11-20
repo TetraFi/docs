@@ -362,6 +362,18 @@
               "null"
             ]
           },
+          "placementEffect": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlacementEffect",
+                "description": "Every `POST /orders` refusal: whether this request placed anything. Only `noOrder` proves\nit placed nothing; `uncertain`, an absent field or a value you do not know means an order\nmay exist. Never infer it from the HTTP status: a `4xx` can follow a send."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "reason": {
             "anyOf": [
               {
@@ -2669,6 +2681,10 @@
             ],
             "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
+          "placedFrom": {
+            "$ref": "#/components/schemas/VenueTradePlacedFrom",
+            "description": "How the order was placed: `quote` (a held quote) or `stream` (a Live prices row);\n`unrecorded` for a trade placed before this was recorded or outside `POST /orders`,\nnever to be read as a quote order. The order read's `operation.placedFrom`. Treat the set as open."
+          },
           "providerSite": {
             "description": "Exact provider site selected for this venue trade.",
             "type": "string"
@@ -2822,6 +2838,7 @@
           "submittedByYou",
           "sell",
           "buy",
+          "placedFrom",
           "executionStatus",
           "lifecycleStatus",
           "settlementFacts"
@@ -13275,7 +13292,7 @@
             "type": "object"
           }
         ],
-        "description": "One venue's quote for the pair. Core price, identity and progress facts are always\npresent; venue-specific details are omitted when absent. Core timing fields that\ndo not apply to the quote's firmness remain `null`:\n\n| field | indicative | executable, firm | executable, non-firm |\n|---|---|---|---|\n| `quality` | indicative | firm | executable |\n| `expiresAt` | null | set | set |\n| `minOut` | null | null | set |\n| `observedAt`, `staleAfter` | set | null | null |\n\nA stub (`sources[].priceOnRequest`) is indicative with `null` amounts.\n\nThe example is an executable non-firm quote: 10000 USDC paid,\n`buy.amount` 9996.0 USDT lands after the included 4.0 USDT provider fee;\n`netReceived` 9994.8 also subtracts the 0.0004 ETH network fee the taker pays\nseparately (`included: false`, about 1.2 USDT at the Reference mid), so it is lower\nthan `buy.amount`; `minOut` 9966.01 (30 bps) bounds `buy.amount`, not\n`netReceived`.",
+        "description": "One venue's quote for the pair. Core price, identity and progress facts are always\npresent; venue-specific details are omitted when absent. Core timing fields that\ndo not apply to the quote's firmness remain `null`:\n\n| field | indicative | executable, firm | executable, non-firm |\n|---|---|---|---|\n| `quality` | indicative | firm | executable |\n| `expiresAt` | null | set | set |\n| `minOut` | null | null | set |\n| `observedAt`, `staleAfter` | set | null | null |\n\nA stub (`sources[].priceOnRequest`) is indicative with `null` amounts.\n\nThe example is an executable non-firm quote: 10000 USDC paid,\n`buy.amount` 9996.0 USDT lands after the included 4.0 USDT provider fee;\n`netReceived` 9994.8 also subtracts the 0.0004 ETH network fee the taker pays\nseparately (`included: false`, about 1.2 USDT at the Reference mid), so it is lower\nthan `buy.amount`; `minOut` 9966.012 (30 bps, at USDT's 6 places) bounds `buy.amount`, not\n`netReceived`.",
         "example": {
           "advisories": [],
           "basis": "liveQuote",
@@ -13370,7 +13387,7 @@
           "location": {
             "kind": "crossChain"
           },
-          "minOut": "9966.01",
+          "minOut": "9966.012",
           "minReceiveRequired": false,
           "netReceived": {
             "amount": "9994.8",
@@ -14104,6 +14121,22 @@
           }
         ],
         "description": "New values may be added; treat unknown values as other.",
+        "x-extensible-enum": true
+      },
+      "PlacementEffect": {
+        "anyOf": [
+          {
+            "enum": [
+              "noOrder",
+              "uncertain"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "description": "Whether a refused order request placed anything. `noOrder`: this request placed nothing\n(refused before any claim, hold or send, or its claim released with nothing sent); if an\nearlier attempt with the same Idempotency-Key or quote may have been sent, recover it first.\n`uncertain`: an order may exist (the request reached the claim or the venue, or another\nrequest holds the quote or key); read the order back before sending another, and never\nresend it with a new Idempotency-Key. An open set: absent or an unknown value means `uncertain`.\n\nNew values may be added; treat unknown values as other.",
         "x-extensible-enum": true
       },
       "PlanAccountStatus": {
@@ -26167,6 +26200,11 @@
                     },
                     {
                       "required": [
+                        "placedFrom"
+                      ]
+                    },
+                    {
+                      "required": [
                         "executionStatus"
                       ]
                     },
@@ -32114,6 +32152,23 @@
         ],
         "type": "object"
       },
+      "VenueTradePlacedFrom": {
+        "anyOf": [
+          {
+            "enum": [
+              "quote",
+              "stream",
+              "unrecorded"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "description": "How the order behind a venue trade was placed, stamped on the operation when it is prepared:\n`quote` (`POST /orders {kind: \"quote\"}`, a held quote) or `stream` (`{kind: \"stream\"}`, a Live\nprices row). `unrecorded` for a trade prepared before this was recorded, or prepared outside\n`POST /orders` (a Treasury Run, a direct preparation): never read as a quote order. Treat the\nset as open.\n\nNew values may be added; treat unknown values as other.",
+        "x-extensible-enum": true
+      },
       "VenueTradePriceBasis": {
         "anyOf": [
           {
@@ -37042,14 +37097,14 @@
         ]
       },
       "post": {
-        "description": "Order a quote you hold by its `id`, on its terms. Read it at its `statusUrl` until `terminal` is `true`.",
+        "description": "Order a quote you hold by its `id`, on its terms. Read it at its `statusUrl` until `terminal` is `true`. A refusal's `details.placementEffect` says whether an order may exist.",
         "operationId": "post_orders",
         "parameters": [
           {
             "$ref": "#/components/parameters/WorkspaceId"
           },
           {
-            "description": "Makes a retry safe. Required for API keys (a missing key answers 400 IDEMPOTENCY_KEY_REQUIRED); optional for signed-in members. 1 to 255 bytes, unique per order you mean to place; a UUID is a good choice. A retry with the same key and the same body, from the same credential's owner in the same workspace within 24 hours, returns the first answer and never places a second order. The same key with a different body answers 409 IDEMPOTENCY_CONFLICT; another principal's key answers 403 IDEMPOTENCY_AUTHORITY_REQUIRED. A retry that arrives while the first request is still running waits for it, and answers 409 ORDER_IN_PROGRESS (with Retry-After) if it is still running after 30 seconds. A retry after a first request that may or may not have taken effect (it stopped without an answer, or failed after it reached the venue) answers 409 IDEMPOTENCY_OUTCOME_UNKNOWN, with no Retry-After: retrying that key can never settle it, so read the orders back (GET /api/v1/orders, details.readTarget) and use a new key only once the order is not there. Refusals are not stored: after one, fix the request and send it again with the same key or a new one.",
+            "description": "Makes a retry safe. Required for every caller, member session or API key (a missing key answers 400 IDEMPOTENCY_KEY_REQUIRED). 1 to 255 bytes, unique per order you mean to place; a UUID is a good choice. A retry with the same key and the same body, from the same principal in the same workspace within 24 hours, returns the first answer and never places a second order. The same key with a different body answers 409 IDEMPOTENCY_CONFLICT; another principal's key answers 403 IDEMPOTENCY_AUTHORITY_REQUIRED. A retry that arrives while the first request is still running waits for it before any other check (an expired quote or price included), answers what the first request answered, and answers 409 ORDER_IN_PROGRESS (with Retry-After) if it is still running after 30 seconds. A retry after a first request that may have placed an order (it stopped without an answer, or was refused with `details.placementEffect` `uncertain`) answers 409 IDEMPOTENCY_OUTCOME_UNKNOWN before any other check, with no Retry-After: retrying that key can never settle it, so read the orders back (GET /api/v1/orders, details.readTarget) and use a new key only once the order is not there. One `uncertain` refusal releases its key: a source transaction's registration refused while its receipt is pending or unreadable; send the same request again once the transaction is readable (the quote still places at most one order). A refusal marked `noOrder` is not stored: fix the request and send it again with the same key or a new one.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -43511,6 +43566,7 @@
                         "terminal": false
                       },
                       "operationId": "abababab-abab-4bab-8bab-abababababab",
+                      "placedFrom": "quote",
                       "projection": "workspace",
                       "providerSite": "uat",
                       "sell": {
