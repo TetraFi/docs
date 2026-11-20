@@ -197,6 +197,20 @@ test('a paragraph that says summary does not exempt the block; only its own labe
   assert.doesNotMatch(result.output, /localProjection/);
 });
 
+// Catches a region's recovery helper (a second operation) leaving the region's operation unknown, so
+// the block below its snippet fell back to an operation the section mentioned earlier.
+test('a block below a snippet is rooted at the request the region sends itself, not at its helpers', () => {
+  const sample = 'recover() {\n  tetrafi GET /orders\n}\n# region place\nif ! placed=$(tetrafi POST /quotes \'{}\'); then\n  recover\n  exit 1\nfi\n# endregion\n';
+  const page = (body) => `import Place from '/snippets/samples/place.mdx'\n\n## Place\n\nRead \`GET /orders\` first.\n\n<Place />\n\n\`\`\`json\n${body}\n\`\`\`\n`;
+  const right = site({ sample, page: page('{"quotes":[{"id":"q_1","next":{"kind":"order"}}]}') });
+  assert.equal(right.status, 0, right.output);
+  assert.match(right.output, /4 inside their operation's response/);
+  const wrong = site({ sample, page: page('{"quotes":[{"id":"q_1","madeUp":true}]}') });
+  assert.equal(wrong.status, 1, wrong.output);
+  assert.match(wrong.output, /FIELD_UNDOCUMENTED response.mdx:10 \.quotes\[\]\.madeUp/);
+  assert.doesNotMatch(wrong.output, /\.quotes\[\]\.id\b/);
+});
+
 // Catches compatibility.mdx's open-enum example (anyOf, x-extensible-enum) read as response fields.
 test('a block showing a spec schema fragment is not a response; a response beside it still is', () => {
   const page = '## Open enums\n\n```json\n{"anyOf":[{"type":"string","enum":["a"]},{"type":"string"}],"x-extensible-enum":true}\n```\n\n```json\n{"madeUp":true}\n```\n';

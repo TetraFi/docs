@@ -327,7 +327,7 @@ function callsIn(shell, from, to, operationOf, functionOps = new Map()) {
   for (const [name, op] of functionOps) {
     for (const match of text.matchAll(new RegExp(`(?:^|[\\s;(&|]|\\$\\()${name}(?=\\s|\\)|$)`, 'gm'))) {
       if (/\(\)\s*\{/.test(text.slice(match.index + match[0].length, match.index + match[0].length + 6))) continue;
-      calls.push({ offset: from + match.index, operation: op });
+      calls.push({ offset: from + match.index, operation: op, helper: true });
     }
   }
   return calls.sort((a, b) => a.offset - b.offset);
@@ -473,12 +473,16 @@ export function analyseSample(text, operationOf = () => null) {
     }
   }
 
-  // The operation each region calls, for pages that show that region's response.
+  // The operation each region calls, for pages that show that region's response. The request the
+  // region sends itself (`tetrafi METHOD PATH` or curl) is the one its page shows; a helper it calls
+  // (a recovery read, a setup lookup) is defined outside the region, so it counts only when the region
+  // sends nothing itself. Two different direct requests leave the operation unknown.
   const regions = new Map();
   for (const match of text.matchAll(/^[ \t]*# region (\S+)[ \t]*$/gm)) {
     const end = text.indexOf('# endregion', match.index);
     const calls = callsIn(shell, match.index, end < 0 ? text.length : end, operationOf, functionOps);
-    regions.set(match[1], single(calls));
+    const direct = calls.filter((call) => !call.helper);
+    regions.set(match[1], single(direct.length ? direct : calls));
   }
   return { reads, regions };
 }
