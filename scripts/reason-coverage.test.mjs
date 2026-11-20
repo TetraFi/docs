@@ -44,6 +44,19 @@ test('outcomes behind referenced variant schemas are read, and a dangling refere
   assert.throws(() => outcomesFrom(dangling), /REASON_OUTCOMES_UNREADABLE/);
 });
 
+// Catches REASON_OUTCOMES_UNREADABLE once open statuses moved from a plain enum to anyOf [{enum}, {type: string}].
+test('outcomes are read from an open status enum published as anyOf', () => {
+  const open = (values) => ({ anyOf: [{ type: 'string', enum: values }, { type: 'string' }], 'x-extensible-enum': true });
+  const spec = { components: { schemas: {
+    QuoteSourceEntry: { oneOf: [{ $ref: '#/components/schemas/QuoteSourceEntryAnswered' }, { properties: { status: open(['unavailable', 'filteredOut']) } }] },
+    QuoteSourceEntryAnswered: { properties: { status: open(['answered']) } },
+    PriceRowStatus: { properties: { status: { anyOf: [{ type: 'string' }] } } },
+  } } };
+  assert.deepEqual([...outcomesFrom(spec)].sort(), ['answered', 'filteredOut', 'unavailable']);
+  // An open status with no listed member names no outcome, so a spec holding only that is refused.
+  assert.throws(() => outcomesFrom({ components: { schemas: { PriceRowStatus: { properties: { status: { anyOf: [{ type: 'string' }] } } } } } }), /REASON_OUTCOMES_UNREADABLE/);
+});
+
 // Catches a reason from another declared enum (a balances page's incomplete reason) read as undeclared.
 test('reason enums the public spec declares count, and only schemas named for a reason', () => {
   const spec = { components: { schemas: {

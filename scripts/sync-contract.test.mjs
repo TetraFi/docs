@@ -25,7 +25,7 @@ function fixture(spec, names = NAMES, codes = AUTH_CODES, { journeys = null, fil
   mkdirSync(path.join(site, 'scripts'), { recursive: true });
   mkdirSync(path.join(source, 'integrator'), { recursive: true });
   mkdirSync(path.join(workspace, 'tetrafi-docs/public-site'), { recursive: true });
-  for (const script of ['sync-contract.mjs', 'leak-rules.mjs', 'endpoint-names.mjs', 'journeys.mjs']) {
+  for (const script of ['sync-contract.mjs', 'leak-rules.mjs', 'endpoint-names.mjs', 'journeys.mjs', 'open-enum.mjs']) {
     copyFileSync(path.join(import.meta.dirname, script), path.join(site, 'scripts', script));
   }
   const terms = path.join(workspace, 'tetrafi-docs/public-site/leak-terms.json');
