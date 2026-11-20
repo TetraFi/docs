@@ -69,6 +69,17 @@ test('reason enums the public spec declares count, and only schemas named for a 
   assert.equal(specReasonEnums({}).size, 0);
 });
 
+// Catches a request-signing refusal reason (declared on the security scheme) reported as undeclared.
+test('reasons a security scheme declares for its signing refusal count; other scheme fields do not', () => {
+  const spec = { components: { securitySchemes: {
+    api_key: { 'x-request-signing': { refusal: { error: 'AUTH_REQUIRED', reasons: ['signatureInvalid'] }, headers: ['xTimestamp'] } },
+    bearer_auth: { description: 'Use `tokenExpired` tokens.' },
+  } } };
+  const reasons = specReasonEnums(spec);
+  assert.ok(reasons.has('signatureInvalid'));
+  assert.ok(!reasons.has('xTimestamp') && !reasons.has('tokenExpired') && !reasons.has('AUTH_REQUIRED'));
+});
+
 // Catches an open reason set (no enum) whose fixed values are named only in a description.
 test('backticked values in a reason description count; other descriptions do not', () => {
   const spec = { components: { schemas: {

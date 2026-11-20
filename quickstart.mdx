@@ -12,12 +12,12 @@ import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
 import QuickstartTrade from '/snippets/samples/quickstart-trade.mdx'
 import TestSafelyMinimums from '/snippets/samples/test-safely-minimums.mdx'
 
-Your first trade in **5 steps**, copied in order: list assets, quote 10 USDC to USDT from every venue your workspace can use, order the best, then read its status and its trade.
+Your first trade in **5 steps**: list assets, ask for quotes to sell 10 USDC for USDT, place an order from the best orderable quote, then read its status and trade.
 
 Quoting needs your company details on file; ordering, also a funded venue account or wallet ([Before your first trade](/before-you-trade)).
 
 <Accordion title="Tools and code samples">
-  The cURL, Node.js and Python tabs show the API calls of one full script per language ([below](#run-the-full-script)): run it whole, since it also signs requests, checks inputs and saves the order record. cURL needs `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic); the Node.js (18 or later) and Python (3.8 or later) scripts need no third-party packages. The tab for the TypeScript SDK (not published yet; see [SDK and samples](/sdk)) quotes USDC for ETH and waits for the order to end.
+  The cURL, Node.js and Python tabs show the API calls of one full script per language ([below](#run-the-full-script)): run it whole, since it also signs requests, checks inputs and saves the order record. cURL needs `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic); the Node.js (18 or later) and Python (3.8 or later) scripts need no third-party packages. The outputs show a Binance testnet run with shortened IDs. The TypeScript SDK tab (not published yet; see [SDK and samples](/sdk)) uses a different pair, USDC for ETH, and waits for the order to end.
 </Accordion>
 
 <Steps>
@@ -43,7 +43,7 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
     </Accordion>
 
     <Accordion title="The request helper">
-      cURL needs no workspace id: the key implies it, and call 5 reads it from `GET /api/v1/me`. The SDK does: find it under workspace settings, **General**, **Workspace ID**.
+      The cURL, Node.js and Python scripts get the workspace ID from `GET /api/v1/me` in step 5. The SDK example needs you to set it: find it under workspace settings, **General**, **Workspace ID**.
 
       The code below sends each request with your key, pins the API version with `TetraFi-Version` ([Versioning](/reference/conventions#versioning)) and [signs it](/authentication#sign-requests). It stops on a transport error or non-2xx status, printing the body. Requests time out after 60 seconds.
 
@@ -56,49 +56,25 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
 
     <QuickstartAssets />
 
-    ```json Response (shortened) expandable
-    {
-      "items": [
-        {
-          "asset": "USDC",
-          "assetSymbol": "USDC",
-          "name": "USD Coin",
-          "kind": "stablecoin",
-          "variants": [
-            { "kind": "native", "name": "USDC", "deployments": [{ "network": "eip155:8453", "decimals": 6 }] }
-          ]
-        }
-      ]
-    }
+    ```text Output
+    assets: 383 listed, quoting USDC for USDT
     ```
   </Step>
 
   <Step title="2. Request quotes">
-    Every venue quotes your `sellAmount`. Take the first quote whose `next.kind` is `order`; if none is, read `sources` ([below](#if-something-goes-wrong)). Reference: [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes).
+    Ask each selected venue to quote your `sellAmount`. Take the first quote whose `next.kind` is `order`; if none is, read `sources` ([below](#if-something-goes-wrong)). Reference: [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes).
 
     <QuickstartQuote />
 
-    ```json Response (shortened) expandable
+    ```json Output
     {
-      "quoteRequestId": "rq_01M5…",
-      "venueAsked": true,
-      "quotes": [
-        {
-          "id": "q_01M5…",
-          "legs": [{ "venue": { "id": "binance-orderbook", "integrationMode": "basic" } }],
-          "quality": "executable",
-          "sell": { "asset": "USDC", "network": null, "amount": "10" },
-          "buy": { "asset": "USDT", "network": null, "amount": "10.0134" },
-          "minOut": "9.9833",
-          "minReceiveRequired": true,
-          "next": { "kind": "order" },
-          "expiresAt": "2026-10-27T00:43:10.213Z"
-        }
-      ],
-      "sources": [
-        { "venue": { "id": "binance-orderbook" }, "status": "answered" },
-        { "venue": { "id": "across" }, "status": "unsupported", "reason": "pairNotServed" }
-      ]
+      "quoteId": "q_01M7W…",
+      "venue": "binance-orderbook",
+      "mode": "basic",
+      "sell": "10",
+      "buy": "10.0088",
+      "next": "order",
+      "expiresAt": "2026-11-20T08:15:55.633Z"
     }
     ```
   </Step>
@@ -107,7 +83,7 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
     Send the quote id and a new `Idempotency-Key`, saved first ([Retries and recovery](/trade/orders#retries-and-recovery)). Reference: [`POST /api/v1/orders`](/api-reference/orders/place-order).
 
     <Warning>
-    An order cannot be undone; in production it trades real assets. The cURL step orders only with `TETRAFI_PLACE_ORDER=1`. Start with the [smallest amount the venue takes](#find-the-smallest-amount-a-venue-takes).
+    An order cannot be undone; in production it trades real assets. Each script orders only with `TETRAFI_PLACE_ORDER=1`. Start with the [smallest amount the venue takes](#find-the-smallest-amount-a-venue-takes).
     </Warning>
 
     <Accordion title="The saved record and minReceive">
@@ -118,16 +94,8 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
 
     <QuickstartOrder />
 
-    ```json POST /api/v1/orders response (shortened) expandable
-    {
-      "kind": "basicTrade",
-      "orderId": "acb8…",
-      "quoteId": "q_01M5…",
-      "status": "working",
-      "terminal": false,
-      "statusUrl": "/api/v1/orders/acb8…",
-      "operation": { "connectionId": "1586…", "operationId": "acb8…" }
-    }
+    ```json Output
+    {"kind":"basicTrade","quoteId":"q_01M7W…"}
     ```
   </Step>
 
@@ -137,7 +105,7 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
     <QuickstartStatus />
 
     ```json Output
-    {"kind":"basicTrade","status":"settled","terminal":true,"next":null,"idempotencyKey":"bef0…"}
+    {"kind":"basicTrade","status":"settled","terminal":true,"next":null,"idempotencyKey":"eba7…"}
     ```
   </Step>
 
@@ -147,32 +115,42 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
     <QuickstartTrade />
 
     ```json Output
-    {"tradeId":"abababab-…","kind":"venueTrade","executionStatus":"filled","outputReceived":"…","settlementStatus":"settled"}
+    {"tradeId":"0103…","kind":"venueTrade","executionStatus":"filled","outputReceived":"10.00880000","settlementStatus":"settled"}
     ```
   </Step>
 </Steps>
 
 ## Find the smallest amount a venue takes
 
-Quotes cost nothing. Sell the smallest amount a venue answers in your first order.
+Quotes cost nothing. Try a few sizes before your first order.
 
 <Accordion title="Probe 1, 5, 10 and 25 USDC">
   Quote 1, 5, 10 and 25 USDC, one request every 3 seconds, and note the smallest amount each venue answers. Nothing is ordered.
 
   <TestSafelyMinimums />
 
+  These were the results for the three test venues in this run:
+
   ```json Example output (shortened)
   {"venue":"binance-orderbook","smallest":"5"}
-  {"venue":"bebop","smallest":null,"triedUpTo":"25","status":"unavailable","reason":"apiKeyOrganisationWalletScopeRequired"}
+  {"venue":"b2c2-rfq","smallest":null,"triedUpTo":"25","status":"unsupported","reason":"pairNotServed"}
   {"venue":"keyrock-rfq","smallest":null,"triedUpTo":"25","status":"unsupported","reason":"pairNotServed"}
   ```
 
-  A venue that needs more reads a reason such as `sizeNotEligible` or `amountBelowMinimum`. Use that minimum as the amount you sell in your first order.
+  A venue that needs more may report `belowVenueMinimum`, `sizeNotEligible` or `amountBelowMinimum`. Start with the smallest amount that returns an orderable quote.
 
   On your first real trade, also set `TETRAFI_VENUES` to the venue you connected, and check the quote's venue, amounts and expiry.
 </Accordion>
 
 ## If something goes wrong
+
+<Accordion title="401 AUTH_REQUIRED: request signature is invalid">
+  If `details.reason` is `signatureInvalid`, check that `TETRAFI_SIGNING_SECRET` is the request-signing secret for `TETRAFI_API_KEY`, not the API key itself. If you sign by hand, [sign the exact path, query and body you send](/authentication#sign-requests).
+
+  ```json Output (shortened)
+  {"error":"AUTH_REQUIRED","message":"request signature is invalid","details":{"reason":"signatureInvalid"}}
+  ```
+</Accordion>
 
 <Accordion title="No quote can be ordered">
     Read each venue's `status` and `reason` in `sources`:
@@ -193,7 +171,7 @@ A timeout, `5xx`, `409 IDEMPOTENCY_*` or unreadable order answer does not prove 
 
 ## Run the full script
 
-[cURL](https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh), [Node.js 18+](https://github.com/TetraFi/docs/blob/main/samples/node/quickstart.mjs) or [Python 3.8+](https://github.com/TetraFi/docs/blob/main/samples/python/quickstart.py): each makes all five calls, and orders only with `TETRAFI_PLACE_ORDER=1`.
+Run the [cURL](https://github.com/TetraFi/docs/blob/main/samples/http/quickstart.sh), [Node.js 18+](https://github.com/TetraFi/docs/blob/main/samples/node/quickstart.mjs) or [Python 3.8+](https://github.com/TetraFi/docs/blob/main/samples/python/quickstart.py) script. Without `TETRAFI_PLACE_ORDER=1`, it stops after quoting. To test without real assets, use a test environment and set `TETRAFI_VENUES` to your connected sandbox or testnet venue.
 
 <Accordion title="Other values">
   Every script reads these optional variables:

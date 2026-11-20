@@ -108,13 +108,23 @@ export function documentedSiteCodes(siteRoot) {
   return codes;
 }
 
+// The generated page gives each code one entry line (scripts/sync-contract.mjs): its anchor, then its
+// name, which may break after an underscore, then its status and retry. Only an entry's head counts,
+// never a code named in an entry's text; a head whose shown name is not its anchor is refused.
+const ENTRY_HEAD = /^<span id="([^"]+)" style=\{\{ scrollMarginTop: '10rem' \}\}><\/span><code style=\{\{ overflowWrap: 'anywhere', whiteSpace: 'normal' \}\}>([^<]*(?:<wbr \/>[^<]*)*)<\/code> · [^<]+ · Retry: (?:yes|no)(?:<br \/>|$)/;
 export function generatedCodes(page) {
   const lines = page.split('\n');
   const heading = '## Refusal codes';
   const start = lines.findIndex((line) => line.trim() === heading);
   if (start < 0) throw new Error(`REFUSAL_TABLES_MISSING ${heading}`);
   const end = lines.findIndex((line, index) => index > start && /^## /.test(line));
-  const codes = tableCodes(lines.slice(start + 1, end < 0 ? undefined : end));
+  const codes = new Set();
+  for (const line of lines.slice(start + 1, end < 0 ? undefined : end)) {
+    const head = line.match(ENTRY_HEAD);
+    if (!head) continue;
+    if (head[2].replace(/<wbr \/>/g, '') !== head[1]) throw new Error(`REFUSAL_ENTRY_MISMATCH ${head[1]}`);
+    if (CODE.test(head[1])) codes.add(head[1]);
+  }
   // Rows the generator withheld under the leak rules are declared, named on the page, and owned by
   // the API's text; count them as covered so the gap shows as ERROR_CODE_ROW_WITHHELD, not here.
   const withheld = page.match(/\{\/\* Withheld by the leak rules until the API changes its text: ([^*]+) \*\/\}/);
