@@ -1,0 +1,80 @@
+---
+title: "Request for quote"
+description: "Ask venues for a price for your exact trade, then order the quote you choose by its quoteId. A firm quote holds its price until it expires."
+keywords: ["Request for quote", "RFQ", "firm quote", "quoteId", "expiresAt", "firmness", "dayBudget", "firm-quote limit"]
+---
+
+import QuickstartQuote from '/snippets/samples/quickstart-quote.mdx';
+import QuickstartOrder from '/snippets/samples/quickstart-order.mdx';
+
+Ask every venue your workspace can use for your exact trade, compare the quotes, and order the one you choose by its id. A desk's firm quote commits to its price: it delivers exactly `buy.amount` if you order before `expiresAt`.
+
+Not sure this is the right flow? [Request for quote or Live prices](/trade/rfq-or-live-prices).
+
+## At a glance
+
+| Step | Call |
+| --- | --- |
+| Request quotes | [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) `{kind: "pair", sell, buy, sellAmount}` (Request quotes, `quotes_write`) |
+| Order one | [`POST /api/v1/orders`](/api-reference/orders/place-order) `{kind: "quote", quoteId}` (Place orders, `orders_write`) |
+| Follow it | `statusUrl` ([Order status](/trade/order-status)) |
+
+## Quote and order
+
+<Steps>
+  <Step title="Request quotes">
+    Name the pair and one amount. Quotes arrive best first; order one whose `next.kind` is `order`. Each states what it commits to in `quality` and until when in `expiresAt` ([Firmness and requotes](/search/firmness-and-lifetime)).
+
+    <QuickstartQuote />
+
+    <Accordion title="Ask desks for firm prices">
+      `firmness: "firm"` asks every eligible desk for a firm price up front. With `auto`, the default, a production desk is asked only when you name it in `filters.venues.include`; `indicative` never asks. `filters.firmOnly` then keeps only firm quotes.
+    </Accordion>
+  </Step>
+  <Step title="Order the quote">
+    Send its id before `expiresAt`, with `minReceive` when the quote reads `minReceiveRequired: true`. Each quote orders once ([Place an order](/trade/orders)).
+
+    <QuickstartOrder />
+  </Step>
+  <Step title="Follow it to the end">
+    A `2xx` means recorded, not complete: follow `statusUrl` until `terminal` is `true` ([Order status](/trade/order-status)).
+  </Step>
+</Steps>
+
+## Firm-quote budgets
+
+<Accordion title="Each firm ask counts against the venue's day budget">
+  Desks limit how many firm quotes they answer. Each firm ask counts against your workspace's budget for that venue, which starts again at 00:00 UTC. B2C2, for example, allows a workspace 200 firm quotes per UTC day.
+
+  <ResponseField name="dayBudget" type="object | null">On a quote: `used`, `limit`, `remaining`, `executorReserve` (the share kept for members who can place orders) and `resetsAt`. Absent when the venue states no limit.</ResponseField>
+  <ResponseField name="firmAskAvailableAt" type="string">When the desk takes its next firm ask, when its limit is reached until then.</ResponseField>
+
+  Once the budget is spent, a firm ask answers `429 VENUE_FIRM_QUOTE_LIMITED` or a source with status `firmQuoteLimited`; a member without Place orders is refused `403 DESK_FIRM_RESERVED_FOR_EXECUTORS` once only the reserve is left. Ask only when you mean to trade, and use [prices](/search/prices) to watch the market.
+</Accordion>
+
+## Refusals
+
+<Accordion title="Quote order refusals">
+
+| Status and code | Why, and what to do |
+| --- | --- |
+| `400 MIN_RECEIVE_REQUIRED` | The quote needs your minimum. Set `minReceive`. |
+| `409 QUOTE_ALREADY_ORDERED` | The quote was already ordered; `details.orderId` names that order. Read it, do not place it again. |
+| `409 VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's price is below your `minReceive`. Nothing was sent. Act on `details.remediation`. |
+| `410 QUOTE_EXPIRED` | Past `expiresAt`. Nothing was sent. [Requote the same id](/search/firmness-and-lifetime#refresh-an-expired-quote). |
+| `429 VENUE_FIRM_QUOTE_LIMITED` | The venue's firm-quote budget is spent. Wait `Retry-After`. |
+
+Every refusal: [Place an order](/api-reference/orders/place-order).
+
+</Accordion>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Live prices" icon="bolt" href="/trade/live-prices">
+    Order a desk's streamed price directly, without a quote request.
+  </Card>
+  <Card title="Place an order" icon="cart-shopping" href="/trade/orders">
+    Minimum receive, retries and recovery.
+  </Card>
+</CardGroup>
