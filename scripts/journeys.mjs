@@ -11,7 +11,7 @@ const ACCOUNT = `${W}/venue-accounts/{venueAccountId}`;
 
 const JOURNEYS = [
   { id: 'trade', title: 'Trade', guide: '/trade/how-a-trade-runs', steps: [
-    { label: 'Assets and prices', ops: ['GET /api/v1/assets', 'GET /api/v1/prices', 'GET /api/v1/prices/stream'] },
+    { label: 'Assets and prices', ops: ['GET /api/v1/assets', 'GET /api/v1/pairs', 'GET /api/v1/prices', 'GET /api/v1/prices/stream'] },
     { label: 'Quote', ops: ['POST /api/v1/quotes', 'GET /api/v1/quotes/requests/{quoteRequestId}'] },
     { label: 'Order', ops: ['POST /api/v1/orders'] },
     { label: 'Status', ops: ['GET /api/v1/orders/{orderId}', 'GET /api/v1/orders/by-quote/{quoteId}', 'GET /api/v1/orders'] },

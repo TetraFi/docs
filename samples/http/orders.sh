@@ -148,7 +148,7 @@ if [[ ${TETRAFI_PLACE_ORDER:-} == 1 || ${TETRAFI_PLACE_ORDER:-} == yes ]]; then
   recovered=$(tetrafi GET "/api/v1/orders/by-quote/$order_quote")
   jq -c '{status, orderId, statusUrl}' <<<"$recovered" >&2
   unordered=$(tetrafi GET "/api/v1/orders/by-quote/$quote_id")
-  jq -c '{status, expired}' <<<"$unordered" >&2
+  jq -c '{status, quote}' <<<"$unordered" >&2
   # endregion
   summary=$(jq -c --argjson p "$placed" --argjson r "$recovered" --arg c "$(error_of "$conflict")" '. + {order: {
     kind: $p.kind, quoteId: $p.quoteId, id: $p.orderId,

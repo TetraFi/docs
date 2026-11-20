@@ -5,6 +5,31 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-20" description="List the pairs you can trade">
+  - New: [`GET /api/v1/pairs`](/api-reference/trading/list-pairs) lists the directed pairs your workspace can trade now, each with the routes (venue and where it executes) that serve it. `availability=connectable` lists the pairs only a venue you have not connected serves.
+</Update>
+
+<Update label="2026-11-20" description="Every refusal names what to do; deposit history reads several assets and networks at once">
+  - Every refusal from the integrator API carries `details.remedy`: what to do next, in words, from [Error codes](/reference/error-codes). It is for people and logs; keep matching on `error` and `details.remediation`.
+  - A quote source that gives no price always has a `detail`, even when the venue named only a reason, so no source reads as unavailable without its cause.
+  - **Breaking.** Venue deposit history takes `asset` and `network` as optional comma-separated lists (`asset=USDC,USDT&network=eip155:1,eip155:8453`); leaving one out reads every asset or network the account offers for deposit, in one request with one cursor. Each item names its `asset` and `network`, and a pair that could not be read is one `unreachable` entry. The form that read exactly one asset and one network per request is gone: send the lists, or nothing.
+</Update>
+
+<Update label="2026-11-20" description="Designed to grow, second pass: states instead of booleans, objects instead of strings, and schemas that say what is always sent (rolling out)">
+  - **Breaking.** A quote search's `venueAsked` boolean is `answeredFrom`: `venues` when at least one venue was contacted, `cache` when every quote came from cached prices. Treat other values as new sources.
+  - **Breaking.** Each `source.preferredWallets` value is an object, `{wallet, signer?}`, like `source.tradingWallets`; a bare string is refused 400 `INVALID_REQUEST`.
+  - **Breaking.** A route leg is referenced by its `legId`, never by position: an order transaction's `legIndex`, a repricing offer's `legIndex` and the `legIndex` of the `signNextLeg` and `retryNextLeg` next actions are `legId`, the id the quote published in `legs[].legId`. A payment leg's own id is always `tradeLegId`: on the `provideDestination` and `payoutFeeRose` next actions, `TradeLegFacts`, `FiatLegArrival` and `PayoutRecipientConfirmation`, where it was `legId`.
+  - **Breaking.** A quote leg's `relayMode` is `deliveredBy`.
+  - **Breaking.** An `address` destination's `calldata` is `data`, in the request, the resolved destination and the request echo.
+  - **Breaking.** An asset's `coingeckoId` is `externalIds.coingecko`, so other directories can be added beside it.
+  - **Breaking.** A trade fee row's `gasPriceWei` is `gasPrice`, `{amount, asset}` in the network's own coin, or `null`.
+  - **Breaking.** Error codes no longer name a provider. `ACROSS_FEE_SHARE_EXCEEDS_25_PERCENT` and `RELAY_FEE_SHARE_EXCEEDS_25_PERCENT` are one `409 BRIDGE_FEE_SHARE_TOO_HIGH`, with `details.provider` and `details.limitPercent`. `CCTP_FEES_UNAVAILABLE` is `BRIDGE_FEES_UNAVAILABLE`, with `details.provider`. `STABLEFX_SIGNING_GRANT_REQUIRED` is `VENUE_SIGNING_GRANT_REQUIRED`, with `details.venueId`.
+  - **Breaking.** The re-check before a route's next step is named by what failed: `RELAY_RECHECK_UNAVAILABLE` is `COMPLIANCE_RECHECK_UNAVAILABLE`, `RELAY_SUBJECT_UNRESOLVED` is `COMPLIANCE_SUBJECT_UNRESOLVED`, `RELAY_CONTEXT_UNRESOLVED` is `COMPLIANCE_CONTEXT_UNRESOLVED` and `RELAY_FUNDER_UNRESOLVED` is `FUNDING_SOURCE_UNRESOLVED`. Statuses and retry advice are unchanged.
+  - **Breaking.** A blank or incomplete `GET /api/v1/assets` filter answers `400 ASSET_FILTER_BLANK` or `400 ASSET_FILTER_INCOMPLETE`, naming the parameter in `details.field`, instead of `INVALID_REQUEST`.
+  - Every code the reference names is now in [Error codes](/reference/error-codes), including the codes sent as values inside a successful read.
+  - The schemas now say which fields are always sent: a field is either required and `null` when unknown, or optional and never `null`. The wire did not change; a generated client gets tighter types.
+</Update>
+
 <Update label="2026-11-19" description="Signing with your own wallet: camelCase step values, wallet holds and the signing window (rolling out)">
   - **Breaking.** An order's step history (`operation.steps[]`) sends camelCase values: `summary.purpose` (`token_approval` is `tokenApproval`, `uniswap_exact_input_single` is `uniswapExactInputSingle`, `bridge_deposit` is `bridgeDeposit`, and the rest alike), `authority.kind` (`headlessGrant`, `ownerCeremony`, `browserWallet`), a `GRANT_CAP_EXCEEDED` refusal's `cap` (`perTrade`) and `transaction.status` (`approvalPending`, `providerOutcomeUnknown`, `nonceConsumedElsewhere`, `signedNotBroadcast`; one-word values unchanged). Every set is open: treat an unknown value as other.
   - **Breaking.** Each `source.tradingWallets` value is an object, `{wallet, signer?}`; a bare string is refused 400 `INVALID_REQUEST`, and the top-level `source.signer` is gone. Send `{"wallet": "<id or address>"}` per network.

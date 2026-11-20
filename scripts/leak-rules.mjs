@@ -12,7 +12,7 @@ const SHAPES = [
   { rule: 'internal-host', severity: 'hard', re: /[a-z0-9-]+\.ts\.net\b|\b100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}\b/gi },
   { rule: 'credential', severity: 'hard', re: /\btfk_[A-Za-z0-9_]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}|\bgh[pousr]_[A-Za-z0-9]{20,}|\bop:\/\/[^\s"')]+/g },
   { rule: 'private-key-shape', severity: 'hard', re: /(?<![0-9a-fA-F])0x[0-9a-fA-F]{64}(?![0-9a-fA-F])/g },
-  { rule: 'retired-surface', severity: 'content', re: /\/api\/v1\/(?:rfq|router|pairs|solvers)\b|\/router\/(?:quotes|orders)|quotes\/indicative/g },
+  { rule: 'retired-surface', severity: 'content', re: /\/api\/v1\/(?:rfq|router|solvers)\b|\/router\/(?:quotes|orders)|quotes\/indicative/g },
   { rule: 'retired-term', severity: 'content', re: /\bquoteResponse\b|\bintegrityChecksum\b|\bminValidUntil\b|\bcards\[|"intent"\s*:/g },
   // Backend source paths: maintainer notes in a synced source file must not reach the public site.
   { rule: 'internal-source-path', severity: 'content', re: /\bcrates\/[\w./-]+|\b\w+\.rs\b/g },
