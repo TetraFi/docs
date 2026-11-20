@@ -8,7 +8,9 @@ import { declaredCodes, documentedCodes, documentedSiteCodes, generatedCodes, ma
 
 const page = readFileSync(path.join(import.meta.dirname, '..', 'trade', 'errors.mdx'), 'utf8');
 const rows = [...documentedCodes(page)];
-const generatedPage = (codes) => ['## Refusal codes', ...codes.map((code) => `| \`${code}\` | 400 |`), '## Source reasons', '| `NOT_A_REFUSAL` | A reason |'].join('\n');
+// One entry per code, as scripts/sync-contract.mjs writes it; a source reason after the refusals never counts.
+const entry = (code, shown = code) => `<span id="${code}" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>${shown.replace(/_/g, '_<wbr />')}</code> · 400 · Retry: no<br />Meaning.<br />**Do:** Fix it.`;
+const generatedPage = (codes) => ['## Refusal codes', '', ...codes.flatMap((code) => [entry(code), '']), '## Source reasons', '', entry('NOT_A_REFUSAL')].join('\n');
 
 // Isolated sources and pages prove that the reference, not the hand-written subset, covers codes.
 function run(codes, { generated = rows, documented = page } = {}) {
@@ -82,6 +84,18 @@ test('a missing or withheld reference fails closed and still reports unknown han
 test('source reasons and prose never count as generated refusal codes', () => {
   assert.deepEqual([...generatedCodes(`${generatedPage(['ASSET_UNKNOWN'])}\nMention \`PROSE_ONLY_CODE\`.`)], ['ASSET_UNKNOWN']);
   assert.throws(() => generatedCodes('no table'), /REFUSAL_TABLES_MISSING/);
+});
+
+// Catches a code counted from an entry's text, from an old table row, or from a head that shows another name.
+test('only an entry head whose shown name is its anchor counts as a generated code', () => {
+  const page = ['## Refusal codes', '', entry('SHOWN_CODE').replace('Meaning.', 'Unlike `TEXT_ONLY_CODE`.'), '',
+    '| <span id="TABLE_ROW_CODE"></span>`TABLE_ROW_CODE` | 400 | x | No |', '', `x ${entry('INLINE_CODE')}`, ''].join('\n');
+  assert.deepEqual([...generatedCodes(page)], ['SHOWN_CODE']);
+  assert.throws(() => generatedCodes(['## Refusal codes', '', entry('ANCHOR_CODE', 'OTHER_CODE')].join('\n')), /REFUSAL_ENTRY_MISMATCH ANCHOR_CODE/);
+  // The page as generated today parses to every code it shows (a code needs an underscore, as declared codes do).
+  const real = readFileSync(path.join(import.meta.dirname, '..', 'reference', 'error-codes.mdx'), 'utf8');
+  const heads = real.slice(real.indexOf('## Refusal codes'), real.indexOf('## Source reasons')).match(/^<span id="[A-Z0-9]+_[A-Z0-9_]+"/gm) ?? [];
+  assert.ok(heads.length > 100 && generatedCodes(real).size === heads.length, `${heads.length} heads`);
 });
 
 test('hand-written refusal tables are checked, but source reasons and prose are not', () => {

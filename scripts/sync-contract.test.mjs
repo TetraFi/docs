@@ -213,8 +213,12 @@ test('error codes group by product area in journey order, each area folded under
   assert.ok(at('Quotes, prices and assets') < at('Orders') && at('Orders') < at('Wallets and custody') && at('Wallets and custody') < at('Webhooks'));
   // The longest prefix wins: API_KEY_ORGANISATION_WALLET is a wallet code, not an API-key code.
   assert.ok(text.indexOf('API_KEY_ORGANISATION_WALLET_SCOPE_REQUIRED') > at('Wallets and custody'));
-  // The docUrl anchor stays on the row, clear of the sticky header, and the status keeps every value.
-  assert.ok(text.includes(`| <span id="ORDER_NOT_FOUND" style={{ scrollMarginTop: '10rem' }}></span>\`ORDER_NOT_FOUND\` | 404, 410 |`));
+  // The docUrl anchor stays on the entry, clear of the sticky header, and the status keeps every value.
+  // Each code is one entry line, not a table row, so the page fits a phone: name (breakable after an
+  // underscore), status and retry, then meaning and Do. No table is left in the refusal areas or the
+  // source reasons.
+  assert.ok(text.includes(`\n<span id="ORDER_NOT_FOUND" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ORDER_<wbr />NOT_<wbr />FOUND</code> · 404, 410 · Retry: no<br />ORDER_NOT_FOUND meaning.<br />**Do:** Do this.\n`));
+  assert.ok(!/^\|/m.test(text.slice(text.indexOf('## Refusal codes'))), 'a table row is left below the first codes');
   // Every area is closed (no defaultOpen), no area heading is left, and each says what it covers and how many codes it holds.
   assert.ok(!text.includes('defaultOpen') && !/^### /m.test(text));
   assert.ok(text.slice(at('Orders')).startsWith('<Accordion title="Orders">\n\nPlacing, following and cancelling an order'));
@@ -234,8 +238,10 @@ test('the first-codes table names its codes with their contract status and links
   const text = readFileSync(errorCodes, 'utf8');
   const first = text.slice(text.indexOf('## Codes you will meet first'), text.indexOf('## Refusal codes'));
   assert.ok(text.indexOf('## Codes you will meet first') > 0);
-  // In the listed order, with the contract's status, linking to the row's anchor; unlisted codes stay out.
-  assert.ok(first.indexOf('| [`RATE_LIMITED`](#RATE_LIMITED) | 429 | Wait `Retry-After` seconds') < first.indexOf('| [`AUTH_REQUIRED`](#AUTH_REQUIRED) | 401 |'));
+  // In the listed order, with the contract's status, linking to the entry's anchor; unlisted codes stay out.
+  // A list, not a table, so it fits a phone.
+  assert.ok(first.indexOf('- [`RATE_LIMITED`](#RATE_LIMITED) · 429<br />Wait `Retry-After` seconds') < first.indexOf('- [`AUTH_REQUIRED`](#AUTH_REQUIRED) · 401<br />'));
+  assert.ok(first.indexOf('- [`RATE_LIMITED`]') > 0 && !/^\|/m.test(first));
   assert.ok(!first.includes('ORDER_NOT_FOUND') && !first.includes('<span'));
   // A listed code the contract does not publish refuses the page instead of dropping out of the table.
   const missing = fixture(scopedSpec(), NAMES, codes, { env: { TETRAFI_FIRST_CODES: 'AUTH_REQUIRED,QUOTE_EXPIRED' } }).run();
