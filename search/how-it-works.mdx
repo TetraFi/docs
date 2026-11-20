@@ -38,7 +38,7 @@ One [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) covers every v
 <ParamField body="sellAmount or buyAmount" type="string" required>Exactly one: a positive decimal string in asset units, such as `"10"`, never base units. Both or neither: `400 INVALID_REQUEST`.</ParamField>
 <ParamField body="filters, sort, priceProtectionBps" type="object, string, integer">Narrow, order and protect the search ([Filters and sort](#filters-and-sort)). `sort` defaults to `netReceived`; `priceProtectionBps` is 0 to 1000, 30 when omitted.</ParamField>
 <ParamField body="firmness" type="string">`auto` (default), `firm` or `indicative` ([Ask for firm prices](/search/firmness-and-lifetime#ask-for-firm-prices)).</ParamField>
-<ParamField body="timeout" type="string">How long venues are collected, as an ISO 8601 duration: `PT6S` by default, from 100 milliseconds up to `PT10S`.</ParamField>
+<ParamField body="timeout" type="string">When the answer is due, as an ISO 8601 duration from your request: venues not priced by then are listed `timedOut`. `PT6S` by default, which answers as soon as every venue has; from 100 milliseconds up to `PT10S`.</ParamField>
 <ParamField body="source, deliverTo, preferredWallets" type="object">Which wallet or account trades and where the output goes; your defaults when omitted ([Wallets and accounts](/trade/wallets-and-accounts)).</ParamField>
 <ParamField body="onBehalfOf" type="string">For a broker: the direct user you quote for.</ParamField>
 <ParamField body="integrationAppId" type="string">The integration app whose partner fee terms apply ([Monetize](/monetize)).</ParamField>
@@ -307,7 +307,7 @@ Each venue appears once in `sources`: a `status`, a `reason` to match and a `det
 | `restricted` | A permission keeps it from you. |
 | `needsWallet` | It quotes only for a wallet you have not named ([When a quote needs a wallet](/trade/wallets-and-accounts#when-a-quote-needs-a-wallet)). |
 | `walletRefused` | The wallet it would use cannot trade there; `wallet` names it. |
-| `timedOut` | It did not answer before the collection deadline. |
+| `timedOut` | It did not answer before your `timeout`. |
 | `refused` | The venue declined. |
 
 Example reasons:
