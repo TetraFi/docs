@@ -47,15 +47,20 @@ print(compact({"pair": pair["id"], "venues": venues}), file=sys.stderr)
 ```
 
 ```typescript TypeScript SDK
-// The pairs your enabled venues trade from USDC; each pair's id is SELL~BUY.
+// The pairs your enabled venues trade from USDC; each id is SELL~BUY.
+// One page is not the whole list: listPairsAll follows nextCursor.
 if (!given && usdc && eth) {
-  const pairs = await client.listPairs({ sellAsset: usdc.asset, limit: 1000 });
   const id = `${usdc.asset}~${eth.asset}`;
-  const pair = pairs.items.find((item) => item.id === id);
+  let pair: Pair | undefined;
+  const gaps: PairsPage['unreachable'] = [];
+  const query = { sellAsset: usdc.asset, limit: 1000 };
+  for await (const page of client.listPairsAll(query)) {
+    gaps.push(...page.unreachable);
+    pair ??= page.items.find((item) => item.id === id);
+  }
   // Not listed: a source still being read (`unreachable`) may list it soon.
   if (!pair) {
-    const gaps = JSON.stringify(pairs.unreachable ?? []);
-    throw new Error(`${id} is not listed yet: ${gaps}`);
+    throw new Error(`${id} is not listed yet: ${JSON.stringify(gaps)}`);
   }
   const venues = (pair.routes ?? []).map((route) => route.venueId);
   console.error({ pair: pair.id, venues });

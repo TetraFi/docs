@@ -12385,6 +12385,10 @@
                 "$ref": "#/components/schemas/Readiness",
                 "description": "Whether the quote can be ordered now (funding, gas, wallet); an unknown is `unavailable`, never 0."
               },
+              "readyToTrade": {
+                "$ref": "#/components/schemas/ReadyToTrade",
+                "description": "Whether an order on this card would find its prerequisites (order permission, the venue\nkey's trade permission, a fresh funds read) already current. Advisory: the order checks\nthem again. Present on a workspace venue card; absent on other quotes."
+              },
               "refundClaimableAfter": {
                 "description": "With `refundOnSource` on an escrowed intent: the instant after which the source-chain\nescrow refunds the input if the order was not filled, read from the signed order's own\nexpiry (`expires`). Until then the input stays in that escrow. Absent when the quote holds\nno escrowed intent or its expiry could not be read; never estimated.",
                 "format": "date-time",
@@ -18804,6 +18808,85 @@
         },
         "required": [
           "reason",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ReadyToTrade": {
+        "description": "Whether an order on this quote would find every prerequisite it checks already current. It is\nadvisory: the order checks each prerequisite again and decides.\n\nNew values may be added; treat unknown values as other.",
+        "discriminator": {
+          "mapping": {
+            "missing": "#/components/schemas/ReadyToTradeMissing",
+            "preparing": "#/components/schemas/ReadyToTradePreparing",
+            "ready": "#/components/schemas/ReadyToTradeReady"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ReadyToTradeReady"
+          },
+          {
+            "$ref": "#/components/schemas/ReadyToTradePreparing"
+          },
+          {
+            "$ref": "#/components/schemas/ReadyToTradeMissing"
+          }
+        ],
+        "x-extensible-enum": true
+      },
+      "ReadyToTradeMissing": {
+        "description": "A prerequisite is not met: an order is refused until it is.",
+        "properties": {
+          "kind": {
+            "description": "New values may be added; treat unknown values as other.",
+            "enum": [
+              "missing"
+            ],
+            "type": "string",
+            "x-extensible-enum": true
+          },
+          "prerequisite": {
+            "$ref": "#/components/schemas/TradePrerequisite",
+            "description": "The prerequisite that is not met."
+          }
+        },
+        "required": [
+          "prerequisite",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ReadyToTradePreparing": {
+        "description": "Not every prerequisite could be confirmed current yet (they are being prepared, or the last\npreparation is too old). The order checks and prepares them itself.",
+        "properties": {
+          "kind": {
+            "description": "New values may be added; treat unknown values as other.",
+            "enum": [
+              "preparing"
+            ],
+            "type": "string",
+            "x-extensible-enum": true
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ReadyToTradeReady": {
+        "description": "Every prerequisite the order checks was current when this quote was answered: the order\npermission, the venue key's trade permission and, where the venue reads funds, a fresh funds\nread that covers the quote.",
+        "properties": {
+          "kind": {
+            "description": "New values may be added; treat unknown values as other.",
+            "enum": [
+              "ready"
+            ],
+            "type": "string",
+            "x-extensible-enum": true
+          }
+        },
+        "required": [
           "kind"
         ],
         "type": "object"
@@ -26042,6 +26125,27 @@
           "maker"
         ],
         "type": "string"
+      },
+      "TradePrerequisite": {
+        "anyOf": [
+          {
+            "enum": [
+              "orderPermission",
+              "takerAdmission",
+              "connection",
+              "venueKeyPermission",
+              "tradePolicy",
+              "funds",
+              "credit"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "description": "A prerequisite an order on a venue quote needs.\n\nNew values may be added; treat unknown values as other.",
+        "x-extensible-enum": true
       },
       "TradeProjection": {
         "anyOf": [
