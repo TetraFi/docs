@@ -84,10 +84,12 @@ amount=${TETRAFI_AMOUNT:-10}
 # Introspect this key, not its owner's profile. A workspace key sees its venue trading setup and
 # granted organisation wallets. A key without a workspace may omit organisationWallets or return null.
 # blockedBy, when present, is the code an organisation-wallet order would be refused with right now.
+# grantedNetworks: networks the key acts on while the wallet has them on.
 me=$(tetrafi GET /api/v1/me)
 jq -c '.organisationWallets | if . == null then null else
   {venueTradeScope, venueTradeEnabled, requestSigningRequired,
-    grants: [.grants[] | .financialAccountId], blockedBy} end' <<<"$me" >&2
+    grants: [.grants[] | {financialAccountId, grantedNetworks}],
+    blockedBy} end' <<<"$me" >&2
 # endregion
 me_summary=$(jq -c '.organisationWallets | if . == null then null else
   {grants: (.grants | length), blocked: (.blockedBy != null)} end' <<<"$me")

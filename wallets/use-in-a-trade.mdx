@@ -1,0 +1,86 @@
+---
+title: "Use a wallet in a trade"
+description: "Pick the wallet or account a trade pays from and where its output goes, who signs for each kind, what must be in place before the order, and the refusals you can meet."
+keywords: ["pay from", "deliver to", "sourceOptions", "source.tradingWallets", "deliverTo", "grant", "grantedNetworks"]
+---
+
+import TradingSourceOptions from '/snippets/samples/trading-source-options.mdx';
+import TradingSourceRequest from '/snippets/samples/trading-source-request.mdx';
+import WalletsDeliverTo from '/snippets/samples/wallets-deliver-to.mdx';
+import MeOrganisationWallets from '/snippets/samples/me-organisation-wallets.mdx';
+
+Every trade pays from one wallet or account and delivers to one. Each section below shows both paths: in the app, and with an API key.
+
+## Pick pay-from and deliver-to
+
+<Tabs>
+  <Tab title="In the app">
+    Each quote on **Trade** shows **Pay from** and **Receive in**. Open either to pick from your wallets and accounts: organisation wallets you may trade from, your connected browser wallet, and your custody accounts. Your choices start from **Settings › Trading defaults**.
+  </Tab>
+  <Tab title="With the API">
+    `sourceOptions` on each quote lists the `financialAccountId` values the key may name. Name the paying wallet per network in `source.tradingWallets`, and the output in `deliverTo`. Details: [Choose wallets and accounts](/trade/wallets-and-accounts).
+
+    <TradingSourceOptions />
+
+    <TradingSourceRequest />
+  </Tab>
+</Tabs>
+
+## Who signs
+
+| Pays from | In the app | With an API key |
+| --- | --- | --- |
+| **Venue account** | No wallet signature | No wallet signature; the key needs [venue trading](/authentication#trade-on-your-venue-accounts) |
+| **Hosted wallet** | TetraFi signs within the trading grant the owners approved for the venue | The same, once the wallet is [granted to the key](/before-you-trade#give-a-key-organisation-wallets) |
+| **External wallet** | You sign each trade in your wallet | [Rolling out](/trade/sign-with-your-own-wallet) |
+| **Custody account at a custodian** | A custody request; the custodian's approval applies | Not available |
+
+## Before the order
+
+<Tabs>
+  <Tab title="In the app">
+    The wallet needs its owners' trading grant for the venue, and the trade's network switched on for it ([Networks](/wallets/networks)). If the network is off, the refusal offers to switch it on.
+  </Tab>
+  <Tab title="With the API">
+    `GET /api/v1/me` shows what the key can use now:
+
+    - `grants[].financialAccountId`: the wallet is granted to the key.
+    - `grants[].grantedNetworks`: the networks the grant covers. A switch on never extends a grant.
+    - `grants[].networks`: which of the wallet's networks are switched on. The key acts only where both agree.
+    - `blockedBy`: when present, the code an organisation-wallet order would be refused with now.
+
+    An Advanced quote adds a `preflight` step that returns `walletAuthorization`; Advanced is not open yet.
+
+    <MeOrganisationWallets />
+  </Tab>
+</Tabs>
+
+## Order, steps and settlement
+
+Placing the order, answering its steps on `POST /api/v1/orders/{orderId}/steps/{stepId}` and following it are on [Orders](/trade/orders) and [How a trade runs](/trade/how-a-trade-runs). Settlement is on [Settlement and credit](/trade/settlement-and-credit).
+
+<Tabs>
+  <Tab title="In the app">
+    An on-chain trade delivers to the wallet in **Receive in**. A venue trade's output stays on the venue account unless you pick a wallet that is an approved withdrawal destination there; TetraFi then withdraws it once the order fills.
+  </Tab>
+  <Tab title="With the API">
+    An on-chain trade delivers to `deliverTo`, or your default. A venue trade's output always stays on the venue account: only a signed-in member delivers it to a wallet ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)).
+
+    <WalletsDeliverTo />
+  </Tab>
+</Tabs>
+
+## Refusals
+
+| Code | Meaning and what to do |
+| --- | --- |
+| `WALLET_NETWORK_OFF` | The network is switched off for the wallet. Switch it on in the app; the grant works again unchanged. |
+| `API_KEY_ORGANISATION_WALLET_NETWORK_NOT_GRANTED` | The key's grant doesn't name this network. Have the grant extended to it. |
+| `WALLET_NETWORK_NOT_IN_FAMILY` | The network is of another type than the wallet. Choose one of its networks. |
+| `WALLET_NETWORK_NOT_REPORTED` | The custodian hasn't reported this network. Choose another network or wallet. |
+| `WALLET_NETWORKS_UNAVAILABLE` | The wallet's networks couldn't be read. Try again shortly. |
+| `apiKeyOrganisationWalletScopeRequired` | The key holds no wallet grant. Grant it an organisation wallet. |
+| `onchainWalletNotUsable` | The saved wallet can't be used by this key. Grant the key a wallet, or choose another. |
+| `signingGrantRequired` | The wallet has no trading grant for this venue. Its owners approve one in the app. |
+
+Every code: [Error codes](/reference/error-codes).

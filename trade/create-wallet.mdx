@@ -4,6 +4,9 @@ description: "Start an organisation wallet, or a member's own personal wallet, w
 keywords: ["create wallet", "organisation wallet", "owners", "threshold", "Turnkey"]
 ---
 
+import CreateHostedWalletSample from '/snippets/samples/create-hosted-wallet.mdx';
+import FollowHostedWalletSample from '/snippets/samples/follow-hosted-wallet.mdx';
+
 A member's own API key can start an organisation wallet (with `treasury_write`) or the member's own personal wallet (with `orders_write`, where Advanced is enabled). Each owner chooses their own sign-in methods and approves it on their own signing page, so no wallet exists at the provider until they have.
 
 ## At a glance
@@ -21,30 +24,19 @@ The key's member also needs View wallets for a personal wallet, or Manage wallet
 
 <Steps>
   <Step title="Start it">
-    `POST /api/v1/workspaces/{workspaceId}/wallets` with `scope` (`organisation`, or `personal` for the key's own member), a `connectionId` (a workspace wallet connection, or `platform-turnkey`), `family`, `networks`, `displayName` and an `ownerGroup`: the people who approve, each with an empty `factors` list and no `walletId`, and the `threshold`. A personal wallet's group is the key's member alone, threshold 1. Send an `Idempotency-Key`. The answer is `202` with the pending wallet and `signingRequest.approvalUrl`.
+    `POST /api/v1/workspaces/{workspaceId}/wallets` with `scope` (`organisation`, or `personal` for the key's own member), a `connectionId`, `family`, `networks`, `displayName` and an `ownerGroup`: the people who approve, each with an empty `factors` list and no `walletId`, and the `threshold`. A personal wallet's group is the key's member alone, threshold 1. Send an `Idempotency-Key`. The answer is `202` with the pending wallet and `signingRequest.approvalUrl`.
 
-```json Request body
-{
-  "scope": "organisation",
-  "connectionId": "platform-turnkey",
-  "family": "evm",
-  "networks": ["eip155:84532"],
-  "displayName": "Treasury",
-  "ownerGroup": {
-    "members": [
-      { "person": "<workspace user id>", "factors": [], "needed": 1 },
-      { "person": "<workspace user id>", "factors": [], "needed": 1 }
-    ],
-    "threshold": 2
-  }
-}
-```
+    `connectionId` is a workspace wallet connection (your own account) or TetraFi's: `platform-privy` (Privy provided by TetraFi). `platform-turnkey` (Turnkey provided by TetraFi) is rolling out: until then it answers `409 PLATFORM_PROVIDER_NOT_CONFIGURED`.
+
+<CreateHostedWalletSample />
   </Step>
   <Step title="Send the owners to approve">
     Each owner, the key's member included, opens `approvalUrl`, signs in, chooses their sign-in methods and proves them. For an organisation wallet the key's member first confirms it was them with an authenticator app or security key. With `returnUrl`, on one of the workspace's registered wallet callback origins, the page sends them back with `signingRequestId` and `outcome`.
   </Step>
   <Step title="Follow it">
     `GET …/wallets/{walletId}` until `status` is `active`, or `failed`, `expired`, `cancelled` or `declined`; after any of the last four, start again. `missing` names who has not approved yet. `GET …/wallets?status=pending` lists the pending ones.
+
+<FollowHostedWalletSample />
   </Step>
 </Steps>
 

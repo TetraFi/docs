@@ -5,121 +5,69 @@ description: "The four kinds of account TetraFi works with, whose provider accou
 keywords: ["wallet", "hosted wallet", "external wallet", "custody account", "owners", "threshold", "linked"]
 ---
 
-TetraFi works with four kinds of account. They differ in one thing: **who can move the funds**. Whatever the kind, **TetraFi never moves funds without the owners' approval**, or a limit they approved.
+TetraFi works with four kinds of account, split by **who can move the funds**. TetraFi never moves funds without the owners' approval, or a limit they approved.
 
-| Category | What it means | Set it up |
-| --- | --- | --- |
-| **External wallet** | You hold the key. It signs only when you connect it. | [External wallets](/wallets/external-wallets) |
-| **Hosted wallet** | A provider runs the key. It can't move funds without your owners' approval or a limit they set. | [Turnkey](/wallets/hosted-turnkey) · [Privy](/wallets/hosted-privy) · [Fireblocks](/wallets/connect-fireblocks) |
-| **Custody account** | Someone else holds the funds and moves them on your instruction: a qualified custodian, or your account at a venue. | [Custody accounts](/wallets/custody-accounts) |
-| **Bank account** | Your company's own bank account. TetraFi shows no bank balance and moves no money from it. | **Treasury › Accounts** |
+## Four categories
 
-Treasury › Accounts shows one section per category.
+| Category | What it means |
+| --- | --- |
+| [**External wallet**](/wallets/external-wallets) | You hold the key. It signs only when you connect it. |
+| **Hosted wallet** ([Turnkey](/wallets/hosted-turnkey), [Privy](/wallets/hosted-privy)) | A provider runs the key. It can't move funds without your owners' approval or a limit they set. |
+| [**Custody account**](/wallets/custody-accounts) | Someone else holds the funds and moves them on your instruction: a qualified custodian, or your account at a venue. |
+| **Bank account** | Your company's own bank account. TetraFi shows no bank balance and moves no money from it. |
 
-<Accordion title="What TetraFi does with each">
-| Category | Who can move the funds | What TetraFi does with it |
-| --- | --- | --- |
-| **External wallet** | You. The key is on your own device (a browser extension, mobile or hardware wallet, or an address you paste). Only you can move funds. | Sends only when you connect and sign. Everything else is monitored only. |
-| **Hosted wallet** | Your owners. The key is secured by a provider, shown as "Runs on" its provider, such as "Runs on Privy". Funds move only with your owners' approval or a limit they set. One owner ("just you") is the simplest case. | Prepares requests; your owners approve them. With one owner, it acts in that person's own session, or through a limited grant they approve. |
-| **Custody account** | A custodian or a venue, on your instruction, shown as "Held by" the custodian or "Held at" the venue, such as "Held by BitGo Trust" or "Held at Binance". | Sends instructions and reads balances. The custodian's or venue's own approvals still apply. |
-| **Bank account** | Your company, at its bank. | Records it as a payout destination. A bank account never sends without a person present. |
+<AccordionGroup>
+  <Accordion title="What TetraFi does with each">
+  | Category | Who can move the funds | What TetraFi does with it |
+  | --- | --- | --- |
+  | **External wallet** | You. The key is on your own device (a browser extension, mobile or hardware wallet, or an address you paste). Only you can move funds. | Sends only when you connect and sign. Everything else is monitored only. |
+  | **Hosted wallet** | Your owners. The key is secured by a provider, shown as "Runs on" its provider, such as "Runs on Privy". Funds move only with your owners' approval or a limit they set. One owner ("just you") is the simplest case. | Prepares requests; your owners approve them. With one owner, it acts in that person's own session, or through a limited grant they approve. |
+  | **Custody account** | A custodian or a venue, on your instruction, shown as "Held by" the custodian or "Held at" the venue, such as "Held by BitGo Trust" or "Held at Binance". | Sends instructions and reads balances. The custodian's or venue's own approvals still apply. |
+  | **Bank account** | Your company, at its bank. | Records it as a payout destination. A bank account never sends without a person present. |
 
-Exchange and OTC venue accounts are custody accounts held at the venue, and bank accounts are their own kind. Neither is a wallet.
-</Accordion>
+  Exchange and OTC venue accounts are custody accounts held at the venue, and bank accounts are their own kind. Neither is a wallet.
+  </Accordion>
 
-<Accordion title="Every field and value">
-| Field | Answers | Values |
-| --- | --- | --- |
-| **Scope** | Who owns it | **Organisation**: the company's wallet, the one that faces LPs and brokers. **Personal**: one member's wallet. |
-| **Shared** | Who else may use it | Organisation wallets are always workspace-wide. Sharing a personal wallet with chosen members (view and request, nothing more) is rolling out. |
-| **Category** | Who can move the funds | **External wallet**, **Hosted wallet**, **Custody account** or **Bank account**. |
-| **Key technology** | How the key signs | MPC, secure enclave, HSM, threshold network, a key the provider manages, or an external key TetraFi knows nothing about. A contract account has no key of its own; each of its owners has one. |
-| **Account type** | What the chain sees | An ordinary address, an address with EIP-7702 smart features (shown as **Smart (7702)**), a multisig contract, a modular smart account, or a ledger account at a custodian. |
-| **Wallet type** | The label you see | The smart-account kind for a contract account, otherwise the key technology and provider, such as "MPC · Fireblocks". |
-| **TetraFi role** | What TetraFi can do | **None**, or **bounded delegate** ([below](#who-controls-the-funds)). |
-| **Link** | Is ownership proven | **Linked** or **Not linked** ([below](#linked-or-not-linked)). |
+  <Accordion title="Where they appear in Treasury">
+  **Treasury › Accounts** has two tabs, **Company** and **Personal & shared**; the tab only filters by scope.
 
-Scope and category are independent: every category exists in both scopes.
-</Accordion>
+  | Section | What it lists |
+  | --- | --- |
+  | **Hosted wallets** | Wallets a provider runs the key for; only your owners can move funds. |
+  | **Hosted wallets: just you** | Hosted wallets with one owner. On **Company**, the section says to give company money a wallet with several owners. |
+  | **External wallets** | Wallets whose key is on your own device. |
+  | **Custody accounts** | Accounts a custodian holds. |
+  | Venue accounts, bank accounts | On **Company**, each kind in a section of its own. |
+  | **Not classified** | Wallets TetraFi can't place, each with its reason and, when there is one, the fix. |
+
+  Each row shows its wallet type and provider, such as "Secure enclave · Turnkey", and **Not linked** or **Control changed** when that applies. Neither can send.
+  </Accordion>
+</AccordionGroup>
 
 ## Whose provider account
 
-A hosted wallet lives in an account at its provider. Each wallet shows whose, for example "Runs on Privy · Provided by TetraFi" or "Runs on Turnkey · Your account *Treasury ops*".
-
-| Connection | Means |
-| --- | --- |
-| **Provided by TetraFi** | TetraFi runs the account at the provider, so you need no provider contract. The wallet's owners are still your people. TetraFi's account holds no owner role. |
-| **Bring your own account** | You connect your own provider account in **Treasury › Providers**, and wallets are created in it. |
-
-Privy is available both ways. Turnkey is available with your own account; Turnkey provided by TetraFi is rolling out. Where an option is not set up on an environment, the create form shows it as not offered.
-
-<AccordionGroup>
-  <Accordion title="Switching where new wallets go">
-    Every wallet is pinned to the provider and connection it was created with. The workspace's choice decides only where **new** wallets go. Changing it never moves an existing wallet. Every earlier wallet keeps reading balances and sending on its own provider.
-
-    When existing wallets would stay behind, a switch needs your acknowledgement. Without it, the switch is refused and nothing changes. The refusal lists, for each provider and connection, how many organisation wallets and members' personal wallets stay there. Switching between two connections of the same provider counts as a switch too. Members' personal wallets are counted, never named.
-  </Accordion>
-
-  <Accordion title="Moving and retiring a wallet">
-    <span id="moving-a-wallet-to-another-provider"></span>
-    To move a wallet's funds to another provider:
-
-    1. Create a new organisation wallet on the provider you want.
-    2. Use **Move funds** from the old wallet to the new one. This is one Run with a step per asset, and the network coin goes last. The wallet's owners approve it like any other send.
-    3. Retire the old wallet once it is empty.
-
-    A wallet can't be retired while it is holding a balance, part of an open Run, holding funds reserved for a payment, the source of an active grant, or the workspace's saved default. Each refusal names its cause. Network-coin dust smaller than one transfer's fee can't be sent, so it stays in the wallet and remains under its owners' control. A retired wallet keeps its history, but it can't send or receive again.
-  </Accordion>
-
-  <Accordion title="Removing a provider connection">
-    A connection that any wallet or pending setup still uses can't be removed. The refusal counts what still uses it. To free the connection, move and retire the organisation wallets that use it, and each member removes their own empty personal wallets on it (only the member can do this). Once nothing uses the connection, it can be removed.
-  </Accordion>
-</AccordionGroup>
+A hosted wallet runs in an account at its provider: **Provided by TetraFi** (no contract of your own; TetraFi holds no owner role) or **Bring your own account** (connected in **Treasury › Providers**). Each wallet shows which, such as "Runs on Privy · Provided by TetraFi".
 
 ## Who controls the funds
 
-A hosted wallet's **owners** approve its payments. Together they form the **owner group**, and its **threshold** is how many owners must approve, such as 2 of 3. Each owner approves with their own sign-in methods, such as a passkey or an email code, or with one of their own wallets. The provider checks each approval, not TetraFi.
-
-| Who | Can do alone |
-| --- | --- |
-| **The owners**, at the threshold | Approve a payment, change the owners, set limits |
-| **The provider** | Run the key and enforce the owners' rules. It never moves funds on its own. |
-| **TetraFi** | Read and prepare requests (role **None**), or sign within limits the owners approved (role **bounded delegate**) |
-
-A wallet with one owner ("just you") is allowed. For company money, Treasury warns against it: if that person loses their sign-in methods, no payment can be approved.
-
-<AccordionGroup>
-  <Accordion title="Bounded delegates">
-    The owners approve a limited signer, for example for an automation or an agent. The provider enforces its limits; a limit the provider can't enforce is refused, with the reason. Revoking it stops new sends.
-  </Accordion>
-
-  <Accordion title="Control changed">
-    TetraFi checks who holds a wallet's native owner roles. A personal wallet's owners count as yours only when a complete read shows every factor as permanent and none of them as TetraFi's; a failed read, or a factor TetraFi can't attribute, reads as unread, never as yours. If any owner role is held by a TetraFi key, the wallet reads **Control changed** and every send from it is refused. The fix is in the provider: remove TetraFi's signing rights there.
-  </Accordion>
-
-  <Accordion title="Recovery share">
-    A recovery share is the one other role TetraFi will ever accept, and it is rolling out. With it, TetraFi would hold one share of a wallet key for recovery only: it never signs alone, never counts toward a quorum, and the wallet stays under its owners' control. You would opt in per wallet.
-  </Accordion>
-</AccordionGroup>
+A hosted wallet's **owners** form its **owner group**; the **threshold** is how many must approve a payment, such as 2 of 3. Each approves with their own sign-in methods or one of their wallets, checked by the provider. The provider runs the key and enforces the owners' rules, but never moves funds alone. TetraFi prepares requests, or signs within limits the owners approved ([its role](/wallets/manage#tetrafis-role-on-a-wallet)). One owner ("just you") is allowed, but if they lose their sign-in methods, nothing can be approved.
 
 ## Linked or Not linked
 
-**Linked** means ownership is proven: by a signature from the wallet, or by the provider that runs it. Hosted wallets are linked when they are created. An external wallet is linked once you sign one message with it.
-
-**Not linked** is an address you pasted without signing. It can receive and be watched, but it never sends, approves or counts as the holder. Link it later from its wallet page. See [External wallets](/wallets/external-wallets).
+**Linked**: ownership is proven, by a signature or by the provider. **Not linked**: a pasted address; it can receive and be watched, but never sends, approves or counts as the holder until linked from its wallet page.
 
 ## Networks
 
-A wallet has **one type** (EVM, Solana or Tron) and **one address** for that type. You switch networks of that type on and off; you never create a new wallet for a new network. See [Networks](/wallets/networks).
+A wallet has one type (EVM, Solana or Tron), one address, and [networks](/wallets/networks) you switch on and off. Bitcoin addresses are watched only.
 
 ## What each provider supports
 
-Turnkey and Privy wallets can be created and approved inside TetraFi; Fireblocks and BitGo send and sign by API.
+Turnkey and Privy wallets are created and approved inside TetraFi.
 
 <Accordion title="Capabilities by provider">
 **Yes**: the provider enforces it. **Partial**: part of it works. **Monitored**: TetraFi checks it and refuses what breaks it, but the provider doesn't enforce it. **No**: not available today.
 
-| Capability | Turnkey | Privy | Fireblocks | BitGo |
+| Capability | Turnkey | Privy | Fireblocks | BitGo wallet platform (rolling out) |
 | --- | --- | --- | --- | --- |
 | Create the wallet from TetraFi | Yes | Yes | No | No |
 | Send and sign by API | Yes | Yes | Yes | Yes |
@@ -142,19 +90,6 @@ Wallet gas sponsorship and transaction batching are not yet available for any pr
 
 ## The rule that holds everywhere
 
-An API key, an admin session, a provider connection or a gas sponsor never creates wallet authority. Ownership is checked again before every send.
+No API key, admin session, provider connection or gas sponsor creates wallet authority; ownership is checked before every send.
 
-<Accordion title="Defaults and request IDs">
-  Per-chain defaults are preferences, never authority: ownership is checked again before every send. Every wallet or grant request carries a request ID you generate, so a lost response reconciles under it and nothing is created twice.
-
-  Where delegated signing enters the loop is on [Orders](/trade/orders); the same wallets move funds under policy on [Treasury & Custody](/core-concepts/treasury).
-</Accordion>
-
-## Use wallets through the API
-
-| You want to | Read |
-| --- | --- |
-| Create a hosted wallet from your own system | [Create a wallet](/trade/create-wallet) |
-| Choose the wallet or account a quote trades from | [Choose wallets and accounts](/trade/wallets-and-accounts) |
-| Trade from an external wallet you sign for yourself | [Sign with your own wallet](/trade/sign-with-your-own-wallet) (rolling out) |
-| Every wallet endpoint | [API reference](/api-reference/intros/wallets) |
+Next: [Use a wallet in a trade](/wallets/use-in-a-trade) · [Manage wallets](/wallets/manage)
