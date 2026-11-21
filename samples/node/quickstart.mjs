@@ -150,6 +150,20 @@ async function main() {
     `quoting ${sell} for ${buy}`);
   // #endregion
 
+  // #region quickstart-pairs
+  // The pairs your enabled venues trade from `sell`; each pair's id is SELL~BUY.
+  const query = `sellAsset=${encodeURIComponent(sell)}&limit=1000`;
+  const pairs = await tetrafi('GET', `/api/v1/pairs?${query}`);
+  const pair = pairs.items.find((item) => item.id === `${sell}~${buy}`);
+  if (!pair) {
+    // Not listed: a source still being read (unreachable) may list it shortly.
+    throw new Error(json({ error: 'PAIR_NOT_LISTED', pair: `${sell}~${buy}`,
+      unreachable: pairs.unreachable ?? [], hint: pairs.hint }));
+  }
+  console.error(json({ pair: pair.id,
+    venues: (pair.routes ?? []).map((route) => route.venueId) }));
+  // #endregion
+
   // #region quickstart-quote
   const request = { kind: 'pair', sell: { asset: sell }, buy: { asset: buy },
     sellAmount: amount };

@@ -99,7 +99,7 @@ A `POST` with a JSON body and three `webhook-` headers. It only says an order ch
 }
 ```
 
-`data.kind` is `basicTrade` or `advancedTrade`, and can gain values; `terminal` is always present. `data.next` is the order's next action, in the order's `next` shape: `stepId` and `sequence` are present when `kind` is `sign` (rolling out), and absent otherwise. Read the order for the step itself.
+`data.kind` is `basicTrade` or `advancedTrade`, and can gain values; `terminal` is always present. `data` may also carry `settlement` and `settlementStatus`. `data.next` is the order's next action, in the order's `next` shape, and absent when there is nothing to do: `stepId` and `sequence` are present when `kind` is `sign` (rolling out), and absent otherwise. Read the order for the step itself.
 
 Answer unknown fields and event types with a `2xx` and ignore them. `apiVersion` is the version the endpoint's bodies use: the version current when it was created, until you move it with `PATCH …/webhooks/{webhookId}` and `apiVersion`. A breaking change ships only under a new version ([Versioning](/reference/conventions#versioning)).
 
@@ -124,7 +124,7 @@ Every call has its [API reference page](/api-reference/intros/webhooks), with it
 | --- | --- |
 | Test | `201` with a delivery record; your endpoint receives `webhook.test`. The `201` is not your receiver's acknowledgement: check `success`, `httpStatus` and `errorMessage`. |
 | Rotate the secret | `200` with the new `secret`; a replay of the same key returns `secret: null`. For 24 hours, deliveries carry both secrets' signatures, so either verifies while you deploy. |
-| List deliveries | `items`, `totalCount` and `nextCursor`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`. How many receipts are kept is the endpoint's own `deliveryRetention` (`GET …/webhooks/{webhookId}`). |
+| List deliveries | `items`, `totalCount` and `nextCursor`. Each delivery has `success`, `errorMessage` and `redeliverAvailable`; `payload` is the delivered body for a test event, and absent for order, settlement and treasury events. How many receipts are kept is the endpoint's own `deliveryRetention` (`GET …/webhooks/{webhookId}`). |
 | Redeliver | `200` with a delivery record: check its `success`. Resends the retained payload to the current URL, signed with the current secret. Your receiver gets the event again; it keeps its body `id`, so [deduplicate](#set-up-an-endpoint) as for any delivery. A retry with the same `Idempotency-Key` and body returns the first redelivery instead of sending another. |
 | Resume | Reactivates a paused endpoint. Then redeliver what it missed. |
 | Update | `PATCH` with `If-Match` changes `url`, `events`, `active` or `apiVersion`, and answers the endpoint as `GET` does. `apiVersion` must be a supported version (otherwise `400 API_VERSION_UNSUPPORTED`); later bodies use it. |

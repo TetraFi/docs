@@ -176,6 +176,22 @@ def main():
           file=sys.stderr)
     # endregion
 
+    # region quickstart-pairs
+    # The pairs your enabled venues trade from `sell`; each pair's id is SELL~BUY.
+    query = f"sellAsset={url_quote(sell, safe='')}&limit=1000"
+    pairs = tetrafi("GET", f"/api/v1/pairs?{query}")
+    pair_id = f"{sell}~{buy}"
+    pair = next((p for p in pairs["items"] if p["id"] == pair_id), None)
+    if pair is None:
+        # Not listed: a source still being read (unreachable) may list it shortly.
+        error = {"error": "PAIR_NOT_LISTED", "pair": pair_id,
+                 "unreachable": pairs.get("unreachable") or [],
+                 "hint": pairs.get("hint")}
+        raise ValueError(compact(error))
+    venues = [route["venueId"] for route in pair.get("routes") or []]
+    print(compact({"pair": pair["id"], "venues": venues}), file=sys.stderr)
+    # endregion
+
     # region quickstart-quote
     request = {"kind": "pair", "sell": {"asset": sell}, "buy": {"asset": buy},
                "sellAmount": amount}
