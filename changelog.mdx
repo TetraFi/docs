@@ -5,6 +5,14 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-21" description="Pairs: stable ids, pages, fields and one vocabulary for unread sources">
+  - **Breaking.** [`GET /api/v1/pairs`](/api-reference/trading/list-pairs) is always paged: 100 pairs by default, `limit` up to 1000 (a larger value is read as 1000), and `limit=0` is `400 INVALID_REQUEST`. Follow `nextCursor`, or narrow the list with `sellAsset` or `buyAsset`.
+  - Each pair has a stable `id`, `SELL~BUY` (for example `USDC~ETH`). `fields=` returns only the fields you name; `id`, `sell` and `buy` are always kept. Every page carries an `ETag` for `If-None-Match`.
+  - **Breaking.** `unreachable[].reason` on `GET /api/v1/pairs` and `GET /api/v1/assets` is one open set: `notReadYet` (read again in a few seconds), `unavailable`, or `listedAfterConnection` (a venue that lists its pairs only once you connect it). The venue's own code moves to `details.ownerCode`. Match on `reason`, not on the code.
+  - A venue that lists its pairs only once you connect it is a `listedAfterConnection` entry of `availability=connectable`, and no longer hides the list's `hint`.
+  - Optional pair fields (`sellNetwork`, `buyNetwork`, `legs`, `routes`, `connectableVenues`, `hint`) are absent rather than `null`.
+</Update>
+
 <Update label="2026-11-21" description="One status per error code">
   - **Breaking.** `WALLET_NETWORK_UNKNOWN` is always `400`: the request named a network TetraFi cannot place. When the wallet itself sits on such a network, the answer is `409 WALLET_RECORDED_NETWORK_UNKNOWN`.
   - **Breaking.** A key that trades venues (`venue_trades_write`) but has no bounded IP allowlist is refused `403 VENUE_TRADE_KEY_IP_ALLOWLIST_MISSING` when it calls. `400 VENUE_TRADE_IP_ALLOWLIST_REQUIRED` now only answers creating or editing such a key. Give the key an allowlist of your own networks.

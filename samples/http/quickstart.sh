@@ -228,6 +228,20 @@ done
 echo "assets: $(jq '.items | length' <<<"$assets") listed, quoting $sell for $buy" >&2
 # endregion
 
+# region quickstart-pairs
+# The pairs your enabled venues trade from $sell; each pair's id is SELL~BUY.
+pairs=$(tetrafi GET "/api/v1/pairs?sellAsset=$sell&limit=1000")
+pair=$(jq -c --arg id "$sell~$buy" 'first(.items[] | select(.id == $id))
+  // empty' <<<"$pairs")
+if [[ -z $pair ]]; then
+  # Not listed: a source still being read (unreachable) may list it shortly.
+  jq -c --arg id "$sell~$buy" '{error: "PAIR_NOT_LISTED", pair: $id,
+    unreachable: (.unreachable // []), hint}' <<<"$pairs" >&2
+  exit 1
+fi
+jq -c '{pair: .id, venues: [.routes[]?.venueId]}' <<<"$pair" >&2
+# endregion
+
 # region quickstart-quote
 request=$(jq -n --arg sell "$sell" --arg buy "$buy" --arg amount "$amount" \
   --arg venues "${TETRAFI_VENUES:-}" '{

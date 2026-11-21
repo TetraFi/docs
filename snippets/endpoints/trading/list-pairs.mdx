@@ -1,0 +1,45 @@
+| | |
+| --- | --- |
+| **Paging** | 100 by default, `limit` up to 1000 ([Paging](/reference/conventions#paging)). |
+| **Filters** | `sellAsset`, `buyAsset`, `asset`, `venueId`, `network`. |
+| **Fields** | `fields=routes`; `id`, `sell`, `buy` always kept. |
+| **Caching** | `ETag` on every page; `If-None-Match` for `304`. |
+| **Partial list** | See `unreachable` below. |
+
+<Accordion title="Fields to read">
+| Field | What it tells you |
+| --- | --- |
+| `id` | The pair, `SELL~BUY` (for example `USDC~ETH`). Stable: use it to find or store a pair. |
+| `sell`, `buy` | The asset ids to send as `sell.asset` and `buy.asset` in a quote request. A pair is directed: `USDC~ETH` and `ETH~USDC` are two pairs. |
+| `routes` | How your enabled venues trade it: each with its `venueId`, `location` (`singleChain`, `crossChain` or `offChain`), `sellNetwork` and `buyNetwork`, and the `legs` of a route through several venues. |
+| `connectableVenues` | With `availability=connectable` only: the venues that would trade it once usable, each with its `status` (`notConnected`, `pending` or `paused`). |
+| `hint` | What would widen the list, such as connecting another venue. |
+
+A `limit` above 1000 is read as 1000; send the previous `nextCursor` as `cursor` for the next page. `location`, `status` and `hint.code` are open sets: read a value you do not know as "other", never as an error. Optional fields are absent rather than `null`.
+</Accordion>
+
+<Accordion title="Pairs you could trade by connecting a venue">
+`availability=connectable` lists the pairs that only a venue you have not connected, or one still being set up or paused, would trade. Each pair names those venues in `connectableVenues` and has no `routes`. A venue that lists its pairs only once you connect it is not in `items`; it appears in `unreachable` with `reason` `listedAfterConnection`.
+</Accordion>
+
+<Accordion title="When the list is partial">
+Each `unreachable` entry names a `source`, and for a venue its id in `id`:
+
+| `reason` | What to do |
+| --- | --- |
+| `notReadYet` | The venue's market list is being read for the first time, for example just after you connected it. Read again in a few seconds. |
+| `unavailable` | The source could not be read just now. Retry with backoff; `details.ownerCode` carries the venue's own code when there is one. |
+| `listedAfterConnection` | The venue lists its pairs only once you connect it ([Connect a venue account](/before-you-trade#connect-a-venue-account)). |
+
+The set of reasons is open. A pair missing from a partial list may still trade.
+</Accordion>
+
+<Accordion title="Refusals">
+| Status and code | Why, and what to do |
+| --- | --- |
+| 400 `INVALID_REQUEST` | An unknown parameter, `limit` of 0, an unknown `availability`, or an unknown name in `fields`. The message names it. |
+| 400 `ASSET_FILTER_BLANK` | A filter with an empty value. |
+| 400 `CURSOR_INVALID` | Not a cursor this API issued, or one from another query. Start again without one. |
+| 403 | Not a member of the workspace, or the key lacks `prices_read` or belongs to another workspace. |
+| 503 `ASSET_CATALOGUE_UNAVAILABLE` | The asset catalogue is not loaded just now. Retry shortly, with backoff. |
+</Accordion>
