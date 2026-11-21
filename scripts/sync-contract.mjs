@@ -225,11 +225,11 @@ function errorCodesPage() {
       'CREDENTIAL', 'CSV', 'CURSOR',
       'EMAIL', 'EXPORT', 'FORBIDDEN', 'IDEMPOTENCY', 'IDEMPOTENT', 'INCLUDE', 'INSUFFICIENT_PERMISSION', 'INSUFFICIENT_SCOPE',
       'INSUFFICIENT_WORKSPACE_PERMISSION', 'INTEGRATION', 'INVALID', 'IP', 'JWT', 'KEY', 'METADATA', 'METHOD', 'MFA', 'MISSING',
-      'LIMIT', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
+      'LIMIT', 'MEMBER', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
       'SECOND_PROOF', 'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
     ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
       'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BRIDGE', 'BUDGET', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'COUNTERPARTY_NOT_READY', 'DELIVER',
-      'DESK', 'EXACT', 'MORE', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
+      'DESK', 'ELIGIBILITY', 'EXACT', 'MORE', 'NETWORK', 'NO', 'PRICES', 'PRODUCT', 'QUOTE', 'REFERENCE', 'REQUOTE', 'RFQ', 'ROUTING', 'SAME',
       'UNKNOWN', 'USABLE', 'VENUE_QUOTE_RATE_LIMITED']],
     ['Orders', 'Placing, following and cancelling an order: minimum receive, slippage, caps, the source it trades from and its execution.', [
       'ADVANCED', 'BROWSER', 'CLIENT', 'DIRECT', 'EXECUTION', 'FIRM', 'HELD', 'HIGH', 'INSUFFICIENT_BALANCE', 'INSUFFICIENT_LIQUIDITY',
@@ -248,7 +248,7 @@ function errorCodesPage() {
     ['Funding, balances and treasury', 'Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees.', [
       'BALANCE', 'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'PAY', 'TREASURY', 'WITHDRAWAL']],
     ['Settlement, credit and trades', 'Settlement windows and obligations, credit, the ledger and trade records.', [
-      'CREDIT', 'DEFERRED', 'LEDGER', 'RECORDS', 'RUN', 'SETTLEMENT', 'TRADE']],
+      'CREDIT', 'DEFERRED', 'LEDGER', 'RECORDS', 'RUN', 'SETTLEMENT', 'TRADE', 'VIEW_CREDIT']],
     ['Webhooks', 'Creating, testing and redelivering webhook endpoints.', ['MAX_WEBHOOKS', 'WEBHOOK']],
     ['Compliance', 'Capabilities, jurisdiction, screening and compliance policy.', [
       'ADDRESS', 'CAPABILITIES', 'CAPABILITY', 'COMPLIANCE', 'PLATFORM_JURISDICTION', 'PLATFORM_POLICY', 'SCREENING',
@@ -257,7 +257,7 @@ function errorCodesPage() {
       'CLOCK', 'DATABASE', 'INTEGRITY', 'INTERNAL', 'PLATFORM_PROVIDER', 'REQUEST_TIMEOUT', 'RESPONSE', 'SERIALIZATION', 'SERVER',
       'SERVICE_UNAVAILABLE', 'STORAGE', 'UPSTREAM']],
     ['Other execution', 'Route continuations, server-side source execution and escrow settlement, mostly Advanced, which is not open yet.', [
-      'CONTINUATION', 'COUNTERPARTY_ROUTER', 'DELEGATED', 'DEPLOYMENT', 'ROUTER', 'SOLANA']],
+      'CONTINUATION', 'COUNTERPARTY_ROUTER', 'DELEGATED', 'DEPLOYMENT', 'PROGRAMMABLE', 'ROUTER', 'SOLANA']],
   ];
   const owner = new Map();
   for (const [index, [, , prefixes]] of AREAS.entries()) for (const prefix of prefixes) {
