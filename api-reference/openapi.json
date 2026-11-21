@@ -2886,7 +2886,7 @@
         "description": "An organisation wallet to create (scope organisation): the wallet connection, family, networks and name, the owner group that approves it, and optionally the registered URL the approval page returns each person to.",
         "properties": {
           "connectionId": {
-            "description": "A workspace wallet connection id, or `platform-<provider>` for TetraFi's platform account.",
+            "description": "A workspace wallet connection id, or `platform-<provider>` for the connection Provided by TetraFi.",
             "type": "string"
           },
           "displayName": {
@@ -17863,6 +17863,7 @@
             "reduceAmount": "#/components/schemas/QuoteSourceFixReduceAmount",
             "refreshCredit": "#/components/schemas/QuoteSourceFixRefreshCredit",
             "requestAgain": "#/components/schemas/QuoteSourceFixRequestAgain",
+            "requestCreditChange": "#/components/schemas/QuoteSourceFixRequestCreditChange",
             "requestPermission": "#/components/schemas/QuoteSourceFixRequestPermission",
             "reviewPositions": "#/components/schemas/QuoteSourceFixReviewPositions",
             "reviewSettlementSchedule": "#/components/schemas/QuoteSourceFixReviewSettlementSchedule",
@@ -17907,6 +17908,9 @@
           },
           {
             "$ref": "#/components/schemas/QuoteSourceFixRefreshCredit"
+          },
+          {
+            "$ref": "#/components/schemas/QuoteSourceFixRequestCreditChange"
           },
           {
             "$ref": "#/components/schemas/QuoteSourceFixFinishOnboarding"
@@ -18227,6 +18231,49 @@
           }
         },
         "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "QuoteSourceFixRequestCreditChange": {
+        "description": "The venue declined a trade worth more than the credit it reported available on this\naccount: ask for a smaller amount, or ask the liquidity provider for a credit change. The\nfigures are the provider's own credit line, read beside the ask at `observedAt`.",
+        "properties": {
+          "creditAvailable": {
+            "$ref": "#/components/schemas/CreditAmount",
+            "description": "Credit the provider reported available; negative when the account is over its line."
+          },
+          "creditLimit": {
+            "$ref": "#/components/schemas/CreditAmount",
+            "description": "The provider's reported credit limit."
+          },
+          "kind": {
+            "description": "New values may be added; treat unknown values as other.",
+            "enum": [
+              "requestCreditChange"
+            ],
+            "type": "string",
+            "x-extensible-enum": true
+          },
+          "observedAt": {
+            "description": "When the provider's credit line was observed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "tradeValueUsd": {
+            "description": "The trade's value in USD at the quote request's reference price, as a decimal string.",
+            "type": "string"
+          },
+          "venueAccountId": {
+            "description": "Identifier of the venue account whose credit line was read.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "venueAccountId",
+          "tradeValueUsd",
+          "creditAvailable",
+          "creditLimit",
+          "observedAt",
           "kind"
         ],
         "type": "object"
@@ -37374,7 +37421,7 @@
             "required": false,
             "schema": {
               "default": 100,
-              "format": "int32",
+              "format": "int64",
               "minimum": 1,
               "type": "integer"
             }
