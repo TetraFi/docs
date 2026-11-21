@@ -925,7 +925,7 @@
             ]
           },
           "unreachable": {
-            "description": "Empty when every eligibility input was read. Otherwise source `venueEligibility` with\nreason `ONBOARDED_VENUES_UNAVAILABLE` or `ONCHAIN_MARKETS_UNAVAILABLE`, and one entry per\nvenue whose pairs could not be read, source `venueMarkets` with the venue in `id` and its\nreason, as `GET /pairs` names them.",
+            "description": "Empty when every eligibility input was read. Otherwise source `venueEligibility` (its code,\n`ONBOARDED_VENUES_UNAVAILABLE` or `ONCHAIN_MARKETS_UNAVAILABLE`, in `details.ownerCode`), and\none entry per pair source not read, named as `GET /pairs` names them: `venueMarkets` with the\nvenue in `id`, or `venueConnections`, `assetCatalogue`, `advancedConnections`,\n`advancedRoutes`. `reason` is an open set: `notReadYet` (a venue's first market read is in\nflight: read again in a few seconds) or `unavailable` (the read failed: retry later).",
             "items": {
               "$ref": "#/components/schemas/UnreachableSource"
             },
@@ -2698,7 +2698,7 @@
             "type": "string"
           }
         ],
-        "description": "Why a venue's pair is listed under `availability=connectable` instead of tradable now. New\nvalues may be added; treat an unknown one as \"not tradable yet\".\n\nNew values may be added; treat unknown values as other.",
+        "description": "Why a venue's pair is listed under `availability=connectable` instead of tradable now. Treat a\nvalue you do not know as \"not tradable yet\".\n\nNew values may be added; treat unknown values as other.",
         "x-extensible-enum": true
       },
       "ConsequencePolicy": {
@@ -6415,23 +6415,6 @@
         ],
         "type": "object"
       },
-      "KeySafetyFact": {
-        "anyOf": [
-          {
-            "enum": [
-              "on",
-              "off",
-              "unknown"
-            ],
-            "type": "string"
-          },
-          {
-            "type": "string"
-          }
-        ],
-        "description": "One key-safety fact. `unknown` whenever no explicit venue report of this key revision\nestablishes it (the venue does not report it, the read failed, or reports disagree):\nnever guessed and never a safe-looking default. Clients must tolerate values added later.\n\nNew values may be added; treat unknown values as other.",
-        "x-extensible-enum": true
-      },
       "KeyVenueAccounts": {
         "description": "Which venue accounts a key may act on, discriminated by `kind`. Extensible: a client\nmust read a `kind` it does not know as a restriction it can't name.\n\nNew values may be added; treat unknown values as other.",
         "discriminator": {
@@ -7553,29 +7536,6 @@
           "status"
         ],
         "type": "object"
-      },
-      "LivePriceWithdrawalReason": {
-        "anyOf": [
-          {
-            "enum": [
-              "connectionsInUse",
-              "streamingUnavailable",
-              "notTradable",
-              "streamDown",
-              "crossed",
-              "oneSided",
-              "maintenance",
-              "tradingPaused",
-              "unrecognised"
-            ],
-            "type": "string"
-          },
-          {
-            "type": "string"
-          }
-        ],
-        "description": "Why the live price session withdrew the pair. Clients must tolerate unknown values.\n\nNew values may be added; treat unknown values as other.",
-        "x-extensible-enum": true
       },
       "LocationKind": {
         "anyOf": [
@@ -12227,20 +12187,18 @@
             "items": {
               "$ref": "#/components/schemas/ConnectableVenue"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
+          },
+          "id": {
+            "description": "The pair's stable id: the sell asset id, `~`, then the buy asset id (`USDC~ETH`). The order\nis sell then buy, never base then quote: `ETH~USDC` is the other direction.",
+            "type": "string"
           },
           "routes": {
             "description": "The routes of the workspace's enabled venues that serve the pair; a quote may be asked on\nany of them. Absent with `availability=connectable`.",
             "items": {
               "$ref": "#/components/schemas/PairRouteEntry"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "sell": {
             "description": "The asset sold.",
@@ -12248,6 +12206,7 @@
           }
         },
         "required": [
+          "id",
           "sell",
           "buy"
         ],
@@ -12800,31 +12759,22 @@
         "properties": {
           "buyNetwork": {
             "description": "CAIP-2 network the bought asset arrives on; absent off-chain.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "legs": {
             "description": "A `composite` route's legs, in order; absent for a single-venue route.",
             "items": {
               "$ref": "#/components/schemas/PairRouteLegEntry"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "location": {
             "$ref": "#/components/schemas/LocationKind",
-            "description": "Where the route executes: `singleChain`, `crossChain` or `offChain`. New values may be\nadded; treat an unknown value as a route you cannot filter on."
+            "description": "Where the route executes: `singleChain`, `crossChain` or `offChain`. Treat a value you do\nnot know as a route you cannot filter on."
           },
           "sellNetwork": {
             "description": "CAIP-2 network the sold asset leaves from; absent off-chain.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "venueId": {
             "description": "The venue entry that quotes this route, as quote sources name it (`binance-orderbook`).\n`composite` for a route of several legs that no single venue serves alone: its venues are\non `legs`.",
@@ -12867,33 +12817,25 @@
         "description": "The pairs the workspace can trade. A source the listing could not read is named in\n`unreachable`, so a shorter list is never read as complete.",
         "properties": {
           "hint": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CounterpartyHint",
-                "description": "What would widen the listing: `NO_COUNTERPARTY_CONNECTED` when the workspace has enabled no\nvenue, `COUNTERPARTY_NOT_READY` when nothing is listed because each connected venue is\nstill being set up, paused, or needs Advanced while it is not available,\n`MORE_COUNTERPARTIES_AVAILABLE` when other venues are available to connect. Absent\nwhen every venue is enabled, or when a source could not be read (see `unreachable`)."
-              }
-            ],
-            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+            "$ref": "#/components/schemas/CounterpartyHint",
+            "description": "What would widen the listing: `NO_COUNTERPARTY_CONNECTED` when the workspace has enabled no\nvenue, `COUNTERPARTY_NOT_READY` when nothing is listed because each connected venue is\nstill being set up, paused, or needs Advanced while it is not available,\n`MORE_COUNTERPARTIES_AVAILABLE` when other venues are available to connect. Absent\nwhen every venue is enabled, or when a tradable source could not be read (see `unreachable`)."
           },
           "items": {
-            "description": "Pairs ordered by sell then buy asset, limited to the current page when paged.",
+            "description": "One page of pairs, ordered by sell then buy asset id.",
             "items": {
               "$ref": "#/components/schemas/PairEntry"
             },
             "type": "array"
           },
           "nextCursor": {
-            "description": "On a paged request (a limit or a cursor given), the cursor of the next page; null on the\nlast page and on an unpaged request.",
+            "description": "The cursor of the next page; null on the last page.",
             "type": [
               "string",
               "null"
             ]
           },
           "unreachable": {
-            "description": "Empty when every source was read. Otherwise one entry per unread source: source\n`venueMarkets` with the venue in `id` and its reason, or source `venueEligibility`.",
+            "description": "Empty when every source was read. Otherwise one entry per source not read: `source`\n`venueMarkets` with the venue in `id`, or `venueEligibility`, `venueConnections`,\n`assetCatalogue`, `advancedConnections` or `advancedRoutes`. `reason` is an open set:\n`notReadYet` (the venue's first market read since a restart or key change is in flight:\nread again in a few seconds), `unavailable` (the read failed: retry later) or, with\n`availability=connectable`, `listedAfterConnection` (the venue lists its pairs only once\nconnected: connect it to see them). `details.ownerCode` keeps the source's own code.",
             "items": {
               "$ref": "#/components/schemas/UnreachableSource"
             },
@@ -18092,7 +18034,7 @@
           },
           "who": {
             "$ref": "#/components/schemas/WorkspacePermission",
-            "description": "Workspace permission required to enable the venue."
+            "description": "Who enables the venue: `place_order`, a member who can trade (a venue operator; a\nmember holding `manage_credentials` may also)."
           }
         },
         "required": [
@@ -18192,7 +18134,7 @@
           },
           "who": {
             "$ref": "#/components/schemas/WorkspacePermission",
-            "description": "Workspace permission required to take this action."
+            "description": "Who takes this action: `place_order`, a member who can trade (a venue operator; a\nmember holding `manage_credentials` may also)."
           }
         },
         "required": [
@@ -24799,16 +24741,29 @@
       "TradeDetail": {
         "allOf": [
           {
-            "oneOf": [
+            "anyOf": [
               {
-                "type": "null"
+                "$ref": "#/components/schemas/CompanyTradeDetail"
               },
               {
-                "$ref": "#/components/schemas/CompanyTradeDetail",
-                "description": "A taker order's detail, at the top level as the taker detail has always returned it."
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "trade"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "lp"
+                      ]
+                    }
+                  ],
+                  "x-undiscriminated-union-reason": "Negated field-presence predicates for an optional flattened object, not wire variants."
+                }
               }
             ],
-            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+            "x-undiscriminated-union-reason": "Optional flattened object: validates either the full block or absence of every block field; no separate wire value to tag."
           },
           {
             "anyOf": [
@@ -24831,11 +24786,6 @@
                     {
                       "required": [
                         "executionTypeId"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "venueName"
                       ]
                     },
                     {
@@ -27601,34 +27551,6 @@
         ],
         "type": "object"
       },
-      "VenueAccountReference": {
-        "description": "The venue's own account id. TetraFi keeps only a digest of the id the venue reports, so\nthe id itself is never shown: `notRetained` where the venue reports one, `notReported`\nwhere the venue's last answer was that it reports none. Clients must tolerate values\nadded later.",
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/VenueAccountReferenceStatus"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "type": "object"
-      },
-      "VenueAccountReferenceStatus": {
-        "anyOf": [
-          {
-            "enum": [
-              "notRetained",
-              "notReported"
-            ],
-            "type": "string"
-          },
-          {
-            "type": "string"
-          }
-        ],
-        "description": "New values may be added; treat unknown values as other.",
-        "x-extensible-enum": true
-      },
       "VenueAccountStep": {
         "anyOf": [
           {
@@ -28228,58 +28150,6 @@
         ],
         "type": "object"
       },
-      "VenueCapabilityLastGood": {
-        "description": "The newest answer the venue gave for one capability of a connection.",
-        "properties": {
-          "capability": {
-            "description": "Capability the venue answered about.",
-            "type": "string"
-          },
-          "credentialRevision": {
-            "description": "The key revision that answer was for; compare it with the connection's `credentialRevision`.\nNull when the connection holds no key.",
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "observedAt": {
-            "description": "Time of the last successful venue response about this capability.",
-            "format": "date-time",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/CapabilityState",
-            "description": "What the venue answered then: `supported` or `unsupported`."
-          }
-        },
-        "required": [
-          "capability",
-          "status",
-          "observedAt",
-          "credentialRevision"
-        ],
-        "type": "object"
-      },
-      "VenueCommitmentCount": {
-        "description": "How many unresolved commitments of one kind keep a key readable: `reservation` (a spend\nhold not yet released), `withdrawal` (sent, not final), `depositDeclaration`,\n`bankDepositDeclaration` (within its match window) or `providerLeg` (a payout or pay-in\nleg sent by that key). Clients must tolerate kinds added later.",
-        "properties": {
-          "count": {
-            "description": "Number of unresolved commitments of this kind that keep the credential readable.",
-            "format": "int64",
-            "type": "integer"
-          },
-          "kind": {
-            "description": "Category of unresolved commitment, such as a withdrawal or spend reservation.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "count"
-        ],
-        "type": "object"
-      },
       "VenueConnectionAttention": {
         "properties": {
           "code": {
@@ -28450,66 +28320,6 @@
         "description": "New values may be added; treat unknown values as other.",
         "x-extensible-enum": true
       },
-      "VenueConnectionControl": {
-        "description": "What the connection item read adds about the key and its checks.",
-        "properties": {
-          "disconnect": {
-            "$ref": "#/components/schemas/VenueDisconnectReading",
-            "description": "What removing this venue account would do now. A reading: nothing is changed."
-          },
-          "keySafety": {
-            "$ref": "#/components/schemas/VenueKeySafety",
-            "description": "How safe the current key is, from the venue's reports at this key revision."
-          },
-          "lastGoodObservations": {
-            "description": "Per capability, the newest answer the venue gave and when, kept when a later check fails.\nEmpty when the venue has never answered.",
-            "items": {
-              "$ref": "#/components/schemas/VenueCapabilityLastGood"
-            },
-            "type": "array"
-          },
-          "lastGoodObservedAt": {
-            "description": "The latest time the venue itself answered a rights check on this connection, for any\ncapability. A later failed check, a pause or a revoke keeps it. Null when the venue has\nnever answered one, never the read time.",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "livePriceWithdrawal": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueLivePriceWithdrawal",
-                "description": "Why the connection's live price session last withdrew a pair that still has no live\nprice, read from memory at this response. Absent when no session runs or nothing is\nwithdrawn."
-              }
-            ],
-            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
-          },
-          "recoveryOnlyKeys": {
-            "description": "The account's keys kept for recovery only: sends are refused, and the key stays readable\nuntil the commitments it still has to read back resolve. No time rule ends it. Empty\nwhen no key is recovery-only.",
-            "items": {
-              "$ref": "#/components/schemas/VenueRecoveryOnlyKey"
-            },
-            "type": "array"
-          },
-          "venueAccountReference": {
-            "$ref": "#/components/schemas/VenueAccountReference",
-            "description": "The venue's own id for this account."
-          }
-        },
-        "required": [
-          "lastGoodObservedAt",
-          "lastGoodObservations",
-          "recoveryOnlyKeys",
-          "venueAccountReference",
-          "disconnect",
-          "keySafety"
-        ],
-        "type": "object"
-      },
       "VenueConnectionDeposits": {
         "properties": {
           "bankDeposit": {
@@ -28645,18 +28455,6 @@
           "connectionId": {
             "description": "Identifier of this venue connection.",
             "type": "string"
-          },
-          "control": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VenueConnectionControl",
-                "description": "The connection's control facts. Present only on the connection item read\n(`GET …/venue-connections/{connectionId}`); list rows omit it."
-              }
-            ],
-            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
           "controlRevision": {
             "description": "Revision of the connection's current controls.",
@@ -29033,69 +28831,6 @@
         ],
         "type": "object"
       },
-      "VenueDisconnectBlocker": {
-        "description": "One refusal the remove would answer: its error code and what causes it.",
-        "properties": {
-          "code": {
-            "description": "Machine-readable code for the disconnect blocker.",
-            "type": "string"
-          },
-          "currencies": {
-            "description": "For `WORKSPACE_HAS_DEFERRED_BALANCES`: the currencies still held.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "holderCount": {
-            "description": "For `WORKSPACE_HAS_DEFERRED_BALANCES`: how many members still hold them.",
-            "format": "int64",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "message": {
-            "description": "Human-readable explanation of why the venue account cannot be disconnected.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "type": "object"
-      },
-      "VenueDisconnectReading": {
-        "description": "What removing the venue account (`POST …/venue-enablements/{id}/revoke`) would do now,\nread without changing anything.",
-        "properties": {
-          "blockers": {
-            "description": "Every refusal the remove would answer now, all at once. Empty when none.",
-            "items": {
-              "$ref": "#/components/schemas/VenueDisconnectBlocker"
-            },
-            "type": "array"
-          },
-          "canDisconnect": {
-            "description": "True when no blocker stands: the remove would be accepted (with the caller's\nManageCredentials and the current control revision).",
-            "type": "boolean"
-          },
-          "recoveryHolds": {
-            "description": "Keys the remove would keep recovery-only rather than retire, with what holds each.\nThese do not refuse the remove.",
-            "items": {
-              "$ref": "#/components/schemas/VenueRecoveryHold"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "canDisconnect",
-          "blockers",
-          "recoveryHolds"
-        ],
-        "type": "object"
-      },
       "VenueEnablement": {
         "description": "One of the workspace's venue accounts: its account at one venue and provider site. fundingTarget says where its money lives: a venueAccount (its accountId) for an account-based venue, or the organisation's tradingWallets for a wallet-based one. accountId, present only for an account-based venue, is the `{venueAccountId}` of the venue-account balance, deposit-history and deposit-instructions reads. A walletBased item has no venue account and carries no accountId: its money is in the organisation's trading wallets (fundingTarget.walletIds). Key items by venueEnablementId. Only the documented fields are part of the integrator contract; undocumented fields may be sent and must be ignored.",
         "properties": {
@@ -29469,58 +29204,6 @@
         },
         "type": "object"
       },
-      "VenueKeySafety": {
-        "description": "What the venue reported about a key's safety settings.",
-        "properties": {
-          "addressBookLock": {
-            "$ref": "#/components/schemas/KeySafetyFact",
-            "description": "Withdrawals only to the venue's address book (whitelisted destinations)."
-          },
-          "ipLock": {
-            "$ref": "#/components/schemas/KeySafetyFact",
-            "description": "The key is restricted to IP addresses at the venue."
-          },
-          "withdrawals": {
-            "$ref": "#/components/schemas/KeySafetyFact",
-            "description": "The key can withdraw (crypto or fiat): `on` when the venue reports any withdrawal\npermission granted, `off` only when every withdrawal permission it reports is disabled."
-          }
-        },
-        "required": [
-          "withdrawals",
-          "addressBookLock",
-          "ipLock"
-        ],
-        "type": "object"
-      },
-      "VenueLivePriceWithdrawal": {
-        "description": "A pair the connection's live price session withdrew, and why.",
-        "properties": {
-          "base": {
-            "description": "The pair's base and quote, as the catalogue names them.",
-            "type": "string"
-          },
-          "quote": {
-            "description": "Quote asset of the pair whose live price was withdrawn.",
-            "type": "string"
-          },
-          "reason": {
-            "$ref": "#/components/schemas/LivePriceWithdrawalReason",
-            "description": "Reason the venue's live price for the pair was withdrawn."
-          },
-          "withdrawnAt": {
-            "description": "When the session first recorded this reason for this pair.",
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "base",
-          "quote",
-          "withdrawnAt"
-        ],
-        "type": "object"
-      },
       "VenueModality": {
         "anyOf": [
           {
@@ -29584,57 +29267,6 @@
         ],
         "description": "Initial policy verdict retained on a preparation.\n\nNew values may be added; treat unknown values as other.",
         "x-extensible-enum": true
-      },
-      "VenueRecoveryHold": {
-        "description": "A key the remove would keep recovery-only, and the commitments that keep it.",
-        "properties": {
-          "credentialId": {
-            "description": "Identifier of the credential that would be retained after disconnect, not the key itself.",
-            "type": "string"
-          },
-          "heldBy": {
-            "description": "Unresolved commitments that would keep the credential readable, grouped by kind.",
-            "items": {
-              "$ref": "#/components/schemas/VenueCommitmentCount"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "credentialId",
-          "heldBy"
-        ],
-        "type": "object"
-      },
-      "VenueRecoveryOnlyKey": {
-        "description": "A key kept for recovery only.",
-        "properties": {
-          "credentialId": {
-            "description": "Identifier of the credential retained for recovery checks, not the key itself.",
-            "type": "string"
-          },
-          "heldBy": {
-            "description": "What it still has to read back, per kind; the key retires when these resolve.",
-            "items": {
-              "$ref": "#/components/schemas/VenueCommitmentCount"
-            },
-            "type": "array"
-          },
-          "since": {
-            "description": "When the key became recovery-only. Null when that was not recorded (keys that became\nrecovery-only before the time was kept).",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "credentialId",
-          "since",
-          "heldBy"
-        ],
-        "type": "object"
       },
       "VenueReportedAmount": {
         "description": "An amount the venue reports, in the venue's own asset code: a decimal string.",
@@ -31791,7 +31423,7 @@
             "type": "string"
           },
           "payload": {
-            "description": "Fiat payload example from a persisted bank-deposit event, not a delivery receipt.\nReferences retain the API's masks exactly. `bankDeposit` names its asset as `asset` beside\nthe deprecated `currency` (same value); an event recorded before `asset` was published\ncarries `currency` only, and a redelivery resends the event as it was recorded. Its lifecycle\nis `status`; an event recorded before 2026-11-17 named it `state`, and a redelivery resends it so."
+            "description": "The body as delivered, for a test delivery and for an event the log may show. Absent for\nan event whose body is entitled by the subscription owner's read rights (order, settlement,\ntreasury and direct-user events): the log is readable with webhook management alone, so\nread the resource the event names, or redeliver it to the endpoint."
           },
           "redeliverAvailable": {
             "description": "Actual retained availability, not permission to resend; redelivery revalidates.",
@@ -37571,7 +37203,7 @@
     },
     "/api/v1/pairs": {
       "get": {
-        "description": "Lists the directed asset pairs your workspace can trade now, each with the routes (venue and where it executes) that serve it. `availability=connectable` lists instead the pairs only a venue you have not connected serves.",
+        "description": "Lists the directed asset pairs your workspace can trade now, each with the routes (venue and where it executes) that serve it, one page at a time. `availability=connectable` lists instead the pairs only a venue you have not connected, not finished setting up or paused would serve.",
         "operationId": "list_pairs",
         "parameters": [
           {
@@ -37632,20 +37264,30 @@
             }
           },
           {
-            "description": "Pairs per page, 1 to 500. Omit both `limit` and `cursor` for every pair.",
+            "description": "Pairs per page: 100 when omitted, at most 1000 (a larger value is served as 1000). A page\nmay hold fewer; only a null `nextCursor` ends the listing. May change between pages.",
             "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
+              "default": 100,
               "format": "int32",
-              "minimum": 0,
+              "minimum": 1,
               "type": "integer"
             }
           },
           {
-            "description": "The previous page's `nextCursor`, for the same filters.",
+            "description": "The previous page's `nextCursor`, sent with the same filters (otherwise 400\n`CURSOR_INVALID`). Opaque: never build or edit one.",
             "in": "query",
             "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated top-level fields of each pair to return (`fields=id` lists pair ids only); id, sell and buy are always kept. JSON only",
+            "in": "query",
+            "name": "fields",
             "required": false,
             "schema": {
               "type": "string"
@@ -37663,6 +37305,7 @@
                   "items": [
                     {
                       "buy": "ETH",
+                      "id": "USDC~ETH",
                       "routes": [
                         {
                           "location": "offChain",
@@ -37686,7 +37329,7 @@
                 }
               }
             },
-            "description": "The workspace's pairs. API keys require the prices_read scope.",
+            "description": "One page of the workspace's pairs. API keys require the prices_read scope.",
             "headers": {
               "RateLimit": {
                 "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
@@ -37707,7 +37350,7 @@
                 }
               },
               "etag": {
-                "description": "Registry snapshot plus the listing",
+                "description": "Strong validator of this exact page",
                 "schema": {
                   "type": "string"
                 }
@@ -37721,7 +37364,7 @@
             }
           },
           "304": {
-            "description": "Not modified (If-None-Match matched the ETag). Unpaged requests only: a page carries no ETag.",
+            "description": "Not modified: If-None-Match matched this page's ETag.",
             "headers": {
               "RateLimit": {
                 "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
@@ -37757,7 +37400,7 @@
                 }
               }
             },
-            "description": "ASSET_FILTER_BLANK naming the empty filter, CURSOR_INVALID, or INVALID_REQUEST naming `limit` (1 to 500), `availability` or an unknown query parameter",
+            "description": "ASSET_FILTER_BLANK naming the empty filter, CURSOR_INVALID, or INVALID_REQUEST naming `limit` (0), `availability`, `fields` or an unknown query parameter",
             "headers": {
               "RateLimit": {
                 "description": "draft-ietf-httpapi-ratelimit-headers-07 section 3.1 structured dictionary, for example `limit=100, remaining=41, reset=19`. Remaining is the admitted decision's headroom; reset is whole seconds until quota next becomes available, not an epoch or a promise of a full burst refill. On a limiter's 429 remaining is 0 and reset equals Retry-After. Accepted key, route and per-address policies are compared by lowest remaining, then longest reset. A venue refusal without a known quota makes no rate-limit header claim.",
@@ -39144,7 +38787,7 @@
                         "target": {
                           "venueId": "selini"
                         },
-                        "who": "manage_credentials"
+                        "who": "place_order"
                       },
                       "reason": "accountSetupIncomplete",
                       "status": "unavailable",

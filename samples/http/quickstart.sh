@@ -239,7 +239,7 @@ if [[ -z $pair ]]; then
     unreachable: (.unreachable // []), hint}' <<<"$pairs" >&2
   exit 1
 fi
-jq -c '{pair: .id, venues: [.routes[]?.venueId]}' <<<"$pair" >&2
+jq -c '{pair: .id, venues: [.routes[].venueId]}' <<<"$pair" >&2
 # endregion
 
 # region quickstart-quote

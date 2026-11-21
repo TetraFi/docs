@@ -636,7 +636,7 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "List tradable pairs\n\nLists the directed asset pairs your workspace can trade now, each with the routes (venue and where it executes) that serve it. `availability=connectable` lists instead the pairs only a venue you have not connected serves.",
+        "description": "List tradable pairs\n\nLists the directed asset pairs your workspace can trade now, each with the routes (venue and where it executes) that serve it, one page at a time. `availability=connectable` lists instead the pairs only a venue you have not connected, not finished setting up or paused would serve.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/pairs",
           "host": [
@@ -686,15 +686,21 @@
             },
             {
               "key": "limit",
-              "value": "0",
+              "value": "100",
               "disabled": true,
-              "description": "Pairs per page, 1 to 500. Omit both `limit` and `cursor` for every pair."
+              "description": "Pairs per page: 100 when omitted, at most 1000 (a larger value is served as 1000). A page\nmay hold fewer; only a null `nextCursor` ends the listing. May change between pages."
             },
             {
               "key": "cursor",
               "value": "<cursor>",
               "disabled": true,
-              "description": "The previous page's `nextCursor`, for the same filters."
+              "description": "The previous page's `nextCursor`, sent with the same filters (otherwise 400\n`CURSOR_INVALID`). Opaque: never build or edit one."
+            },
+            {
+              "key": "fields",
+              "value": "<fields>",
+              "disabled": true,
+              "description": "Comma-separated top-level fields of each pair to return (`fields=id` lists pair ids only); id, sell and buy are always kept. JSON only"
             }
           ]
         }
