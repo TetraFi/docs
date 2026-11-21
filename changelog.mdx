@@ -5,6 +5,12 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-21" description="One status per error code">
+  - **Breaking.** `WALLET_NETWORK_UNKNOWN` is always `400`: the request named a network TetraFi cannot place. When the wallet itself sits on such a network, the answer is `409 WALLET_RECORDED_NETWORK_UNKNOWN`.
+  - **Breaking.** A key that trades venues (`venue_trades_write`) but has no bounded IP allowlist is refused `403 VENUE_TRADE_KEY_IP_ALLOWLIST_MISSING` when it calls. `400 VENUE_TRADE_IP_ALLOWLIST_REQUIRED` now only answers creating or editing such a key. Give the key an allowlist of your own networks.
+  - **Breaking.** An order's recorded refusal of its next step reads `COMPLIANCE_RECHECK_NOT_CONFIGURED` when the compliance re-check before that step is not set up.
+</Update>
+
 <Update label="2026-11-20" description="List the pairs you can trade">
   - New: [`GET /api/v1/pairs`](/api-reference/trading/list-pairs) lists the directed pairs your workspace can trade now, each with the routes (venue and where it executes) that serve it. `availability=connectable` lists the pairs only a venue you have not connected serves.
 </Update>
