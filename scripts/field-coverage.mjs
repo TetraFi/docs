@@ -3,6 +3,8 @@
 // the response of the operation that produced it. Checked readers:
 //   - samples/http/*.sh            jq filters over a variable an API call (or a helper wrapping one) filled
 //   - published pages              JSON blocks, unless their own label says Output, Request or Summary
+//   - endpoint notes               snippets/endpoints/**: JSON blocks and "Fields to read" table rows, rooted
+//                                  inside the operation of the one api-reference page that imports the note
 //   - TypeScript SDK snippet tabs  property reads on results of `client.<method>(…)`, inside the
 //                                  regions samples/sdk-regions.json publishes
 // A read is rooted at its operation's response schemas (every status) when the operation is known:
@@ -11,9 +13,9 @@
 // operation's response, but every key of the block must fit that one object. Only when the operation
 // cannot be determined does a read fall back to any response schema; those reads are counted.
 //
-//   node scripts/field-coverage.mjs               exit 1 on FIELD_UNDOCUMENTED, FIELD_NO_READS or an unreadable input
+//   node scripts/field-coverage.mjs               exit 1 on FIELD_UNDOCUMENTED, FIELD_NOTE_UNBOUND, FIELD_NO_READS or an unreadable input
 //   node scripts/field-coverage.mjs --fallbacks   also list each FIELD_ROOT_FALLBACK read
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -500,14 +502,14 @@ function mentionedOperation(text, operationOf) {
 }
 
 // Every JSON block is a response example unless its own label says Output (a script's projection,
-// whose jq reads the sample check covers), Request or Summary. A value whose top-level keys include a
+// whose jq reads the sample check covers), Request, Summary or Body (a webhook event's body). A value whose top-level keys include a
 // JSON Schema composition keyword or an `x-` extension is a fragment of the spec itself, not a
 // response (compatibility.mdx, generated from the RFQ repo, shows how an open enum is written); no
 // public response field is named that way, since response fields are camelCase. The operation is
 // the one the block's label or lead-in paragraph names, else the one the snippet just above it
 // calls, else the one its section names; otherwise it is unknown.
 const SCHEMA_KEYWORD = /^(anyOf|oneOf|allOf|\$ref|x-.+)$/;
-export function pageReads(text, { operationOf = () => null, regionOps = new Map() } = {}) {
+export function pageReads(text, { operationOf = () => null, regionOps = new Map(), operation: fixed } = {}) {
   const reads = []; const blocks = /(^[ \t]*```json\b([^\n]*)\n)([\s\S]*?)^[ \t]*```/gim;
   const snippets = new Map([...text.matchAll(/^import\s+(\w+)\s+from\s+['"]\/snippets\/samples\/([\w-]+)\.mdx['"]/gm)].map((m) => [m[1], m[2]]));
   let previousBlockEnd = 0; let blockIndex = 0;
@@ -517,10 +519,13 @@ export function pageReads(text, { operationOf = () => null, regionOps = new Map(
     const headingAt = [...before.matchAll(/^[ \t]*#{1,6} .*$/gm)].at(-1)?.index ?? 0;
     const since = Math.max(previousBlockEnd, headingAt);
     previousBlockEnd = block.index + block[0].length;
-    if (/\b(output|request|summary)\b/i.test(label)) continue;
+    // A `… body` label is a payload someone else receives (a webhook event's body), not this response.
+    if (/\b(output|request|summary|body)\b/i.test(label)) continue;
     const paragraph = before.trimEnd().split(/\n\s*\n/).at(-1) ?? '';
     const lastSnippet = [...text.slice(since, block.index).matchAll(/<(\w+)\s*\/>/g)].map((m) => snippets.get(m[1])).filter(Boolean).at(-1);
-    const operation = mentionedOperation(`${label}\n${paragraph}`, operationOf)
+    // An endpoint note documents one operation (its importing page's): its blocks root there, unless
+    // the block's own label or lead-in names another operation.
+    const operation = mentionedOperation(`${label}\n${paragraph}`, operationOf) ?? fixed
       ?? (lastSnippet ? regionOps.get(lastSnippet) ?? null : null)
       ?? mentionedOperation(text.slice(headingAt, block.index), operationOf);
     const contentOffset = block.index + block[1].length;
@@ -545,6 +550,24 @@ export function pageReads(text, { operationOf = () => null, regionOps = new Map(
     const schemaFragments = new Set(blockReads.filter((read) => read.parts.length === 1 && SCHEMA_KEYWORD.test(read.parts[0])).map((read) => read.fragment));
     reads.push(...blockReads.filter((read) => !schemaFragments.has(read.fragment)));
     blockIndex++;
+  }
+  return reads;
+}
+
+// Rows of a table under a "Fields to read" accordion whose first cell is one backticked field name
+// (`accountId`) or dotted path (`variants[].deployments[].network`): each is a read rooted inside
+// the operation's response. A row whose first cell is anything else (prose) is not a read.
+const FIELD_PATH = /^[A-Za-z_]\w*(?:\[\])?(?:\.[A-Za-z_]\w*(?:\[\])?)*$/;
+export function fieldTableReads(text, operation) {
+  const reads = [];
+  for (const section of text.matchAll(/<Accordion\s+title=["']Fields to read["'][^>]*>([\s\S]*?)<\/Accordion>/g)) {
+    const start = section.index + section[0].indexOf(section[1]);
+    for (const row of section[1].matchAll(/^[ \t]*\|([^|\n]*)\|/gm)) {
+      const cell = row[1].trim().match(/^`([^`]+)`$/);
+      if (!cell || !FIELD_PATH.test(cell[1])) continue;
+      const parts = cell[1].split('.').flatMap((segment) => segment.endsWith('[]') ? [segment.slice(0, -2), ARRAY] : [segment]);
+      reads.push({ parts, line: lineAt(text, start + row.index), operation, root: 'inside' });
+    }
   }
   return reads;
 }
@@ -744,6 +767,36 @@ function publishedPages(root) {
   visit(navigation); return [...pages].sort();
 }
 
+const mdxFiles = (dir) => !existsSync(dir) ? [] : readdirSync(dir).sort().flatMap((name) => {
+  const full = path.join(dir, name);
+  return statSync(full).isDirectory() ? mdxFiles(full) : name.endsWith('.mdx') ? [full] : [];
+});
+
+// Every snippets/endpoints/**/*.mdx bound to its operation through the one api-reference page that
+// imports it (that page's `openapi:` method and path). A note no page imports, or two do, or whose
+// page names no operation the spec has, is unbound: never read against a guessed root.
+export function endpointNotes(root, operationOf) {
+  const importers = new Map();
+  for (const page of mdxFiles(path.join(root, 'api-reference'))) {
+    const text = readFileSync(page, 'utf8');
+    const named = text.match(/^openapi:\s*["']?(?:\S+\s+)?(GET|POST|PUT|PATCH|DELETE)\s+(\/[^\s"']*)["']?\s*$/m);
+    const operation = named ? operationOf(named[1], named[2]) : null;
+    for (const match of text.matchAll(/^import\s+\w+\s+from\s+['"]\/(snippets\/endpoints\/[^'"]+\.mdx)['"]/gm)) {
+      if (!importers.has(match[1])) importers.set(match[1], []);
+      importers.get(match[1]).push({ page: path.relative(root, page), operation });
+    }
+  }
+  const bound = []; const unbound = [];
+  for (const note of mdxFiles(path.join(root, 'snippets', 'endpoints'))) {
+    const file = path.relative(root, note).split(path.sep).join('/');
+    const pages = importers.get(file) ?? [];
+    if (pages.length !== 1) unbound.push(`${file} (imported by ${pages.length ? pages.map((p) => p.page).join(', ') : 'no page'})`);
+    else if (!pages[0].operation) unbound.push(`${file} (${pages[0].page} names no operation in the spec)`);
+    else bound.push({ file, operation: pages[0].operation });
+  }
+  return { bound, unbound };
+}
+
 // SDK reads inside published regions, located in the generated snippet that shows them.
 function sdkReads(root, env, operationOf) {
   const mapFile = path.join(root, 'samples', 'sdk-regions.json');
@@ -799,6 +852,12 @@ export function main({ root = siteRoot, env = process.env, log = console.log, li
       sources.push({ file: `samples/http/${file}`, reads });
     }
     for (const file of publishedPages(root)) sources.push({ file, reads: pageReads(readFileSync(path.join(root, file), 'utf8'), { operationOf, regionOps }) });
+    const notes = endpointNotes(root, operationOf);
+    for (const line of notes.unbound) log(`FIELD_NOTE_UNBOUND ${line}`);
+    for (const { file, operation } of notes.bound) {
+      const text = readFileSync(path.join(root, file), 'utf8');
+      sources.push({ file, reads: [...pageReads(text, { operationOf, regionOps, operation }), ...fieldTableReads(text, operation)] });
+    }
     sources.push(...sdkReads(root, env, operationOf));
 
     const counts = { operation: 0, inside: 0, fallback: 0 }; let misses = 0;
@@ -831,8 +890,8 @@ export function main({ root = siteRoot, env = process.env, log = console.log, li
     }
     const total = counts.operation + counts.inside + counts.fallback;
     if (!total) { log('FIELD_NO_READS no response field read was found; the readers are broken or the inputs moved'); return 1; }
-    log(`field-coverage: ${files.size} files, ${total} reads (${counts.operation} at their operation's response, ${counts.inside} inside their operation's response, ${counts.fallback} on any response (operation unknown)), ${misses} undocumented`);
-    return misses ? 1 : 0;
+    log(`field-coverage: ${files.size} files (${notes.bound.length} endpoint notes), ${total} reads (${counts.operation} at their operation's response, ${counts.inside} inside their operation's response, ${counts.fallback} on any response (operation unknown)), ${misses} undocumented`);
+    return misses || notes.unbound.length ? 1 : 0;
   } catch (error) {
     log(`FIELD_COVERAGE_UNREADABLE ${error.message}`); return 1;
   }

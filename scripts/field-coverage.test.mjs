@@ -259,3 +259,46 @@ test('no reads at all is a failure, never a pass', () => {
   assert.equal(result.status, 1, result.output);
   assert.match(result.output, /^FIELD_NO_READS/m);
 });
+
+// Endpoint notes (snippets/endpoints/**) are read against the operation of the one page importing them.
+function noteSite({ note, importers = 1, openapi = 'GET /orders' } = {}) {
+  const root = mkdtempSync(path.join(tmpdir(), 'field-coverage-'));
+  for (const dir of ['samples/http', 'contract/integrator', 'snippets/endpoints/orders', 'api-reference/orders']) mkdirSync(path.join(root, dir), { recursive: true });
+  writeFileSync(path.join(root, 'docs.json'), JSON.stringify({ navigation: { pages: ['response'] } }));
+  writeFileSync(path.join(root, 'response.mdx'), '# Example\n');
+  writeFileSync(path.join(root, 'snippets/endpoints/orders/list-orders.mdx'), note);
+  for (let i = 0; i < importers; i++) {
+    writeFileSync(path.join(root, `api-reference/orders/page-${i}.mdx`),
+      `---\nopenapi: "api-reference/openapi.json ${openapi}"\n---\n\nimport Notes from '/snippets/endpoints/orders/list-orders.mdx'\n\n<Notes />\n`);
+  }
+  writeFileSync(path.join(root, 'contract/integrator/openapi.json'), JSON.stringify(twoOperations));
+  const output = [];
+  const status = main({ root, env: { TETRAFI_RFQ_API_DOCS: path.join(root, 'contract') }, log: (line) => output.push(line) });
+  return { status, output: output.join('\n') };
+}
+
+test('an endpoint note JSON block with an undocumented key fails at its line', () => {
+  const bad = noteSite({ note: 'Example:\n\n```json\n{ "dispatch": { "venueOrderId": "v-1" }, "isTerminal": true }\n```\n' });
+  assert.equal(bad.status, 1, bad.output);
+  assert.match(bad.output, /FIELD_UNDOCUMENTED snippets\/endpoints\/orders\/list-orders.mdx:4 \.isTerminal/);
+  const good = noteSite({ note: 'Example:\n\n```json\n{ "dispatch": { "venueOrderId": "v-1" } }\n```\n' });
+  assert.equal(good.status, 0, good.output);
+  assert.match(good.output, /1 endpoint notes/);
+});
+
+test('an endpoint note "Fields to read" row naming an undocumented field fails; prose rows are not reads', () => {
+  const table = (row) => `<Accordion title="Fields to read">\n| Field | What it tells you |\n| --- | --- |\n| \`dispatch.venueOrderId\` | The venue's id. |\n| Any other text | Prose. |\n${row}</Accordion>\n`;
+  const bad = noteSite({ note: table('| `chainRef` | Not in the spec. |\n') });
+  assert.equal(bad.status, 1, bad.output);
+  assert.match(bad.output, /FIELD_UNDOCUMENTED snippets\/endpoints\/orders\/list-orders.mdx:\d+ \.chainRef/);
+  const good = noteSite({ note: table('') });
+  assert.equal(good.status, 0, good.output);
+});
+
+test('an endpoint note no page imports, two pages import, or whose page names no operation is unbound', () => {
+  for (const options of [{ importers: 0 }, { importers: 2 }, { openapi: 'GET /nowhere' }]) {
+    const run = noteSite({ note: '# Note\n', ...options });
+    assert.equal(run.status, 1, run.output);
+    assert.match(run.output, /FIELD_NOTE_UNBOUND snippets\/endpoints\/orders\/list-orders.mdx/);
+  }
+});
