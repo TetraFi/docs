@@ -47,17 +47,15 @@ print(compact({"pair": pair["id"], "venues": venues}), file=sys.stderr)
 ```
 
 ```typescript TypeScript SDK
-// The pairs your enabled venues trade from USDC; each id is SELL~BUY.
-// One page is not the whole list: listPairsAll follows nextCursor.
+// Ask for the one pair you want: sell USDC, buy ETH. Its id is SELL~BUY;
+// its routes name the venues and networks that serve it. Both filters
+// together answer one row at most, so one read is the whole answer.
 if (!given && usdc && eth) {
   const id = `${usdc.asset}~${eth.asset}`;
-  let pair: Pair | undefined;
-  const gaps: PairsPage['unreachable'] = [];
-  const query = { sellAsset: usdc.asset, limit: 1000 };
-  for await (const page of client.listPairsAll(query)) {
-    gaps.push(...page.unreachable);
-    pair ??= page.items.find((item) => item.id === id);
-  }
+  const query = { sellAsset: usdc.asset, buyAsset: eth.asset };
+  const page: PairsPage = await client.listPairs(query);
+  const gaps = page.unreachable;
+  const pair: Pair | undefined = page.items.find((item) => item.id === id);
   // Not listed: a source still being read (`unreachable`) may list it soon.
   if (!pair) {
     throw new Error(`${id} is not listed yet: ${JSON.stringify(gaps)}`);

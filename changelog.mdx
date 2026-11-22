@@ -5,6 +5,10 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-22" description="Money on fills and venue trades names its asset">
+  - **Breaking.** Every amount an order or a venue trade reports is `{amount, asset}`: the decimal string it was before, with the asset its own record names. On an order: `fills[].amount`, `fills[].sellAmount`, `quotedBuyAmount`, `settledBuyAmount`, and a Basic order's `operation.dispatch.inputSpent`, `outputReceived` and `quotedOutput`. On a trade (`GET /api/v1/workspaces/{workspaceId}/trades` and `…/trades/{tradeId}`): `inputSpent`, `outputReceived`, `feesPaid` and `financials.quotedOutput`. Read `.amount` where you read the string, and take the asset from `.asset` rather than the order's pair.
+</Update>
+
 <Update label="2026-11-22" description="Hosted wallets and the organisation spelling">
   - **Breaking.** The binding target kind (`FundsTargetKind`) `organizationWallet` is now `hostedWallet`: a wallet run by a provider for your workspace. Send `hostedWallet` where you named a target kind, and read it in binding defaults and target views.
   - **Breaking.** The schemas `OrganizationSetupCreatorTradeGrant` and `OrganizationSetupCreatorTradeGrantState` are `OrganisationSetupCreatorTradeGrant` and `OrganisationSetupCreatorTradeGrantState`. Field names and values are unchanged; only generated type names move (the SDK follows).
