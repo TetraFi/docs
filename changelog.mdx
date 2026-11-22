@@ -5,6 +5,14 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-22" description="Venue key refusals on reads, External wallets on /me, asset paging">
+  - A venue-account read (balances, deposit history) whose key the venue refuses answers that key's own code with `details.remedy`: `409 VENUE_KEY_REFUSED`, `VENUE_KEY_REFUSED_IP_OR_KEY`, `VENUE_KEY_MALFORMED`, `VENUE_KEY_REFUSED_PERMISSION_MISSING` or `VENUE_ACCOUNT_INACTIVE`, or `503 VENUE_UNREACHABLE` (retry). It answered `409 RESOURCE_CONFLICT` before.
+  - With an API key or OAuth token, `credentialRevision` and `keyFingerprint` on venue-account reads are `null`: key metadata is for members.
+  - `GET /api/v1/me` adds `organisationWallets.clientSigned`: the External wallets the key trades from by signing each step itself, which need no grant, with its own `blockedBy`. `organisationWallets.blockedBy` now covers only wallets TetraFi signs for.
+  - `GET /api/v1/assets` pages by a new cursor: a cursor just issued always reads the next page. A cursor from before this change answers `400 CURSOR_INVALID`: start again from the first page.
+  - A `204` reply (deleting a webhook) carries no body.
+</Update>
+
 <Update label="2026-11-22" description="Money on fills and venue trades names its asset">
   - **Breaking.** These amounts are now `{amount, asset}`: the decimal string they were before, with the asset their own record names. On an order: `fills[].amount`, `fills[].sellAmount`, `quotedBuyAmount`, `settledBuyAmount`, and a Basic order's `operation.dispatch.inputSpent`, `outputReceived` and `quotedOutput`. On a trade (`GET /api/v1/workspaces/{workspaceId}/trades` and `…/trades/{tradeId}`): `inputSpent`, `outputReceived`, `feesPaid` and `financials.quotedOutput`. Read `.amount` where you read the string, and take the asset from `.asset` rather than the order's pair.
 </Update>
