@@ -5,6 +5,11 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-22" description="Order steps: a swap is a venue fill with a kind">
+  - **Breaking.** A Uniswap swap step in an order's step history (`operation.steps[]`) reads `summary.purpose` `venueFill`, like every venue's fill step; `uniswapExactInputSingle` and `uniswapExactInputPath` are gone. Match `venueFill`.
+  - A venue's fill step carries `summary.kind`: `swap` for a swap inside one chain, null on every other step. The set is open: treat a kind you do not know as other.
+</Update>
+
 <Update label="2026-11-21" description="Pairs: stable ids, pages, fields and one vocabulary for unread sources">
   - **Breaking.** [`GET /api/v1/pairs`](/api-reference/trading/list-pairs) is always paged: 100 pairs by default, `limit` up to 1000 (a larger value is read as 1000), and `limit=0` is `400 INVALID_REQUEST`. Follow `nextCursor`, or narrow the list with `sellAsset` or `buyAsset`.
   - Each pair has a stable `id`, `SELL~BUY` (for example `USDC~ETH`). `fields=` returns only the fields you name; `id`, `sell` and `buy` are always kept. Every page carries an `ETag` for `If-None-Match`.
