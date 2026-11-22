@@ -65,7 +65,6 @@ Each on-chain quote is firm for your address and carries the first step to sign 
     "type": "transaction",
     "signer": "you",
     "legId": "leg_0",
-    "covers": ["leg_0"],
     "network": "eip155:8453",
     "from": "0xAbc…",
     "signBy": "2026-11-18T12:00:45Z",
@@ -83,7 +82,7 @@ The step's `type` says what to sign. On EVM networks today: a `transaction` step
     Every step also names:
     - `signer`: who signs it, `you` or `tetrafi`, an open list. Sign only a step whose `signer` is `you`.
     - `legId`: the quote leg it belongs to (`leg_0` on a one-leg quote).
-    - `covers`: on a step you sign, the legs this one signature authorises. One leg today; one signature over several legs is coming.
+    - `covers`: on a step you sign, the legs this one signature authorises; absent when it is only the step's own `legId`. One leg today; one signature over several legs is coming.
   </Accordion>
   <Accordion title="Who signs">
     `signing.mode` is `you` for an address TetraFi cannot sign for, and `tetrafi` for an organisation wallet granted to your key. The wallet that pays decides who signs, whichever field named it: an External wallet named in `source.preferredWallets` makes the quote `you`, as it does in `source.tradingWallets`. Each `source.tradingWallets` entry is `{wallet, signer?}`; leave `signer` out to follow the wallet. `signer: "you"`, to sign yourself for a wallet TetraFi could sign, is not available yet: it is refused `SIGNING_WALLET_UNSUPPORTED`. The list of modes can grow.

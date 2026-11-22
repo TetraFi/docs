@@ -112,7 +112,7 @@ jq -c '.items[:3][] | {windowId, status, snapshotAt, paymentDeadlineAt, dueStatu
 window_id=$(jq -r '.items[0].windowId // empty' <<<"$windows")
 if [[ -n $window_id ]]; then
   window=$(tetrafi GET "$base/settlement/windows/$window_id")
-  jq -c '{windowId, state, provenance: .statement.provenance, prices: [.statement.prices[]?.status],
+  jq -c '{windowId, status, provenance: .statement.provenance, prices: [.statement.prices[]?.status],
     minimum: .statement.minimumSettlement.outcome}' <<<"$window" >&2
 fi
 # endregion

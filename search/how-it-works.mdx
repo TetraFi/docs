@@ -76,8 +76,8 @@ Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`
     }
   ],
   "sources": [
-    { "status": "answered", "venue": { "id": "...", "modality": "orderBook" }, "asked": true, "detail": null },
-    { "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "pairNotServed", "detail": null }
+    { "status": "answered", "venue": { "id": "...", "modality": "orderBook" }, "asked": "consulted", "detail": null },
+    { "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": "notConsulted", "reason": "pairNotServed", "detail": null }
   ]
 }
 ```
@@ -176,7 +176,7 @@ The stream reports the search only. Follow an order through its status or [webho
 <ParamField body="priceProtectionBps" type="integer">How far a non-firm executable quote may deliver below its quote: 0 to 1000, 30 when omitted. Example: `"priceProtectionBps": 100`</ParamField>
 
 - A venue must pass every filter you send to be asked.
-- A venue that does not is listed in `sources` with `status: "filteredOut"` and `asked: false`.
+- A venue that does not is listed in `sources` with `status: "filteredOut"` and `asked: "notConsulted"`.
 - When nothing is left, `quotes` is empty and `sources` shows why.
 
 </Accordion>
@@ -222,7 +222,7 @@ Every venue has one type, in `venue.modality` on each source and quote leg. Trea
 `filters.venues` matches `venue.id`, the route that executes, such as `binance-orderbook`. It does not match `venue.venueId`, the named venue (`binance`), which can have several routes. Take ids from `sources[].venue.id` or a [price](/search/prices) row's `venue.id`.
 
 ```json
-{ "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": true }
+{ "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": "consulted" }
 ```
 
 Include:

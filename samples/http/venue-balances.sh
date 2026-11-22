@@ -95,7 +95,8 @@ jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then 
 # include=observation returns each pair's own window and status, keyed by the same pair id.
 history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?include=observation")
 jq -c '{deposits: (.items | length),
-  pairs: [.included.observation | to_entries[] | {pair: .key, status: .value.status, since: .value.since}],
+  pairs: [.included.observation | to_entries[] | {pair: .key, status: .value.value.status,
+    since: .value.value.since}],
   unreachable: [.unreachable[] | {id, reason}]}' <<<"$history" >&2
 # endregion
 
