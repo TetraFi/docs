@@ -2467,16 +2467,16 @@
             "type": "string"
           },
           "feesPaid": {
-            "description": "What a confirmed same-asset fill (a bridge) cost the taker: spent minus\nreceived, the venue's protocol and forwarding fees, in the sell asset. Absent unless confirmed and positive.",
-            "type": "string"
+            "$ref": "#/components/schemas/QuoteCardAmount",
+            "description": "What a confirmed same-asset fill (a bridge) cost the taker: spent minus\nreceived, the venue's protocol and forwarding fees, in the sell asset. Absent unless confirmed and positive."
           },
           "financials": {
             "$ref": "#/components/schemas/VenueTradeFinancials",
             "description": "The trade's recorded money terms and payment legs, from the same records as the order read; history never re-derives a fee or minimum."
           },
           "inputSpent": {
-            "description": "What the venue debited and credited, once its outcome is recorded.",
-            "type": "string"
+            "$ref": "#/components/schemas/QuoteCardAmount",
+            "description": "What the confirmed fill debited, in the sell asset; omitted when unconfirmed."
           },
           "lifecycleStatus": {
             "$ref": "#/components/schemas/TradeLifecycleStatus",
@@ -2499,8 +2499,8 @@
             "description": "Why the trade ended as it did, as its dispatch records it (the order page's\n`dispatch.outcomeCode`): the history row names a no-fill's reason from it.\nAbsent until an outcome is recorded."
           },
           "outputReceived": {
-            "description": "Amount credited by the confirmed fill, as a decimal string in `buy.asset` units; omitted when unconfirmed.",
-            "type": "string"
+            "$ref": "#/components/schemas/QuoteCardAmount",
+            "description": "What the confirmed fill credited, in the buy asset; omitted when unconfirmed."
           },
           "pair": {
             "description": "The recorded market pair; absent stays absent, never inferred from asset order.",
@@ -2864,6 +2864,23 @@
         ],
         "description": "New values may be added; treat unknown values as other.",
         "x-extensible-enum": true
+      },
+      "CountryDefault": {
+        "description": "Which company countries an LP's schedule serves by default. One country belongs to at most one\nof the LP's schedules, and at most one schedule takes the other countries.",
+        "properties": {
+          "countries": {
+            "description": "ISO 3166-1 alpha-2 codes of the company countries this schedule serves (\"US\").",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "otherCountries": {
+            "description": "Whether every company country no other schedule of the LP lists starts on this one.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
       },
       "CoverageDefect": {
         "properties": {
@@ -9938,18 +9955,28 @@
                 "type": "array"
               },
               "quotedBuyAmount": {
-                "description": "The buy amount the executed quote said would land. Null when it is not known (for\nexample before a venue order is dispatched).",
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteCardAmount",
+                    "description": "The buy amount the executed quote said would land, with its Asset. Null when it is not\nknown (for example before a venue order is dispatched)."
+                  }
+                ],
+                "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
               },
               "settledBuyAmount": {
-                "description": "What actually landed, read from the fill or settlement evidence. Null until it is\nmeasured; never the quote carried forward and never 0 for unknown.",
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuoteCardAmount",
+                    "description": "What actually landed, with its Asset, read from the fill or settlement evidence. Null\nuntil it is measured; never the quote carried forward and never 0 for unknown."
+                  }
+                ],
+                "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
               },
               "settlesBy": {
                 "description": "The latest time the order settles, or can no longer execute, under its recorded terms:\nthe signed order's fill deadline, or, on a route, the latest fill deadline every leg\ncommits to (Advanced); the last on-chain step's send-by time (an on-chain Basic swap).\nNull when no such term is recorded, for example a same-chain DEX swap, whose call\ncarries no deadline.",
@@ -10036,11 +10063,16 @@
         "description": "One confirmed fill: what it delivered, what it spent and where.",
         "properties": {
           "amount": {
-            "description": "The buy Asset amount this fill delivered. Null when the fill is confirmed but nothing\nmeasured its delivery.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteCardAmount",
+                "description": "What this fill delivered, in the Asset it delivered. Null when the fill is confirmed but\nnothing measured its delivery."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
           "at": {
             "description": "The recorded fill time: the venue's fill time or the time the fill transaction was\nobserved. Null when no fill time was recorded.",
@@ -10075,11 +10107,16 @@
             "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
           "sellAmount": {
-            "description": "The sell Asset amount this fill spent. Null when it was not recorded.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteCardAmount",
+                "description": "What this fill spent, in the Asset it spent. Null when it was not recorded."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           },
           "txHash": {
             "description": "The fill's or settlement's on-chain transaction; absent off-chain.",
@@ -15285,6 +15322,7 @@
         "x-extensible-enum": true
       },
       "QuoteCardAmount": {
+        "description": "An amount and the Asset it is in: money on the wire never is a bare decimal.",
         "properties": {
           "amount": {
             "type": "string"
@@ -17218,7 +17256,7 @@
         "properties": {
           "asked": {
             "$ref": "#/components/schemas/SourceConsultation",
-            "description": "Always true because this venue supplied a quote."
+            "description": "Always `consulted` because this venue supplied a quote."
           },
           "detail": {
             "description": "Human-readable context for this outcome, or `null` when none was supplied.",
@@ -17312,7 +17350,7 @@
         "properties": {
           "asked": {
             "$ref": "#/components/schemas/SourceConsultation",
-            "description": "Always true while this venue is being consulted."
+            "description": "Always `consulted` while this venue is being consulted."
           },
           "detail": {
             "description": "Human-readable context for this outcome, or `null` when none was supplied.",
@@ -22114,6 +22152,18 @@
             "description": "The LP's default terms: a connected account that has no schedule starts on this one. At most\none schedule per LP is the default. Absent: the account starts on it only through a request.",
             "type": "boolean"
           },
+          "countryDefault": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CountryDefault",
+                "description": "The company countries that start on this schedule: a connected account that has no schedule\nstarts on the LP's schedule listing its company's country, else on the one marked for other\ncountries. Absent: the schedule is chosen only by default terms or a request."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
+          },
           "holidayCalendarId": {
             "description": "Identifier of the holiday calendar, or null when none is specified.",
             "type": [
@@ -22325,6 +22375,18 @@
           },
           "termSources": {
             "description": "Provenance of the active schedule's individual terms, or null without an active selection."
+          },
+          "unsetReason": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SettlementRefusal",
+                "description": "Why no schedule is in force, by its cause (`SETTLEMENT_COMPANY_COUNTRY_MISSING`: the LP\nsets schedules by the company's country and none is on file;\n`SETTLEMENT_COMPANY_COUNTRY_UNREADABLE`: the country on file is not a two-letter code;\n`SETTLEMENT_SCHEDULE_NOT_SET`: nothing TetraFi sets applies; `SETTLEMENT_SCHEDULE_INVALID`:\nthe account's selection starts later or has ended). Absent while a selection is active."
+              }
+            ],
+            "x-undiscriminated-union-reason": "Nullable value: JSON null has no properties and cannot carry a discriminator."
           }
         },
         "required": [
@@ -22363,6 +22425,13 @@
       },
       "SettlementSelection": {
         "properties": {
+          "basisCountry": {
+            "description": "The company country (ISO 3166-1 alpha-2) the schedule was chosen from, as the Entity\nprofile held it then; present only for a selection set from the company's country.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "confirmationRequestId": {
             "description": "Identifier of the request that confirmed this selection, or null when none applies.",
             "type": [
@@ -22405,8 +22474,8 @@
             "type": "string"
           },
           "source": {
-            "description": "How this schedule was selected for the account.",
-            "type": "string"
+            "$ref": "#/components/schemas/SettlementSelectionSource",
+            "description": "How this schedule was selected for the account."
           },
           "venueAccountId": {
             "description": "Identifier of the venue account to which the selection applies.",
@@ -22423,6 +22492,24 @@
           "effectiveFrom"
         ],
         "type": "object"
+      },
+      "SettlementSelectionSource": {
+        "anyOf": [
+          {
+            "enum": [
+              "contract",
+              "lpApi",
+              "request",
+              "countryDefault"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "description": "`contract`: the LP's default terms or a recorded contract; `lpApi`: read from the LP's API;\n`request`: the LP confirmed a member's schedule request; `countryDefault`: set by TetraFi from\nthe company's country.\n\nNew values may be added; treat unknown values as other.",
+        "x-extensible-enum": true
       },
       "SettlementTerms": {
         "allOf": [
@@ -29796,8 +29883,8 @@
             "type": "string"
           },
           "inputSpent": {
-            "description": "Amount actually spent as a decimal string in the debit asset's units, when recorded.",
-            "type": "string"
+            "$ref": "#/components/schemas/QuoteCardAmount",
+            "description": "What the venue actually debited, in the trade's debit asset, when recorded."
           },
           "noFill": {
             "$ref": "#/components/schemas/VenueTradeNoFill",
@@ -29812,12 +29899,12 @@
             "description": "Stable sanitized classification, never an upstream response body."
           },
           "outputReceived": {
-            "description": "Amount actually received as a decimal string in the receipt asset's units, when recorded.",
-            "type": "string"
+            "$ref": "#/components/schemas/QuoteCardAmount",
+            "description": "What the trade actually received, in its receipt asset, when recorded."
           },
           "quotedOutput": {
-            "description": "The confirmed quote's output, beside `outputReceived`: a fill below it but\nwithin the trade's minimum receipt is a normal fill (operator decision\n2026-10-22), shown as \"Received … (quoted …; within your minimum …)\".",
-            "type": "string"
+            "$ref": "#/components/schemas/QuoteCardAmount",
+            "description": "The confirmed quote's output in the receipt asset, beside `outputReceived`: a fill\nbelow it but within the trade's minimum receipt is a normal fill (operator decision\n2026-10-22), shown as \"Received … (quoted …; within your minimum …)\"."
           },
           "remediation": {
             "$ref": "#/components/schemas/VenueTradeRemediation",
@@ -29966,8 +30053,8 @@
             "type": "array"
           },
           "quotedOutput": {
-            "description": "The confirmed quote's output, beside what was received.",
-            "type": "string"
+            "$ref": "#/components/schemas/QuoteCardAmount",
+            "description": "The confirmed quote's output in the buy asset, beside what was received."
           }
         },
         "type": "object"

@@ -1272,7 +1272,7 @@ Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees
 
 <Accordion title="Settlement, credit and trades">
 
-Settlement windows and obligations, credit, the ledger and trade records. 110 codes.
+Settlement windows and obligations, credit, the ledger and trade records. 113 codes.
 
 <span id="CREDIT_CONSUMERS_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CREDIT_<wbr />CONSUMERS_<wbr />UNREADABLE</code> · Stream event · Retry: yes<br />Sent as the refusal of a 200 credit read's included consumers entry (status 503 inside the entry), never as an HTTP status: the consumers of the credit line could not be read.<br />**Do:** Read the credit again with include=consumers shortly.
 
@@ -1337,6 +1337,10 @@ Settlement windows and obligations, credit, the ledger and trade records. 110 co
 <span id="SETTLEMENT_ACCOUNT_NOT_FOUND" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />ACCOUNT_<wbr />NOT_<wbr />FOUND</code> · 404 · Retry: no<br />The venue account the delayed-settlement quote names no longer exists in this workspace.<br />**Do:** Request a new quote, then place the order on it.
 
 <span id="SETTLEMENT_CAP_EXCEEDED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />CAP_<wbr />EXCEEDED</code> · 400 · Retry: no<br />The order exceeds the workspace's per-settlement cap.<br />**Do:** Lower the order amount below the settlement cap.
+
+<span id="SETTLEMENT_COMPANY_COUNTRY_MISSING" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />COMPANY_<wbr />COUNTRY_<wbr />MISSING</code> · 422 · Retry: no<br />The venue account has no settlement schedule yet: its liquidity provider's schedule is chosen from the company's country, and the workspace's Entity profile holds no country, so nothing was sent.<br />**Do:** A workspace admin adds the company's country in the Entity profile in the TetraFi app, or a member requests a schedule on the account; then request a new quote.
+
+<span id="SETTLEMENT_COMPANY_COUNTRY_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />COMPANY_<wbr />COUNTRY_<wbr />UNREADABLE</code> · 422 · Retry: no<br />The venue account has no settlement schedule yet: its liquidity provider's schedule is chosen from the company's country, and the country in the workspace's Entity profile is not a two-letter ISO 3166-1 code, so nothing was sent.<br />**Do:** A workspace admin corrects the company's country in the Entity profile in the TetraFi app, or a member requests a schedule on the account; then request a new quote.
 
 <span id="SETTLEMENT_CONSEQUENCE_POLICY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />CONSEQUENCE_<wbr />POLICY_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The window's late-payment policy could not be read, so overdue status is not stated.<br />**Do:** Retry the same request shortly, with backoff.
 
@@ -1437,6 +1441,8 @@ Settlement windows and obligations, credit, the ledger and trade records. 110 co
 <span id="SETTLEMENT_PREDECESSOR_CHANGED_AFTER_SNAPSHOT" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />PREDECESSOR_<wbr />CHANGED_<wbr />AFTER_<wbr />SNAPSHOT</code> · 422 · Retry: no<br />An earlier settlement window was paid, delivered or changed after this snapshot; no successor obligation was created.<br />**Do:** Continue in a newer cumulative settlement window whose snapshot includes the earlier payment, delivery or change; do not retry the unchanged older snapshot.
 
 <span id="SETTLEMENT_SCHEDULE_INVALID" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />SCHEDULE_<wbr />INVALID</code> · 422 · Retry: no<br />The venue account has no confirmed settlement schedule that can produce a window, so nothing was sent.<br />**Do:** Confirm the account's settlement schedule, then request a new quote.
+
+<span id="SETTLEMENT_SCHEDULE_NOT_SET" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />SCHEDULE_<wbr />NOT_<wbr />SET</code> · 422 · Retry: no<br />The venue account has no settlement schedule in force, and none applies automatically, so nothing was sent.<br />**Do:** A member requests a schedule on the account's settlement schedule in the TetraFi app; once the liquidity provider confirms it, request a new quote.
 
 <span id="SETTLEMENT_SCHEDULE_READ_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>SETTLEMENT_<wbr />SCHEDULE_<wbr />READ_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The account's settlement schedules could not be read.<br />**Do:** Retry the same request shortly, with backoff.
 
