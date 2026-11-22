@@ -1272,9 +1272,11 @@ Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees
 
 <Accordion title="Settlement, credit and trades">
 
-Settlement windows and obligations, credit, the ledger and trade records. 109 codes.
+Settlement windows and obligations, credit, the ledger and trade records. 110 codes.
 
 <span id="CREDIT_CONSUMERS_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CREDIT_<wbr />CONSUMERS_<wbr />UNREADABLE</code> · Stream event · Retry: yes<br />Sent as the refusal of a 200 credit read's included consumers entry (status 503 inside the entry), never as an HTTP status: the consumers of the credit line could not be read.<br />**Do:** Read the credit again with include=consumers shortly.
+
+<span id="CREDIT_CURRENCY_MISMATCH" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CREDIT_<wbr />CURRENCY_<wbr />MISMATCH</code> · 409 · Retry: no<br />The venue reports the account's credit line in one currency and the account's credit terms (its agreed cap or the venue limit recorded earlier) are in another; no amount is converted, so nothing was sent. The message names both currencies; details.creditRefusal.fix is reviewCreditTerms &#123;venueAccountId&#125;.<br />**Do:** Save the venue account's credit terms in the line's currency, then request a new quote.
 
 <span id="CREDIT_CUTOVER_PENDING" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>CREDIT_<wbr />CUTOVER_<wbr />PENDING</code> · 429 · Retry: yes<br />The facility is fenced until its reported accounting reset.<br />**Do:** Retry after the reset time in the refusal.
 
@@ -2487,6 +2489,8 @@ A source reason says why one venue did not quote; the request as a whole still s
 <span id="venueQuoteUnreadable" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueQuoteUnreadable</code> · Retry: yes<br />The venue's pool quote could not be read.<br />**Do:** Request quotes again shortly.
 
 <span id="venueQuotingDisabled" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueQuotingDisabled</code> · Retry: no<br />The venue has quoting switched off for this account.<br />**Do:** Ask the venue to switch quoting on for the account.
+
+<span id="venueQuotingStopped" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueQuotingStopped</code> · Retry: no<br />The venue has refused every recent quote request on this account, whatever the pair or amount; `detail` names since when, how many and the venue's code.<br />**Do:** Ask your contact at the venue to check that quoting is enabled for your API key and that nothing is overdue.
 
 <span id="venueRateLimited" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>venueRateLimited</code> · Retry: yes<br />TetraFi's request allowance for this venue is used for now; no quote request was sent.<br />**Do:** Request quotes again shortly.
 
