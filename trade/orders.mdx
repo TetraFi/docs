@@ -115,9 +115,10 @@ An API key sends an `Idempotency-Key` with every order; retry only with the same
 
 <AccordionGroup>
   <Accordion title="The key">
-    Without one, `POST /api/v1/orders` is refused with `400 IDEMPOTENCY_KEY_REQUIRED`.
+    Without one, or with an empty value, `POST /api/v1/orders` is refused with `400 IDEMPOTENCY_KEY_REQUIRED`. Every keyed endpoint reads the header the same way.
 
-    - Generate a new random value per order, such as 32 hexadecimal characters: exactly one value, 1 to 255 bytes, with no surrounding spaces (otherwise `400 IDEMPOTENCY_KEY_INVALID`).
+    - Generate a new random value per order, such as 32 hexadecimal characters: exactly one value, 1 to 255 bytes, with no surrounding spaces. A repeated header, a value that is not text, a longer one or a padded one is `400 IDEMPOTENCY_KEY_INVALID`.
+    - Where the key is optional, an empty value counts as no key.
     - Store the key and the exact body with your record of the order before you send it, so a retry after a crash can reuse both.
     - Keys are scoped to your workspace and the endpoint. Cancelling an order takes its own key the same way.
     - With a key, the request finishes on TetraFi even if your connection drops, and a replay with the same key gets its stored answer.
