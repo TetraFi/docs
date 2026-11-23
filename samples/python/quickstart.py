@@ -158,32 +158,16 @@ def main():
     amount = os.environ.get("TETRAFI_AMOUNT") or "10"
     # endregion
 
-    # region quickstart-assets
-    assets = {"items": []}
-    cursor = ""
-    while True:  # follow nextCursor to the last page
-        query = f"&cursor={url_quote(cursor, safe='')}" if cursor else ""
-        page = tetrafi("GET", f"/api/v1/assets?limit=200{query}")
-        assets["items"] += page["items"]
-        cursor = page.get("nextCursor") or ""
-        if not cursor:
-            break
-    for asset in (sell, buy):
-        if not any(item["asset"] == asset for item in assets["items"]):
-            error = {"error": "ASSET_NOT_LISTED", "asset": asset}
-            raise ValueError(compact(error))
-    print(f"assets: {len(assets['items'])} listed, quoting {sell} for {buy}",
-          file=sys.stderr)
-    # endregion
-
     # region quickstart-pairs
-    # The pairs your enabled venues trade from `sell`; each pair's id is SELL~BUY.
-    query = f"sellAsset={url_quote(sell, safe='')}&limit=1000"
+    # Your venues' pairs; with both sides named, at most one row: SELL~BUY.
+    query = (f"sellAsset={url_quote(sell, safe='')}"
+             f"&buyAsset={url_quote(buy, safe='')}")
     pairs = tetrafi("GET", f"/api/v1/pairs?{query}")
     pair_id = f"{sell}~{buy}"
     pair = next((p for p in pairs["items"] if p["id"] == pair_id), None)
     if pair is None:
-        # Not listed: a source still being read (unreachable) may list it shortly.
+        # Not listed: hint says what to connect; a source still being read
+        # (unreachable, notReadYet) may list it shortly.
         error = {"error": "PAIR_NOT_LISTED", "pair": pair_id,
                  "unreachable": pairs.get("unreachable") or [],
                  "hint": pairs.get("hint")}
@@ -219,6 +203,23 @@ def main():
     if os.environ.get("TETRAFI_PLACE_ORDER") != "1":
         print(compact({"quoteId": quote["id"], "ordered": False}))
         return
+
+    # region quickstart-assets
+    # The asset catalogue, read only for minReceive: the receive asset's
+    # decimals, from GET /assets narrowed to the quote's receive network.
+    assets = {"items": []}
+    if quote.get("minReceiveRequired") is True:
+        network = quote["buy"].get("network")
+        narrow = f"&network={url_quote(network, safe='')}" if network else ""
+        cursor = ""
+        while True:  # follow nextCursor to the last page
+            query = f"&cursor={url_quote(cursor, safe='')}" if cursor else ""
+            page = tetrafi("GET", f"/api/v1/assets?limit=200{narrow}{query}")
+            assets["items"] += page["items"]
+            cursor = page.get("nextCursor") or ""
+            if not cursor:
+                break
+    # endregion
 
     # region quickstart-order
     # Save quote id, Idempotency-Key and exact body before sending.

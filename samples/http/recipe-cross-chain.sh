@@ -9,8 +9,8 @@
 #   TETRAFI_SIGNING_SECRET  the key's signing secret, when request signing is on (venue trading needs it)
 # Optional:
 #   TETRAFI_ASSET           the asset to move (default USDC)
-#   TETRAFI_FROM_CHAIN      CAIP-2 chain you sell on (default: the first chain GET /assets lists)
-#   TETRAFI_TO_CHAIN        CAIP-2 chain you buy on (default: the next chain GET /assets lists)
+#   TETRAFI_FROM_CHAIN      CAIP-2 chain you sell on (default: the first cross-chain route GET /pairs lists)
+#   TETRAFI_TO_CHAIN        CAIP-2 chain you buy on (default: that route's buy network)
 #   TETRAFI_AMOUNT          the amount you sell (default 10: bridges have a minimum, a few USDC on test networks)
 #   TETRAFI_SLIPPAGE_BPS    how far below an indicative quote you accept, in basis points (default 50)
 #   TETRAFI_PLACE_ORDER=1   places the order (yes also works); without it the script stops before ordering
@@ -80,19 +80,28 @@ asset=${TETRAFI_ASSET:-USDC}
 amount=${TETRAFI_AMOUNT:-10}
 
 # region recipe-cross-chain-chains
-# The chains an asset is on come from GET /assets: every deployment of its native variant.
-assets=$(tetrafi GET /api/v1/assets)
-chains=$(jq -c --arg a "$asset" '[.items[] | select(.asset == $a) | .variants[]
-  | select(.kind == "native") | .deployments[].network] | unique' <<<"$assets")
-echo "{\"asset\":\"$asset\",\"networks\":$chains}" >&2
-from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
-to_chain=${TETRAFI_TO_CHAIN:-$(jq -r --arg f "$from_chain" 'map(select(. != $f))[0] // empty' <<<"$chains")}
-for chain in "$from_chain" "$to_chain"; do
-  if ! jq -e --arg c "$chain" 'index($c) != null' <<<"$chains" >/dev/null; then
-    jq -nc --arg a "$asset" --arg c "$chain" '{error: "ASSET_NOT_ON_NETWORK", asset: $a, chain: $c}' >&2
-    exit 1
-  fi
-done
+# The chains come from GET /pairs: each cross-chain route of the asset to
+# itself names the network it sells on (sellNetwork) and buys on (buyNetwork).
+pairs=$(tetrafi GET "/api/v1/pairs?sellAsset=$asset&buyAsset=$asset")
+routes=$(jq -c '[.items[].routes[]? | select(.location == "crossChain")
+  | select(.sellNetwork and .buyNetwork)
+  | {venue: .venueId, from: .sellNetwork, to: .buyNetwork}]
+  | unique' <<<"$pairs")
+echo "{\"asset\":\"$asset\",\"routes\":$routes}" >&2
+want_from=${TETRAFI_FROM_CHAIN:-} want_to=${TETRAFI_TO_CHAIN:-}
+route=$(jq -c --arg f "$want_from" --arg t "$want_to" 'first(.[]
+  | select(($f == "" or .from == $f) and ($t == "" or .to == $t)))
+  // empty' <<<"$routes")
+if [[ -z $route ]]; then
+  # No route between these chains: hint says what to connect; a source
+  # still being read (unreachable, notReadYet) may list one shortly.
+  jq -c --arg a "$asset" --arg f "$want_from" --arg t "$want_to" \
+    '{error: "NO_CROSS_CHAIN_ROUTE", asset: $a, from: $f, to: $t,
+      unreachable: (.unreachable // []), hint}' <<<"$pairs" >&2
+  exit 1
+fi
+from_chain=$(jq -r '.from' <<<"$route")
+to_chain=$(jq -r '.to' <<<"$route")
 # endregion
 
 # region recipe-cross-chain-quote
@@ -137,8 +146,17 @@ fi
 # When the quote's minReceiveRequired is true, it executes within your limit: send minReceive, the
 # least you accept, here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the
 # asset's decimals.
-decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.items[] | select(.asset == $a) | .variants[]
-  | select(.kind == "native") | .deployments[] | select(.network == $c) | .decimals][0]' <<<"$assets")
+# The decimals come from the asset catalogue, narrowed to the receive chain.
+network=$(jq -rn --arg c "$to_chain" '$c | @uri') items='[]' cursor=""
+while :; do # follow nextCursor to the last page
+  query="limit=200&network=$network${cursor:+&cursor=$cursor}"
+  page=$(tetrafi GET "/api/v1/assets?$query")
+  items=$(jq -c --argjson seen "$items" '$seen + .items' <<<"$page")
+  cursor=$(jq -r '.nextCursor // empty | @uri' <<<"$page")
+  [[ -n $cursor ]] || break
+done
+decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.[] | select(.asset == $a) | .variants[]
+  | select(.kind == "native") | .deployments[] | select(.network == $c) | .decimals][0]' <<<"$items")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{kind: "quote", quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)} else {} end)' <<<"$quote")

@@ -6,8 +6,17 @@
 # When the quote's minReceiveRequired is true, it executes within your limit: send minReceive, the
 # least you accept, here the quoted amount less TETRAFI_SLIPPAGE_BPS (default 50), rounded down to the
 # asset's decimals.
-decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.items[] | select(.asset == $a) | .variants[]
-  | select(.kind == "native") | .deployments[] | select(.network == $c) | .decimals][0]' <<<"$assets")
+# The decimals come from the asset catalogue, narrowed to the receive chain.
+network=$(jq -rn --arg c "$to_chain" '$c | @uri') items='[]' cursor=""
+while :; do # follow nextCursor to the last page
+  query="limit=200&network=$network${cursor:+&cursor=$cursor}"
+  page=$(tetrafi GET "/api/v1/assets?$query")
+  items=$(jq -c --argjson seen "$items" '$seen + .items' <<<"$page")
+  cursor=$(jq -r '.nextCursor // empty | @uri' <<<"$page")
+  [[ -n $cursor ]] || break
+done
+decimals=$(jq -r --arg a "$asset" --arg c "$to_chain" '[.[] | select(.asset == $a) | .variants[]
+  | select(.kind == "native") | .deployments[] | select(.network == $c) | .decimals][0]' <<<"$items")
 order_body=$(jq -c --argjson bps "${TETRAFI_SLIPPAGE_BPS:-50}" --argjson d "$decimals" '{kind: "quote", quoteId: .id}
   + (if .minReceiveRequired == true then {minReceive: ((.buy.amount | tonumber) * (10000 - $bps) / 10000
       | . * pow(10; $d) | floor | . / pow(10; $d) | tostring)} else {} end)' <<<"$quote")

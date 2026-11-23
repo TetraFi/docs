@@ -51,17 +51,17 @@ This recipe places a real order that moves funds out of your organisation wallet
 </Warning>
 
 <Steps>
-  <Step title="Find the chains USDC is on">
-    [`GET /api/v1/assets`](/api-reference/trading/list-assets) lists every deployment of each asset. You can move USDC between the chains of its `native` variant; check both of yours are listed.
+  <Step title="Find the chains you can move USDC between">
+    [`GET /api/v1/pairs`](/api-reference/trading/list-pairs) with USDC on both sides lists the routes your venues offer for the move. Each `crossChain` route names the chain it sells on (`sellNetwork`) and the chain it buys on (`buyNetwork`); pick one, or check yours is listed. A route is directed: one from A to B does not mean one from B to A.
 
     <CrossChainChains />
 
     ```json Example output (shortened)
-    {"asset":"USDC","networks":["eip155:11155111","eip155:11155420","eip155:84532","solana:EtWTRABZ…"]}
+    {"asset":"USDC","routes":[{"venue":"across","from":"eip155:11155111","to":"eip155:84532"},{"venue":"cctp","from":"eip155:11155111","to":"eip155:84532"}]}
     ```
 
     <Accordion title="Test and production networks">
-      Outputs here come from test networks: Ethereum Sepolia (`eip155:11155111`), Optimism Sepolia (`eip155:11155420`), Base Sepolia (`eip155:84532`) and Solana devnet. Production lists main networks, such as Base (`eip155:8453`).
+      Outputs here come from test networks: Ethereum Sepolia (`eip155:11155111`) and Base Sepolia (`eip155:84532`). Production routes name main networks ([Coverage](/supported-chains#networks)).
     </Accordion>
   </Step>
 

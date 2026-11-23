@@ -3,12 +3,13 @@
 <CodeGroup>
 
 ```bash cURL
-# The pairs your enabled venues trade from $sell; each pair's id is SELL~BUY.
-pairs=$(tetrafi GET "/api/v1/pairs?sellAsset=$sell&limit=1000")
+# Your venues' pairs; with both sides named, at most one row: SELL~BUY.
+pairs=$(tetrafi GET "/api/v1/pairs?sellAsset=$sell&buyAsset=$buy")
 pair=$(jq -c --arg id "$sell~$buy" 'first(.items[] | select(.id == $id))
   // empty' <<<"$pairs")
 if [[ -z $pair ]]; then
-  # Not listed: a source still being read (unreachable) may list it shortly.
+  # Not listed: hint says what to connect; a source still being read
+  # (unreachable, notReadYet) may list it shortly.
   jq -c --arg id "$sell~$buy" '{error: "PAIR_NOT_LISTED", pair: $id,
     unreachable: (.unreachable // []), hint}' <<<"$pairs" >&2
   exit 1
@@ -17,12 +18,13 @@ jq -c '{pair: .id, venues: [.routes[].venueId]}' <<<"$pair" >&2
 ```
 
 ```javascript Node.js
-// The pairs your enabled venues trade from `sell`; each pair's id is SELL~BUY.
-const query = `sellAsset=${encodeURIComponent(sell)}&limit=1000`;
+// Your venues' pairs; with both sides named, at most one row: SELL~BUY.
+const query = new URLSearchParams({ sellAsset: sell, buyAsset: buy });
 const pairs = await tetrafi('GET', `/api/v1/pairs?${query}`);
 const pair = pairs.items.find((item) => item.id === `${sell}~${buy}`);
 if (!pair) {
-  // Not listed: a source still being read (unreachable) may list it shortly.
+  // Not listed: hint says what to connect; a source still being read
+  // (unreachable, notReadYet) may list it shortly.
   throw new Error(json({ error: 'PAIR_NOT_LISTED', pair: `${sell}~${buy}`,
     unreachable: pairs.unreachable ?? [], hint: pairs.hint }));
 }
@@ -31,13 +33,15 @@ console.error(json({ pair: pair.id,
 ```
 
 ```python Python
-# The pairs your enabled venues trade from `sell`; each pair's id is SELL~BUY.
-query = f"sellAsset={url_quote(sell, safe='')}&limit=1000"
+# Your venues' pairs; with both sides named, at most one row: SELL~BUY.
+query = (f"sellAsset={url_quote(sell, safe='')}"
+         f"&buyAsset={url_quote(buy, safe='')}")
 pairs = tetrafi("GET", f"/api/v1/pairs?{query}")
 pair_id = f"{sell}~{buy}"
 pair = next((p for p in pairs["items"] if p["id"] == pair_id), None)
 if pair is None:
-    # Not listed: a source still being read (unreachable) may list it shortly.
+    # Not listed: hint says what to connect; a source still being read
+    # (unreachable, notReadYet) may list it shortly.
     error = {"error": "PAIR_NOT_LISTED", "pair": pair_id,
              "unreachable": pairs.get("unreachable") or [],
              "hint": pairs.get("hint")}
