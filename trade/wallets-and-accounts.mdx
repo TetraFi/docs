@@ -10,7 +10,33 @@ import TradingSourceRefusal from '/snippets/samples/trading-source-refusal.mdx';
 import TradingSourceFunding from '/snippets/samples/trading-source-funding.mdx';
 import WalletsDeliverTo from '/snippets/samples/wallets-deliver-to.mdx';
 
-Every quote says where it trades from, how it is funded and settles, and where the output goes. Venues price with your defaults, so a quote needs nothing extra: send `source` and `deliverTo` only to change them.
+Every quote says where it trades from, how it is funded and settles, and where the output goes. Venues price with your defaults, so a quote needs nothing extra.
+
+<View title="In the app" icon="browser">
+
+## Your accounts and wallets
+
+**Treasury**, **Accounts** lists what your workspace trades from, with **Total holdings**. **Add account** adds one.
+
+| Kind | What it is | How you add it |
+| --- | --- | --- |
+| **Venue account** | Your account at an exchange or OTC desk. A trade spends what it holds, or its credit. | Connect its key in **Counterparties** ([how](/before-you-trade#connect-a-venue-account)). |
+| **External wallet** | A wallet whose key only you hold. | **Add account**, **External wallet** ([how](/trade/sign-with-your-own-wallet)). |
+| Organisation wallet | A wallet TetraFi signs for, within limits its owners set. | Not in the app yet ([Create a wallet](/trade/create-wallet)). |
+
+## What a quote trades from
+
+Each venue quotes from your account at that venue. Open it in **Treasury** to see its tabs: **Overview**, **Activity**, **Funding**, **Credit**, **Settlement** and **Control**.
+
+## Where the output goes
+
+What you buy at a venue normally lands on that venue account. To move it out, select **Withdraw** on the account; the addresses whitelisted at the venue are under **Funding**, **Wallets**, each **Approved by** the liquidity provider.
+
+</View>
+
+<View title="With the API" icon="code">
+
+Send `source` and `deliverTo` only to change them.
 
 | You want to | Send or read |
 | --- | --- |
@@ -218,5 +244,7 @@ A wallet or account you may not use is refused before any venue is asked.
     The wallet in `wallet` cannot trade there, for example because it was revoked or matched a sanctions screen. When it is an organisation wallet not linked to the venue account, `recovery` carries a `linkHref` to link it and the account's `defaultWallets`, which you can send in `source.tradingWallets` instead.
   </Accordion>
 </AccordionGroup>
+
+</View>
 
 Next: [place an order](/trade/orders).
