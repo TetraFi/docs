@@ -25,6 +25,8 @@ During the pilot the API can still change, and every change a client can see is 
 
 <Update label="2026-11-22" description="Money on fills and venue trades names its asset">
   - **Breaking.** These amounts are now `{amount, asset}`: the decimal string they were before, with the asset their own record names. On an order: `fills[].amount`, `fills[].sellAmount`, `quotedBuyAmount`, `settledBuyAmount`, and a Basic order's `operation.dispatch.inputSpent`, `outputReceived` and `quotedOutput`. On a trade (`GET /api/v1/workspaces/{workspaceId}/trades` and `…/trades/{tradeId}`): `inputSpent`, `outputReceived`, `feesPaid` and `financials.quotedOutput`. Read `.amount` where you read the string, and take the asset from `.asset` rather than the order's pair.
+  - **Breaking.** A trade leg's money moved the same way: `creditedAmount`, `declaredPayoutFee`, `consentedPayoutFee` and `currentPayoutFee` on the leg, the payout breakdown's `withdrawn`, `fee`, `receivedMin` and `receivedMax`, and a bank arrival's `statementAmount`. Bank deposit instructions name their `asset`.
+  - The venue-account settlement schemas are named `VenueAccountDepositConfirmation`, `VenueAccountDepositSettlement`, `VenueAccountSettlement` and `VenueAccountFillSettlement` (they were `Cex…`). The wire is unchanged; regenerate client types.
 </Update>
 
 <Update label="2026-11-22" description="Hosted wallets and the organisation spelling">
