@@ -10,6 +10,68 @@ import OauthCall from '/snippets/samples/oauth-call.mdx';
 import OauthSignedRefused from '/snippets/samples/oauth-signed-refused.mdx';
 import SignRequest from '/snippets/samples/sign-request.mdx';
 
+Members sign in to the app; software calls the API with a key created there.
+
+<View title="In the app" icon="browser">
+
+## Sign in
+
+At [app.tetrafi.io](https://app.tetrafi.io), select **Sign in** the way you signed up.
+
+| The app says | What to do |
+| --- | --- |
+| **Verify your email to sign in** | Open the link we emailed you, or select **Send a new link**. |
+| **Incorrect email or password** | Check both and try again. |
+
+## Turn on two-factor
+
+In **Settings**, **Security**, **Sign-in second factor**, add an **Authenticator App** or a **Security Key** and **Enter the 6-digit code**. Under recovery codes, select **Generate codes** and keep them safe. Connecting a venue and creating a trading key ask for it.
+
+## Members and roles
+
+<Steps>
+  <Step title="Invite">
+    In **Identity & access**, **Members**, select **Invite member**. Enter an **Email** and a **Role**, then **Send invite**, or share a **Link**.
+  </Step>
+  <Step title="Approve colleagues">
+    Colleagues at your email domain can **Ask to join**; an admin approves and picks the role.
+  </Step>
+</Steps>
+
+<Accordion title="Roles">
+  Owner, Admin, Setup lead, Compliance Officer, Trader, Member, Viewer, Relationship Manager and Read Only. **Audit** shows who did what.
+</Accordion>
+
+## Get a credential
+
+<Steps>
+  <Step title="Create the key">
+    In **Settings**, **Personal API keys**, select **Create key**. Enter a **Name** and tick its **Permissions**: **Read quotes**, **Submit orders**, **Read orders**.
+  </Step>
+  <Step title="Turn on venue trading">
+    To order, switch **Venue trading** on now. It asks for your second factor and shows a request-signing secret.
+  </Step>
+  <Step title="Store it">
+    At **API Key Created**, copy the key and any secret to your secret manager: both are shown once.
+  </Step>
+</Steps>
+
+<Accordion title="Optional fields and wallets">
+  **Description**, **Expiration** and **IP allowlist** are optional. To let the key trade from organisation wallets, open its row and choose **Wallets**.
+</Accordion>
+
+<Note>
+  Service accounts are not in the app yet.
+</Note>
+
+## Rotate and revoke
+
+Open the key under **Personal API keys** to rotate it (the old key works for one more hour) or revoke it for good.
+
+</View>
+
+<View title="With the API" icon="code">
+
 An **API key** acts as you in one workspace. A **service account** acts as software, within its role and its [sponsor's](#its-sponsor) permissions, sending its key or a short-lived token. To trade on your venue accounts, a key [signs](#sign-requests) every request.
 
 ## Get a credential
@@ -311,7 +373,7 @@ A token lasts at most 900 seconds, with no refresh token: exchange the key again
 
 ## Rotate and revoke
 
-In the app, Rotate key issues a new key and Revoke key ends one for good.
+Rotate or revoke a key in the app, under **Personal API keys**.
 
 <Accordion title="Overlap and timing">
   - Rotate key issues a new key; the old key keeps working for one hour while you deploy the new one. The rotated key keeps its permissions and its request-signing secret.
@@ -327,5 +389,7 @@ In the app, Rotate key issues a new key and Revoke key ends one for good.
 | `429` on a replayed request | The rate limit is checked before the replay. |
 | `503 API_KEY_UNAVAILABLE` | Key or signing state unconfirmed; the nonce may be recorded. Sign again with a new timestamp and nonce, then retry. |
 </Accordion>
+
+</View>
 
 Next: [before your first trade](/before-you-trade).

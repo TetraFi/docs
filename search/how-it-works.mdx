@@ -18,7 +18,44 @@ import SearchFirmOnly from '/snippets/samples/search-firm-only.mdx';
 import SearchSortEta from '/snippets/samples/search-sort-eta.mdx';
 import SearchPriceProtection from '/snippets/samples/search-price-protection.mdx';
 
-One [`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) covers every venue your workspace can use (filters narrow it), so you compare them in one go: `quotes`, best first, and `sources`, why each venue did or did not quote. **Order the quote you want by its `id`** before it expires. Permissions and every refusal: [Request quotes](/api-reference/quotes/request-quotes).
+One request asks every venue your workspace can use, so you compare their quotes side by side and see why any venue did not quote.
+
+<View title="In the app" icon="browser">
+
+## Request and read quotes
+
+<Steps>
+  <Step title="Set the trade">
+    In **Trade**, choose what **You pay** and what **You receive**, and enter one amount. **Switch assets** swaps the two sides.
+  </Step>
+  <Step title="Request quotes">
+    Select **Request quotes**. Each venue gets a row with **Venue**, **You receive**, **Cost**, **Settles** and **Valid for**.
+  </Step>
+  <Step title="Choose one">
+    **Choose** the quote you want, then select **Execute order** while it reads **Quote held**.
+  </Step>
+</Steps>
+
+## Sell exact or buy exact
+
+**Sell exact** fixes what you pay; **Buy exact** fixes what you receive. Fewer venues quote a buy-exact amount.
+
+## Filters and sort
+
+**More filters** narrows the search before you ask. Above the quotes, **All**, **Firm**, **Executable**, **Order book**, **Indicative** and **Needs a step** narrow the list ([what each means](/search/firmness-and-lifetime)).
+
+## Refusals
+
+| The app says | What to do |
+| --- | --- |
+| **No venue serves** the pair **for this workspace** | Connect a counterparty that trades it, or pick another pair. |
+| **Trading not ready** | Finish [setup](/before-you-trade). |
+
+</View>
+
+<View title="With the API" icon="code">
+
+[`POST /api/v1/quotes`](/api-reference/quotes/request-quotes) answers `quotes`, best first, and `sources`, why each venue did or did not quote; filters narrow it. **Order a quote by its `id`** before it expires. Permissions and every refusal: [Request quotes](/api-reference/quotes/request-quotes).
 
 ## Request and read quotes
 
@@ -455,5 +492,7 @@ The ones you meet while searching ([error body](/trade/errors#read-a-refusal)); 
 </AccordionGroup>
 
 Scripts, no order placed: [basics](https://github.com/TetraFi/docs/blob/main/samples/http/search-basics.sh), [filters](https://github.com/TetraFi/docs/blob/main/samples/http/search-filters.sh).
+
+</View>
 
 Next: [firmness and requotes](/search/firmness-and-lifetime), then [place an order](/trade/orders).
