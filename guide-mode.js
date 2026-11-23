@@ -52,6 +52,10 @@
     var current = button && modeOf(shown(button));
     var switches = document.querySelectorAll('.' + SWITCH);
     for (var i = 0; i < switches.length; i++) {
+      // Show a switch only where Mintlify shows its dropdown (header below xl, right rail at xl).
+      var native = switches[i].previousElementSibling;
+      var nativeShown = native && window.getComputedStyle(native).display !== 'none';
+      switches[i].style.display = nativeShown ? '' : 'none';
       var options = switches[i].querySelectorAll('button[data-mode]');
       for (var j = 0; j < options.length; j++) {
         options[j].setAttribute('aria-checked', String(options[j].getAttribute('data-mode') === current));
@@ -118,6 +122,7 @@
   } catch (e) { /* no referrer */ }
 
   apply(30);
+  window.addEventListener('resize', sync);
   window.addEventListener('mintlify:navigate', function (event) {
     if (REFERENCE.test(lastPath)) write('api');
     lastPath = (event.detail && event.detail.path) || window.location.pathname;
