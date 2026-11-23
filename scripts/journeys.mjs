@@ -24,8 +24,8 @@ const JOURNEYS = [
     { label: 'Status', ops: ['GET /api/v1/orders/{orderId}'] },
   ] },
   { id: 'venue-setup', title: 'Venue setup', guide: '/before-you-trade', steps: [
-    { label: 'Accounts', ops: [`GET ${W}/venue-enablements`, `GET ${W}/capabilities`] },
-    { label: 'Balances', ops: [`GET ${ACCOUNT}/balances`, `GET ${W}/balances`] },
+    { label: 'Accounts', ops: [`GET ${W}/accounts`, `GET ${W}/capabilities`] },
+    { label: 'Balances', ops: [`GET ${W}/balances`] },
     { label: 'Deposit', ops: [`GET ${ACCOUNT}/deposit-instructions`, `GET ${ACCOUNT}/deposit-history`] },
   ] },
   { id: 'webhooks', title: 'Webhooks', guide: '/trade/webhooks', steps: [
@@ -38,7 +38,7 @@ const JOURNEYS = [
 const STANDALONE = [
   'GET /api/v1/me', 'POST /api/v1/oauth/token', 'POST /api/v1/orders/{orderId}/cancel', 'POST /api/v1/batch',
   `GET ${W}/trades/{tradeId}/settlement/obligations`, `GET ${W}/settlement/plan`,
-  `GET ${ACCOUNT}/settlement/movements`, `GET ${ACCOUNT}/settlement/movements/{movementId}`,
+  `GET ${W}/accounts/{accountId}`, `GET ${W}/movements`, `GET ${W}/movements/{movementId}`,
   `GET ${ACCOUNT}/settlement/obligations`, `GET ${ACCOUNT}/settlement/obligations/{obligationId}`,
   `GET ${ACCOUNT}/settlement/schedule-selection`, `GET ${ACCOUNT}/settlement/schedules`,
   `GET ${ACCOUNT}/settlement/windows`, `GET ${ACCOUNT}/settlement/windows/{windowId}`,

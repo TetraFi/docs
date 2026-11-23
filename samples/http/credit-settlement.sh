@@ -65,12 +65,13 @@ fail() { echo "{\"error\":\"$1\"}" >&2; exit 1; }
 workspace=$TETRAFI_WORKSPACE_ID
 
 # region credit-monitor
-# List the venue accounts (Treasury read); each accountId is a venueAccountId. A wallet-based venue has no
-# accountId and no credit line. GET …/venue-accounts/{venueAccountId}/credit reads the line:
-# observation.status reported carries limit, used, available and overrun; notReported and unavailable carry
-# no figures, never zeros. positions are the signed positions from the last recorded ledger read.
-accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-enablements?limit=50")
-for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); do
+# List the venue accounts (Treasury read): each item's ref.resourceId is its
+# venueAccountId. GET …/venue-accounts/{venueAccountId}/credit reads the line:
+# observation.status reported carries limit, used, available and overrun;
+# notReported and unavailable carry no figures, never zeros. positions are the
+# signed positions from the last recorded ledger read.
+accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/accounts?kind=venueAccount&limit=50")
+for id in $(jq -r '.items[] | .ref.resourceId // empty' <<<"$accounts" | head -n 5); do
   credit=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-accounts/$id/credit")
   jq -c '{venueAccountId, line: (.observation | if .status == "reported"
       then {limit, used, available, overrun, asset, observedAt} else {status, code: .error} end),
@@ -79,7 +80,7 @@ for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); 
 done
 # endregion
 
-account=${TETRAFI_VENUE_ACCOUNT_ID:-$(jq -r '[.items[] | .accountId // empty][0] // empty' <<<"$accounts")}
+account=${TETRAFI_VENUE_ACCOUNT_ID:-$(jq -r '[.items[] | .ref.resourceId // empty][0] // empty' <<<"$accounts")}
 [[ -n $account ]] || fail NO_VENUE_ACCOUNT
 base="/api/v1/workspaces/$workspace/venue-accounts/$account"
 
@@ -129,10 +130,19 @@ fi
 # endregion
 
 # region settlement-movements
-# Deposits and withdrawals as TetraFi recorded them. include=observation says how current the page is
-# (observationState, lastSuccessfulReadAt); an unreachable entry (source lpHistory) is not "no movements".
-movements=$(tetrafi GET "$base/settlement/movements?limit=20&include=observation")
-jq -c '{observation: ([.included.observation // {} | .[].value][0]), unreachable, count: (.items | length)}' <<<"$movements" >&2
+# The account's deposits and withdrawals as TetraFi recorded them: GET
+# …/movements with kind=settlementTransfer and its accountId, newest first.
+# include=observation says how current they are, keyed by the account id. The
+# list reads each source as the caller, which a signed request cannot lend: a
+# key that signs its requests is refused, so read it with a key that does not.
+movements=''
+if [[ -z ${TETRAFI_SIGNING_SECRET:-} ]]; then
+  movements=$(tetrafi GET "/api/v1/workspaces/$workspace/movements?kind=settlementTransfer&accountId=$account&limit=20&include=observation")
+  jq -c --arg a "$account" '{observation: .included.observation[$a].value,
+    count: (.items | length)}' <<<"$movements" >&2
+else
+  echo '{"movements":"skipped: read them with a key that does not sign"}' >&2
+fi
 # endregion
 
 # region trade-settlement
@@ -147,5 +157,6 @@ fi
 
 jq -e 'has("items") and has("nextCursor")' <<<"$windows" >/dev/null || fail WINDOWS_PAGE_SHAPE
 jq -e 'has("complete") and has("failedReads")' <<<"$plan" >/dev/null || fail PLAN_SHAPE
-jq -e 'has("items") and has("unreachable")' <<<"$movements" >/dev/null || fail MOVEMENTS_SHAPE
+[[ -z $movements ]] || jq -e 'has("items") and has("nextCursor")' <<<"$movements" >/dev/null \
+  || fail MOVEMENTS_SHAPE
 jq -c --arg account "$account" '{venueAccount: $account, windows: (.items | length), more: (.nextCursor != null)}' <<<"$windows"

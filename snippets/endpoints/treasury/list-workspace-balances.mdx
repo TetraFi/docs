@@ -1,18 +1,22 @@
 | | |
 | --- | --- |
-| **Cache only** | No chain or venue refresh starts. Unread accounts are listed in `unreachable`, never zero. |
+| **Recorded** | No chain or venue read starts without `no-cache`. Unread accounts are listed in `unreachable`, never zero. |
 | **Permission** | Keys need `treasury_read`; a wallet's policy must allow `read_balances`. |
 | **Filters** | `asset`, `accountKind`, `accountId`, and `network` (an exact CAIP-2 match). |
 | **Paging** | `limit` and `cursor` until `nextCursor` is null ([Paging](/reference/conventions#paging)). |
 
+<Accordion title="no-cache: read the venue now">
+`Cache-Control: no-cache` with `accountId` naming exactly one venue account reads that venue now and answers its rows from the reading. Without one, or with another kind of account, it is 400 `INVALID_REQUEST` naming `Cache-Control`. A venue that refuses the read answers its named error, such as `VENUE_CONNECTION_INVALID`.
+</Accordion>
+
 <Accordion title="Sort, fields and include">
-- Sort with `sort` set to `field` or `-field`, where field is `id` (the default), `accountId`, `asset`, `network`, `valueUsd` (unvalued rows last either way) or `asOf`.
+- Sort with `sort` set to `field` or `-field`, where field is `id` (the default), `accountId`, `asset`, `network`, `valueUsd` (unvalued rows last either way) or `observedAt`.
 - `fields` restricts the row fields but always keeps `id`, `accountId` and `asset`.
 - `include=account` adds each row's account by `accountId`, as that account's own read answers it, or null with its refusal.
 </Accordion>
 
 <Accordion title="Which accounts you see">
-- Venue accounts need View wallets in a company or broker workspace, or an admitted LP taker, as on the [account balance read](/api-reference/venue-accounts/get-account-balances).
+- Venue accounts need View wallets in a company or broker workspace, or an admitted LP taker.
 - Personal wallets are never listed. Accounts hidden from you change neither the rows nor the cursors.
 - A cursor is bound to the workspace, the caller, the filters, the sort and the visible rows in order. If accounts change while you page, start again without a cursor.
 </Accordion>
@@ -25,11 +29,15 @@
       "accountId": "22222222-2222-4222-8222-222222222222",
       "accountKind": "venueAccount",
       "amount": "25000.00",
-      "asOf": "2026-11-18T14:00:00Z",
       "asset": "USDC",
+      "available": "24000",
+      "expiresAt": "2026-11-18T14:05:00Z",
       "freshness": "fresh",
       "id": "bal_01JB05EXW3MBMS1QSQJS0ZWPNQ",
+      "locked": "1000",
       "network": null,
+      "observedAt": "2026-11-18T14:00:00Z",
+      "source": "providerApi",
       "valueUsd": "24998.75",
       "valuedAt": "2026-11-18T14:00:01Z"
     }
@@ -42,7 +50,8 @@
 | Field | What it tells you |
 | --- | --- |
 | `accountKind`, `accountId` | The wallet or venue account holding the row. |
-| `amount`, `asOf` | Everything held, in whole units, and when it was observed. |
+| `amount`, `available`, `locked` | Everything held, in whole units; what can be spent or moved now; what the provider holds back. `available` and `locked` are null when unknown. |
+| `observedAt`, `expiresAt`, `source` | When the source observed it, when that reading stops being current, and where it came from. |
 | `freshness` | `fresh`, `stale` or `partial`: how current the recorded balance is. |
 | `valueUsd`, `valuedAt` | US dollar value at the market-data display price (up to eight decimals), and when that price was observed. Without a price both are null, never zero. |
 | `unreachable` | Accounts this read could not state, repeated on every page. |

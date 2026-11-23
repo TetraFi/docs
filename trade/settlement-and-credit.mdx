@@ -41,7 +41,7 @@ Each trade joins the account's open **window**. When its snapshot is `ready`, it
   <Accordion title="What each read needs">
     Paths are under `/api/v1/workspaces/{workspaceId}`. Every trade is in the [trade history](/trade/trade-history) (Read trades). Told instead of polling: the `settlement.*` and `credit.updated` [webhooks](#webhooks). Settlement reads are `GET …/venue-accounts/{venueAccountId}/settlement/…`, plus [`GET …/settlement/plan`](/api-reference/settlements/get-settlement-plan) and [`GET …/trades/{tradeId}/settlement`](/api-reference/trades/get-trade-settlement).
 
-    Your `workspaceId` comes from [`GET /api/v1/me`](/api-reference/auth/get-current-credential); another answers `404 WORKSPACE_NOT_FOUND`. Take a `venueAccountId` from [`GET …/venue-enablements`](/trade/balances#list-your-exchange-accounts). Permissions are in [Permissions](/authentication#permissions) and [Before your first trade](/before-you-trade).
+    Your `workspaceId` comes from [`GET /api/v1/me`](/api-reference/auth/get-current-credential); another answers `404 WORKSPACE_NOT_FOUND`. Take a `venueAccountId` from [`GET …/accounts?kind=venueAccount`](/trade/balances#list-your-exchange-accounts): each item's `ref.resourceId`. Permissions are in [Permissions](/authentication#permissions) and [Before your first trade](/before-you-trade).
 
 | Reads | Key permission; key owner's workspace permission |
 | --- | --- |
@@ -66,7 +66,7 @@ No settlement read creates a transfer, reservation, approval or instruction to t
 | `GET …/trades/{tradeId}/settlement` and `…/trades/{tradeId}/settlement/obligations` | How one trade settled |
 | [`GET …/venue-accounts/{venueAccountId}/settlement/windows`](/api-reference/settlements/list-account-windows), `…/windows/{windowId}` and `…/windows/{windowId}/matches` | An account's settlement windows and statements |
 | [`GET …/venue-accounts/{venueAccountId}/settlement/obligations`](/api-reference/settlements/list-account-obligations) and `…/obligations/{obligationId}` | What each side owes, and by when |
-| [`GET …/venue-accounts/{venueAccountId}/settlement/movements`](/api-reference/settlements/list-account-movements) and `…/movements/{movementId}` | The deposits and withdrawals that settled them |
+| [`GET …/movements?kind=settlementTransfer&accountId={venueAccountId}`](/api-reference/treasury/list-movements) and [`…/movements/{movementId}`](/api-reference/treasury/get-movement) | The deposits and withdrawals that settled them |
 | [`GET …/venue-accounts/{venueAccountId}/settlement/schedules`](/api-reference/settlements/list-account-schedules) (paged with `limit` and `cursor`) | The LP's published settlement schedules |
 | [`GET …/venue-accounts/{venueAccountId}/settlement/schedule-selection`](/api-reference/settlements/get-schedule-selection) | The schedule in effect, a pending change and the next window |
 | `GET …/venue-account-credit` | Every venue account's credit, in one call |
@@ -97,7 +97,7 @@ No settlement read creates a transfer, reservation, approval or instruction to t
 | --- | --- |
 | Window | One settlement period. Once its snapshot is ready, it carries an indicative statement: positions, snapshot prices (an unavailable one names its stage and reason) and the minimum-settlement decision. An LP-issued window adds the LP's statement. Read newest first; filter by `status`, page with `cursor`. `…/windows/{windowId}/matches`: movements matched to its obligations, oldest first. |
 | Obligation | What you and the LP owe each other, with status, deadline and origin: `windowSnapshot` (a window's statement), `payInTrade` or `carryFee`. Filter by `windowId` or `tradeId`. The detail lists its matched movements. |
-| Movement | A deposit or withdrawal that settles obligations, with its finality and how it matched, as recorded by TetraFi. `include=observation` says how current (`lastSuccessfulReadAt`, `observationState`), and an unread LP history is an `unreachable` entry. A key never starts a read from the LP. |
+| Movement | A deposit or withdrawal that settles obligations, with its finality and how it matched, as recorded by TetraFi. Filter with `windowId` for one window or `subjectId` for one movement. `include=observation` says how current, in `included.observation[{venueAccountId}]` (`lastSuccessfulReadAt`, `observationState`). A key never starts a read from the LP; a signed-in member asks for one with a create on `settlement/observations`. A key reads movements only unsigned: a key that signs its requests is refused. |
 | Schedule | The LP's published schedules: the one in effect, with its minimum settlement, and the next window. |
 
   </Accordion>
@@ -135,7 +135,7 @@ A refused read answers with its code, never an empty page.
 {"windowId":"d3050000-…-f2","status":"ready","snapshotAt":"2026-10-31T00:00:00Z","paymentDeadlineAt":null,"dueStatus":"dueNow"}
 {"windowId":"d3050000-…-f2","status":"ready","provenance":"indicative","prices":["available"],"minimum":"due"}
 {"obligationId":"5b91bc49-…","payer":"workspace","asset":"USD","remainingAmount":"100000","dueAt":"2026-11-04T09:33:49.629345Z","status":"open","dueStatus":"dueNow"}
-{"observation":{"lastSuccessfulReadAt":"2026-11-22T12:23:27.623Z","observationState":"observed","reasonCode":null,"observationPeriod":null,"completeness":"complete","walletArrivalGaps":[]},"unreachable":[],"count":0}
+{"observation":{"lastSuccessfulReadAt":"2026-11-23T10:40:46.009Z","observationState":"observed","reasonCode":null,"observationPeriod":null,"completeness":"complete","walletArrivalGaps":[]},"count":0}
 {"tradeId":"d9200000-…-e1","obligations":[{"windowId":null,"obligationId":"d9200000-…-106","status":"lapsed"}]}
 ```
 

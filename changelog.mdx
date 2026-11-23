@@ -5,6 +5,13 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-23" description="Venue account balances, accounts and settlement movements">
+  - **Breaking.** `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances` is removed (404). Read one venue account's balances with `GET /api/v1/workspaces/{workspaceId}/balances?accountId={venueAccountId}`, and add `Cache-Control: no-cache` to read the venue now. `no-cache` needs exactly one venue account in `accountId`; anything else is `400 INVALID_REQUEST` naming `Cache-Control`.
+  - **Breaking.** A balance row's `asOf` is renamed `observedAt`, and the `sort` key with it. Each row gains `available` (what can be spent or moved now), `locked` (what the provider holds back), `expiresAt` (when the reading stops being current) and `source` (where it came from); `available` and `locked` are `null` when unknown. A venue account's old `total` is `amount`, and its `free` is `amount` less `locked`.
+  - **Breaking.** `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/settlement/movements/{movementId}` are removed (404). Read them with `GET /api/v1/workspaces/{workspaceId}/movements?kind=settlementTransfer&accountId={venueAccountId}` (`settlements_read`), filtered by `windowId` or `subjectId`; `include=observation` answers in `included.observation[{venueAccountId}]`. One movement is `GET …/movements/{movementId}`. Send these reads unsigned: a key that signs its requests is refused. Verifying a movement and asking for a fresh read are unchanged.
+  - **Breaking.** `GET …/venue-enablements` has left the API reference. List venue accounts with `GET /api/v1/workspaces/{workspaceId}/accounts?kind=venueAccount` (`treasury_read`); each item's `ref.resourceId` is its `venueAccountId`. One account is `GET …/accounts/{accountId}`, with the list's `accountId`.
+</Update>
+
 <Update label="2026-11-22" description="Custody account readiness">
   - **Breaking.** `CapabilityUnlockStep` now returns `connectCustodyAccount` instead of `connectCustodian`. Match the new `unlockStep` value; the `NO_USABLE_CREDENTIAL` blocker code is unchanged. Treat an unknown step as other.
 </Update>

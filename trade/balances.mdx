@@ -17,15 +17,15 @@ Read what each wallet and exchange account holds, and the TetraFi fees you pay. 
 | Read | Permission |
 | --- | --- |
 | [Every balance](/api-reference/treasury/list-workspace-balances), one row per account, asset and chain: `GET …/balances` | Treasury read |
-| [Your exchange accounts](/api-reference/venue-enablements/list-venue-accounts): [`GET …/venue-enablements`](/api-reference/venue-enablements/list-venue-accounts) | Treasury read |
-| [One account's balances](/api-reference/venue-accounts/get-account-balances): [`GET …/venue-accounts/{venueAccountId}/balances`](/api-reference/venue-accounts/get-account-balances) | Treasury read |
+| [Your exchange accounts](/api-reference/treasury/list-accounts): [`GET …/accounts?kind=venueAccount`](/api-reference/treasury/list-accounts) | Treasury read |
+| [One account's balances](/api-reference/treasury/list-workspace-balances): `GET …/balances?accountId={venueAccountId}`, from the venue now with `Cache-Control: no-cache` | Treasury read |
 | [Where to deposit](/api-reference/venue-accounts/get-deposit-instructions) and [what was credited](/api-reference/venue-accounts/list-account-deposits): `…/deposit-instructions`, `…/deposit-history` | Treasury read |
 | [Credit and positions](/trade/settlement-and-credit#credit-and-the-ledger): `…/credit` and `…/ledger` | Treasury read |
 | [Fees](/api-reference/workspaces/get-fee-schedule) now and scheduled: [`GET …/fee-schedule`](/api-reference/workspaces/get-fee-schedule) | Read fee schedule |
 
 ## Every balance in one list
 
-`GET …/balances` reads TetraFi's last observation and never asks a chain or venue. Filter with `asset`, `accountKind` and `accountId`; an account that cannot be stated is listed in `unreachable`, never as a zero row.
+`GET …/balances` reads TetraFi's last observation and asks no chain or venue, unless you [read one exchange account now](#one-exchange-account). Filter with `asset`, `accountKind`, `accountId` and `network`; an account that cannot be stated is listed in `unreachable`, never as a zero row.
 
 <AccordionGroup>
   <Accordion title="Fields and paging">
@@ -36,8 +36,13 @@ Read what each wallet and exchange account holds, and the TetraFi fees you pay. 
 <ResponseField name="accountId" type="string">A wallet's `walletId`, or the exchange account's `venueAccountId`.</ResponseField>
 <ResponseField name="asset, network, networkRef" type="string">The asset; `network` is the CAIP-2 network, `null` off-chain (such as at an exchange) or when the source does not name exactly one; `networkRef` is the source's own network spelling.</ResponseField>
 <ResponseField name="nativeAssetId" type="string">The asset's id at its source, such as a token contract, if known.</ResponseField>
-<ResponseField name="amount" type="string">Everything held, a decimal string in whole units.</ResponseField>
-<ResponseField name="asOf, freshness" type="string">When observed, and `fresh`, `stale` or `partial` (treat an unknown value as `stale`).</ResponseField>
+<ResponseField name="amount" type="string">Everything held, locked included, a decimal string in whole units. Negative at an exchange account for what it owes.</ResponseField>
+<ResponseField name="available" type="string">What you can spend or move now. At an exchange account, the venue's free amount less TetraFi's commitments to open trades and withdrawals. `null` when unknown.</ResponseField>
+<ResponseField name="locked" type="string">What the provider itself holds back; `null` when it states none, such as on a credit line.</ResponseField>
+<ResponseField name="observedAt, expiresAt" type="string">When the source observed it (an exchange: when it reported it), and when that reading stops being current; `expiresAt` is `null` when the source states no expiry.</ResponseField>
+<ResponseField name="source" type="string">Where the reading came from, such as `providerApi`, `providerApiLastKnown` or `onChain`; `null` when unnamed. Treat an unknown value as other.</ResponseField>
+<ResponseField name="freshness" type="string">`fresh`, `stale` or `partial` (treat an unknown value as `stale`).</ResponseField>
+<ResponseField name="valueUsd, valuedAt" type="string">US dollar value and when its price was observed; both `null` without a reference price, never `0`.</ResponseField>
 
 Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accounts change mid-paging, restart without a cursor.
 
@@ -50,7 +55,8 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 {
   "items": [
     { "id": "…", "accountKind": "wallet", "accountId": "…", "asset": "USDC", "networkRef": "eip155:84532", "network": "eip155:84532",
-      "nativeAssetId": "0x036c…", "amount": "12.200749", "asOf": "2026-11-05T21:40:11Z", "freshness": "fresh" }
+      "nativeAssetId": "0x036c…", "amount": "12.200749", "available": "12.200749", "locked": null,
+      "observedAt": "2026-11-05T21:40:11Z", "expiresAt": null, "source": "onChain", "freshness": "fresh" }
   ],
   "nextCursor": null,
   "unreachable": []
@@ -83,18 +89,17 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
 ## List your exchange accounts
 
-`GET …/venue-enablements` lists venue accounts in `items`, oldest first, keyed by `venueEnablementId`. Read balances from a `configured` account; a `walletBased` venue trades from your wallets, so read those.
+`GET …/accounts?kind=venueAccount` lists your exchange accounts. Each item's `ref.resourceId` is the `venueAccountId` the reads below take.
 
 <AccordionGroup>
   <Accordion title="Fields and paging">
-    Page with `limit` (20 by default, at most 100) and `cursor`.
+    Page with `limit` (20 by default, at most 500) and `cursor` until `nextCursor` is `null`. Filter with `venue`, such as `binance`, or `environment`.
 
-<ResponseField name="accountId" type="string">The `venueAccountId` the reads below take. Absent for a wallet-based venue.</ResponseField>
-<ResponseField name="venueKind" type="string">`accountBased` (the venue holds your money) or `walletBased` (it trades from your wallets).</ResponseField>
-<ResponseField name="fundingTarget" type="object">Where the money lives: `{kind: "venueAccount", accountId}` or `{kind: "tradingWallets", walletIds}`. Treat a value you do not know as other ([Conventions](/reference/conventions#values)).</ResponseField>
-<ResponseField name="venueId, label" type="string">The venue, such as `binance` (`null` if unknown), and the account's app name.</ResponseField>
-<ResponseField name="lifecycle" type="string">`pending`, `configured`, `funding_only`, `disabled` or `revoked`. Treat all but `configured` as unusable.</ResponseField>
-<ResponseField name="tradingStatus, withdrawalStatus" type="string">`active`, or `paused` by your workspace's control. Treat another value as not active.</ResponseField>
+<ResponseField name="ref.resourceId" type="string">The `venueAccountId`. `ref` is absent when you may not read the account's detail.</ResponseField>
+<ResponseField name="accountId" type="string">The account's own id in this list, for [`GET …/accounts/{accountId}`](/api-reference/treasury/get-account); not a `venueAccountId`.</ResponseField>
+<ResponseField name="provider, displayName" type="string">The venue, such as `binance`, and the account's name in the app.</ResponseField>
+<ResponseField name="environment" type="string">`production`, `testnet`, `sandbox` or `unknown`.</ResponseField>
+<ResponseField name="readingState" type="object">How current its balances are: `status`, `freshness` and `observedAt`.</ResponseField>
 
   </Accordion>
   <Accordion title="Request and output">
@@ -102,9 +107,9 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 <VenueAccountsList />
 
 ```json Example output
-{"accountId":"8a31ab17-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
-{"accountId":"7e873d0e-…","venueId":"okx","label":"OKX account","lifecycle":"revoked","venueKind":"accountBased"}
-{"accountId":"169e142e-…","venueId":"keyrock","label":"Keyrock account","lifecycle":"configured","venueKind":"accountBased"}
+{"venueAccountId":"fb181171-…","provider":"valr","displayName":"VALR account","environment":"production","reading":"reported"}
+{"venueAccountId":"b68bf848-…","provider":"keyrock","displayName":"Keyrock account","environment":"sandbox","reading":"reported"}
+{"venueAccountId":"8ca3ef98-…","provider":"binance","displayName":"Binance account","environment":"sandbox","reading":"reported"}
 ```
 
   </Accordion>
@@ -112,27 +117,19 @@ Page with `limit` (1 to 100) and `cursor` until `nextCursor` is `null`; if accou
 
 ## One exchange account
 
-`GET …/venue-accounts/{venueAccountId}/balances` answers what the venue last reported for the account, one line per asset.
+`GET …/balances?accountId={venueAccountId}` answers what the venue last reported for the account, one row per asset, with the [fields above](#every-balance-in-one-list). Add `Cache-Control: no-cache` to read the venue now: the rows answer from that reading. It needs exactly one exchange account in `accountId`; without one, or with another kind of account, it is refused `400 INVALID_REQUEST` naming `Cache-Control`.
 
 <AccordionGroup>
-  <Accordion title="Fields">
-
-<ResponseField name="status" type="string">`supported` when readable; otherwise `reason` and `reasonCode` say why.</ResponseField>
-<ResponseField name="observedAt, expiresAt" type="string">When reported, and when the reading stops being current.</ResponseField>
-<ResponseField name="balances" type="array">One line per asset. `null` means no reading; `[]` means the account holds nothing.</ResponseField>
-<ResponseField name="balances[].total" type="string">Everything held, locked included. Negative on a credit account: what it owes.</ResponseField>
-<ResponseField name="balances[].free" type="string">Free to trade or withdraw, per the venue.</ResponseField>
-<ResponseField name="balances[].available" type="string">`free` less TetraFi's commitments to open trades and withdrawals; `null` if unknown.</ResponseField>
-<ResponseField name="balances[].valueUsd" type="string">US dollar value; `null` without a reference price, never `0`.</ResponseField>
-
-  </Accordion>
   <Accordion title="Request and output">
 
 <VenueBalances />
 
-```json Example output
-{"status":"supported","observedAt":"2026-11-02T13:20:05.236Z","expiresAt":"2026-11-02T13:25:05.236Z","balances":[{"asset":"SOL","total":"0.31240084","free":"0.31240084","available":"0.31240084","valueUsd":"29.2500906492"},{"asset":"USDC","total":"7393.12791400","free":"7337.12791400","available":"7337.127914","valueUsd":"7391.6492884172"},{"asset":"XRP","total":"15.153715","free":"15.153715","available":"15.153715","valueUsd":null}]}
+```json Example output (shortened)
+{"rows":[{"asset":"0G","amount":"1630","available":"1630","locked":"0","valueUsd":null,"observedAt":"2026-11-23T10:45:27.006Z","source":"providerApi","freshness":"fresh"},…],"unreachable":[]}
+{"rows":20,"observedAt":"2026-11-23T10:46:03.421Z","expiresAt":"2026-11-23T10:51:03.421Z","unreachable":[]}
 ```
+
+A venue that refuses the read now answers a named error, such as `VENUE_CONNECTION_INVALID` when its key no longer verifies; the recorded rows still stand.
 
   </Accordion>
   <Accordion title="Deposits">

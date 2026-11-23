@@ -226,7 +226,7 @@ function errorCodesPage() {
       'CREDENTIAL', 'CSV', 'CURSOR',
       'EMAIL', 'EXPORT', 'FORBIDDEN', 'IDEMPOTENCY', 'IDEMPOTENT', 'INCLUDE', 'INSUFFICIENT_PERMISSION', 'INSUFFICIENT_SCOPE',
       'INSUFFICIENT_WORKSPACE_PERMISSION', 'INTEGRATION', 'INVALID', 'IP', 'JWT', 'KEY', 'METADATA', 'METHOD', 'MFA', 'MISSING',
-      'LIMIT', 'MEMBER', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
+      'LIMIT', 'MEMBER', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA', 'SCOPE',
       'SECOND_PROOF', 'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
     ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
       'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BRIDGE', 'BUDGET', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'COUNTERPARTY_NOT_READY', 'DELIVER',
@@ -241,13 +241,13 @@ function errorCodesPage() {
       'EIP712', 'EXPIRED', 'FUNDER', 'GRANT', 'NATIVE', 'OWNER', 'PERMIT', 'RELEASE', 'SIGNATURE', 'SIGNED', 'SIGNER', 'SIGNING',
       'STEP', 'TRADER']],
     ['Venues and accounts', 'Connecting and reading venue and LP accounts, onboarding and company details.', [
-      'ACCOUNT', 'ACTIVATION', 'AGENT', 'BASE', 'COMPANY', 'COUNTERPARTY_STANDING', 'EDD', 'INVENTORY', 'KYC', 'LP', 'OBSERVATION',
+      'ACCOUNT', 'ACTIVATION', 'AGENT', 'BASE', 'COMPANY', 'CONNECTION', 'COUNTERPARTY_STANDING', 'EDD', 'INVENTORY', 'KYC', 'LP', 'OBSERVATION',
       'ONBOARDED', 'PROFILE', 'TAKER', 'VENUE']],
     ['Wallets and custody', 'Organisation, personal and custody wallets, and which wallet a key may trade from.', [
       'API_KEY_ORGANISATION_WALLET', 'API_KEY_WALLET', 'AUTO', 'CUSTODY', 'DELEGATION', 'DESTINATION', 'ONCHAIN', 'PERSONAL', 'TARGET',
       'WALLET']],
     ['Funding, balances and treasury', 'Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees.', [
-      'BALANCE', 'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'PAY', 'TREASURY', 'WITHDRAWAL']],
+      'BALANCE', 'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'MOVEMENT', 'MOVEMENTS', 'PAY', 'TREASURY', 'WITHDRAWAL']],
     ['Settlement, credit and trades', 'Settlement windows and obligations, credit, the ledger and trade records.', [
       'CREDIT', 'DEFERRED', 'LEDGER', 'RECORDS', 'RUN', 'SETTLEMENT', 'TRADE', 'VIEW_CREDIT']],
     ['Webhooks', 'Creating, testing and redelivering webhook endpoints.', ['MAX_WEBHOOKS', 'WEBHOOK']],
@@ -554,7 +554,7 @@ const ENDPOINT_GROUPS = [
   { group: 'Quotes', tags: ['quotes'], guide: '/search/how-it-works', purpose: 'Ask every venue your workspace can use for a quote in one request, and read a request back.' },
   { group: 'Orders', tags: ['orders'], guide: '/trade/orders', purpose: 'Order a quote by its id, follow the order, recover it by quote and cancel it.' },
   { group: 'Trades and settlement', tags: ['trades', 'settlements'], guide: '/trade/settlement-and-credit', purpose: 'Read your trades, how each settles, and the settlement plan, windows and movements per venue account.' },
-  { group: 'Balances and accounts', tags: ['treasury', 'venue-accounts', 'venue-enablements', 'workspaces'], guide: '/trade/balances', purpose: 'Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do.' },
+  { group: 'Balances and accounts', tags: ['treasury', 'venue-accounts', 'workspaces'], guide: '/trade/balances', purpose: 'Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do.' },
   { group: 'Wallets', tags: ['wallets'], guide: '/trade/create-wallet', purpose: 'Create an organisation wallet, or a member\'s own personal wallet, with the owners who approve it, follow its creation and withdraw it.' },
   { group: 'Webhooks', tags: ['webhooks'], guide: '/trade/webhooks', purpose: 'Receive order and settlement updates by webhook, and manage endpoints, deliveries and secrets.' },
   { group: 'Batch', tags: ['batch'], guide: '/reference/conventions#read-several-resources-at-once', purpose: 'Run up to 20 reads in one request.' },
@@ -569,7 +569,10 @@ const ENDPOINT_GUIDES = {
   'GET /api/v1/workspaces/{workspaceId}/capabilities': '/before-you-trade',
   'GET /api/v1/workspaces/{workspaceId}/trades': '/trade/trade-history',
   'GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}': '/trade/trade-history',
-  'GET /api/v1/workspaces/{workspaceId}/venue-enablements': '/trade/wallets-and-accounts',
+  'GET /api/v1/workspaces/{workspaceId}/accounts': '/trade/wallets-and-accounts',
+  'GET /api/v1/workspaces/{workspaceId}/accounts/{accountId}': '/trade/wallets-and-accounts',
+  'GET /api/v1/workspaces/{workspaceId}/movements': '/trade/settlement-and-credit',
+  'GET /api/v1/workspaces/{workspaceId}/movements/{movementId}': '/trade/settlement-and-credit',
 };
 // Each operation's stub page is api-reference/<tag>/<short name>, lowercased and hyphenated.
 const WORKSPACE_PREFIX = '/api/v1/workspaces/{workspaceId}';

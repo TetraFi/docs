@@ -3,12 +3,13 @@
 <CodeGroup>
 
 ```bash cURL
-# List the venue accounts (Treasury read); each accountId is a venueAccountId. A wallet-based venue has no
-# accountId and no credit line. GET …/venue-accounts/{venueAccountId}/credit reads the line:
-# observation.status reported carries limit, used, available and overrun; notReported and unavailable carry
-# no figures, never zeros. positions are the signed positions from the last recorded ledger read.
-accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-enablements?limit=50")
-for id in $(jq -r '.items[] | .accountId // empty' <<<"$accounts" | head -n 5); do
+# List the venue accounts (Treasury read): each item's ref.resourceId is its
+# venueAccountId. GET …/venue-accounts/{venueAccountId}/credit reads the line:
+# observation.status reported carries limit, used, available and overrun;
+# notReported and unavailable carry no figures, never zeros. positions are the
+# signed positions from the last recorded ledger read.
+accounts=$(tetrafi GET "/api/v1/workspaces/$workspace/accounts?kind=venueAccount&limit=50")
+for id in $(jq -r '.items[] | .ref.resourceId // empty' <<<"$accounts" | head -n 5); do
   credit=$(tetrafi GET "/api/v1/workspaces/$workspace/venue-accounts/$id/credit")
   jq -c '{venueAccountId, line: (.observation | if .status == "reported"
       then {limit, used, available, overrun, asset, observedAt} else {status, code: .error} end),

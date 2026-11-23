@@ -132,7 +132,7 @@
               "key": "cursor",
               "value": "<cursor>",
               "disabled": true,
-              "description": "The previous page's `nextCursor`. Valid while the workspace and ordered asset ids are\nunchanged; otherwise answers 409 `CURSOR_STALE`. Asset metadata may change."
+              "description": "The previous page's `nextCursor`: the next page lists the Assets after the last one the\nprevious page listed, in Asset id order, as listed now. It stays valid while the listing\nchanges (an Asset added or removed between pages is listed or not by where it falls); a\ncursor issued for another workspace, or for other filters (`venueId`, `venueCode`, `network`,\n`address`, compared after trimming), answers 409 `CURSOR_STALE`: send the filters the first\npage was asked with, or start again without a cursor."
             },
             {
               "key": "include",
@@ -394,6 +394,12 @@
             "value": "<X-Step-Up-Proof>",
             "disabled": true,
             "description": "Signed-in sessions whose member turned on the check for orders: a step-up proof for purpose `order_placement` bound to this quote. Ignored for API keys."
+          },
+          {
+            "key": "Prefer",
+            "value": "<Prefer>",
+            "disabled": true,
+            "description": "`respond-async` (RFC 7240): answer once the order is claimed rather than at the venue's outcome. A venue order then answers 202 with the claimed order (`working`), `Location` naming it and `Preference-Applied: respond-async`; read the order at its `statusUrl` (or follow its `order.updated` events) until `terminal` is `true`. An order that can only answer at its outcome answers as without the preference, with no `Preference-Applied`. Other preferences are ignored. Every refusal before the claim still answers this request. A retry with the same Idempotency-Key answers the same order as it reads now, with or without the preference."
           },
           {
             "key": "TetraFi-Version",
@@ -676,7 +682,7 @@
               "key": "network",
               "value": "<network>",
               "disabled": true,
-              "description": "Only routes with either leg on this CAIP-2 network (`eip155:1`); off-chain routes are left out."
+              "description": "Only routes (with `availability=connectable`, venues) with either leg on this CAIP-2 network\n(`eip155:1`); off-chain routes and venues are left out."
             },
             {
               "key": "availability",
@@ -1015,7 +1021,7 @@
       "response": []
     },
     {
-      "name": "List workspace balances",
+      "name": "List accounts",
       "request": {
         "method": "GET",
         "header": [
@@ -1030,7 +1036,247 @@
             "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
           }
         ],
-        "description": "Read balances across workspace accounts\n\nRead every balance your workspace can see, one row per account, asset and network, across wallets and venue accounts. It reads recorded balances and never asks a chain or venue.",
+        "description": "Every account the workspace holds, with positions and reading states\n\nOne row per custody vault, company wallet and venue account the credential may discover, ordered by a keyset cursor (limit 1 to 500, default 20). Filter with kind (kind=venueAccount for the venue accounts), venue, ids and environment; an API key reads the workspace scope only, and scope=personal is refused SCOPE_NOT_SUPPORTED. Every reading carries its state and observedAt. unreachable names each account whose amounts are not current: source account, id its account id, and reason the reading's unavailable reason, stale or partial.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/accounts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "accounts"
+          ],
+          "query": [
+            {
+              "key": "view",
+              "value": "basic",
+              "disabled": true,
+              "description": "`full` adds the account's supported catalogue and recorded approval facts; `basic` omits them."
+            },
+            {
+              "key": "scope",
+              "value": "company",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "kind",
+              "value": "<kind>",
+              "disabled": true,
+              "description": "One or more account kinds, separated by commas (any of)."
+            },
+            {
+              "key": "venue",
+              "value": "<venue>",
+              "disabled": true,
+              "description": "Venue id; matches venue accounts only."
+            },
+            {
+              "key": "owner",
+              "value": "<owner>",
+              "disabled": true,
+              "description": "The row reference's owner kind (`personal`, `workspace`, `customer`) or owner id."
+            },
+            {
+              "key": "ids",
+              "value": "<ids>",
+              "disabled": true,
+              "description": "Stable account ids, separated by commas; at most 100, visible accounts only."
+            },
+            {
+              "key": "provider",
+              "value": "<provider>",
+              "disabled": true,
+              "description": "Custodian, wallet provider or venue id."
+            },
+            {
+              "key": "connectionId",
+              "value": "<connectionId>",
+              "disabled": true,
+              "description": "A custody connection's id (the provider credential): the accounts whose reference names\nit (`ref.connectionId`), such as that connection's registered custody vaults."
+            },
+            {
+              "key": "network",
+              "value": "<network>",
+              "disabled": true,
+              "description": "Registry chain reference."
+            },
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": "Symbol or currency code."
+            },
+            {
+              "key": "moveFrom",
+              "value": "<moveFrom>",
+              "disabled": true,
+              "description": "Fixed source account for each row's move eligibility. Never with `moveTo`."
+            },
+            {
+              "key": "moveTo",
+              "value": "<moveTo>",
+              "disabled": true,
+              "description": "Fixed target account for each row's move eligibility. Never with `moveFrom`."
+            },
+            {
+              "key": "readingState",
+              "value": "reading",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "environment",
+              "value": "production",
+              "disabled": true,
+              "description": "`production`, `testnet`, `sandbox` or `unknown` (the account's `environment`)."
+            },
+            {
+              "key": "q",
+              "value": "<q>",
+              "disabled": true,
+              "description": "Case-insensitive search over the account's name, provider, id, networks and\nasset codes; 1 to 100 characters after trimming."
+            },
+            {
+              "key": "holderId",
+              "value": "<holderId>",
+              "disabled": true,
+              "description": "Current member or service-account holders, comma separated."
+            },
+            {
+              "key": "right",
+              "value": "<right>",
+              "disabled": true,
+              "description": "Resource rights, comma separated; with holderId the same holder must hold the right."
+            },
+            {
+              "key": "atRisk",
+              "value": "false",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "sort",
+              "value": "<sort>",
+              "disabled": true,
+              "description": "provider, -provider, name or -name; stable account-id ties."
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": ""
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "1 to 500; defaults to 20."
+            },
+            {
+              "key": "include",
+              "value": "controls",
+              "disabled": true,
+              "description": "`controls` adds each row's control register (`controls`), read for the\nwhole page at once. Company scope only."
+            },
+            {
+              "key": "fields",
+              "value": "<fields>",
+              "disabled": true,
+              "description": "Comma-separated row fields to return (accountId, id, kind and status always kept)"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get account",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "One inventory account with every position and its breakdown\n\nThe account as the list shows it, under the same admission (a member without `view_wallets` reads only wallets whose resource policy permits their balances). A missing or hidden account is `ACCOUNT_NOT_FOUND`. A retired organisation wallet, which the list leaves out, still reads here with `retiredAt`, read-only. Registered external wallets with detail permission carry `ownership.status`: `proven`, `pending`, `notProven`, `noLongerHolds` or `unknown`, plus retained proof time, prover and signature method. A departed prover makes the proof no longer hold; failed evidence or membership reads are unknown. Organisation wallets and custody accounts carry no ownership field. A wallet originally created by a venue whitelist import carries `whitelistImport {venue, venueConnectionId, at}` from that import's registration; manual wallets carry none. Original hidden policies remain hidden. Provider observations are read-only facts, never signing authority. Privy owner sessions cannot be observed server-side; Turnkey has no per-wallet login session. No provider call is made. `include=controls` adds the account's control register as `included.controls[<accountId>]` (never inline as `controls`), projected exactly as its row in the list projects it; it is the only relation one account takes.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/accounts/:accountId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "accounts",
+            ":accountId"
+          ],
+          "query": [
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "`controls` adds the account's control register"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "accountId",
+              "value": "<accountId>",
+              "description": "Inventory account id"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List workspace balances",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "<Cache-Control>",
+            "disabled": true,
+            "description": "`no-cache` reads the venue account named by `accountId` at its venue now"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "Read balances across workspace accounts\n\nRead every balance your workspace can see, one row per account, asset and network, across wallets and venue accounts: the total, what is available and what the provider locks, when the source observed it, when that reading expires and where it came from. It reads recorded balances and never asks a chain or venue, except `Cache-Control: no-cache` with `accountId` naming one venue account: the venue is read now and its rows answer from that reading. `no-cache` with no `accountId`, or one that is not a venue account of the workspace, is 400 naming `Cache-Control`.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/balances",
           "host": [
@@ -1072,7 +1318,7 @@
               "key": "sort",
               "value": "<sort>",
               "disabled": true,
-              "description": "`field` or `-field`, field one of `id` (the default), `accountId`, `asset`, `network`,\n`valueUsd` (unvalued rows last either way) and `asOf`."
+              "description": "`field` or `-field`, field one of `id` (the default), `accountId`, `asset`, `network`,\n`valueUsd` (unvalued rows last either way) and `observedAt`."
             },
             {
               "key": "limit",
@@ -1127,6 +1373,32 @@
             ":workspaceId",
             "capabilities"
           ],
+          "query": [
+            {
+              "key": "capability",
+              "value": "view_indicative_quotes",
+              "disabled": true,
+              "description": "One capability: `capabilities` then holds only its decision, evaluated for\n`directUserId` and `requireVerifiedWallet`. An unknown value is 400 `INVALID_CAPABILITY`."
+            },
+            {
+              "key": "directUserId",
+              "value": "<directUserId>",
+              "disabled": true,
+              "description": "The direct user a broker acts for, with `capability` only."
+            },
+            {
+              "key": "requireVerifiedWallet",
+              "value": "false",
+              "disabled": true,
+              "description": "Decide as if the act needs a verified wallet, with `capability` only. Default false."
+            },
+            {
+              "key": "area",
+              "value": "<area>",
+              "disabled": true,
+              "description": "Comma list of sections to add: `analytics`, `liquidityProviders`, `trading`. An unknown area is 400 `INVALID_REQUEST`\n(field `area`). A section the caller may not read is absent, never empty."
+            }
+          ],
           "variable": [
             {
               "key": "workspaceId",
@@ -1172,6 +1444,214 @@
               "key": "workspaceId",
               "value": "<workspaceId>",
               "description": ""
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List movements",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "List the workspace's money movements\n\nSigned-in sessions, and API keys (unsigned) holding treasury_read or settlements_read. Every money movement of the workspace as one Movement list, newest first by occurredAt (sort=-occurredAt, the default) or oldest first (sort=occurredAt, which needs from: the window is read whole and refused past 1,000 movements): treasury transfers, payouts and agent payments, venue deposits and withdrawals, LP bank payouts and deposits, deferred deposits, withdrawals and claims, and venue accounts' settlement transfers. Each source is read through its own list route as the caller and keeps that route's permission, visibility and API-key scope rules: treasury kinds need View wallets (treasury_read for a key), venue kinds View orders and View wallets in a signed-in session, LP bank kinds an LP workspace with View settlements, deferred kinds the workspace's settlement read, and settlement transfers View settlements (settlements_read for a key), read per venue account from their settlement owner (they have no other read): the accountId values, else every venue account the caller's account list names (more than 100 is 400 asking for accountId). A source the caller cannot read is left out, never widened; when every source refuses, or the one kind named refuses, the answer is that refusal. Any other failed source read refuses the page with 503 MOVEMENTS_SOURCE_UNAVAILABLE naming the source; narrow kind to read the rest. data is the source's own record. Filters (comma = any of): kind, direction, accountId, asset, network (CAIP-2), status, tradeId (the taker's trade a venue deposit declaration or withdrawal funds), subjectId (the source record's own id), agentId (agent payments only), deskId, ownerUserId and directUserId (one value each, deferred kinds only, passed to the deferred read as its own scope), windowId (one settlement window, settlement transfers only), and the half-open window from/to over occurredAt. The first page pins the window's end, so later pages read the same selection; a cursor is bound to the sort and every filter. fields=a,b returns only those row fields (id, kind, status, direction and occurredAt always kept). include=account,trade adds each row's account by accountId and trade by tradeId, as their own GETs answer the caller, or null with their refusal. Counts and per-asset sums are GET …/movements:aggregate.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/movements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "movements"
+          ],
+          "query": [
+            {
+              "key": "kind",
+              "value": "<kind>",
+              "disabled": true,
+              "description": "Comma-separated movement kinds"
+            },
+            {
+              "key": "direction",
+              "value": "<direction>",
+              "disabled": true,
+              "description": "in or out"
+            },
+            {
+              "key": "accountId",
+              "value": "<accountId>",
+              "disabled": true,
+              "description": "Comma-separated account IDs"
+            },
+            {
+              "key": "asset",
+              "value": "<asset>",
+              "disabled": true,
+              "description": "Comma-separated asset symbols"
+            },
+            {
+              "key": "network",
+              "value": "<network>",
+              "disabled": true,
+              "description": "Comma-separated CAIP-2 networks"
+            },
+            {
+              "key": "status",
+              "value": "<status>",
+              "disabled": true,
+              "description": "Comma-separated source statuses"
+            },
+            {
+              "key": "tradeId",
+              "value": "<tradeId>",
+              "disabled": true,
+              "description": "Comma-separated trade IDs"
+            },
+            {
+              "key": "subjectId",
+              "value": "<subjectId>",
+              "disabled": true,
+              "description": "Comma-separated source record IDs"
+            },
+            {
+              "key": "agentId",
+              "value": "<agentId>",
+              "disabled": true,
+              "description": "Comma-separated agent principal IDs: agent payments only"
+            },
+            {
+              "key": "deskId",
+              "value": "<deskId>",
+              "disabled": true,
+              "description": "One deferred desk (its LP id): deferred kinds only"
+            },
+            {
+              "key": "ownerUserId",
+              "value": "<ownerUserId>",
+              "disabled": true,
+              "description": "One deferred owner account: deferred kinds only, under the deferred read's own scope rule"
+            },
+            {
+              "key": "directUserId",
+              "value": "<directUserId>",
+              "disabled": true,
+              "description": "One broker-served user: deferred kinds only, under the deferred read's own scope rule"
+            },
+            {
+              "key": "windowId",
+              "value": "<windowId>",
+              "disabled": true,
+              "description": "One settlement window id: settlement transfers only, passed to their read"
+            },
+            {
+              "key": "from",
+              "value": "<from>",
+              "disabled": true,
+              "description": "Inclusive start"
+            },
+            {
+              "key": "to",
+              "value": "<to>",
+              "disabled": true,
+              "description": "Exclusive end; defaults to now"
+            },
+            {
+              "key": "sort",
+              "value": "<sort>",
+              "disabled": true,
+              "description": "-occurredAt (newest first, the default) or occurredAt (oldest first: needs from; the window is read whole, at most 1,000 movements)"
+            },
+            {
+              "key": "include",
+              "value": "<include>",
+              "disabled": true,
+              "description": "Related objects to expand into `included`, comma-separated. `account`: each row's account by accountId; `trade`: each row's trade by tradeId; each as its own GET answers the caller, or null with that GET's refusal. `observation` (needs accountId): how current each named venue account's settlement record is, keyed by that id: lastSuccessfulReadAt, observationState, completeness, observationPeriod (of windowId), reasonCode and walletArrivalGaps, or null with the read's refusal."
+            },
+            {
+              "key": "fields",
+              "value": "<fields>",
+              "disabled": true,
+              "description": "Comma-separated row fields to return"
+            },
+            {
+              "key": "limit",
+              "value": "0",
+              "disabled": true,
+              "description": "Page size from 1 to 100, default 25"
+            },
+            {
+              "key": "cursor",
+              "value": "<cursor>",
+              "disabled": true,
+              "description": "The previous page's nextCursor, with the same filters"
+            }
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get movement",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "TetraFi-Version",
+            "value": "2026-11-17",
+            "disabled": true,
+            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
+          }
+        ],
+        "description": "Read one money movement\n\nSigned-in sessions, and API keys (unsigned) holding treasury_read or settlements_read. One movement by its id (kind:sourceId, as the list returns it), exactly as the list returns its row: the source is read through its own list route as the caller, with that route's permission and visibility rules, and the row is projected the same way. A source that refuses the caller answers with its own refusal; a movement that does not exist, belongs to another workspace or is hidden from the caller is 404 MOVEMENT_NOT_FOUND. A movement older than the read reaches (20 owner pages of its source) is 503 MOVEMENTS_SOURCE_UNAVAILABLE, never 404.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/movements/:movementId",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "workspaces",
+            ":workspaceId",
+            "movements",
+            ":movementId"
+          ],
+          "variable": [
+            {
+              "key": "workspaceId",
+              "value": "<workspaceId>",
+              "description": "Workspace ID"
+            },
+            {
+              "key": "movementId",
+              "value": "<movementId>",
+              "description": "The movement id: its kind and the source record's own id, joined by a colon"
             }
           ]
         }
@@ -1295,9 +1775,9 @@
             },
             {
               "key": "settlementStatus",
-              "value": "<settlementStatus>",
+              "value": "all",
               "disabled": true,
-              "description": "Recorded settlement, matched against a row's `settlementStatus`. Taker: pending, settled,\nfailed, refunded or unknown (none recorded); maker: the fill's settlement; umbrella: the\nrecord's settlementStatus."
+              "description": "Recorded settlement, matched against a row's `settlementStatus`: all (no filter), pending,\nsettled, failed, refunded or unknown (none recorded). Maker: the fill's settlement; umbrella:\nthe record's settlementStatus."
             },
             {
               "key": "counterpartyId",
@@ -1331,9 +1811,9 @@
             },
             {
               "key": "settlementStage",
-              "value": "<settlementStage>",
+              "value": "pending",
               "disabled": true,
-              "description": "Settlement stage of an unsettled order (maker only)."
+              "description": "Settlement stage of an unsettled order (maker only), as a trade's `settlementStage` reads it\n(`accountingPending`); an unknown stage is refused."
             },
             {
               "key": "minAgeSeconds",
@@ -1373,15 +1853,15 @@
             },
             {
               "key": "lifecycle",
-              "value": "<lifecycle>",
+              "value": "inProgress",
               "disabled": true,
-              "description": "Taker: comma-separated lifecycle buckets (inProgress, completed, failed, refunded, unknown). Maker: the fills lifecycle filter"
+              "description": "Comma-separated lifecycle buckets (inProgress, completed, failed, refunded, unknown); an empty list or unknown bucket is 400"
             },
             {
               "key": "nextActor",
-              "value": "<nextActor>",
+              "value": "taker",
               "disabled": true,
-              "description": "Taker: taker, support, counterparty or none"
+              "description": "Taker: who must act next"
             },
             {
               "key": "asset",
@@ -1409,9 +1889,9 @@
             },
             {
               "key": "routingPath",
-              "value": "<routingPath>",
+              "value": "direct",
               "disabled": true,
-              "description": "The row's routingPath type: direct or via_broker"
+              "description": "The row's routingPath type"
             },
             {
               "key": "valueUsdMin",
@@ -1723,59 +2203,6 @@
       "response": []
     },
     {
-      "name": "Get account balances",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Cache-Control",
-            "value": "<Cache-Control>",
-            "disabled": true,
-            "description": "`no-cache` reads the venue now instead of answering the stored reading"
-          },
-          {
-            "key": "TetraFi-Version",
-            "value": "2026-11-17",
-            "disabled": true,
-            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
-          }
-        ],
-        "description": "Read the venue account's balances at its venue\n\nRead what the venue last reported for one venue account, one line per asset: the stored reading (`observedAt`) while unexpired (`expiresAt`), refreshed periodically and after each fill. Send `Cache-Control: no-cache` to read the venue now.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/balances",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":workspaceId",
-            "venue-accounts",
-            ":venueAccountId",
-            "balances"
-          ],
-          "variable": [
-            {
-              "key": "workspaceId",
-              "value": "<workspaceId>",
-              "description": "Current company or broker workspace"
-            },
-            {
-              "key": "venueAccountId",
-              "value": "<venueAccountId>",
-              "description": ""
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
       "name": "Get account credit",
       "request": {
         "method": "GET",
@@ -2029,134 +2456,6 @@
               "key": "venueAccountId",
               "value": "<venueAccountId>",
               "description": ""
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "List account movements",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "TetraFi-Version",
-            "value": "2026-11-17",
-            "disabled": true,
-            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
-          }
-        ],
-        "description": "List a venue account's settlement movements\n\nLists the deposits to and withdrawals from a venue account that settle its obligations, newest first, optionally for one window.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":workspaceId",
-            "venue-accounts",
-            ":venueAccountId",
-            "settlement",
-            "movements"
-          ],
-          "query": [
-            {
-              "key": "windowId",
-              "value": "<windowId>",
-              "disabled": true,
-              "description": ""
-            },
-            {
-              "key": "cursor",
-              "value": "<cursor>",
-              "disabled": true,
-              "description": ""
-            },
-            {
-              "key": "limit",
-              "value": "0",
-              "disabled": true,
-              "description": ""
-            },
-            {
-              "key": "include",
-              "value": "<include>",
-              "disabled": true,
-              "description": "`observation`: how current the recorded movements are, in `included.observation[venueAccountId]`."
-            }
-          ],
-          "variable": [
-            {
-              "key": "workspaceId",
-              "value": "<workspaceId>",
-              "description": "Workspace id"
-            },
-            {
-              "key": "venueAccountId",
-              "value": "<venueAccountId>",
-              "description": "The venue account's id"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Get account movement",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "TetraFi-Version",
-            "value": "2026-11-17",
-            "disabled": true,
-            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
-          }
-        ],
-        "description": "Read a settlement movement\n\nReads one recorded movement with its finality and how it was matched.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-accounts/:venueAccountId/settlement/movements/:movementId",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":workspaceId",
-            "venue-accounts",
-            ":venueAccountId",
-            "settlement",
-            "movements",
-            ":movementId"
-          ],
-          "variable": [
-            {
-              "key": "workspaceId",
-              "value": "<workspaceId>",
-              "description": "Workspace id"
-            },
-            {
-              "key": "venueAccountId",
-              "value": "<venueAccountId>",
-              "description": "The venue account's id"
-            },
-            {
-              "key": "movementId",
-              "value": "<movementId>",
-              "description": "The movement's id"
             }
           ]
         }
@@ -2594,60 +2893,6 @@
               "key": "windowId",
               "value": "<windowId>",
               "description": "The window's id"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "List venue accounts",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "TetraFi-Version",
-            "value": "2026-11-17",
-            "disabled": true,
-            "description": "The dated API version to answer this request in. Without it, an API key's requests use the version the key pinned when it was created, and a member session uses the current version. A value that is not exactly one supported date answers 400 API_VERSION_UNSUPPORTED before anything runs. The response's TetraFi-Version header names the version used."
-          }
-        ],
-        "description": "List the workspace's venue accounts\n\nList your workspace's venue accounts, oldest first. Each account-based item's `accountId` is the venue account id you pass to its balance, deposit and credit reads.",
-        "url": {
-          "raw": "{{baseUrl}}/api/v1/workspaces/:workspaceId/venue-enablements",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "workspaces",
-            ":workspaceId",
-            "venue-enablements"
-          ],
-          "query": [
-            {
-              "key": "cursor",
-              "value": "<cursor>",
-              "disabled": true,
-              "description": "Opaque `nextCursor` from the previous page of the same list and filters."
-            },
-            {
-              "key": "limit",
-              "value": "0",
-              "disabled": true,
-              "description": "Page size from 1 to 100, default 20. A value outside that range is\nrefused with 400 `LIMIT_INVALID`, never clamped."
-            }
-          ],
-          "variable": [
-            {
-              "key": "workspaceId",
-              "value": "<workspaceId>",
-              "description": "Current company or broker workspace"
             }
           ]
         }
