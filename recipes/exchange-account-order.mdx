@@ -1,6 +1,6 @@
 ---
 title: "Trade on a connected exchange account"
-description: "Trade on one of your exchange accounts with an API key: scope the search to its venue, check it holds enough, order, recover the order by its quote and read its status."
+description: "Trade on one of your exchange accounts, in the app or with an API key: check it holds enough, quote its venue, order and follow the order to the end."
 ---
 
 import ExchangeVenue from '/snippets/samples/recipe-exchange-venue.mdx';
@@ -11,6 +11,48 @@ import ExchangeRecover from '/snippets/samples/recipe-exchange-recover.mdx';
 import ExchangeStatus from '/snippets/samples/recipe-exchange-status.mdx';
 
 Swap 5 USDC for USDT on a connected exchange account. TetraFi trades with the account's balance, so no wallet signs.
+
+<View title="In the app" icon="browser">
+
+The account must be connected and **Active**, and your company details on file ([Before your first trade](/before-you-trade)).
+
+<Steps>
+  <Step title="Check the account holds enough">
+    In **Treasury**, open the venue account. If it holds less than 5 USDC, select **Deposit** ([Fund it](/before-you-trade#fund-it)).
+  </Step>
+
+  <Step title="Request quotes">
+    In **Trade**, set **You pay** to 5 USDC and **You receive** to USDT, then select **Request quotes**. Your account's venue answers in its own row, under **Venue**.
+  </Step>
+
+  <Step title="Place the order">
+    **Choose** that row, then select **Execute order** while it reads **Quote held**.
+
+    <Warning>
+    An order cannot be undone; on a production account it spends real assets. Start small.
+    </Warning>
+  </Step>
+
+  <Step title="Read the status">
+    **Trade history** shows it **In progress**, then **Completed**. Open it to follow **Trade placed**, **Fill recorded** and **Delivered**. The account's new balance shows under **Treasury**.
+  </Step>
+</Steps>
+
+## If something goes wrong
+
+<Accordion title="What the app says and what to do">
+| The app says | What to do |
+| --- | --- |
+| **No venue serves** the pair **for this workspace** | Check the account reads **Active** under **Counterparties**, or pick a pair the venue trades. |
+| **Quote expired** | Select **Requote and execute**, or request quotes again. Nothing was ordered. |
+| **Unknown** in **Trade history** | It has not failed: wait for its final state before trading again. |
+</Accordion>
+
+Next: [your first trade](/quickstart) walks the whole flow from sign-up.
+
+</View>
+
+<View title="With the API" icon="code">
 
 ## At a glance
 
@@ -172,3 +214,5 @@ This recipe places a real order on your exchange account and spends its balance.
     Retry an order safely and find out whether it was placed.
   </Card>
 </CardGroup>
+
+</View>
