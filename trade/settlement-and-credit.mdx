@@ -17,7 +17,7 @@ import CreditOrderWindow from '/snippets/samples/credit-order-window.mdx';
 import CreditOrderRefusals from '/snippets/samples/credit-order-refusals.mdx';
 import CreditTradeReadback from '/snippets/samples/credit-trade-readback.mdx';
 
-On a credit account you **trade first and pay later**. What you and the liquidity provider (LP) owe each other is netted over a settlement window, then paid. Your backend reads it, and is told when something is due.
+On a credit account you **trade first and pay later**. What you and the liquidity provider (LP) owe each other is netted over a settlement window, then paid.
 
 ## How settlement works
 
@@ -32,6 +32,36 @@ flowchart LR
 ```
 
 Each trade joins the account's open **window**. When its snapshot is `ready`, its statement nets them into **obligations**: what each side owes, by when. Deposits and withdrawals (**movements**) are matched to them; what is left can carry into a later window.
+
+<View title="In the app" icon="browser">
+
+## Settlement
+
+In **Treasury**, open **Settlement** to see what is due across your venue accounts, in the **Desk** or **Counterparties** view. **Statements** holds each **Period**'s statement; the **Open period** is the one new trades join.
+
+For one account, open it in **Treasury** and select **Settlement**: **Terms and schedule** shows how it settles, and **Request a schedule** asks the liquidity provider to change it.
+
+## Credit
+
+The venue account's **Credit** tab shows **Credit with** the liquidity provider: the **Limit** and what is **Left for new trades**, or **Prefunded** for an account that trades only what it holds. Its terms list the **Credit limit**, **Exposure rule** and **Settlement schedule**.
+
+<Note>
+Trading does not need a credit line; contact support to discuss one.
+</Note>
+
+## Trade on a credit account
+
+Quote and order as on any venue account ([Place an order](/trade/orders)). The trade joins the account's open window and settles with it.
+
+## Settlement actions are for members
+
+Members agree or dispute a statement, mark a bank payment sent and pay a window in **Treasury**, **Settlement**, with your workspace's approvals.
+
+</View>
+
+<View title="With the API" icon="code">
+
+Your backend reads all of this, and is told when something is due.
 
 <Accordion title="Other paths">
   This is a window that settles by the clock (`settlesBy`). With `onAgreement`, the LP issues the statement and the window settles once it is agreed, with no clock time. A pay-in trade creates its obligation directly (`payInTrade`), and a carried amount adds a `carryFee` obligation.
@@ -310,3 +340,5 @@ Payloads carry ids, not statements: read the detail ([delivery rules](/trade/web
 </AccordionGroup>
 
 Other codes: [Error codes](/reference/error-codes). Full script: [credit-settlement.sh](https://github.com/TetraFi/docs/blob/main/samples/http/credit-settlement.sh).
+
+</View>
