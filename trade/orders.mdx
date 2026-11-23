@@ -10,7 +10,50 @@ import OrderIdempotentReplay from '/snippets/samples/order-idempotent-replay.mdx
 import OrderIdempotencyConflict from '/snippets/samples/order-idempotency-conflict.mdx';
 import OrderRecoverByQuote from '/snippets/samples/order-recover-by-quote.mdx';
 
-Ordering a quote by its id is the accept: there is no separate call. You need a quote whose `next.kind` is `order` and the funds you sell ([Before your first trade](/before-you-trade)). **One `Idempotency-Key` per order** makes every retry safe.
+Ordering a quote is the accept: there is no separate step. You need a quote that can be ordered and the funds you sell ([Before your first trade](/before-you-trade)).
+
+<View title="In the app" icon="browser">
+
+## Place an order
+
+<Steps>
+  <Step title="Choose a quote">
+    In **Trade**, select **Request quotes**, then **Choose** a row. A row that is only a price offers **Get firm quote**.
+  </Step>
+  <Step title="Execute it">
+    The review reads **Quote held** while the venue holds the price. Select **Execute order** (on some quotes, **Execute at the firm price**).
+  </Step>
+  <Step title="If it expired">
+    The review reads **Quote expired** and nothing was ordered. Select **Requote and execute** to order at a new price.
+  </Step>
+  <Step title="Follow it">
+    **Trade history** shows it until it ends ([Order status](/trade/order-status)).
+  </Step>
+</Steps>
+
+<Warning>
+An order cannot be undone; on a production venue it trades real assets.
+</Warning>
+
+<Accordion title="From live prices">
+  On the **Live** prices card, select **Trade at the live price**, then **Confirm order**.
+</Accordion>
+
+## Refusals
+
+| The app says | What to do |
+| --- | --- |
+| **No venue serves** the pair **for this workspace.** | **Connect a counterparty to get prices**, or pick another pair. |
+| **Trading not ready** | Finish [setting up](/before-you-trade): company details and a funded account. |
+| **Quote expired; no replacement quote was available. Nothing was ordered.** | Request quotes again. |
+
+A trade that shows **Unknown** has not failed: wait for its final state before ordering again.
+
+</View>
+
+<View title="With the API" icon="code">
+
+Order a quote whose `next.kind` is `order` by its id. **One `Idempotency-Key` per order** makes every retry safe.
 
 Permissions and every refusal: [Place an order](/api-reference/orders/place-order).
 
@@ -269,5 +312,7 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 | 503 `QUOTE_STORE_UNAVAILABLE`, `VENUE_TEMPORARILY_REFUSED` | Held quotes cannot be read just now, or the venue briefly refused. Send the same request with the same key shortly. |
 
 </Accordion>
+
+</View>
 
 Next: [follow the order](/trade/order-status), or [read a refusal](/trade/errors).

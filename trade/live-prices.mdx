@@ -7,9 +7,35 @@ keywords: ["Live prices", "priceId", "stream order", "kind stream", "validFor", 
 import StreamOrderPrice from '/snippets/samples/stream-order-price.mdx';
 import StreamOrderPlace from '/snippets/samples/stream-order-place.mdx';
 
-Some desks stream executable prices. Read one from [`GET /api/v1/prices`](/api-reference/trading/get-prices) and order it by its `priceId`: one call, no quote request. The price is executable, not firm, so you set the least you accept and the order fills at or above it, or not at all.
+Some desks stream executable prices. Order the one you see directly, without requesting a quote first. The price is executable, not firm: the order fills at or above the least you accept, or not at all.
 
 Not sure this is the right flow? [Request for quote or Live prices](/trade/rfq-or-live-prices).
+
+<View title="In the app" icon="browser">
+
+## Order a Live price
+
+<Steps>
+  <Step title="Read Live prices for your size">
+    In **Trade**, set **You pay**, **You receive** and the amount. The **Live prices** card shows what a desk streams for that size. A price marked **Indicative** cannot be ordered here: use **Request quotes**.
+  </Step>
+  <Step title="Order the price">
+    Select **Trade at the live price**, check the amounts, then **Confirm order**. The price lasts a few seconds, so confirm at once.
+  </Step>
+  <Step title="Follow it to the end">
+    **Trade history** shows the order. It ends filled, or **Not filled** when the price moved past your limit; nothing was traded then.
+  </Step>
+</Steps>
+
+## What TetraFi checks
+
+TetraFi asks the venue for your exact size when you confirm, and sends an order that fills at or above your minimum, or not at all. You never receive less. Each price orders once.
+
+</View>
+
+<View title="With the API" icon="code">
+
+Read a price from [`GET /api/v1/prices`](/api-reference/trading/get-prices) and order it by its `priceId`: one call, no quote request.
 
 ## At a glance
 
@@ -89,6 +115,8 @@ Every other refusal is that of a quote order: [Place an order](/api-reference/or
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/stream-order.sh">
   Reads Live prices for one size and, with `TETRAFI_PLACE_ORDER=1`, orders the tradable row and follows the order.
 </Card>
+
+</View>
 
 ## Next
 

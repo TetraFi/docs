@@ -8,6 +8,42 @@ import OrderStatus from '/snippets/samples/order-status.mdx';
 import OrdersList from '/snippets/samples/orders-list.mdx';
 import OrderExecution from '/snippets/samples/order-execution.mdx';
 
+Follow an order until it is final; an unknown outcome is not a failure.
+
+<View title="In the app" icon="browser">
+
+## List your orders
+
+**Trade history** lists your trades, newest first. Choose **Mine** or **Workspace**, and filter by status.
+
+## Statuses
+
+| Status | What it means, and what to do |
+| --- | --- |
+| **In progress** | Not final. It is executing or settling. Nothing to do. |
+| **Needs you** | Waiting on someone in your workspace. Open it. |
+| **Completed** | Final. Executed and delivered. |
+| **Failed** | Final. This alone does not prove nothing traded: open it to see each step. |
+| **Refunded** | Final. Your funds were returned. |
+| **Unknown** | Not final. TetraFi is reconciling the outcome; the trade may have filled. Wait, and never order again. |
+
+## What the order did
+
+Open a trade to see its timeline:
+
+<Steps>
+  <Step title="Quote requested">Then **Firm quote**, when the venue held a price.</Step>
+  <Step title="Trade placed">Sent to the venue.</Step>
+  <Step title="Fill recorded">Or **Not filled**: nothing traded.</Step>
+  <Step title="Settlement recorded">Then **Delivered**. An on-chain trade ends **Settled** or **Refunded**.</Step>
+</Steps>
+
+Venues that settle on a schedule: [Settlement and credit](/trade/settlement-and-credit).
+
+</View>
+
+<View title="With the API" icon="code">
+
 Read an order at its `statusUrl` every 10 to 15 seconds, or after `next.retryAfter`, until `terminal` is `true`. [Webhooks](/trade/webhooks) can tell you when to read it.
 
 ## At a glance
@@ -155,7 +191,7 @@ A quote's `expiresAt` is its ordering deadline and `eta` an expected delivery ti
 
 ## List your orders
 
-`GET /api/v1/orders` lists your workspace's orders, newest first, up to 20 a page; the app shows them under **Trades**.
+`GET /api/v1/orders` lists your workspace's orders, newest first, up to 20 a page; the app shows them under **Trade history**.
 
 <AccordionGroup>
   <Accordion title="Filters and paging">
@@ -184,6 +220,8 @@ A quote's `expiresAt` is its ordering deadline and `eta` an expected delivery ti
 <Card title="Run the full script" icon="terminal" href="https://github.com/TetraFi/docs/blob/main/samples/http/orders-list.sh">
   Lists and pages your orders, and reads what one did.
 </Card>
+
+</View>
 
 ## Next
 
