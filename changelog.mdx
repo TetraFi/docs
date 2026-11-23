@@ -16,10 +16,10 @@ During the pilot the API can still change, and every change a client can see is 
 </Update>
 
 <Update label="2026-11-22" description="Venue key refusals on reads, External wallets on /me, asset paging">
-  - A venue-account read (balances, deposit history) whose key the venue refuses answers that key's own code with `details.remedy`: `409 VENUE_KEY_REFUSED`, `VENUE_KEY_REFUSED_IP_OR_KEY`, `VENUE_KEY_MALFORMED`, `VENUE_KEY_REFUSED_PERMISSION_MISSING` or `VENUE_ACCOUNT_INACTIVE`, or `503 VENUE_UNREACHABLE` (retry). It answered `409 RESOURCE_CONFLICT` before.
-  - With an API key or OAuth token, `credentialRevision` and `keyFingerprint` on venue-account reads are `null`: key metadata is for members.
-  - `GET /api/v1/me` adds `organisationWallets.clientSigned`: the External wallets the key trades from by signing each step itself, which need no grant, with its own `blockedBy`. `organisationWallets.blockedBy` now covers only wallets TetraFi signs for.
-  - **Breaking.** `GET /api/v1/assets` pages by a new cursor: a cursor just issued always reads the next page. A cursor from before this change answers `400 CURSOR_INVALID`: start again from the first page.
+  - A venue-account read (balances, deposit history) whose key the venue refuses answers that key's own code with `details.remedy`: `409 VENUE_KEY_REFUSED`, `VENUE_KEY_REFUSED_IP_OR_KEY`, `VENUE_KEY_REFUSED_LIKELY_IP_WHITELIST`, `VENUE_KEY_MALFORMED`, `VENUE_KEY_REFUSED_PERMISSION_MISSING` or `VENUE_ACCOUNT_INACTIVE`, or `503 VENUE_UNREACHABLE` (retry). It answered `409 RESOURCE_CONFLICT` before. Deposit history refused on every pair you asked for answers `409` with that code; a refused pair beside answered ones names the code as its `reasonCode`.
+  - With an API key or OAuth token, `credentialRevision`, `keyFingerprint` and a quote card's `confirm.expectedCredentialRevision` are `null` in every response, nested rows and `include` relations included: key metadata is for members. A response that cannot be prepared this way answers `500 RESPONSE_PROJECTION_FAILED` and sends nothing else; read the resource back before you send the request again.
+  - `GET /api/v1/me` adds `organisationWallets.clientSigned`: the External wallets the key trades from by signing each step itself, which need no grant, with its own `blockedBy`. It lists at most 100 wallets; `truncated: true` means there are more. `organisationWallets.blockedBy` now covers only wallets TetraFi signs for.
+  - **Breaking.** `GET /api/v1/assets` pages by a new cursor that remembers the filters it was asked with (`venueId`, `venueCode`, `network`, `address`): a cursor just issued always reads the next page. A cursor from before this change answers `400 CURSOR_INVALID`; one sent with other filters answers `409 CURSOR_STALE`. In both cases start again from the first page, or send the first page's filters.
   - A `204` reply (deleting a webhook) carries no body.
 </Update>
 
