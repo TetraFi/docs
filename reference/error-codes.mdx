@@ -38,7 +38,7 @@ Act on each code's own **Do** line and **Retry** answer, not on its status alone
 
 <Accordion title="Requests, keys and access">
 
-Malformed requests, credentials, request signing, permissions, workspaces, idempotency, paging and batch reads. 118 codes.
+Malformed requests, credentials, request signing, permissions, workspaces, idempotency, paging and batch reads. 119 codes.
 
 <span id="ACCOUNT_KEY_AUTHORITY_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>ACCOUNT_<wbr />KEY_<wbr />AUTHORITY_<wbr />REQUIRED</code> · 403 · Retry: no<br />The request needs a current API key owned by the account with the required permission.<br />**Do:** Use a current account-owned key that holds the permission, or ask an admin to grant it.
 
@@ -105,6 +105,8 @@ Malformed requests, credentials, request signing, permissions, workspaces, idemp
 <span id="IDEMPOTENCY_KEY_REQUIRED" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />KEY_<wbr />REQUIRED</code> · 400 · Retry: no<br />This operation requires an Idempotency-Key header.<br />**Do:** Add an Idempotency-Key header and send the request again.
 
 <span id="IDEMPOTENCY_OUTCOME_UNKNOWN" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />OUTCOME_<wbr />UNKNOWN</code> · 409 · Retry: no<br />The earlier request with this Idempotency-Key may or may not have taken effect; retrying the key cannot tell.<br />**Do:** Stop retrying this key. Read the resource back (details.readTarget names the read where the operation has one) and send a new Idempotency-Key only once that read shows nothing happened.
+
+<span id="IDEMPOTENCY_RECEIPT_UNREADABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />RECEIPT_<wbr />UNREADABLE</code> · 409 · Retry: no<br />The order this Idempotency-Key placed exists, but its stored answer holds an amount without its asset and is no longer sent as stored.<br />**Do:** Read the order back (details.readTarget names it); never send it again under a new Idempotency-Key.
 
 <span id="IDEMPOTENCY_UNAVAILABLE" style={{ scrollMarginTop: '10rem' }}></span><code style={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}>IDEMPOTENCY_<wbr />UNAVAILABLE</code> · 503 · Retry: yes<br />The request's idempotency record could not be verified.<br />**Do:** Retry with the same Idempotency-Key shortly.
 
