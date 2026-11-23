@@ -6,14 +6,7 @@ keywords: ["onboarding", "company details", "funding", "deposit", "venue account
 
 import MeOrganisationWallets from '/snippets/samples/me-organisation-wallets.mdx';
 
-You set your workspace up **once**, in the app; after that your backend only quotes and orders. Quotes need company details on file; an order also needs a funded account or wallet:
-
-| You need | Set it up in the app | Check it |
-| --- | --- | --- |
-| [Company details](#complete-your-company-details) | **Company profile** | [`GET …/capabilities`](#check-readiness-from-your-backend), or a quote's refusal |
-| [A venue account](#connect-a-venue-account) | **Counterparties** | Quotes carry `tradingSource.kind` `venueAccount` |
-| [Funds](#fund-it) | Deposit to the account or wallet | [Balances](/trade/balances) |
-| [Wallet grants](#give-a-key-organisation-wallets) (organisation wallets only) | The key's **Wallets** | [`GET /api/v1/me`](/api-reference/auth/get-current-credential) |
+You set your workspace up **once**, in the app. Quotes need company details on file; an order also needs a funded venue account or wallet.
 
 ```mermaid
 flowchart LR
@@ -21,6 +14,81 @@ flowchart LR
   C --> G[Organisation wallet with grants] --> F
   F --> R[Readiness check]
 ```
+
+<View title="In the app" icon="browser">
+
+| You need | Where in the app |
+| --- | --- |
+| [Company details](#complete-your-company-details) | **Entity profile**, **Company** |
+| [A venue account](#connect-a-venue-account) | **Counterparties** |
+| [Funds](#fund-it) | **Treasury**, the venue account, **Deposit** |
+
+## Complete your company details
+
+In **Entity profile**, open **Company** and select **Edit**. Add the four facts under **Needed to trade**: **Legal name**, **Country of incorporation**, **Registration number** and **Registered address**.
+
+Until then the profile reads **Trading paused** and quotes are refused. TetraFi verification is not needed to trade on your own venue accounts.
+
+## Connect a venue account
+
+You onboard with the liquidity provider off-platform; TetraFi adds no step or approval. Use the key the venue already issued you:
+
+<Steps>
+  <Step title="Turn on two-factor">
+    **Settings**, **Security**, **Sign-in second factor**. Verifying a key asks for it.
+  </Step>
+
+  <Step title="Open the venue">
+    In **Counterparties**, open the liquidity provider (new ones are under **Discover LPs**), then select **Connect with your API key** on its venue.
+  </Step>
+
+  <Step title="Add your key">
+    Paste the fields the venue asks for. Add the addresses under **Allow TetraFi's IP addresses** to your key at the venue, then tick **I've added these addresses**.
+  </Step>
+
+  <Step title="Verify">
+    Select **Save and verify key** and confirm it is you. **Active** means its quotes now reach you: select **Go to Trade**.
+  </Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title="If the key is refused">
+| The app says | What to do |
+| --- | --- |
+| The venue refused the key because TetraFi's IP addresses aren't on it | Add them to the key at the venue, then **Verify again**. |
+| **Key not verified** | Check the key's fields and that it is still active at the venue. |
+| **Set up two-factor authentication first.** | **Settings**, **Security**. |
+  </Accordion>
+
+  <Accordion title="Your whitelisted addresses">
+    TetraFi reads the withdrawal addresses whitelisted at the venue: **Treasury**, the venue account, **Funding**, **Wallets**. Each reads **Approved by** the liquidity provider.
+  </Accordion>
+</AccordionGroup>
+
+## Fund it
+
+An order spends what the venue account holds. In **Treasury**, open the venue account and select **Deposit**:
+
+1. Pick the **Asset and network**.
+2. Send to the **Deposit address**, with the **Memo / destination tag** when it reads **Required**.
+3. Select **I've paid it**.
+
+**Treasury**, **Accounts** shows what each account holds.
+
+Next: [your first trade](/quickstart).
+
+</View>
+
+<View title="With the API" icon="code">
+
+After setup, your backend only quotes and orders:
+
+| You need | Set it up in the app | Check it |
+| --- | --- | --- |
+| [Company details](#complete-your-company-details) | **Company profile** | [`GET …/capabilities`](#check-readiness-from-your-backend), or a quote's refusal |
+| [A venue account](#connect-a-venue-account) | **Counterparties** | Quotes carry `tradingSource.kind` `venueAccount` |
+| [Funds](#fund-it) | Deposit to the account or wallet | [Balances](/trade/balances) |
+| [Wallet grants](#give-a-key-organisation-wallets) (organisation wallets only) | The key's **Wallets** | [`GET /api/v1/me`](/api-reference/auth/get-current-credential) |
 
 ## Complete your company details
 
@@ -142,3 +210,5 @@ A key trades from an organisation wallet only once the wallet is granted to it. 
 </AccordionGroup>
 
 Next: [place your first order](/quickstart).
+
+</View>

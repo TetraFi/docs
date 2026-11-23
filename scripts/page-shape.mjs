@@ -56,8 +56,18 @@ const read = (file) => readFileSync(path.join(root, file), 'utf8');
 const words = (text) => (text.replace(/\]\([^)\s]*\)/g, ']').replace(/<[^>]+>/g, ' ').replace(/[#*`|>\-[\]()]/g, ' ').match(/[A-Za-z0-9][\w'.:/-]*/g) ?? []).length;
 const body = (text) => text.replace(/^---[\s\S]*?---/, '').replace(/^import .*$/gm, '');
 
+// A reader sees one view at a time (the In the app / With the API switch): the shared text plus the
+// longest single view counts, never both.
 export function visibleWords(text) {
-  return words(body(text).replace(/```[\s\S]*?```/g, '')
+  const views = [];
+  const shared = body(text).replace(/<View\b[^>]*>([\s\S]*?)<\/View>/g, (_, inner) => {
+    views.push(inner);
+    return ' ';
+  });
+  return sharedVisibleWords(shared) + Math.max(0, ...views.map(sharedVisibleWords));
+}
+function sharedVisibleWords(text) {
+  return words(text.replace(/```[\s\S]*?```/g, '')
     .replace(/<Accordion\b([^>]*)>[\s\S]*?<\/Accordion>/g, (_, attributes) => ` ${(attributes.match(/title="([^"]*)"/) ?? [])[1] ?? ''} `)
     .replace(/<Expandable\b[^>]*>[\s\S]*?<\/Expandable>/g, ' '));
 }
