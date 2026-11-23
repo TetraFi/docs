@@ -12,6 +12,12 @@ test('accordion bodies, code blocks and frontmatter are not visible words; table
   assert.equal(visibleWords(page), 9);
 });
 
+test('a page with views counts its shared text plus its longest view, not both views', () => {
+  const page = ['Shared one two.', '<View title="In the app" icon="browser">', 'App three four.', '</View>',
+    '<View title="With the API" icon="code">', 'Api three four five six.', '</View>'].join('\n');
+  assert.equal(visibleWords(page), 3 + 5);
+});
+
 test('facts are backticked tokens, error codes and numbers with units', () => {
   const found = facts('Send `minReceive` or get QUOTE_EXPIRED within 300 seconds, at 50 bps.');
   assert.deepEqual([...found].sort(), ['300 seconds', '50 bps', 'QUOTE_EXPIRED', 'minReceive']);

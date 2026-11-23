@@ -1,6 +1,6 @@
 ---
 title: "Quickstart"
-description: "Create a key, check your pair trades, get quotes from every venue your workspace can use and place a small order from your terminal."
+description: "Your first trade, in the app or with the API: get quotes from every venue your workspace can use and place a small order."
 keywords: ["getting started", "curl", "first trade", "hello world"]
 ---
 
@@ -13,9 +13,73 @@ import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
 import QuickstartTrade from '/snippets/samples/quickstart-trade.mdx'
 import TestSafelyMinimums from '/snippets/samples/test-safely-minimums.mdx'
 
-Your first trade in **5 steps**: check the pair, ask for quotes to sell 10 USDC for USDT, place an order from the best orderable quote, then read its status and trade.
+Your first trade: ask for quotes to sell 10 USDC for USDT, place an order from the best quote, then follow its status and trade.
 
 Quoting needs your company details on file; ordering, also a funded venue account or wallet ([Before your first trade](/before-you-trade)).
+
+<View title="In the app" icon="browser">
+
+<Steps>
+  <Step title="Create your account">
+    At [app.tetrafi.io](https://app.tetrafi.io), select **Create one**, fill in your details and select **Create account**. Open the link we email you within 60 minutes, then select **Continue**.
+
+    <Accordion title="Google, a wallet or an invite">
+      **Sign up with Google** and **Sign up with Wallet** work too. With an invite code, choose **I have an invite**; with an invite link, open it and select **Create account and join**.
+    </Accordion>
+  </Step>
+
+  <Step title="Create or join your workspace">
+    Select **Create a workspace**, enter your **Organization name** and select **Create workspace**. If a colleague already has one, use **Ask to join** or their invite. A business workspace needs a work email.
+  </Step>
+
+  <Step title="Add your company details">
+    In **Entity profile**, open **Company**, select **Edit** and add your **Legal name**, **Country of incorporation**, **Registration number** and **Registered address**. Quotes wait for all four.
+  </Step>
+
+  <Step title="Turn on two-factor">
+    In **Settings**, **Security**, add an **Authenticator App** or a **Security Key**. Connecting a venue asks for it.
+  </Step>
+
+  <Step title="Connect your venue">
+    In **Counterparties**, open your liquidity provider and, on its venue, select **Connect with your API key**. Paste the key the venue issued you, add TetraFi's IP addresses to that key, then select **Save and verify key**. **Active** means its quotes reach you ([details](/before-you-trade#connect-a-venue-account)).
+  </Step>
+
+  <Step title="Request quotes">
+    In **Trade**, set **You pay** to 10 USDC and **You receive** to USDT, then select **Request quotes**. Each venue's row shows **You receive**, **Cost** and **Valid for**.
+  </Step>
+
+  <Step title="Place the order">
+    **Choose** the best quote, then select **Execute order** while it reads **Quote held**. The venue account must hold what you sell ([fund it](/before-you-trade#fund-it)).
+
+    <Warning>
+    An order cannot be undone; on a production venue it trades real assets. Start with a small amount.
+    </Warning>
+  </Step>
+
+  <Step title="Follow it">
+    **Trade history** shows it **In progress**, then **Completed**. Open it to see each step, from **Trade placed** to **Delivered**.
+  </Step>
+</Steps>
+
+## If something goes wrong
+
+<Accordion title="What the app says and what to do">
+| The app says | What to do |
+| --- | --- |
+| **Verify your email to sign in** | Open the link we emailed you, or select **Send a new link**. |
+| **Business workspaces need a work email** | Sign up with your company email address. |
+| **Set up two-factor authentication first.** | **Settings**, **Security**: add an authenticator app or security key. |
+| The venue refused the key because TetraFi's IP addresses aren't on it | Add the addresses the connect step lists to your key at the venue, then **Verify again**. |
+| **Your company details are not complete** | Fill in the four facts under **Entity profile**, **Company**. |
+| **No venue serves** the pair **for this workspace** | Connect a venue that trades it, or pick another pair. |
+| **Quote expired** | Select **Requote and execute**, or request quotes again. Nothing was ordered. |
+</Accordion>
+
+A trade that shows **Unknown** has not failed: wait for its final state before trading again.
+
+</View>
+
+<View title="With the API" icon="code">
 
 <Accordion title="Tools and code samples">
   The cURL, Node.js and Python tabs show the API calls of one full script per language ([below](#run-the-full-script)): run it whole, since it also signs requests, checks inputs and saves the order record. cURL needs `bash`, `curl`, `jq`, `openssl` and `bc` (for exact decimal arithmetic); the Node.js (18 or later) and Python (3.8 or later) scripts need no third-party packages. The outputs show a Binance testnet run with shortened IDs. The TypeScript SDK tab (not published yet; see [SDK and samples](/sdk)) uses a different pair, USDC for ETH, and waits for the order to end.
@@ -198,3 +262,5 @@ Run the [cURL](https://github.com/TetraFi/docs/blob/main/samples/http/quickstart
 </Accordion>
 
 Next: the [go-live checklist](/recipes/go-live-checklist), before production.
+
+</View>
