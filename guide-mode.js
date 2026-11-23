@@ -1,10 +1,14 @@
 // Guide mode: a guide page can show its steps "In the app" or "With the API" (Mintlify <View>).
-// This keeps the reader's choice from page to page and opens a page in the mode a link names
-// (?mode=app or ?mode=api). A reader who comes from the API reference is a developer: guides open
-// in the API view for them.
+// Mintlify offers the views as a dropdown, which hides that the other mode exists. This shows both
+// modes side by side as a two-button switch in the dropdown's place and drives the (hidden) dropdown.
+// It also keeps the reader's choice from page to page, opens a page in the mode a link names
+// (?mode=app or ?mode=api), and opens guides in the API view for readers who come from the API reference.
 (function () {
   var KEY = 'tetrafi-guide-mode';
+  var MODES = ['app', 'api'];
   var TITLES = { app: 'In the app', api: 'With the API' };
+  var NATIVE = 'tf-mode-native';
+  var SWITCH = 'tf-mode-switch';
 
   function read() {
     try { return window.localStorage.getItem(KEY); } catch (e) { return null; }
@@ -16,8 +20,11 @@
     for (var mode in TITLES) if (TITLES[mode] === title) return mode;
     return null;
   }
+  function triggers() {
+    return Array.prototype.slice.call(document.querySelectorAll('#multi-view-dropdown button[aria-haspopup]'));
+  }
   function trigger() {
-    var buttons = document.querySelectorAll('#multi-view-dropdown button[aria-haspopup]');
+    var buttons = triggers();
     for (var i = 0; i < buttons.length; i++) if (buttons[i].offsetParent !== null) return buttons[i];
     return buttons[0] || null;
   }
@@ -37,30 +44,71 @@
     }
     if (triesLeft > 0) setTimeout(function () { choose(title, triesLeft - 1); }, 50);
   }
+
+  // The switch: one per Mintlify dropdown (there is one in the header and one in the right rail; CSS
+  // shows the one that fits the width). It copies the dropdown's classes so it sits where it sat.
+  function sync() {
+    var button = trigger();
+    var current = button && modeOf(shown(button));
+    var switches = document.querySelectorAll('.' + SWITCH);
+    for (var i = 0; i < switches.length; i++) {
+      var options = switches[i].querySelectorAll('button[data-mode]');
+      for (var j = 0; j < options.length; j++) {
+        options[j].setAttribute('aria-checked', String(options[j].getAttribute('data-mode') === current));
+      }
+    }
+  }
+  function build(container) {
+    var control = document.createElement('div');
+    control.className = container.className.replace(/\bmulti-view-dropdown\b/g, '').replace(new RegExp('\\b' + NATIVE + '\\b', 'g'), '') + ' ' + SWITCH;
+    control.setAttribute('role', 'radiogroup');
+    control.setAttribute('aria-label', 'Show this guide');
+    MODES.forEach(function (mode) {
+      var option = document.createElement('button');
+      option.type = 'button';
+      option.setAttribute('role', 'radio');
+      option.setAttribute('data-mode', mode);
+      option.textContent = TITLES[mode];
+      option.addEventListener('click', function () {
+        write(mode);
+        apply(30);
+      });
+      control.appendChild(option);
+    });
+    return control;
+  }
+  function ensureSwitches() {
+    var buttons = triggers();
+    var ours = buttons.some(function (button) { return modeOf(shown(button)); });
+    if (!ours) return false;
+    buttons.forEach(function (button) {
+      var container = button.closest('#multi-view-dropdown');
+      if (!container) return;
+      var next = container.nextElementSibling;
+      if (!next || !next.classList.contains(SWITCH)) container.after(build(container));
+      container.classList.add(NATIVE);
+      if (!button.__tfObserved) {
+        button.__tfObserved = true;
+        new MutationObserver(sync).observe(button, { attributes: true, attributeFilter: ['aria-label'] });
+      }
+    });
+    sync();
+    return true;
+  }
+
   function apply(triesLeft) {
     var asked = new URLSearchParams(window.location.search).get('mode');
     if (TITLES[asked]) write(asked);
-    var wanted = TITLES[read()];
-    if (!wanted) return;
     var button = trigger();
-    if (!button) {
+    if (!button || !ensureSwitches()) {
       if (triesLeft > 0) setTimeout(function () { apply(triesLeft - 1); }, 100);
       return;
     }
-    if (shown(button) === wanted) return;
+    var wanted = TITLES[read()];
+    if (!wanted || shown(button) === wanted) return;
     press(button);
     choose(wanted, 20);
   }
-  // Remember the mode the reader picks in the dropdown.
-  document.addEventListener('click', function (event) {
-    var target = event.target;
-    if (!target || !target.closest || !target.closest('[role^="menuitem"], #multi-view-dropdown')) return;
-    setTimeout(function () {
-      var button = trigger();
-      var mode = button && modeOf(shown(button));
-      if (mode) write(mode);
-    }, 300);
-  }, true);
 
   var REFERENCE = /^\/api-reference(\/|$)/;
   var lastPath = window.location.pathname;
