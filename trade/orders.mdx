@@ -257,7 +257,9 @@ Unless the table says otherwise, nothing was sent. [Error codes](/reference/erro
 | 409 `VENUE_QUOTE_SEND_WINDOW_CLOSED` | The venue's firm price reached its send deadline before the order could be sent, so it was not sent. Request a new quote and order it. |
 | 409 `QUOTE_RECONFIRMATION_REQUIRED` | The venue's firm price could no longer be accepted when the order reached it, so it was not sent. Request a new quote and order it. |
 | 409 `QUOTE_ALREADY_ORDERED` | Another order already used this quote. Find it by its quote ([Recover an order by its quote](#recover-an-order-by-its-quote)). |
-| 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. Lower `minReceive` or get a new price. |
+| 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`, so nothing was sent. `details.remediation` is `requote`: the attempt used this quote (a `priceId` orders one quote for its life), so get a new price and order it; `details.currentReceive` says what the venue's price delivers. |
+| 409 `VENUE_ORDER_NOT_SENT` | The order was recorded and stopped before it reached the venue, so nothing was sent. `details.reason` names why; act on `details.remediation`: `requote` (get a new price) or `chooseAnotherLp`. |
+| 409 `VENUE_QUOTE_OPERATION_CLOSED` | This quote, with this `minReceive`, was already refused before anything was sent; its order reads `unfilled` with `operation.ending`. Get a new price. |
 | 409 `FUNDING_SHORTFALL` | The venue account holds less than the trade needs. `next` is `fund`: fund the account, then get a new price. |
 | 409 `VENUE_TRADE_CAP_EXCEEDED` | Above the venue's Pilot per-trade cap. Get a price for a smaller amount. |
 | 400, 409, 503 `IDEMPOTENCY_*` | The `Idempotency-Key` is missing, malformed or reused, or its record could not be checked ([Retries and recovery](#retries-and-recovery)). `409 IDEMPOTENCY_OUTCOME_UNKNOWN` may have been sent: recover by the quote. |
