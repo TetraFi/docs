@@ -34,8 +34,6 @@ const NAMES = {
   'GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}/settlement/obligations': 'List trade obligations',
 
   'GET /api/v1/workspaces/{workspaceId}/settlement/plan': 'Get settlement plan',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements': 'List account movements',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/movements/{movementId}': 'Get account movement',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations': 'List account obligations',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/obligations/{obligationId}': 'Get account obligation',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/schedule-selection': 'Get schedule selection',
@@ -45,13 +43,15 @@ const NAMES = {
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/settlement/windows/{windowId}/matches': 'List account window matches',
 
   'GET /api/v1/workspaces/{workspaceId}/balances': 'List workspace balances',
-  'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances': 'Get account balances',
+  'GET /api/v1/workspaces/{workspaceId}/accounts': 'List accounts',
+  'GET /api/v1/workspaces/{workspaceId}/accounts/{accountId}': 'Get account',
+  'GET /api/v1/workspaces/{workspaceId}/movements': 'List movements',
+  'GET /api/v1/workspaces/{workspaceId}/movements/{movementId}': 'Get movement',
   'GET /api/v1/workspaces/{workspaceId}/venue-account-credit': 'List account credit',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/credit': 'Get account credit',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-history': 'List account deposits',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/deposit-instructions': 'Get deposit instructions',
   'GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/ledger': 'Get account ledger',
-  'GET /api/v1/workspaces/{workspaceId}/venue-enablements': 'List venue accounts',
   'GET /api/v1/workspaces/{workspaceId}/capabilities': 'Get capabilities',
   'GET /api/v1/workspaces/{workspaceId}/fee-schedule': 'Get fee schedule',
 

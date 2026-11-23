@@ -120,9 +120,9 @@ A `basicTrade` order records what it actually did, not the quote: its `fills`, `
 <AccordionGroup>
   <Accordion title="Execution fields">
 
-<ResponseField name="fills" type="object[]">Each confirmed fill in execution order: `fillId` (stable: deduplicate repeated reads by it), `legId` (the quote leg it fills), `amount` delivered, `sellAmount`, `price`, `at`, `venue`, `network`, and `txHash` for an on-chain fill. Empty until a fill is confirmed; a field not recorded is `null`.</ResponseField>
-<ResponseField name="quotedBuyAmount" type="string">What the executed quote said would land. `null` when not known.</ResponseField>
-<ResponseField name="settledBuyAmount" type="string">What actually landed. `null` until measured.</ResponseField>
+<ResponseField name="fills" type="object[]">Each confirmed fill in execution order: `fillId` (stable: deduplicate repeated reads by it), `legId` (the quote leg it fills), `amount` delivered and `sellAmount` spent (each `{amount, asset}`), `price`, `at`, `venue`, `network`, and `txHash` for an on-chain fill. Empty until a fill is confirmed; a field not recorded is `null`.</ResponseField>
+<ResponseField name="quotedBuyAmount" type="object">What the executed quote said would land, as `{amount, asset}`. `null` when not known.</ResponseField>
+<ResponseField name="settledBuyAmount" type="object">What actually landed, as `{amount, asset}`. `null` until measured.</ResponseField>
 <ResponseField name="fees" type="object[]">Each fee charged: `kind`, `amount`, `asset`, `network` (CAIP-2) for an on-chain charge, and `includedInPrice` (`true`: the venue took it inside its price, so it is not charged on top).</ResponseField>
 <ResponseField name="unrecordedFees" type="string[]">Fee kinds the order incurred whose amount is not recorded. Show these as "not recorded", never 0.</ResponseField>
 <ResponseField name="settlesBy" type="string">The latest time the order settles or can no longer execute under its recorded terms (below).</ResponseField>
@@ -136,7 +136,7 @@ A fee's `kind` is `trading`, `relayer`, `forwarding`, `transfer`, `network` (gas
     <OrderExecution />
 
     ```json Example output
-    {"orderId":"9410e38e-…","kind":"basicTrade","quotedBuyAmount":"0.499751","settledBuyAmount":"0.499751","fills":[{"amount":"0.499751","at":"2026-11-02T01:37:12Z","network":"eip155:11155111"}],"fees":[{"kind":"relayer","amount":"0.000249","asset":"USDC","includedInPrice":false},{"kind":"network","amount":"0.000000332622","asset":"ETH","includedInPrice":false},{"kind":"network","amount":"0.000000438318","asset":"ETH","includedInPrice":false},{"kind":"platform","amount":"0.000049","asset":"USDC","includedInPrice":false}],"unrecordedFees":[],"settlesBy":null}
+    {"orderId":"9410e38e-…","kind":"basicTrade","quotedBuyAmount":{"amount":"0.499751","asset":"USDC"},"settledBuyAmount":{"amount":"0.499751","asset":"USDC"},"fills":[{"amount":{"amount":"0.499751","asset":"USDC"},"at":"2026-11-02T01:37:12Z","network":"eip155:11155111"}],"fees":[{"kind":"relayer","amount":"0.000249","asset":"USDC","includedInPrice":false},{"kind":"network","amount":"0.000000332622","asset":"ETH","includedInPrice":false},{"kind":"network","amount":"0.000000438318","asset":"ETH","includedInPrice":false},{"kind":"platform","amount":"0.000049","asset":"USDC","includedInPrice":false}],"unrecordedFees":[],"settlesBy":null}
     ```
   </Accordion>
 </AccordionGroup>

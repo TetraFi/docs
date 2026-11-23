@@ -77,6 +77,7 @@ Send `{kind: "stream", priceId, minReceive | slippageBps}` to order a row of `GE
 | `status`, `terminal` | `working` until the order ends. Read it until `terminal` is `true` ([Order status](/trade/order-status)). |
 | `statusUrl` | Where to read it: `GET /api/v1/orders/{orderId}`. Or subscribe to `order.updated`. |
 | `operation.dispatch.outcomeCode` | `not_sent` when nothing reached the venue; `notSentReason` says why. |
+| `operation.ending` | Present when the order was refused before anything was claimed or sent: `code` is the refusal it answered, `reason` its source reason. The order reads `unfilled` and `terminal` from the first read; request a new quote to trade. |
 | `orderId` | Keep it: every later read names the order by it, and your trade history lists it as `tradeId`. |
 </Accordion>
 
@@ -96,7 +97,9 @@ A refusal before the order exists (limits, compliance, funds or authority) answe
 | 409 `QUOTE_NOT_EXECUTABLE`, `QUOTE_NOT_HELD` | A price for comparison, or no longer held. `next` is `requote`. |
 | 409 `VENUE_QUOTE_SEND_WINDOW_CLOSED`, `QUOTE_RECONFIRMATION_REQUIRED` | The venue's firm price could not be sent in time. Request a new quote. |
 | 409 `QUOTE_ALREADY_ORDERED` | Another order used this quote: [find it by its quote](/trade/orders#recover-an-order-by-its-quote). |
-| 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`. |
+| 409 `VENUE_QUOTE_OUTSIDE_BOUNDS` | The venue's held firm price is below your `minReceive`; nothing was sent. `details.remediation` is `requote`: the attempt used the quote (a `priceId` orders one quote for its life), so request a new price; `details.currentReceive` says what the venue's price delivers. |
+| 409 `VENUE_ORDER_NOT_SENT` | The order was recorded and stopped before it reached the venue; nothing was sent. `details.reason` says why and `details.remediation` is `requote` or `chooseAnotherLp`. |
+| 409 `VENUE_QUOTE_OPERATION_CLOSED` | This quote, with this `minReceive`, was already refused before anything was sent. Request a new quote. |
 | 409 `FUNDING_SHORTFALL` | The account holds less than the trade needs (`next: fund`). |
 | 409 `VENUE_TRADE_CAP_EXCEEDED` | Above the venue's per-trade cap. Quote a smaller amount. |
 | 410 `QUOTE_EXPIRED` | Past `expiresAt`. `next` is `requote`. |

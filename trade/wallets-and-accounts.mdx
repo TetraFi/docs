@@ -51,7 +51,7 @@ Two quotes from one venue can trade from different sources, so read each quote's
     3. The key's own defaults.
     4. The workspace's defaults.
 
-    The workspace's default organisation wallet is the first one created or linked in it. Saved defaults are always organisation wallets ([Wallets and signing](/core-concepts/wallets-and-signing)).
+    The workspace's default organisation wallet is the first one created or linked in it. Saved defaults are always organisation wallets ([How wallets work](/wallets/overview)).
   </Accordion>
   <Accordion title="Example">
     <TradingSourceFunding />
@@ -180,10 +180,10 @@ A wallet or account you may not use is refused before any venue is asked.
   </Accordion>
   <Accordion title="Limits with an API key">
     - An address outside the workspace's organisation wallets is refused with `403 API_KEY_ORGANISATION_WALLET_NOT_GRANTED`; a key cannot allowlist one, so manage destinations in the app.
-    - A venue quote's output stays on the venue account: a requote naming another destination is refused with reason `deliverToNotPermitted`. Only a signed-in member who can view wallets delivers a venue trade to a wallet.
+    - A venue quote's output stays on the venue account unless the destination is linked to it. A requote naming an address is refused with reason `deliverToNotPermitted`; one naming a wallet not linked to the account comes back with `sourceRefusal.code` `TRADING_SOURCE_NOT_LINKED` and `next.kind` `requote`, so it cannot be ordered.
   </Accordion>
   <Accordion title="Delivering to a wallet">
-    When a member does, TetraFi withdraws the output once the order fills. The wallet must be an approved withdrawal destination of that account for the bought asset, with the same tag, and the quote carries the venue's withdrawal fee as a network fee line.
+    When a quote delivers to a wallet, TetraFi withdraws the output once the order fills. The wallet must be an approved withdrawal destination of that account for the bought asset, with the same tag, and the quote carries the venue's withdrawal fee as a network fee line.
 
     A venue that cannot deliver there reads `unavailable` with the reason; a requote is refused with `409 REQUOTE_REFUSED` and `details.reason`: `DESTINATION_NOT_APPROVED`, `DELIVER_TO_NOT_A_WORKSPACE_WALLET`, `WITHDRAWAL_NETWORK_UNSUPPORTED`, `DELIVER_TO_AMBIGUOUS`, `WITHDRAWAL_FEE_EXCEEDS_AMOUNT`, `deliverToCalldataUnsupported` or `deliverToNotPermitted`.
   </Accordion>

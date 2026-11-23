@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Quickstart: list assets, request quotes, place an order on the best quote, read its status and
+# Quickstart: list the pair, request quotes, place an order on the best quote, read its status and
 # read it back from your trade history.
 #
 # Needs bash, curl, jq, openssl and bc (for an exact minimum receive). Reads:
@@ -210,31 +210,14 @@ buy=${TETRAFI_BUY:-USDT}
 amount=${TETRAFI_AMOUNT:-10}
 # endregion
 
-# region quickstart-assets
-items='[]' cursor=""
-while :; do # follow nextCursor to the last page
-  page=$(tetrafi GET "/api/v1/assets?limit=200${cursor:+&cursor=$cursor}")
-  items=$(jq -c --argjson seen "$items" '$seen + .items' <<<"$page")
-  cursor=$(jq -r '.nextCursor // empty | @uri' <<<"$page")
-  [[ -n $cursor ]] || break
-done
-assets=$(jq -c '{items: .}' <<<"$items")
-for asset in "$sell" "$buy"; do
-  if ! jq -e --arg a "$asset" 'any(.items[]; .asset == $a)' <<<"$assets" >/dev/null; then
-    echo "{\"error\":\"ASSET_NOT_LISTED\",\"asset\":\"$asset\"}" >&2
-    exit 1
-  fi
-done
-echo "assets: $(jq '.items | length' <<<"$assets") listed, quoting $sell for $buy" >&2
-# endregion
-
 # region quickstart-pairs
-# The pairs your enabled venues trade from $sell; each pair's id is SELL~BUY.
-pairs=$(tetrafi GET "/api/v1/pairs?sellAsset=$sell&limit=1000")
+# Your venues' pairs; with both sides named, at most one row: SELL~BUY.
+pairs=$(tetrafi GET "/api/v1/pairs?sellAsset=$sell&buyAsset=$buy")
 pair=$(jq -c --arg id "$sell~$buy" 'first(.items[] | select(.id == $id))
   // empty' <<<"$pairs")
 if [[ -z $pair ]]; then
-  # Not listed: a source still being read (unreachable) may list it shortly.
+  # Not listed: hint says what to connect; a source still being read
+  # (unreachable, notReadYet) may list it shortly.
   jq -c --arg id "$sell~$buy" '{error: "PAIR_NOT_LISTED", pair: $id,
     unreachable: (.unreachable // []), hint}' <<<"$pairs" >&2
   exit 1
@@ -266,6 +249,24 @@ if [[ ${TETRAFI_PLACE_ORDER:-} != 1 ]]; then
   jq -c -n --arg q "$quote_id" '{quoteId: $q, ordered: false}'
   exit 0
 fi
+
+# region quickstart-assets
+# The asset catalogue, read only for minReceive: the receive asset's
+# decimals, from GET /assets narrowed to the quote's receive network.
+assets='{"items":[]}'
+if [[ $(jq -r '.minReceiveRequired' <<<"$quote") == true ]]; then
+  network=$(jq -r '.buy.network // empty | @uri' <<<"$quote")
+  items='[]' cursor=""
+  while :; do # follow nextCursor to the last page
+    query="limit=200${network:+&network=$network}${cursor:+&cursor=$cursor}"
+    page=$(tetrafi GET "/api/v1/assets?$query")
+    items=$(jq -c --argjson seen "$items" '$seen + .items' <<<"$page")
+    cursor=$(jq -r '.nextCursor // empty | @uri' <<<"$page")
+    [[ -n $cursor ]] || break
+  done
+  assets=$(jq -c '{items: .}' <<<"$items")
+fi
+# endregion
 
 # region quickstart-order
 # Save the order before sending it: quote id, a new Idempotency-Key and the exact body.

@@ -1,0 +1,69 @@
+---
+title: "Manage wallets"
+description: "Change where new hosted wallets are created, move and retire wallets, remove a provider connection, and what TetraFi's role on a wallet can be."
+keywords: ["move funds", "retire wallet", "provider connection", "bounded delegate", "Control changed"]
+---
+
+Day-to-day changes to wallets and provider connections happen in the app, by people with **Manage wallets**. Every one leaves the wallet under its owners' control.
+
+## Connections and moves
+
+<AccordionGroup>
+  <Accordion title="Switching where new wallets go">
+    Every wallet is pinned to the provider and connection it was created with. The workspace's choice decides only where **new** wallets go. Changing it never moves an existing wallet. Every earlier wallet keeps reading balances and sending on its own provider.
+
+    When existing wallets would stay behind, a switch needs your acknowledgement. Without it, the switch is refused and nothing changes. The refusal lists, for each provider and connection, how many organisation wallets and members' personal wallets stay there. Switching between two connections of the same provider counts as a switch too. Members' personal wallets are counted, never named.
+  </Accordion>
+
+  <Accordion title="Moving and retiring a wallet">
+    <span id="moving-a-wallet-to-another-provider"></span>
+    To move a wallet's funds to another provider:
+
+    1. Create a new organisation wallet on the provider you want.
+    2. Use **Move funds** from the old wallet to the new one. This is one Run with a step per asset, and the network coin goes last. The wallet's owners approve it like any other send.
+    3. Retire the old wallet once it is empty.
+
+    A wallet can't be retired while it is holding a balance, part of an open Run, holding funds reserved for a payment, the source of an active grant, or the workspace's saved default. Each refusal names its cause. Network-coin dust smaller than one transfer's fee can't be sent, so it stays in the wallet and remains under its owners' control. A retired wallet keeps its history, but it can't send or receive again.
+  </Accordion>
+
+  <Accordion title="Removing a provider connection">
+    A connection that any wallet or pending setup still uses can't be removed. The refusal counts what still uses it. To free the connection, move and retire the organisation wallets that use it, and each member removes their own empty personal wallets on it (only the member can do this). Once nothing uses the connection, it can be removed.
+  </Accordion>
+</AccordionGroup>
+
+## TetraFi's role on a wallet
+
+TetraFi never signs, sends or acts for you on its own. Its role is **None** (it reads and prepares; every signature needs the owners) or **bounded delegate** (a limited signer the owners approve).
+
+<AccordionGroup>
+  <Accordion title="Bounded delegates">
+    The owners approve a limited signer, for example for an automation or an agent. The provider enforces its limits; a limit the provider can't enforce is refused, with the reason. Revoking it stops new sends.
+  </Accordion>
+
+  <Accordion title="Control changed">
+    TetraFi checks who holds a wallet's native owner roles. A personal wallet's owners count as yours only when a complete read shows every factor as permanent and none of them as TetraFi's; a failed read, or a factor TetraFi can't attribute, reads as unread, never as yours. If any owner role is held by a TetraFi key, the wallet reads **Control changed** and every send from it is refused. The fix is in the provider: remove TetraFi's signing rights there.
+  </Accordion>
+
+  <Accordion title="Recovery share">
+    A recovery share is the one other role TetraFi will ever accept, and it is rolling out. With it, TetraFi would hold one share of a wallet key for recovery only: it never signs alone, never counts toward a quorum, and the wallet stays under its owners' control. You would opt in per wallet.
+  </Accordion>
+</AccordionGroup>
+
+## Wallet fields
+
+<AccordionGroup>
+  <Accordion title="Every field on a wallet">
+  | Field | Answers | Values |
+  | --- | --- | --- |
+  | **Scope** | Who owns it | **Organisation**: the company's wallet, the one that faces LPs and brokers. **Personal**: one member's wallet. |
+  | **Shared** | Who else may use it | Organisation wallets are always workspace-wide. Sharing a personal wallet with chosen members (view and request, nothing more) is rolling out. |
+  | **Category** | Who can move the funds | **External wallet**, **Hosted wallet**, **Custody account** or **Bank account**. |
+  | **Key technology** | How the key signs | MPC, secure enclave, HSM, threshold network, a key the provider manages, or an external key TetraFi knows nothing about. A contract account has no key of its own; each of its owners has one. |
+  | **Account type** | What the chain sees | An ordinary address, an address with EIP-7702 smart features (shown as **Smart (7702)**), a multisig contract, a modular smart account, or a ledger account at a custodian. |
+  | **Wallet type** | The label you see | The smart-account kind for a contract account, otherwise the key technology and provider, such as "MPC · Fireblocks". |
+  | **TetraFi role** | What TetraFi can do | **None**, or **bounded delegate** ([How wallets work](/wallets/overview#who-controls-the-funds)). |
+  | **Link** | Is ownership proven | **Linked** or **Not linked** ([How wallets work](/wallets/overview#linked-or-not-linked)). |
+
+  Scope and category are independent: every category exists in both scopes.
+  </Accordion>
+</AccordionGroup>

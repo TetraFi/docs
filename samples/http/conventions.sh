@@ -104,7 +104,9 @@ jq -c '.quotes[0] // empty | {buy: .buy.amount, buyIsString: (.buy.amount | type
 # endregion
 if [[ $(jq '.quotes | length' <<<"$quotes") -gt 0 ]]; then
   jq -e '.quotes[0].buy.amount | type == "string"' <<<"$quotes" >/dev/null || fail AMOUNT_NOT_STRING
-  jq -e '.quotes[0].expiresAt | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+(Z|[+-][0-9:]+)$")' <<<"$quotes" >/dev/null \
+  # expiresAt is null on an indicative quote; every time present is RFC 3339.
+  jq -e '.quotes[0] | [.expiresAt, .observedAt] | map(select(. != null))
+    | all(test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+(Z|[+-][0-9:]+)$"))' <<<"$quotes" >/dev/null \
     || fail TIME_NOT_RFC3339
 fi
 

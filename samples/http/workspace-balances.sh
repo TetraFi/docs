@@ -60,8 +60,10 @@ tetrafi() {
 fail() { echo "{\"error\":\"$1\"}" >&2; exit 1; }
 
 # region balances-list
-# GET …/balances lists one row per account, asset and chain. Pass nextCursor back as cursor until
-# it is null. amount is a decimal string in whole asset units; asOf is when it was observed.
+# GET …/balances lists one row per account, asset and chain. Pass nextCursor
+# back as cursor until it is null. amount is a decimal string in whole asset
+# units, negative for a venue position owed; available and locked split it when
+# the source states them; observedAt is when the source observed it.
 rows='[]' cursor='' pages=0
 for _ in 1 2 3 4 5; do
   page=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/balances?limit=50${cursor:+&cursor=$cursor}")
@@ -70,7 +72,7 @@ for _ in 1 2 3 4 5; do
   cursor=$(jq -r '.nextCursor // empty' <<<"$page")
   [[ -z $cursor ]] && break
 done
-jq -c '.[:3][] | {accountKind, accountId, asset, network, amount, asOf, freshness}' <<<"$rows" >&2
+jq -c '.[:3][] | {accountKind, accountId, asset, network, amount, observedAt, freshness}' <<<"$rows" >&2
 # endregion
 
 # region balances-filter
@@ -90,7 +92,7 @@ jq -c '.unreachable[:3][] | {source, reason, accountKind, accountId, asset}' <<<
 # The contract this script checks.
 jq -e 'has("items") and has("nextCursor") and ((.unreachable // []) | type == "array")' <<<"$page" >/dev/null \
   || fail BALANCES_SHAPE_UNEXPECTED
-jq -e 'all(.[]; (.amount | type == "string" and test("^[0-9]+(\\.[0-9]+)?$")) and (.asOf | type == "string"))' \
+jq -e 'all(.[]; (.amount | type == "string" and test("^-?[0-9]+(\\.[0-9]+)?$")) and (.observedAt | type == "string"))' \
   <<<"$rows" >/dev/null || fail BALANCE_AMOUNT_NOT_DECIMAL_STRING
 # A filter check on no rows proves nothing, so the kind must have at least one row.
 jq -e '.items | length > 0' <<<"$filtered" >/dev/null || fail NO_BALANCE_ROWS_FOR_KIND

@@ -132,31 +132,14 @@ async function main() {
   const amount = process.env.TETRAFI_AMOUNT || '10';
   // #endregion
 
-  // #region quickstart-assets
-  const assets = { items: [] };
-  let cursor = '';
-  do { // follow nextCursor to the last page
-    const next = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
-    const page = await tetrafi('GET', `/api/v1/assets?limit=200${next}`);
-    assets.items.push(...page.items);
-    cursor = page.nextCursor ?? '';
-  } while (cursor);
-  for (const asset of [sell, buy]) {
-    if (!assets.items.some((item) => item.asset === asset)) {
-      throw new Error(json({ error: 'ASSET_NOT_LISTED', asset }));
-    }
-  }
-  console.error(`assets: ${assets.items.length} listed,`,
-    `quoting ${sell} for ${buy}`);
-  // #endregion
-
   // #region quickstart-pairs
-  // The pairs your enabled venues trade from `sell`; each pair's id is SELL~BUY.
-  const query = `sellAsset=${encodeURIComponent(sell)}&limit=1000`;
+  // Your venues' pairs; with both sides named, at most one row: SELL~BUY.
+  const query = new URLSearchParams({ sellAsset: sell, buyAsset: buy });
   const pairs = await tetrafi('GET', `/api/v1/pairs?${query}`);
   const pair = pairs.items.find((item) => item.id === `${sell}~${buy}`);
   if (!pair) {
-    // Not listed: a source still being read (unreachable) may list it shortly.
+    // Not listed: hint says what to connect; a source still being read
+    // (unreachable, notReadYet) may list it shortly.
     throw new Error(json({ error: 'PAIR_NOT_LISTED', pair: `${sell}~${buy}`,
       unreachable: pairs.unreachable ?? [], hint: pairs.hint }));
   }
@@ -189,6 +172,23 @@ async function main() {
     console.log(json({ quoteId: quote.id, ordered: false }));
     return;
   }
+
+  // #region quickstart-assets
+  // The asset catalogue, read only for minReceive: the receive asset's
+  // decimals, from GET /assets narrowed to the quote's receive network.
+  const assets = { items: [] };
+  if (quote.minReceiveRequired === true) {
+    let cursor = '';
+    do { // follow nextCursor to the last page
+      const query = new URLSearchParams({ limit: '200' });
+      if (quote.buy.network) query.set('network', quote.buy.network);
+      if (cursor) query.set('cursor', cursor);
+      const page = await tetrafi('GET', `/api/v1/assets?${query}`);
+      assets.items.push(...page.items);
+      cursor = page.nextCursor ?? '';
+    } while (cursor);
+  }
+  // #endregion
 
   // #region quickstart-order
   // Save quote id, Idempotency-Key and exact body before sending.

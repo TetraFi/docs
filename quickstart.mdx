@@ -1,6 +1,6 @@
 ---
 title: "Quickstart"
-description: "Create a key, list assets, get quotes from every venue your workspace can use and place a small order from your terminal."
+description: "Create a key, check your pair trades, get quotes from every venue your workspace can use and place a small order from your terminal."
 keywords: ["getting started", "curl", "first trade", "hello world"]
 ---
 
@@ -13,7 +13,7 @@ import QuickstartStatus from '/snippets/samples/quickstart-status.mdx'
 import QuickstartTrade from '/snippets/samples/quickstart-trade.mdx'
 import TestSafelyMinimums from '/snippets/samples/test-safely-minimums.mdx'
 
-Your first trade in **5 steps**: list assets and pairs, ask for quotes to sell 10 USDC for USDT, place an order from the best orderable quote, then read its status and trade.
+Your first trade in **5 steps**: check the pair, ask for quotes to sell 10 USDC for USDT, place an order from the best orderable quote, then read its status and trade.
 
 Quoting needs your company details on file; ordering, also a funded venue account or wallet ([Before your first trade](/before-you-trade)).
 
@@ -52,23 +52,21 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
     </Accordion>
   </Step>
 
-  <Step title="1. List assets and pairs">
-    Follow `nextCursor` until both sides of your pair are listed. Reference: [`GET /api/v1/assets`](/api-reference/trading/list-assets).
+  <Step title="1. Check the pair trades">
+    Name both sides; the answer lists the venues routing `SELL~BUY`. Reference: [`GET /api/v1/pairs`](/api-reference/trading/list-pairs).
 
-    <QuickstartAssets />
+    <QuickstartPairs />
 
     ```text Output
-    assets: 383 listed, quoting USDC for USDT
+    {"pair":"USDC~USDT","venues":["binance-orderbook"]}
     ```
 
-    <Accordion title="Check your venues trade the pair">
-      List the pairs from your sell asset and find yours by its id, `SELL~BUY`. A pair that is not listed cannot be quoted yet; `unreachable` names a source the read could not reach, and one still being read (`notReadYet`) lists its pairs a few seconds later. Reference: [`GET /api/v1/pairs`](/api-reference/trading/list-pairs).
+    <Accordion title="If your pair is not listed">
+      It cannot be quoted yet: `hint` says what to connect, `unreachable` names a source the read could not reach, and one still being read (`notReadYet`) lists its pairs a few seconds later.
+    </Accordion>
 
-      <QuickstartPairs />
-
-      ```text Output
-      {"pair":"USDC~USDT","venues":["binance-orderbook"]}
-      ```
+    <Accordion title="Pairs and assets">
+      `GET /api/v1/pairs` answers what you can trade; [`GET /api/v1/assets`](/api-reference/trading/list-assets) is the asset catalogue: each asset's variants, networks and decimals. Without `buyAsset`, `GET /api/v1/pairs?sellAsset=USDC&limit=1000` lists the assets your venues buy for USDC.
     </Accordion>
   </Step>
 
@@ -100,7 +98,9 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
     <Accordion title="The saved record and minReceive">
       Each script saves `{quoteId, idempotencyKey, exactBody}` to `./tetrafi-order-<quoteId>.json`, readable only by you, and reuses it for every retry.
 
-      When `minReceiveRequired` is `true`, also send [`minReceive`](/trade/orders#minimum-receive): the quoted `buy.amount` less your slippage (`TETRAFI_SLIPPAGE_BPS`, default 50 basis points), rounded down to the asset's decimals.
+      When `minReceiveRequired` is `true`, also send [`minReceive`](/trade/orders#minimum-receive): the quoted `buy.amount` less your slippage (`TETRAFI_SLIPPAGE_BPS`, default 50 basis points), rounded down to the asset's decimals. The decimals come from the asset catalogue, read only then, narrowed to the receive network.
+
+      <QuickstartAssets />
     </Accordion>
 
     <QuickstartOrder />
@@ -126,7 +126,7 @@ Quoting needs your company details on file; ordering, also a funded venue accoun
     <QuickstartTrade />
 
     ```json Output
-    {"tradeId":"0103…","kind":"venueTrade","executionStatus":"filled","outputReceived":"10.00880000","settlementStatus":"settled"}
+    {"tradeId":"0103…","kind":"venueTrade","executionStatus":"filled","outputReceived":{"amount":"10.0088","asset":"USDT"},"settlementStatus":"settled"}
     ```
   </Step>
 </Steps>

@@ -1,0 +1,54 @@
+---
+title: "Networks"
+description: "One wallet has one type and one address; switch the networks of that type on and off instead of creating a new wallet."
+keywords: ["network", "EVM", "Solana", "Tron", "switch on", "switch off", "Network off"]
+---
+
+A wallet is not tied to one network. It has **one type** and **one address** for that type, and you choose which networks of that type it uses.
+
+| Type | Networks |
+| --- | --- |
+| **EVM** | Every EVM network on [Supported chains](/supported-chains), on one address |
+| **Solana** | Solana |
+| **Tron** | Tron |
+
+To use a wallet on another EVM network, switch that network on; you never create a new wallet for it. Bitcoin addresses are watched only; Bitcoin wallets that send are rolling out.
+
+**Can I trade on it?** Only on a network switched on for the wallet, and, with an API key, one the key's grant names.
+
+<Note>Network switches are app-only: an API key can't switch a network.</Note>
+
+## Switch a network on or off
+
+Open the wallet's page in **Treasury › Accounts** and use **Networks**.
+
+| Wallet | Switch off | Switch on |
+| --- | --- | --- |
+| Organisation hosted wallet | At once | When its owners approve the request |
+| Personal wallet | At once, by its owner | At once, by its owner |
+| External wallet (linked or pasted) | At once | At once |
+| Custody account at a custodian | At once | At once, on a network the custodian reported; otherwise refused with `WALLET_NETWORK_NOT_REPORTED` |
+
+Switching needs **Manage wallets**, except on a personal wallet, which only its own person switches. Each change records who made it and when.
+
+<AccordionGroup>
+  <Accordion title="Switching on a hosted wallet">
+    Asking opens one request for the wallet's owners; asking again returns the same request. Nothing is recorded until they approve, and only if the wallet's networks have not changed meanwhile. A wallet with too few owners able to decide can't be switched on this way, and the switch is refused.
+  </Accordion>
+  <Accordion title="Other refusals">
+    A wallet keeps to one environment: switching on a testnet for a mainnet wallet, or the reverse, is refused with `WALLET_NETWORK_ENVIRONMENT_MIXED`. A network of another type is refused with `WALLET_NETWORK_NOT_IN_FAMILY`.
+  </Accordion>
+  <Accordion title="What a switch does not change">
+    A switch never creates a key, changes the owners, or extends a grant, an API key or a provider policy to the network. Those keep the networks they were made for.
+  </Accordion>
+  <Accordion title="Funds on a network that is off">
+    A network that is switched off but still holds funds keeps showing them, marked **Network off**. A payment or trade on a network that is off is refused before anything is signed, with `WALLET_NETWORK_OFF`, and the way back is to switch it on.
+  </Accordion>
+</AccordionGroup>
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="How wallets work" icon="wallet" href="/wallets/overview">The four categories and who moves the funds.</Card>
+  <Card title="Choose wallets and accounts" icon="route" href="/trade/wallets-and-accounts">Name the wallet and network a quote trades from.</Card>
+</CardGroup>

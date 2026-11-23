@@ -5,7 +5,8 @@
 //     reference/endpoints.mdx and the API reference tab's endpoint groups in docs.json
 //   - tetrafi-rfq/docs/api/integrator/error-codes.json → reference/error-codes.mdx
 //   - tetrafi-rfq/docs/api/openapi.json, its x-tetrafi-webhook-event-catalogue → reference/webhook-events.mdx
-// TETRAFI_RFQ_API_DOCS overrides the source directory.
+//   - tetrafi-contracts/deployments/mainnet.json  → snippets/generated/networks.mdx (supported-chains.mdx)
+// TETRAFI_RFQ_API_DOCS overrides the source directory; TETRAFI_REGISTRY_FILE the registry file.
 //
 //   node scripts/sync-contract.mjs           write
 //   node scripts/sync-contract.mjs --check   exit 1 on drift (CONTRACT_DRIFT <file>)
@@ -225,7 +226,7 @@ function errorCodesPage() {
       'CREDENTIAL', 'CSV', 'CURSOR',
       'EMAIL', 'EXPORT', 'FORBIDDEN', 'IDEMPOTENCY', 'IDEMPOTENT', 'INCLUDE', 'INSUFFICIENT_PERMISSION', 'INSUFFICIENT_SCOPE',
       'INSUFFICIENT_WORKSPACE_PERMISSION', 'INTEGRATION', 'INVALID', 'IP', 'JWT', 'KEY', 'METADATA', 'METHOD', 'MFA', 'MISSING',
-      'LIMIT', 'MEMBER', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA',
+      'LIMIT', 'MEMBER', 'NOT', 'RATE', 'REPLAY', 'REQUEST_BODY_TOO_LARGE', 'REQUEST_UNPROCESSABLE', 'RESOURCE', 'RETURN_URL', 'SCHEMA', 'SCOPE',
       'SECOND_PROOF', 'SERVICE_ACCOUNT', 'SESSION', 'SIGNED_KEY', 'STEP_UP', 'SUB', 'UNSUPPORTED', 'USER', 'VALIDATION', 'WORKSPACE']],
     ['Quotes, prices and assets', 'Asking venues for quotes, requoting, prices, assets, networks and routes.', [
       'AGGREGATION', 'ALL', 'AMOUNT', 'ASSET', 'ASSETS', 'BRIDGE', 'BUDGET', 'CHAIN', 'CONVERSION', 'CORRIDOR', 'COUNTERPARTY_NOT_READY', 'DELIVER',
@@ -240,13 +241,13 @@ function errorCodesPage() {
       'EIP712', 'EXPIRED', 'FUNDER', 'GRANT', 'NATIVE', 'OWNER', 'PERMIT', 'RELEASE', 'SIGNATURE', 'SIGNED', 'SIGNER', 'SIGNING',
       'STEP', 'TRADER']],
     ['Venues and accounts', 'Connecting and reading venue and LP accounts, onboarding and company details.', [
-      'ACCOUNT', 'ACTIVATION', 'AGENT', 'BASE', 'COMPANY', 'COUNTERPARTY_STANDING', 'EDD', 'INVENTORY', 'KYC', 'LP', 'OBSERVATION',
+      'ACCOUNT', 'ACTIVATION', 'AGENT', 'BASE', 'COMPANY', 'CONNECTION', 'COUNTERPARTY_STANDING', 'EDD', 'INVENTORY', 'KYC', 'LP', 'OBSERVATION',
       'ONBOARDED', 'PROFILE', 'TAKER', 'VENUE']],
     ['Wallets and custody', 'Organisation, personal and custody wallets, and which wallet a key may trade from.', [
       'API_KEY_ORGANISATION_WALLET', 'API_KEY_WALLET', 'AUTO', 'CUSTODY', 'DELEGATION', 'DESTINATION', 'ONCHAIN', 'PERSONAL', 'TARGET',
       'WALLET']],
     ['Funding, balances and treasury', 'Funding shortfalls, pay-ins, deposits, withdrawals, bank and fiat legs, and fees.', [
-      'BALANCE', 'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'PAY', 'TREASURY', 'WITHDRAWAL']],
+      'BALANCE', 'BANK', 'DEPOSIT', 'FEE', 'FIAT', 'FUNDING', 'MOVEMENT', 'MOVEMENTS', 'PAY', 'TREASURY', 'WITHDRAWAL']],
     ['Settlement, credit and trades', 'Settlement windows and obligations, credit, the ledger and trade records.', [
       'CREDIT', 'DEFERRED', 'LEDGER', 'RECORDS', 'RUN', 'SETTLEMENT', 'TRADE', 'VIEW_CREDIT']],
     ['Webhooks', 'Creating, testing and redelivering webhook endpoints.', ['MAX_WEBHOOKS', 'WEBHOOK']],
@@ -553,7 +554,7 @@ const ENDPOINT_GROUPS = [
   { group: 'Quotes', tags: ['quotes'], guide: '/search/how-it-works', purpose: 'Ask every venue your workspace can use for a quote in one request, and read a request back.' },
   { group: 'Orders', tags: ['orders'], guide: '/trade/orders', purpose: 'Order a quote by its id, follow the order, recover it by quote and cancel it.' },
   { group: 'Trades and settlement', tags: ['trades', 'settlements'], guide: '/trade/settlement-and-credit', purpose: 'Read your trades, how each settles, and the settlement plan, windows and movements per venue account.' },
-  { group: 'Balances and accounts', tags: ['treasury', 'venue-accounts', 'venue-enablements', 'workspaces'], guide: '/trade/balances', purpose: 'Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do.' },
+  { group: 'Balances and accounts', tags: ['treasury', 'venue-accounts', 'workspaces'], guide: '/trade/balances', purpose: 'Read balances, venue accounts and their credit, deposits and ledger, your fee schedule and what your workspace can do.' },
   { group: 'Wallets', tags: ['wallets'], guide: '/trade/create-wallet', purpose: 'Create an organisation wallet, or a member\'s own personal wallet, with the owners who approve it, follow its creation and withdraw it.' },
   { group: 'Webhooks', tags: ['webhooks'], guide: '/trade/webhooks', purpose: 'Receive order and settlement updates by webhook, and manage endpoints, deliveries and secrets.' },
   { group: 'Batch', tags: ['batch'], guide: '/reference/conventions#read-several-resources-at-once', purpose: 'Run up to 20 reads in one request.' },
@@ -568,7 +569,10 @@ const ENDPOINT_GUIDES = {
   'GET /api/v1/workspaces/{workspaceId}/capabilities': '/before-you-trade',
   'GET /api/v1/workspaces/{workspaceId}/trades': '/trade/trade-history',
   'GET /api/v1/workspaces/{workspaceId}/trades/{tradeId}': '/trade/trade-history',
-  'GET /api/v1/workspaces/{workspaceId}/venue-enablements': '/trade/wallets-and-accounts',
+  'GET /api/v1/workspaces/{workspaceId}/accounts': '/trade/wallets-and-accounts',
+  'GET /api/v1/workspaces/{workspaceId}/accounts/{accountId}': '/trade/wallets-and-accounts',
+  'GET /api/v1/workspaces/{workspaceId}/movements': '/trade/settlement-and-credit',
+  'GET /api/v1/workspaces/{workspaceId}/movements/{movementId}': '/trade/settlement-and-credit',
 };
 // Each operation's stub page is api-reference/<tag>/<short name>, lowercased and hyphenated.
 const WORKSPACE_PREFIX = '/api/v1/workspaces/{workspaceId}';
@@ -701,9 +705,66 @@ function assetKindsSnippet() {
   ].join('\n');
 }
 
+// The network table comes from the production deployment registry (tetrafi-contracts
+// deployments/mainnet.json at its committed HEAD), projected as rfq's GET /api/v1/networks projects it
+// (its `registry_networks`): a chain with a non-zero chainId, its
+// CAIP-2 id (declared `caip2`, else `eip155:<chainId>` for an EVM kind; never guessed otherwise), a family
+// its kind maps to, its display name, and its native currency's symbol. A chain whose id or family is not
+// named is left out, as the API leaves it out. TETRAFI_REGISTRY_FILE overrides the source file (tests).
+const contractsRoot = path.join(root, '..', 'tetrafi-contracts');
+function registryText() {
+  if (process.env.TETRAFI_REGISTRY_FILE) return readFileSync(process.env.TETRAFI_REGISTRY_FILE, 'utf8');
+  // Scratch copies and tests without a registry publish no network table.
+  if (process.env.TETRAFI_RFQ_API_DOCS || !existsSync(path.join(contractsRoot, '.git'))) return null;
+  try {
+    return execFileSync('git', ['-C', contractsRoot, 'show', 'HEAD:deployments/mainnet.json'],
+      { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch {
+    throw new Error('REGISTRY_SOURCE_UNREADABLE deployments/mainnet.json at tetrafi-contracts HEAD');
+  }
+}
+// rfq normalize_chain_kind aliases, then NetworkFamily::of_kind. An absent chainKind is EVM.
+const NETWORK_FAMILY = { '': 'evm', evm: 'evm', 'external-evm': 'evm', external: 'evm', svm: 'svm', solana: 'svm',
+  tron: 'tron', tvm: 'tron', cosmos: 'cosmos', cosmwasm: 'cosmos', bitcoin: 'bitcoin', near: 'near' };
+const EVM_KINDS = new Set(['', 'evm', 'external-evm', 'external']);
+// rfq chain_display_name: a slug ("base-sepolia") reads "Base Sepolia"; a name with a capital or a space is kept.
+const displayName = (name) => (/[A-Z ]/.test(name) ? name
+  : name.split('-').filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1)).join(' '));
+function networksSnippet() {
+  const text = registryText();
+  if (text === null) return null;
+  const chains = JSON.parse(text).chains;
+  if (!Array.isArray(chains) || !chains.length) throw new Error('REGISTRY_CHAINS_MISSING deployments/mainnet.json');
+  const rows = new Map();
+  for (const chain of chains) {
+    if (!Number.isInteger(chain.chainId) || chain.chainId === 0) continue;
+    const kind = typeof chain.chainKind === 'string' ? chain.chainKind.trim().toLowerCase() : '';
+    const family = NETWORK_FAMILY[kind];
+    const id = chain.caip2 || (EVM_KINDS.has(kind) ? `eip155:${chain.chainId}` : null);
+    if (!family || !id) continue;
+    // Production lists main networks only; a chain the registry marks as a testnet is not one.
+    if (chain.isTestnet === true) continue;
+    const name = typeof chain.name === 'string' && chain.name.trim() ? displayName(chain.name.trim()) : id;
+    const native = chain.nativeCurrency?.symbol;
+    if (!rows.has(id)) rows.set(id, { id, name, family, native: typeof native === 'string' ? native : null });
+  }
+  if (!rows.size) throw new Error('REGISTRY_NETWORKS_EMPTY deployments/mainnet.json names no network');
+  const sorted = [...rows.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return [
+    '{/* Generated by scripts/sync-contract.mjs from tetrafi-contracts deployments/mainnet.json. Edit the source, then run npm run sync. */}',
+    '',
+    '| Network | CAIP-2 | Family | Native asset |',
+    '| --- | --- | --- | --- |',
+    ...sorted.map((row) => `| ${row.name} | \`${row.id}\` | \`${row.family}\` | ${row.native ? `\`${row.native}\`` : 'none'} |`),
+    '',
+  ].join('\n');
+}
+
 const outputs = [['compatibility.mdx', compatibilityPage()]];
 const assetKinds = assetKindsSnippet();
 if (assetKinds) outputs.push([path.join('snippets', 'generated', 'asset-kinds.mdx'), assetKinds]);
+const networks = networksSnippet();
+if (networks) outputs.push([path.join('snippets', 'generated', 'networks.mdx'), networks]);
 if (reference.spec) outputs.push([path.join('api-reference', 'openapi.json'), reference.spec]);
 if (errorCodes.page) outputs.push([path.join('reference', 'error-codes.mdx'), errorCodes.page]);
 if (webhookEvents.page) outputs.push([path.join('reference', 'webhook-events.mdx'), webhookEvents.page]);

@@ -1,0 +1,52 @@
+---
+title: "Turnkey"
+description: "Connect your own Turnkey organisation and create hosted wallets that run on Turnkey, approved by your owners."
+keywords: ["Turnkey", "hosted wallet", "Bring your own account", "organisation ID", "API key"]
+---
+
+import CreateHostedWallet from '/snippets/wallets/create-hosted-wallet.mdx';
+
+A [hosted wallet](/wallets/overview#who-controls-the-funds) whose key Turnkey runs in a secure enclave, shown as "Runs on Turnkey". EVM or Solana.
+
+**Can I trade from it?** Yes, once its owners approve a trading grant; an API key also needs the wallet granted to it. See [Use a wallet in a trade](/wallets/use-in-a-trade).
+
+| Connection | Status |
+| --- | --- |
+| **Bring your own account**: wallets live in your Turnkey organisation | Available |
+| **Provided by TetraFi**: wallets live in TetraFi's Turnkey account | Rolling out |
+
+## Connect your Turnkey organisation
+
+You need **Manage credentials** and your Turnkey organisation ID. TetraFi makes the API key; you never send it a private key.
+
+<Steps>
+  <Step title="Start the connection">
+    In **Treasury › Providers**, under Turnkey, choose **Connect your Turnkey account**. Enter your Turnkey organisation ID and, if you like, a name for it in TetraFi, such as *Treasury ops*. Choose **Continue** and confirm with your second factor.
+  </Step>
+  <Step title="Add TetraFi's key in Turnkey">
+    TetraFi shows a public key (P-256). In Turnkey, open **Users** and create a user, for example `tetrafi`. Do **not** add it to the root quorum. Add an API key to that user and paste the public key. The key waits for you for 7 days.
+  </Step>
+  <Step title="Check">
+    Back in TetraFi, choose **Check**. The connection reads **Connected**. If you close the dialog with **I'll finish later**, choose **Check connection** in **Treasury › Providers** once the key is added.
+  </Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title="What TetraFi can do with the connection">
+    TetraFi can read every wallet in the organisation and its sub-organisations. What it may do with each wallet is set by your Turnkey policies, one wallet at a time. Its user is never a root user, so TetraFi can never act as an owner of your organisation. If the key sits on a root user, TetraFi refuses to create wallets on the connection and says why.
+  </Accordion>
+  <Accordion title="Replace the key">
+    In **Treasury › Providers**, choose **Rotate key** on the connection. TetraFi makes a new key; add it to the same Turnkey user and choose **Check**. TetraFi uses the new key from then on. The old key keeps working at Turnkey until you remove it there, so remove it.
+  </Accordion>
+</AccordionGroup>
+
+## Create a Turnkey wallet
+
+<CreateHostedWallet />
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Who controls the funds" icon="users" href="/wallets/overview#who-controls-the-funds">Owners, threshold and what Turnkey can do alone.</Card>
+  <Card title="Networks" icon="network-wired" href="/wallets/networks">Switch the wallet's networks on and off.</Card>
+</CardGroup>

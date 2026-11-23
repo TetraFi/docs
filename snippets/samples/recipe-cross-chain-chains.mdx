@@ -3,19 +3,28 @@
 <CodeGroup>
 
 ```bash cURL
-# The chains an asset is on come from GET /assets: every deployment of its native variant.
-assets=$(tetrafi GET /api/v1/assets)
-chains=$(jq -c --arg a "$asset" '[.items[] | select(.asset == $a) | .variants[]
-  | select(.kind == "native") | .deployments[].network] | unique' <<<"$assets")
-echo "{\"asset\":\"$asset\",\"networks\":$chains}" >&2
-from_chain=${TETRAFI_FROM_CHAIN:-$(jq -r '.[0] // empty' <<<"$chains")}
-to_chain=${TETRAFI_TO_CHAIN:-$(jq -r --arg f "$from_chain" 'map(select(. != $f))[0] // empty' <<<"$chains")}
-for chain in "$from_chain" "$to_chain"; do
-  if ! jq -e --arg c "$chain" 'index($c) != null' <<<"$chains" >/dev/null; then
-    jq -nc --arg a "$asset" --arg c "$chain" '{error: "ASSET_NOT_ON_NETWORK", asset: $a, chain: $c}' >&2
-    exit 1
-  fi
-done
+# The chains come from GET /pairs: each cross-chain route of the asset to
+# itself names the network it sells on (sellNetwork) and buys on (buyNetwork).
+pairs=$(tetrafi GET "/api/v1/pairs?sellAsset=$asset&buyAsset=$asset")
+routes=$(jq -c '[.items[].routes[]? | select(.location == "crossChain")
+  | select(.sellNetwork and .buyNetwork)
+  | {venue: .venueId, from: .sellNetwork, to: .buyNetwork}]
+  | unique' <<<"$pairs")
+echo "{\"asset\":\"$asset\",\"routes\":$routes}" >&2
+want_from=${TETRAFI_FROM_CHAIN:-} want_to=${TETRAFI_TO_CHAIN:-}
+route=$(jq -c --arg f "$want_from" --arg t "$want_to" 'first(.[]
+  | select(($f == "" or .from == $f) and ($t == "" or .to == $t)))
+  // empty' <<<"$routes")
+if [[ -z $route ]]; then
+  # No route between these chains: hint says what to connect; a source
+  # still being read (unreachable, notReadYet) may list one shortly.
+  jq -c --arg a "$asset" --arg f "$want_from" --arg t "$want_to" \
+    '{error: "NO_CROSS_CHAIN_ROUTE", asset: $a, from: $f, to: $t,
+      unreachable: (.unreachable // []), hint}' <<<"$pairs" >&2
+  exit 1
+fi
+from_chain=$(jq -r '.from' <<<"$route")
+to_chain=$(jq -r '.to' <<<"$route")
 ```
 
 </CodeGroup>

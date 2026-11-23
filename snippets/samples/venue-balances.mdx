@@ -3,13 +3,25 @@
 <CodeGroup>
 
 ```bash cURL
-# GET …/venue-accounts/{venueAccountId}/balances reads the account's balances as the venue last
-# reported them. balances null means no observation; [] is a real empty account. available is the
-# venue's free balance less TetraFi's open trades and withdrawals, null when unknown; valueUsd is
-# null without a reference price, never 0. A balance never authorizes a payment.
-balances=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/balances")
-jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then null else
-  [.[] | {asset, total, free, available, valueUsd}] end)}' <<<"$balances" >&2
+# GET …/balances?accountId={venueAccountId} reads the account's balances as the
+# venue last reported them, one row per asset; follow nextCursor for the rest.
+# amount is the total, available what you can trade now (null when unknown),
+# locked what the venue holds back. valueUsd is null without a price, never 0.
+# An account that could not be read is in unreachable, never a zero row.
+path="/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/balances?accountId=$account"
+balances=$(tetrafi GET "$path&limit=20")
+jq -c '{rows: [.items[:5][] | {asset, amount, available, locked, valueUsd,
+  observedAt, source, freshness}], unreachable}' <<<"$balances" >&2
+# Cache-Control: no-cache reads the venue now, for one venue account only. A
+# venue that refuses the read is a named error; the recorded rows still stand.
+if fresh=$(tetrafi GET "$path&limit=20" "" "Cache-Control: no-cache" 2>/dev/null)
+then
+  jq -c '{rows: (.items | length), observedAt: .items[0].observedAt,
+    expiresAt: .items[0].expiresAt, unreachable}' <<<"$fresh" >&2
+else
+  jq -c '{refused: .error, message}' <<<"$fresh" >&2
+  fresh=$balances
+fi
 ```
 
 </CodeGroup>

@@ -84,10 +84,12 @@ amount=${TETRAFI_AMOUNT:-10}
 # Introspect this key, not its owner's profile. A workspace key sees its venue trading setup and
 # granted organisation wallets. A key without a workspace may omit organisationWallets or return null.
 # blockedBy, when present, is the code an organisation-wallet order would be refused with right now.
+# grantedNetworks: networks the key acts on while the wallet has them on.
 me=$(tetrafi GET /api/v1/me)
 jq -c '.organisationWallets | if . == null then null else
   {venueTradeScope, venueTradeEnabled, requestSigningRequired,
-    grants: [.grants[] | .financialAccountId], blockedBy} end' <<<"$me" >&2
+    grants: [.grants[] | {financialAccountId, grantedNetworks}],
+    blockedBy} end' <<<"$me" >&2
 # endregion
 me_summary=$(jq -c '.organisationWallets | if . == null then null else
   {grants: (.grants | length), blocked: (.blockedBy != null)} end' <<<"$me")
@@ -147,8 +149,10 @@ jq -c '.quotes[] | {quoteId: .id, venue: ([.legs[].venue.id] | join(" + ")), loc
 # endregion
 
 # region wallets-deliver-to
-# Delivering elsewhere is a requote with deliverTo. With an API key a venue account's output stays on
-# the account: a deliverTo naming another destination is refused (REQUOTE_REFUSED, deliverToNotPermitted).
+# Delivering elsewhere is a requote with deliverTo. With an API key an
+# address is refused (REQUOTE_REFUSED, deliverToNotPermitted); a wallet not
+# linked to the venue account comes back unorderable: sourceRefusal.code
+# TRADING_SOURCE_NOT_LINKED and next.kind requote.
 target=$(jq -c 'first(.quotes[] | select(.location.kind == "offChain")) // empty' <<<"$quotes")
 if [[ -z $target ]]; then
   echo '{"deliverTo":"no off-chain quote to try"}' >&2

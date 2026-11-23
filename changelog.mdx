@@ -5,6 +5,48 @@ description: "Every change to the TetraFi API that a client can see, newest firs
 
 During the pilot the API can still change, and every change a client can see is listed here with what to do. From general availability on, changes follow the [compatibility policy](/compatibility): additive within a version, and a breaking change only as a new dated version that your key reaches when you choose ([Versioning](/reference/conventions#versioning)).
 
+<Update label="2026-11-23" description="Venue account balances, accounts and settlement movements; order retries">
+  - **Breaking.** `GET /api/v1/workspaces/{workspaceId}/venue-accounts/{venueAccountId}/balances` is removed (404). Read one venue account's balances with `GET /api/v1/workspaces/{workspaceId}/balances?accountId={venueAccountId}`, and add `Cache-Control: no-cache` to read the venue now. `no-cache` needs exactly one venue account in `accountId`; anything else is `400 INVALID_REQUEST` naming `Cache-Control`.
+  - **Breaking.** A balance row's `asOf` is renamed `observedAt`, and the `sort` key with it. Each row gains `available` (what can be spent or moved now), `locked` (what the provider holds back), `expiresAt` (when the reading stops being current) and `source` (where it came from); `available` and `locked` are `null` when unknown. A venue account's old `total` is `amount`, and its `free` is `amount` less `locked`.
+  - **Breaking.** `GET …/venue-accounts/{venueAccountId}/settlement/movements` and `…/settlement/movements/{movementId}` are removed (404). Read them with `GET /api/v1/workspaces/{workspaceId}/movements?kind=settlementTransfer&accountId={venueAccountId}` (`settlements_read`), filtered by `windowId` or `subjectId`; `include=observation` answers in `included.observation[{venueAccountId}]`. One movement is `GET …/movements/{movementId}`. Send these reads unsigned: a key that signs its requests is refused. Verifying a movement and asking for a fresh read are unchanged.
+  - **Breaking.** `GET …/venue-enablements` has left the API reference. List venue accounts with `GET /api/v1/workspaces/{workspaceId}/accounts?kind=venueAccount` (`treasury_read`); each item's `ref.resourceId` is its `venueAccountId`. One account is `GET …/accounts/{accountId}`, with the list's `accountId`.
+  - Retrying `POST /api/v1/orders` or `POST …/orders/{orderId}/steps/{stepId}` with the same `Idempotency-Key` returns the stored answer only when every amount in it names its asset. An answer stored before amounts carried their asset now gets `409 IDEMPOTENCY_RECEIPT_UNREADABLE` instead: read the order back with `GET /api/v1/orders/{orderId}` (`details.readTarget`), and never send it again with a new key.
+</Update>
+
+<Update label="2026-11-22" description="Custody account readiness">
+  - **Breaking.** `CapabilityUnlockStep` now returns `connectCustodyAccount` instead of `connectCustodian`. Match the new `unlockStep` value; the `NO_USABLE_CREDENTIAL` blocker code is unchanged. Treat an unknown step as other.
+</Update>
+
+<Update label="2026-11-22" description="Names are stable">
+  - From today the names in the API reference stay as they are: endpoint paths, operation ids, field and schema names, error codes and webhook event names. None of them is renamed before launch ([Names are stable](/compatibility#names-are-stable)).
+  - Before launch, a change that is not backward compatible can still happen, for example a field gaining a richer type; each one is listed here on the day it ships, with what to change. Enum values are not yet covered: they may still be re-cased in one announced change, so treat an unknown value as "other".
+  - One recent change to check: if `POST /api/v1/orders` fails after an order may already have reached the venue, it answers `503 VENUE_TRADE_PREPARATION_UNAVAILABLE` with `details.placementEffect: uncertain`, where it answered `404 VENUE_CONNECTION_NOT_FOUND`, `400 VENUE_CONNECTION_INVALID` or `404 VENUE_TRADE_PREPARATION_NOT_FOUND`. Read the order back before sending another.
+</Update>
+
+<Update label="2026-11-22" description="Venue key refusals on reads, External wallets on /me, asset paging">
+  - A venue-account read (balances, deposit history) whose key the venue refuses answers that key's own code with `details.remedy`: `409 VENUE_KEY_REFUSED`, `VENUE_KEY_REFUSED_IP_OR_KEY`, `VENUE_KEY_REFUSED_LIKELY_IP_WHITELIST`, `VENUE_KEY_MALFORMED`, `VENUE_KEY_REFUSED_PERMISSION_MISSING` or `VENUE_ACCOUNT_INACTIVE`, or `503 VENUE_UNREACHABLE` (retry). It answered `409 RESOURCE_CONFLICT` before. Deposit history refused on every pair you asked for answers `409` with that code; a refused pair beside answered ones names the code as its `reasonCode`.
+  - With an API key or OAuth token, `credentialRevision`, `keyFingerprint` and a quote card's `confirm.expectedCredentialRevision` are `null` in every response, nested rows and `include` relations included: key metadata is for members. A response that cannot be prepared this way answers `500 RESPONSE_PROJECTION_FAILED` and sends nothing else; read the resource back before you send the request again.
+  - `GET /api/v1/me` adds `organisationWallets.clientSigned`: the External wallets the key trades from by signing each step itself, which need no grant, with its own `blockedBy`. It lists at most 100 wallets; `truncated: true` means there are more. `organisationWallets.blockedBy` now covers only wallets TetraFi signs for.
+  - **Breaking.** `GET /api/v1/assets` pages by a new cursor that remembers the filters it was asked with (`venueId`, `venueCode`, `network`, `address`): a cursor just issued always reads the next page. A cursor from before this change answers `400 CURSOR_INVALID`; one sent with other filters answers `409 CURSOR_STALE`. In both cases start again from the first page, or send the first page's filters.
+  - A `204` reply (deleting a webhook) carries no body.
+</Update>
+
+<Update label="2026-11-22" description="Money on fills and venue trades names its asset">
+  - **Breaking.** These amounts are now `{amount, asset}`: the decimal string they were before, with the asset their own record names. On an order: `fills[].amount`, `fills[].sellAmount`, `quotedBuyAmount`, `settledBuyAmount`, and a Basic order's `operation.dispatch.inputSpent`, `outputReceived` and `quotedOutput`. On a trade (`GET /api/v1/workspaces/{workspaceId}/trades` and `…/trades/{tradeId}`): `inputSpent`, `outputReceived`, `feesPaid` and `financials.quotedOutput`. Read `.amount` where you read the string, and take the asset from `.asset` rather than the order's pair.
+  - **Breaking.** A trade leg's money moved the same way: `creditedAmount`, `declaredPayoutFee`, `consentedPayoutFee` and `currentPayoutFee` on the leg, the payout breakdown's `withdrawn`, `fee`, `receivedMin` and `receivedMax`, and a bank arrival's `statementAmount`. Bank deposit instructions name their `asset`.
+  - The venue-account settlement schemas are named `VenueAccountDepositConfirmation`, `VenueAccountDepositSettlement`, `VenueAccountSettlement` and `VenueAccountFillSettlement` (they were `Cex…`). The wire is unchanged; regenerate client types.
+</Update>
+
+<Update label="2026-11-22" description="Hosted wallets and the organisation spelling">
+  - **Breaking.** The binding target kind (`FundsTargetKind`) `organizationWallet` is now `hostedWallet`: a wallet run by a provider for your workspace. Send `hostedWallet` where you named a target kind, and read it in binding defaults and target views.
+  - **Breaking.** The schemas `OrganizationSetupCreatorTradeGrant` and `OrganizationSetupCreatorTradeGrantState` are `OrganisationSetupCreatorTradeGrant` and `OrganisationSetupCreatorTradeGrantState`. Field names and values are unchanged; only generated type names move (the SDK follows).
+</Update>
+
+<Update label="2026-11-22" description="Order steps: a swap is a venue fill with a kind">
+  - **Breaking.** A Uniswap swap step in an order's step history (`operation.steps[]`) reads `summary.purpose` `venueFill`, like every venue's fill step; `uniswapExactInputSingle` and `uniswapExactInputPath` are gone. Match `venueFill`.
+  - A venue's fill step carries `summary.kind`: `swap` for a swap inside one chain, null on every other step. The set is open: treat a kind you do not know as other.
+</Update>
+
 <Update label="2026-11-21" description="Pairs: stable ids, pages, fields and one vocabulary for unread sources">
   - **Breaking.** [`GET /api/v1/pairs`](/api-reference/trading/list-pairs) is always paged: 100 pairs by default, `limit` up to 1000 (a larger value is read as 1000), and `limit=0` is `400 INVALID_REQUEST`. Follow `nextCursor`, or narrow the list with `sellAsset` or `buyAsset`.
   - Each pair has a stable `id`, `SELL~BUY` (for example `USDC~ETH`). `fields=` returns only the fields you name; `id`, `sell` and `buy` are always kept. Every page carries an `ETag` for `If-None-Match`.

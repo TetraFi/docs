@@ -76,8 +76,8 @@ Any other field, at any depth of the body, is refused with `400 INVALID_REQUEST`
     }
   ],
   "sources": [
-    { "status": "answered", "venue": { "id": "...", "modality": "orderBook" }, "asked": true, "detail": null },
-    { "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": false, "reason": "pairNotServed", "detail": null }
+    { "status": "answered", "venue": { "id": "...", "modality": "orderBook" }, "asked": "consulted", "detail": null },
+    { "status": "unsupported", "venue": { "id": "...", "modality": "bridge" }, "asked": "notConsulted", "reason": "pairNotServed", "detail": null }
   ]
 }
 ```
@@ -176,7 +176,7 @@ The stream reports the search only. Follow an order through its status or [webho
 <ParamField body="priceProtectionBps" type="integer">How far a non-firm executable quote may deliver below its quote: 0 to 1000, 30 when omitted. Example: `"priceProtectionBps": 100`</ParamField>
 
 - A venue must pass every filter you send to be asked.
-- A venue that does not is listed in `sources` with `status: "filteredOut"` and `asked: false`.
+- A venue that does not is listed in `sources` with `status: "filteredOut"` and `asked: "notConsulted"`.
 - When nothing is left, `quotes` is empty and `sources` shows why.
 
 </Accordion>
@@ -222,7 +222,7 @@ Every venue has one type, in `venue.modality` on each source and quote leg. Trea
 `filters.venues` matches `venue.id`, the route that executes, such as `binance-orderbook`. It does not match `venue.venueId`, the named venue (`binance`), which can have several routes. Take ids from `sources[].venue.id` or a [price](/search/prices) row's `venue.id`.
 
 ```json
-{ "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": true }
+{ "status": "answered", "venue": { "id": "binance-orderbook", "venueId": "binance", "modality": "orderBook" }, "asked": "consulted" }
 ```
 
 Include:
@@ -364,11 +364,19 @@ Each key may send one live quote request every 3 seconds ([Rate limits](/referen
 
 ## Use values from discovery
 
-Never hardcode assets, chains or venues: read them from `GET /api/v1/assets` and `sources[].venue.id`.
+Never hardcode pairs, chains or venues: read what you can trade from `GET /api/v1/pairs`, asset details from `GET /api/v1/assets`, and venue ids from `sources[].venue.id`.
+
+<Accordion title="The pairs response">
+
+[`GET /api/v1/pairs`](/api-reference/trading/list-pairs) lists the directed pairs (`sell` → `buy`) your enabled venues trade, each with its `routes`: the venue, its `location`, and for an on-chain leg the `sellNetwork` and `buyNetwork` to pin. Name your sell asset (`sellAsset=USDC`), and the buy asset too to check one pair. A pair it does not list cannot be quoted yet: `hint` says what to connect, and `unreachable` names a source it could not read (`notReadYet`: read again in a few seconds).
+
+A route can carry `constraints`, what the venue itself publishes about the market: `minBaseSize`, `maxBaseSize` and `baseIncrement` in its `base` asset, `quoteIncrement` and `priceTick` in its `quote` asset, and `endsAt`. Use them to pre-check an amount; they are never your account's limits, and a figure that is absent is unknown.
+
+</Accordion>
 
 <Accordion title="The assets response">
 
-`GET /api/v1/assets` returns what your workspace can trade, and needs the Read quotes permission:
+`GET /api/v1/assets` is the asset catalogue of your enabled venues: each asset's variants, networks and decimals. It needs the Read quotes permission:
 
 ```json
 {
@@ -430,7 +438,7 @@ The ones you meet while searching ([error body](/trade/errors#read-a-refusal)); 
 | `API_KEY_ORGANISATION_WALLET_NOT_GRANTED` | An API key's `deliverTo` names an address outside the workspace's organisation wallets. Deliver to an organisation wallet the key may use ([Where the output goes](/trade/wallets-and-accounts#where-the-output-goes)). |
 | `RATE_LIMITED` | More than one live quote request in 3 seconds. Wait `Retry-After` seconds. |
 | `IDEMPOTENCY_CONFLICT` | An `Idempotency-Key` already used with a different body. Use a new key for a new request. |
-| `IDEMPOTENCY_KEY_INVALID` | The key is empty, longer than 255 bytes, or sent with a stream. Send 1 to 255 bytes, on a JSON request only. |
+| `IDEMPOTENCY_KEY_INVALID` | The key is repeated, padded, longer than 255 bytes, or sent with a stream. Send 1 to 255 bytes, on a JSON request only (an empty value counts as no key). |
 
   </Accordion>
   <Accordion title="Chains, venues, filters">

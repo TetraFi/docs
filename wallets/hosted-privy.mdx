@@ -1,0 +1,58 @@
+---
+title: "Privy"
+description: "Create hosted wallets that run on Privy, in the account TetraFi provides or in your own Privy app."
+keywords: ["Privy", "hosted wallet", "Provided by TetraFi", "Bring your own account", "app secret"]
+---
+
+import CreateHostedWallet from '/snippets/wallets/create-hosted-wallet.mdx';
+
+A [hosted wallet](/wallets/overview#who-controls-the-funds) whose key Privy runs in a secure enclave, shown as "Runs on Privy". EVM or Solana.
+
+**Can I trade from it?** Yes, once its owners approve a trading grant; an API key also needs the wallet granted to it. See [Use a wallet in a trade](/wallets/use-in-a-trade).
+
+| Connection | Set up | Status |
+| --- | --- | --- |
+| **Provided by TetraFi** | Nothing. Wallets live in the Privy account TetraFi operates, with no contract or bill from Privy. | Available |
+| **Bring your own account** | Connect your Privy app. The provider relationship, dashboard and billing are yours. | Available |
+
+## Use Privy provided by TetraFi
+
+There is nothing to connect. When you create a wallet, choose **Privy · Provided by TetraFi**. Its owners approve with their own sign-in methods, checked by Privy.
+
+## Connect your own Privy app
+
+You need **Manage credentials**, the app's ID and an app secret from the Privy dashboard (**App settings**).
+
+<Steps>
+  <Step title="Start the connection">
+    In **Treasury › Providers**, under Privy, choose **Connect your Privy app**. Enter the **Privy app ID**, the **App secret** and, if you like, a name for it in TetraFi. The secret is write-only: TetraFi never shows it again.
+  </Step>
+  <Step title="Choose what TetraFi may do">
+    **Read them**: use a read-only app secret. TetraFi sees every wallet in the app and can move nothing.
+
+    **Read them and prepare payments for your owners**: use a full-access app secret. TetraFi uses it only on wallets whose owners approve each request.
+  </Step>
+  <Step title="Connect">
+    Choose **Connect** and confirm with your second factor. TetraFi checks the app ID and secret with Privy and, if Privy refuses them, says what it refused.
+  </Step>
+</Steps>
+
+<AccordionGroup>
+  <Accordion title="Why a full-access secret needs care">
+    Privy has no narrower secret. A full-access secret can move funds from every wallet in the app that has **no owner**. Wallets created through TetraFi always have owners, so it cannot move theirs alone. Keep wallets without owners out of an app you connect this way.
+  </Accordion>
+  <Accordion title="Replace the secret">
+    In **Treasury › Providers**, choose **Rotate key** on the connection and enter a new app secret of the same Privy app. Then retire the old secret in the Privy dashboard.
+  </Accordion>
+</AccordionGroup>
+
+## Create a Privy wallet
+
+<CreateHostedWallet />
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Who controls the funds" icon="users" href="/wallets/overview#who-controls-the-funds">Owners, threshold and what Privy can do alone.</Card>
+  <Card title="Networks" icon="network-wired" href="/wallets/networks">Switch the wallet's networks on and off.</Card>
+</CardGroup>

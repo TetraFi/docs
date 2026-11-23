@@ -4,6 +4,9 @@ description: "Start an organisation wallet, or a member's own personal wallet, w
 keywords: ["create wallet", "organisation wallet", "owners", "threshold", "Turnkey"]
 ---
 
+import CreateHostedWalletSample from '/snippets/samples/create-hosted-wallet.mdx';
+import FollowHostedWalletSample from '/snippets/samples/follow-hosted-wallet.mdx';
+
 A member's own API key can start an organisation wallet (with `treasury_write`) or the member's own personal wallet (with `orders_write`, where Advanced is enabled). Each owner chooses their own sign-in methods and approves it on their own signing page, so no wallet exists at the provider until they have.
 
 ## At a glance
@@ -21,36 +24,25 @@ The key's member also needs View wallets for a personal wallet, or Manage wallet
 
 <Steps>
   <Step title="Start it">
-    `POST /api/v1/workspaces/{workspaceId}/wallets` with `scope` (`organisation`, or `personal` for the key's own member), a `connectionId` (a workspace wallet connection, or `platform-turnkey`), `family`, `networks`, `displayName` and an `ownerGroup`: the people who approve, each with an empty `factors` list and no `walletId`, and the `threshold`. A personal wallet's group is the key's member alone, threshold 1. Send an `Idempotency-Key`. The answer is `202` with the pending wallet and `signingRequest.approvalUrl`.
+    `POST /api/v1/workspaces/{workspaceId}/wallets` with `scope` (`organisation`, or `personal` for the key's own member), a `connectionId`, `family`, `networks`, `displayName` and an `ownerGroup`: the people who approve, each with an empty `factors` list and no `walletId`, and the `threshold`. A personal wallet's group is the key's member alone, threshold 1. Send an `Idempotency-Key`. The answer is `202` with the pending wallet and `signingRequest.approvalUrl`.
 
-```json Request body
-{
-  "scope": "organisation",
-  "connectionId": "platform-turnkey",
-  "family": "evm",
-  "networks": ["eip155:84532"],
-  "displayName": "Treasury",
-  "ownerGroup": {
-    "members": [
-      { "person": "<workspace user id>", "factors": [], "needed": 1 },
-      { "person": "<workspace user id>", "factors": [], "needed": 1 }
-    ],
-    "threshold": 2
-  }
-}
-```
+    `connectionId` is a workspace wallet connection (your own account) or TetraFi's: `platform-privy` (Privy provided by TetraFi). `platform-turnkey` (Turnkey provided by TetraFi) is rolling out: until then it answers `409 PLATFORM_PROVIDER_NOT_CONFIGURED`.
+
+<CreateHostedWalletSample />
   </Step>
   <Step title="Send the owners to approve">
     Each owner, the key's member included, opens `approvalUrl`, signs in, chooses their sign-in methods and proves them. For an organisation wallet the key's member first confirms it was them with an authenticator app or security key. With `returnUrl`, on one of the workspace's registered wallet callback origins, the page sends them back with `signingRequestId` and `outcome`.
   </Step>
   <Step title="Follow it">
     `GET …/wallets/{walletId}` until `status` is `active`, or `failed`, `expired`, `cancelled` or `declined`; after any of the last four, start again. `missing` names who has not approved yet. `GET …/wallets?status=pending` lists the pending ones.
+
+<FollowHostedWalletSample />
   </Step>
 </Steps>
 
 <AccordionGroup>
   <Accordion title="What a key may not do">
-    A key never names how a person approves: an owner sent with factors or a `walletId` is `403 API_KEY_WALLET_FACTORS_REFUSED`, and nothing is recorded. Each person picks their own sign-in methods or wallet on the approval page. A key needs the scope its body needs: `orders_write` for a personal wallet, `treasury_write` for an organisation wallet (`403 INSUFFICIENT_SCOPE` otherwise, with `details.requiredScope`). A key holding neither is refused before its body is read, and that refusal's `details.requiredScope` names `orders_write`. A personal wallet where Advanced is not enabled is `403 ADVANCED_MODE_DISABLED`, and a service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`. A key sends no `stepUpProof`, `tradeFromThisWallet` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`): set access and grants in the app. An API key never approves.
+    A key never names how a person approves: an owner sent with factors or a `walletId` is `403 API_KEY_WALLET_FACTORS_REFUSED`, and nothing is recorded. Each person picks their own sign-in methods or wallet on the approval page. A key needs the scope its body needs: `orders_write` for a personal wallet, `treasury_write` for an organisation wallet (`403 INSUFFICIENT_SCOPE` otherwise, with `details.requiredScope`). A key holding neither is refused before its body is read, and that refusal's `details.requiredScope` names `orders_write`. A personal wallet where Advanced is not enabled is `403 ADVANCED_MODE_DISABLED`, and a service account's key is `403 API_KEY_WALLET_CREATOR_NOT_A_PERSON`. A key sends no `stepUpProof` or `initialAccess` (`403 API_KEY_WALLET_GRANT_REFUSED`): set access and grants in the app. An API key never approves.
   </Accordion>
   <Accordion title="Withdraw a creation">
     `POST …/wallets/{walletId}/cancel` with an `Idempotency-Key`, and the scope the creation needed. A `pending` creation is withdrawn at once and reads `cancelled`. An `uncertain` one is checked at the provider first and refused by name when the wallet may exist there. Any other status is `409 WALLET_CREATION_NOT_CANCELLABLE`.

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Exchange account balances: list your exchange accounts, then read one account's balances and
-# its deposit history. Reads only.
+# Exchange account balances: list your exchange accounts, then read one account's balances,
+# as recorded and from the venue now, and its deposit history. Reads only.
 #
 # Needs bash, curl, jq and openssl. Reads:
 #   TETRAFI_BASE_URL          https://api.tetrafi.io in production
 #   TETRAFI_API_KEY           your API key, with Treasury read switched on
 #   TETRAFI_WORKSPACE_ID      your workspace id: the path names it
 #   TETRAFI_SIGNING_SECRET    the key's signing secret, when the key signs its requests
+#   TETRAFI_VENUE_ACCOUNT_ID  optional: the venue account to read; else the first listed
 #
 # The last line printed is one JSON summary. The script exits 1 when an answer breaks the contract
 # it checks.
@@ -58,32 +59,44 @@ tetrafi() {
 fail() { echo "{\"error\":\"$1\"}" >&2; exit 1; }
 
 # region venue-accounts-list
-# GET …/venue-enablements lists the workspace's exchange accounts, oldest first: pass nextCursor
-# back as cursor until it is null. Each item's accountId is the {venueAccountId} of the reads below.
-# Take one that is configured and holds its money at the venue (venueKind accountBased).
-account='' cursor=''
+# GET …/accounts?kind=venueAccount lists the workspace's exchange accounts:
+# pass nextCursor back as cursor until it is null. Each item's ref.resourceId
+# is the {venueAccountId} of the reads below.
+account=${TETRAFI_VENUE_ACCOUNT_ID:-} cursor=''
 for _ in 1 2 3 4 5; do
-  page=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-enablements?limit=20${cursor:+&cursor=$cursor}")
-  jq -c '.items[:3][] | {accountId, venueId, label, lifecycle, venueKind}' <<<"$page" >&2
-  account=$(jq -r 'first(.items[] | select(.lifecycle == "configured" and .venueKind == "accountBased")
-    | .accountId) // empty' <<<"$page")
+  page=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/accounts?kind=venueAccount&limit=20${cursor:+&cursor=$cursor}")
+  jq -c '.items[:3][] | {venueAccountId: .ref.resourceId, provider, displayName,
+    environment, reading: .readingState.status}' <<<"$page" >&2
+  [[ -n $account ]] || account=$(jq -r '.items[0].ref.resourceId // empty' <<<"$page")
   cursor=$(jq -r '.nextCursor // empty' <<<"$page")
   [[ -n $account || -z $cursor ]] && break
 done
 # endregion
 if [[ -z $account ]]; then
-  echo '{"balances":null,"reason":"NO_CONFIGURED_EXCHANGE_ACCOUNT"}'
+  echo '{"balances":null,"reason":"NO_EXCHANGE_ACCOUNT"}'
   exit 0
 fi
 
 # region venue-balances
-# GET …/venue-accounts/{venueAccountId}/balances reads the account's balances as the venue last
-# reported them. balances null means no observation; [] is a real empty account. available is the
-# venue's free balance less TetraFi's open trades and withdrawals, null when unknown; valueUsd is
-# null without a reference price, never 0. A balance never authorizes a payment.
-balances=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/balances")
-jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then null else
-  [.[] | {asset, total, free, available, valueUsd}] end)}' <<<"$balances" >&2
+# GET …/balances?accountId={venueAccountId} reads the account's balances as the
+# venue last reported them, one row per asset; follow nextCursor for the rest.
+# amount is the total, available what you can trade now (null when unknown),
+# locked what the venue holds back. valueUsd is null without a price, never 0.
+# An account that could not be read is in unreachable, never a zero row.
+path="/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/balances?accountId=$account"
+balances=$(tetrafi GET "$path&limit=20")
+jq -c '{rows: [.items[:5][] | {asset, amount, available, locked, valueUsd,
+  observedAt, source, freshness}], unreachable}' <<<"$balances" >&2
+# Cache-Control: no-cache reads the venue now, for one venue account only. A
+# venue that refuses the read is a named error; the recorded rows still stand.
+if fresh=$(tetrafi GET "$path&limit=20" "" "Cache-Control: no-cache" 2>/dev/null)
+then
+  jq -c '{rows: (.items | length), observedAt: .items[0].observedAt,
+    expiresAt: .items[0].expiresAt, unreachable}' <<<"$fresh" >&2
+else
+  jq -c '{refused: .error, message}' <<<"$fresh" >&2
+  fresh=$balances
+fi
 # endregion
 
 # region venue-deposit-history
@@ -95,26 +108,33 @@ jq -c '{status, observedAt, expiresAt, balances: (.balances | if . == null then 
 # include=observation returns each pair's own window and status, keyed by the same pair id.
 history=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/$account/deposit-history?include=observation")
 jq -c '{deposits: (.items | length),
-  pairs: [.included.observation | to_entries[] | {pair: .key, status: .value.status, since: .value.since}],
+  pairs: [.included.observation | to_entries[] | {pair: .key, status: .value.value.status,
+    since: .value.value.since}],
   unreachable: [.unreachable[] | {id, reason}]}' <<<"$history" >&2
 # endregion
 
-jq -e 'has("balances") and has("status") and has("observedAt")' <<<"$balances" >/dev/null || fail BALANCES_SHAPE
-jq -e '(.balances // []) | all(has("asset") and has("total") and has("free"))' <<<"$balances" >/dev/null \
+jq -e 'has("items") and has("nextCursor") and has("unreachable")' <<<"$balances" \
+  >/dev/null || fail BALANCES_SHAPE
+jq -e '.items | all(has("asset") and has("amount") and has("available")
+  and has("locked") and has("observedAt"))' <<<"$fresh" >/dev/null \
   || fail BALANCE_LINE_SHAPE
 jq -e 'has("items") and has("unreachable")' <<<"$history" >/dev/null || fail DEPOSIT_HISTORY_SHAPE
 
 # A cursor the list did not issue is refused by name, never read as an empty page.
-if foreign=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-enablements?cursor=not-issued-by-this-list" 2>/dev/null); then
+if foreign=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/accounts?kind=venueAccount&cursor=not-issued-by-this-list" 2>/dev/null); then
   fail FOREIGN_CURSOR_READ
 fi
 [[ $(jq -r '.error // empty' <<<"$foreign") == CURSOR_INVALID ]] || fail FOREIGN_CURSOR_REFUSAL
-# An account id this workspace doesn't hold is refused by name, never read as an empty account.
-if unknown=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/venue-accounts/00000000-0000-4000-8000-000000000000/balances" 2>/dev/null); then
-  fail UNKNOWN_ACCOUNT_READ
+# no-cache without one venue account of this workspace is refused, naming
+# Cache-Control, never answered from what is recorded.
+if unknown=$(tetrafi GET "/api/v1/workspaces/$TETRAFI_WORKSPACE_ID/balances" "" \
+  "Cache-Control: no-cache" 2>/dev/null); then
+  fail NO_CACHE_WITHOUT_ACCOUNT_READ
 fi
-[[ $(jq -r '.error // empty' <<<"$unknown") == VENUE_ACCOUNT_NOT_FOUND ]] || fail UNKNOWN_ACCOUNT_REFUSAL
+[[ $(jq -r '.error + ":" + .details.field' <<<"$unknown") == INVALID_REQUEST:Cache-Control ]] \
+  || fail NO_CACHE_WITHOUT_ACCOUNT_REFUSAL
 
-jq -cn --argjson b "$balances" --argjson h "$history" '{status: $b.status,
-  assets: (($b.balances // []) | length), unknownAccount: "VENUE_ACCOUNT_NOT_FOUND", foreignCursor: "CURSOR_INVALID",
+jq -cn --argjson b "$fresh" --argjson h "$history" '{assets: ($b.items | length),
+  unreachable: ($b.unreachable | length), noCacheWithoutAccount: "INVALID_REQUEST",
+  foreignCursor: "CURSOR_INVALID",
   depositHistory: (if ($h.unreachable | length) > 0 then "unavailable" else ($h.items | length) end)}'

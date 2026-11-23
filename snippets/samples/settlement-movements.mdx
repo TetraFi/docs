@@ -3,10 +3,19 @@
 <CodeGroup>
 
 ```bash cURL
-# Deposits and withdrawals as TetraFi recorded them. include=observation says how current the page is
-# (observationState, lastSuccessfulReadAt); an unreachable entry (source lpHistory) is not "no movements".
-movements=$(tetrafi GET "$base/settlement/movements?limit=20&include=observation")
-jq -c '{observation: ([.included.observation // {} | .[].value][0]), unreachable, count: (.items | length)}' <<<"$movements" >&2
+# The account's deposits and withdrawals as TetraFi recorded them: GET
+# …/movements with kind=settlementTransfer and its accountId, newest first.
+# include=observation says how current they are, keyed by the account id. The
+# list reads each source as the caller, which a signed request cannot lend: a
+# key that signs its requests is refused, so read it with a key that does not.
+movements=''
+if [[ -z ${TETRAFI_SIGNING_SECRET:-} ]]; then
+  movements=$(tetrafi GET "/api/v1/workspaces/$workspace/movements?kind=settlementTransfer&accountId=$account&limit=20&include=observation")
+  jq -c --arg a "$account" '{observation: .included.observation[$a].value,
+    count: (.items | length)}' <<<"$movements" >&2
+else
+  echo '{"movements":"skipped: read them with a key that does not sign"}' >&2
+fi
 ```
 
 ```typescript TypeScript SDK

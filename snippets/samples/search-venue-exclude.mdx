@@ -20,7 +20,7 @@ jq -c --arg v "$venue" '.sources[] | select(.venue.id == $v)' <<<"$without" >&2
 // Every venue but that one is asked. Excluding the only venue that answered can leave no quotes, which is
 // a valid answer: the sources still say what every other venue did.
 const excluded = await client.quote({ ...base, filters: { ...base.filters, venues: { exclude: [venue] } } });
-const askedExcluded = excluded.sources.some((source) => source.venue.id === venue && source.asked);
+const askedExcluded = excluded.sources.some((source) => source.venue.id === venue && source.asked === 'consulted');
 ```
 
 </CodeGroup>
